@@ -15,4 +15,9 @@
 	</button>
 	<p class="text-xs opacity-60">{m.tools.dropHint}</p>
 </div>
-<MediaBin {editor} oninsert={(id) => editor.insertSource(id, player.time)} onremoved={() => player.syncSources()} />
+<MediaBin
+	{editor}
+	oninsert={(id) => editor.insertSource(id, player.time)}
+	oninsertImage={(id) => actions.addImage(id)}
+	onremoved={() => player.syncSources()}
+/>

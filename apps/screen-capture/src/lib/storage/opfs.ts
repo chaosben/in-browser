@@ -101,9 +101,9 @@ export async function clearExports(keep?: string): Promise<void> {
 	await Promise.all(names.map((n) => exportsDir.removeEntry(n).catch(() => {})));
 }
 
-/** Deletes files in the media folder that belong to no source of the project (e.g. after aborts). */
+/** Deletes files in the media folder that belong to no source or image of the project (e.g. after aborts). */
 export async function cleanupMedia(project: Project): Promise<void> {
-	const keep = new Set(project.sources.flatMap((s) => [s.file, `${s.id}.peaks.json`]));
+	const keep = new Set([...project.sources.flatMap((s) => [s.file, `${s.id}.peaks.json`]), ...project.images.map((i) => i.file)]);
 	const orphans = (await listMediaFiles(project.id)).filter((name) => !keep.has(name));
 	await Promise.all(orphans.map((name) => deleteMediaFile(project.id, name)));
 }

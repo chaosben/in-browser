@@ -18,6 +18,7 @@ import { openInput, pickAudioCodec } from '#lib/media/media.js';
 import type { Project, VideoClip } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { fontsOf, loadFont } from '#lib/render/fonts.svelte.js';
+import { loadPictures, setImageProject } from '#lib/render/images.svelte.js';
 import { clearExports, exportWritable, mediaFile } from '#lib/storage/opfs.js';
 import { clipsAt, clipsOf, duration, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { outputSize, videoBitrate, type ExportSettings } from './settings';
@@ -88,6 +89,9 @@ export async function exportProject(
 
 	// Canvas text only uses fonts that are already loaded
 	await Promise.all(fontsOf(project.timeline.items).map(loadFont));
+	// Likewise own images and icons
+	setImageProject(project.id, project.images);
+	await loadPictures(project.timeline.items);
 
 	const fileName = `${project.name.replace(/[^\p{L}\p{N} _-]+/gu, '').trim() || 'video'}.mp4`;
 	await clearExports();

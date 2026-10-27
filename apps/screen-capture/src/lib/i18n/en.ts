@@ -157,9 +157,23 @@ const en = {
 	},
 
 	tools: {
-		groups: { media: 'Media', annotations: 'Annotations', text: 'Text', zoom: 'Zoom' },
+		groups: { media: 'Media', annotations: 'Annotations', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
 		collapse: 'Collapse panel',
-		dropHint: 'Or drop video or audio files anywhere onto the editor.'
+		dropHint: 'Or drop video, audio or image files anywhere onto the editor.'
+	},
+
+	icons: {
+		search: 'Search icons (English names)',
+		searchAll: 'Search all icons (English names)',
+		hint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline',
+		insert: (name: string) => `Insert icon ${name}`,
+		categories: { arrows: 'Arrows', notices: 'Notices', status: 'Status', input: 'Mouse & keyboard', objects: 'Objects', people: 'People' },
+		noResults: 'No matching icon.',
+		limited: (n: number) => `Showing the first ${n} – refine the search for more.`,
+		loadAll: 'Search all icons (approx. 2 MB)',
+		loadAllHint: 'Loads about 16,000 more icons. Needs an internet connection; icons you insert keep working offline.',
+		offline: 'All icons need an internet connection.',
+		loadFailed: (error: string) => `The icons could not be loaded: ${error}`
 	},
 
 	keys: { del: 'Del', ctrl: 'Ctrl' },
@@ -275,7 +289,9 @@ const en = {
 		ellipse: 'Ellipse',
 		step: 'Step',
 		stepN: (n: number) => `Step ${n}`,
-		callout: 'Speech bubble'
+		callout: 'Speech bubble',
+		image: 'Image',
+		icon: 'Icon'
 	},
 
 	fonts: {
@@ -290,6 +306,8 @@ const en = {
 		insertTitle: 'Insert at the playhead (in front of everything there)',
 		deleteForever: 'Delete permanently',
 		audioOnly: 'audio only',
+		image: 'Image',
+		insertImageTitle: 'Insert at the playhead, in the center of the picture',
 		inUse: 'Used in the timeline',
 		deleteTitle: 'Delete media?',
 		confirmDelete: (name: string) => `Delete “${name}” permanently? This cannot be undone.`,
@@ -305,6 +323,8 @@ const en = {
 		noMediaTrack: 'The file contains neither a video nor an audio track.',
 		fontFailed: (font: string, error: string) => `Font “${font}” could not be loaded: ${error}`,
 		codecUnsupported: (codec: string) => `This browser cannot decode the video codec “${codec}”.`,
+		pictureFailed: (name: string) => `Picture “${name}” could not be loaded.`,
+		unsupportedImage: (name: string) => `“${name}” is not a supported image.`,
 		unsupportedFormat: (name: string) => `“${name}” is not a supported media format.`,
 		cannotImport: (reasons: string) => `The file cannot be imported (${reasons}).`,
 		noProjectJson: (folder: string) => `No project.json was found in the folder “${folder}”.`,

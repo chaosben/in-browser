@@ -31,7 +31,10 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 				return { ...a, rect: rect(a.rect), width: a.width * sy };
 			case 'highlight':
 			case 'spotlight':
+			case 'icon':
 				return { ...a, rect: rect(a.rect) };
+			case 'image':
+				return { ...a, rect: rect(a.rect), radius: a.radius * sy };
 			case 'blur':
 				return { ...a, rect: rect(a.rect), strength: a.strength * sy };
 			case 'step':

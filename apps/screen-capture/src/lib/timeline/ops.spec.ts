@@ -372,6 +372,12 @@ describe('parseProject', () => {
 		expect(p.timeline).toEqual({ items: [], tracks: [], zoom: [] });
 		expect(p.sources[0].hasVideo).toBe(true);
 	});
+	it('older projects get an empty image list, existing ones stay', () => {
+		const base = { version: 1, id: 'x', sources: [], timeline: { items: [] } };
+		expect(parseProject(base).images).toEqual([]);
+		const images = [{ id: 'i', file: 'i.png', name: 'Logo', width: 10, height: 10 }];
+		expect(parseProject({ ...base, images }).images).toEqual(images);
+	});
 	it('fills in font and shadow of older annotations so they look the same', () => {
 		const old = (kind: string, extra = {}) => ({ id: kind, type: 'annotation', kind, start: 0, end: 1, track: 0, ...extra });
 		const p = parseProject({

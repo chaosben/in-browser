@@ -11,13 +11,15 @@
 	import Timeline from '#lib/components/Timeline.svelte';
 	import ToolPanel from '#lib/components/ToolPanel.svelte';
 	import ToolRail from '#lib/components/ToolRail.svelte';
+	import { IMAGE_ACCEPT, importImage, isImageFile } from '#lib/media/images.js';
 	import { importFile, isMediaFile, MEDIA_ACCEPT } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
 	import { Player } from '#lib/preview/player.svelte.js';
-	import { createOverlay, createZoom, FREEZE_ICON } from '#lib/project/defaults.js';
+	import { createIcon, createImage, createOverlay, createZoom, FREEZE_ICON } from '#lib/project/defaults.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
-	import type { Annotation, AnnotationKind, Point } from '#lib/project/types.js';
+	import type { Annotation, IconData, Point, ToolKind } from '#lib/project/types.js';
+	import { setImageProject } from '#lib/render/images.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { hasDragPayload, readDragPayload, type DragPayload } from '#lib/tools/drag.js';
 	import { folderSupported, saveToFolder } from '#lib/storage/folder.js';
@@ -95,6 +97,11 @@
 		return { width: Math.round(width * scale), height: Math.round(height * scale) };
 	});
 
+	// Pictures of image annotations are loaded from this project
+	$effect(() => {
+		if (editor) setImageProject(editor.project.id, editor.project.images);
+	});
+
 	// Setting the canvas size clears it (e.g. after growing the canvas or undoing that): draw again
 	$effect(() => {
 		void previewSize;
@@ -138,11 +145,33 @@
 		player.seek(t);
 	}
 
-	function addAnnotation(kind: AnnotationKind, at: DropPlace = {}) {
+	/** Annotation from a tool tile; same settings as the last annotation of this type */
+	function addAnnotation(kind: ToolKind, at: DropPlace = {}) {
 		if (!editor || !player) return;
 		const start = at.start ?? player.time;
-		// Same settings as the last annotation of this type
-		let overlay = applyStyle(createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline)), loadStyle(kind));
+		placeAnnotation(applyStyle(createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline)), loadStyle(kind)), at);
+	}
+
+	/** Own image from the media bin */
+	function addImage(imageId: string, at: DropPlace = {}) {
+		const image = editor?.image(imageId);
+		if (!editor || !player || !image) return;
+		const start = at.start ?? player.time;
+		const { width, height } = editor.project;
+		placeAnnotation(applyStyle(createImage(image, start, start + 3, width, height), loadStyle('image')), at);
+	}
+
+	function addIcon(icon: IconData, at: DropPlace = {}) {
+		if (!editor || !player) return;
+		const start = at.start ?? player.time;
+		const { width, height } = editor.project;
+		placeAnnotation(applyStyle(createIcon(icon, start, start + 3, width, height), loadStyle('icon')), at);
+	}
+
+	/** Adds a new annotation, centered on the drop point if there is one, and selects it */
+	function placeAnnotation(overlay: Annotation, at: DropPlace) {
+		if (!editor || !player) return;
+		const start = overlay.start;
 		if (at.point) {
 			// Center on the drop point
 			const b = overlayBounds(overlay, editor.project.width, editor.project.height);
@@ -198,6 +227,8 @@
 
 	const actions: ToolActions = {
 		addAnnotation,
+		addImage,
+		addIcon,
 		addZoom: addZoomSegment,
 		record: openRecordDialog,
 		importMedia: () => {
@@ -219,16 +250,25 @@
 		toast(m.editor.recordingAdded, 'success');
 	}
 
-	/** Imports files; audio files start at `at` (default: start of the timeline). */
-	async function importFiles(files: FileList | File[] | null | undefined, at = 0) {
-		const media = Array.from(files ?? []).filter(isMediaFile);
+	/**
+	 * Imports files. Audio files start at `place.start` (default: start of the timeline), images go there or to
+	 * the dropped point (default: playhead, centered); videos are appended at the end.
+	 */
+	async function importFiles(files: FileList | File[] | null | undefined, place: DropPlace = {}) {
+		const all = Array.from(files ?? []);
+		const media = all.filter((f) => isMediaFile(f) || isImageFile(f));
 		if (!media.length || !editor) return;
 		try {
 			for (const file of media) {
 				importing = { name: file.name, progress: 0 };
+				if (isImageFile(file)) {
+					const image = await importImage(editor.project.id, file);
+					editor.addImage(image);
+					addImage(image.id, place);
+					continue;
+				}
 				const source = await importFile(editor.project.id, file, (p) => (importing!.progress = p));
-				// Append videos at the end, audio files at `at`
-				editor.addSource(source, at);
+				editor.addSource(source, place.start ?? 0);
 				await sourcesAdded();
 			}
 		} catch (e) {
@@ -345,6 +385,8 @@
 			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : { point: previewPoint(e) };
 		if (payload.type === 'annotation') addAnnotation(payload.kind, at);
 		else if (payload.type === 'zoom') addZoomSegment(at);
+		else if (payload.type === 'image') addImage(payload.id, at);
+		else if (payload.type === 'icon') addIcon(payload.icon, at);
 		else {
 			editor.insertSource(payload.id, at.start ?? player.time);
 			if (at.start !== undefined) player.seek(at.start);
@@ -362,9 +404,12 @@
 		}
 		if (!e.dataTransfer?.files.length) return;
 		e.preventDefault();
-		// Dragged onto the timeline: audio files start at the drop position
-		const onTimeline = (e.target as HTMLElement).closest('[data-timeline]');
-		importFiles(e.dataTransfer.files, onTimeline && timeline ? timeline.timeAtClient(e.clientX) : 0);
+		// Dragged onto the timeline: audio files and images start at the drop position; images dropped onto the
+		// preview land at that spot
+		const zone = dropZone(e);
+		const place: DropPlace =
+			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : zone === 'preview' ? { point: previewPoint(e) } : {};
+		importFiles(e.dataTransfer.files, place);
 	}
 </script>
 
@@ -420,7 +465,7 @@
 			<input
 				bind:this={fileInput}
 				type="file"
-				accept={MEDIA_ACCEPT}
+				accept={`${MEDIA_ACCEPT},${IMAGE_ACCEPT}`}
 				multiple
 				hidden
 				onchange={(e) => importFiles(e.currentTarget.files)}

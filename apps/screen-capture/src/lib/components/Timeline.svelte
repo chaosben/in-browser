@@ -489,7 +489,11 @@
 									? item.text
 									: item.kind === 'step'
 										? m.kinds.stepN(item.number)
-										: OVERLAY_KINDS[item.kind].label}</span
+										: item.kind === 'image'
+											? (editor.image(item.imageId)?.name ?? OVERLAY_KINDS.image.label)
+											: item.kind === 'icon'
+												? item.icon.name
+												: OVERLAY_KINDS[item.kind].label}</span
 							>
 							{@render edges((e, part) => itemDown(e, item, part))}
 						</div>

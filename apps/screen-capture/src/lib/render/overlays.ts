@@ -2,6 +2,7 @@ import type { Annotation, CalloutAnnotation, Point, Rect, TextAnnotation } from 
 import { parseColor } from '#lib/util/color.js';
 import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
+import { iconPicture, imagePicture } from './images.svelte.js';
 
 /** Fade-in/fade-out duration in seconds. */
 export const FADE = 0.2;
@@ -141,6 +142,26 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			ctx.fill();
 			break;
 		}
+		case 'image': {
+			const picture = imagePicture(a.imageId);
+			if (!picture) break;
+			const [x, y, w, h] = px(a.rect);
+			// The shadow follows the picture's own transparency (e.g. a logo), so round corners are cut first
+			const scale = ctx.getTransform().a;
+			const image = a.radius > 0 ? rounded(picture, w * scale, h * scale, a.radius * H * scale) : picture;
+			if (a.shadow) shadow(ctx, H);
+			ctx.drawImage(image, x, y, w, h);
+			break;
+		}
+		case 'icon': {
+			const picture = iconPicture(a.icon, a.color);
+			if (!picture) break;
+			const [x, y, w, h] = px(a.rect);
+			ctx.globalAlpha = alpha * parseColor(a.color).alpha;
+			if (a.shadow) shadow(ctx, H);
+			ctx.drawImage(picture, x, y, w, h);
+			break;
+		}
 		case 'text':
 		case 'callout': {
 			const box = textBox(ctx, a, W, H);
@@ -171,6 +192,18 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 		}
 	}
 	ctx.restore();
+}
+
+/** Picture with round corners at the size it is drawn (pixels) */
+function rounded(picture: CanvasImageSource, w: number, h: number, r: number): CanvasImageSource {
+	const canvas = new OffscreenCanvas(Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+	const c = canvas.getContext('2d');
+	if (!c) return picture;
+	c.beginPath();
+	c.roundRect(0, 0, canvas.width, canvas.height, r);
+	c.clip();
+	c.drawImage(picture, 0, 0, canvas.width, canvas.height);
+	return canvas;
 }
 
 function shadow(ctx: Ctx2D, H: number) {

@@ -2,6 +2,7 @@ import { untrack } from 'svelte';
 import type { Clip, Project, Rect } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { frameArea } from '#lib/media/content.js';
+import { onPictureLoaded } from '#lib/render/images.svelte.js';
 import { mediaFile } from '#lib/storage/opfs.js';
 import { clipsAt, clipsOf, duration, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { m } from '#lib/i18n/index.js';
@@ -79,6 +80,9 @@ export class Player {
 		// Fonts of text annotations load on first use – draw again once they are there
 		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
 		document.fonts.addEventListener('loadingdone', this.#redrawLater);
+		// Likewise own images and icons
+		this.#unsubscribePictures?.();
+		this.#unsubscribePictures = onPictureLoaded(this.#redrawLater);
 		// Called from a Svelte attachment: without untrack the attachment would subscribe to the values read
 		// here (playing, time, …), rerun on every change and stop playback immediately.
 		untrack(() => this.refresh());
@@ -286,9 +290,11 @@ export class Player {
 	}
 
 	#redrawLater = () => this.redraw();
+	#unsubscribePictures: (() => void) | undefined;
 
 	destroy() {
 		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
+		this.#unsubscribePictures?.();
 		this.pause();
 		for (const { video } of this.#assigned.values()) unload(video);
 		for (const videos of this.#pool.values()) videos.forEach(unload);

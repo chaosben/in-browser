@@ -6,14 +6,17 @@ import { m } from '#lib/i18n/index.js';
 //   <folder>/project.json
 //   <folder>/media/<file>
 
+/** Files of sources and own images */
+const mediaFiles = (project: Project) => [...project.sources.map((s) => s.file), ...project.images.map((i) => i.file)];
+
 export const folderSupported = () => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
 export async function saveToFolder(project: Project): Promise<string> {
 	const target = await window.showDirectoryPicker({ id: 'screen-capture-project', mode: 'readwrite' });
 	const media = await target.getDirectoryHandle('media', { create: true });
-	for (const source of project.sources) {
-		const file = await mediaFile(project.id, source.file);
-		const writable = await (await media.getFileHandle(source.file, { create: true })).createWritable();
+	for (const name of mediaFiles(project)) {
+		const file = await mediaFile(project.id, name);
+		const writable = await (await media.getFileHandle(name, { create: true })).createWritable();
 		await file.stream().pipeTo(writable);
 	}
 	const json = await (await target.getFileHandle('project.json', { create: true })).createWritable();
@@ -38,9 +41,9 @@ export async function openFromFolder(): Promise<string> {
 		project = { ...project, id: newId(), name: `${project.name} (Kopie)` };
 	}
 	const media = await source.getDirectoryHandle('media');
-	for (const s of project.sources) {
-		const file = await (await media.getFileHandle(s.file)).getFile();
-		await file.stream().pipeTo(await mediaWritable(project.id, s.file));
+	for (const name of mediaFiles(project)) {
+		const file = await (await media.getFileHandle(name)).getFile();
+		await file.stream().pipeTo(await mediaWritable(project.id, name));
 	}
 	await saveProject({ ...project, updatedAt: Date.now() });
 	return project.id;

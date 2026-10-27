@@ -1,7 +1,7 @@
 import type { Component } from 'svelte';
 import type { Player } from '#lib/preview/player.svelte.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
-import type { AnnotationKind, Point } from '#lib/project/types.js';
+import type { IconData, Point, ToolKind } from '#lib/project/types.js';
 import type { DragPayload } from './drag.js';
 
 /** Where a dragged tile was dropped: `start` on the timeline, `point` (content coordinates) in the preview */
@@ -13,7 +13,10 @@ export interface DropPlace {
 /** Actions the editor provides to the tools */
 export interface ToolActions {
 	/** Without `at`: at the playhead in the default position */
-	addAnnotation(kind: AnnotationKind, at?: DropPlace): void;
+	addAnnotation(kind: ToolKind, at?: DropPlace): void;
+	/** Own image from the media bin */
+	addImage(imageId: string, at?: DropPlace): void;
+	addIcon(icon: IconData, at?: DropPlace): void;
 	addZoom(at?: DropPlace): void;
 	record(): void;
 	importMedia(): void;

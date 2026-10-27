@@ -194,6 +194,32 @@ export interface CalloutAnnotation extends TextBase {
 	tip: Point;
 }
 
+/** Own image from the media bin (`Project.images`), kept at its aspect ratio */
+export interface ImageAnnotation extends AnnotationBase, Shadowed {
+	kind: 'image';
+	rect: Rect;
+	imageId: string;
+	/** Corner radius as a fraction of the canvas height */
+	radius: number;
+}
+
+/** Material icon; its SVG is stored here, so it never depends on an icon collection being available */
+export interface IconAnnotation extends AnnotationBase, Shadowed {
+	kind: 'icon';
+	rect: Rect;
+	icon: IconData;
+	color: string;
+}
+
+export interface IconData {
+	/** Iconify name, e.g. `arrow-forward` */
+	name: string;
+	/** SVG content (paths with `fill="currentColor"`) */
+	body: string;
+	width: number;
+	height: number;
+}
+
 export type Annotation =
 	| ArrowAnnotation
 	| LineAnnotation
@@ -204,13 +230,18 @@ export type Annotation =
 	| SpotlightAnnotation
 	| BlurAnnotation
 	| TextAnnotation
-	| CalloutAnnotation;
+	| CalloutAnnotation
+	| ImageAnnotation
+	| IconAnnotation;
 
 export type AnnotationKind = Annotation['kind'];
 
+/** Annotations created from a tool tile (images and icons need their content) */
+export type ToolKind = Exclude<AnnotationKind, 'image' | 'icon'>;
+
 export type ShadowedAnnotation = Extract<Annotation, Shadowed>;
 
-const SHADOWED: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse', 'step', 'text', 'callout']);
+const SHADOWED: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse', 'step', 'text', 'callout', 'image', 'icon']);
 
 /** Annotations with a switchable drop shadow (not highlight, spotlight and blur) */
 export function hasShadow(a: Annotation): a is ShadowedAnnotation {
@@ -258,7 +289,18 @@ export interface Project {
 	/** Background color (`#rrggbb`, opaque), visible wherever there is no clip */
 	background: string;
 	sources: Source[];
+	/** Own images (media bin); placed as `image` annotations */
+	images: ImageAsset[];
 	timeline: Timeline;
+}
+
+/** Image file in the project's media folder */
+export interface ImageAsset {
+	id: string;
+	file: string;
+	name: string;
+	width: number;
+	height: number;
 }
 
 /** Selection; `primary` is the clicked item (the panel shows its properties). */
@@ -280,6 +322,7 @@ export function parseProject(raw: unknown): Project {
 	return {
 		...p,
 		sources: p.sources.map((s) => (typeof s.hasVideo === 'boolean' ? s : { ...s, hasVideo: true })),
+		images: Array.isArray(p.images) ? p.images : [],
 		timeline: { items: p.timeline.items.map(fillItem), tracks: p.timeline.tracks ?? [], zoom: p.timeline.zoom ?? [] }
 	};
 }

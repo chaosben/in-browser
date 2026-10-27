@@ -4,7 +4,7 @@ import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from '.
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, placeSource, recordingSources, type Recording } from './project.js';
-import type { Item, Project, Selection, Source, Timeline, TrackState } from './types.js';
+import type { ImageAsset, Item, Project, Selection, Source, Timeline, TrackState } from './types.js';
 import { m } from '#lib/i18n/index.js';
 import { parseColor } from '#lib/util/color.js';
 
@@ -332,6 +332,38 @@ export class Editor {
 		await deleteMediaFile(this.project.id, source.file);
 	}
 
+	image(id: string): ImageAsset | undefined {
+		return this.project.images.find((i) => i.id === id);
+	}
+
+	/** New own image in the media bin */
+	addImage(image: ImageAsset) {
+		this.project = { ...this.project, images: [...this.project.images, image] };
+		this.#scheduleSave();
+	}
+
+	isImageInTimeline(imageId: string) {
+		return usesImage(this.project.timeline, imageId);
+	}
+
+	isImageInHistory(imageId: string) {
+		const uses = (s: Snapshot) => usesImage(s.timeline, imageId);
+		return this.#undo.some(uses) || this.#redo.some(uses);
+	}
+
+	/** Permanently deletes an image that is not in the timeline (like `removeSource`) */
+	async removeImage(imageId: string) {
+		const image = this.image(imageId);
+		if (!image || this.isImageInTimeline(imageId)) return;
+		const pruned = pruneHistory(this.#undo, this.#redo, (s) => usesImage(s.timeline, imageId));
+		this.#undo = pruned.undo;
+		this.#redo = pruned.redo;
+		this.#lastMergeKey = null;
+		this.project = { ...this.project, images: this.project.images.filter((i) => i.id !== imageId) };
+		await this.save();
+		await deleteMediaFile(this.project.id, image.file);
+	}
+
 	/** `resized`: the canvas size changed too, so the preview must be rebuilt */
 	#setTimeline(timeline: Timeline, previous: Timeline, resized = false) {
 		this.project = { ...this.project, timeline };
@@ -366,6 +398,8 @@ export class Editor {
 }
 
 const usesSource = (t: Timeline, sourceId: string) => clipsOf(t).some((c) => c.sourceId === sourceId);
+const usesImage = (t: Timeline, imageId: string) =>
+	t.items.some((item) => item.type === 'annotation' && item.kind === 'image' && item.imageId === imageId);
 
 /** Have clips changed in time? Position/size in the frame (`rect`) alone doesn't count – redrawing is enough. */
 function clipsChanged(a: Timeline, b: Timeline) {

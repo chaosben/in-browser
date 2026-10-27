@@ -123,9 +123,24 @@
 		};
 	}
 
+	/** Move a corner keeping the aspect ratio (clips, images, icons); the opposite corner stays fixed */
+	function resizedKeepingAspect(r: Rect, corner: Corner, dx: number, dy: number, min = 0.05): Rect {
+		const aspect = r.h / r.w;
+		const sx = corner.includes('e') ? 1 : -1;
+		const sy = corner.includes('s') ? 1 : -1;
+		const ax = sx > 0 ? r.x : r.x + r.w;
+		const ay = sy > 0 ? r.y : r.y + r.h;
+		const w = Math.max((r.w + sx * dx + (r.h + sy * dy) / aspect) / 2, min);
+		const h = w * aspect;
+		return { x: sx > 0 ? ax : ax - w, y: sy > 0 ? ay : ay - h, w, h };
+	}
+
 	function resizeOverlay(e: PointerEvent, o: Annotation, corner: Corner) {
 		const key = `resize-${o.id}-${e.timeStamp}`;
 		drag(e, (dx, dy) => {
+			if (o.kind === 'image' || o.kind === 'icon') {
+				return patchOverlay(o.id, { rect: resizedKeepingAspect(o.rect, corner, dx, dy, 0.01) }, key);
+			}
 			if (o.kind === 'arrow' || o.kind === 'line') return;
 			if (o.kind === 'text' || o.kind === 'callout') {
 				// Dragging the corner scales the font
@@ -183,18 +198,7 @@
 	function resizeClip(e: PointerEvent, c: Clip, corner: Corner) {
 		const key = `clip-resize-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
-		const aspect = r.h / r.w;
-		const sx = corner.includes('e') ? 1 : -1;
-		const sy = corner.includes('s') ? 1 : -1;
-		// Opposite corner stays fixed
-		const ax = sx > 0 ? r.x : r.x + r.w;
-		const ay = sy > 0 ? r.y : r.y + r.h;
-		drag(e, (dx, dy) => {
-			const w = Math.max((r.w + sx * dx + (r.h + sy * dy) / aspect) / 2, 0.05);
-			const h = w * aspect;
-			const rect = { x: sx > 0 ? ax : ax - w, y: sy > 0 ? ay : ay - h, w, h };
-			editor.update((t) => updateItem(t, c.id, { rect }), key);
-		});
+		drag(e, (dx, dy) => editor.update((t) => updateItem(t, c.id, { rect: resizedKeepingAspect(r, corner, dx, dy) }), key));
 	}
 
 	// --- Zoom segment: view with fixed aspect ratio (w === h in normalized coordinates)

@@ -1,10 +1,11 @@
+import IconPanel from '#lib/components/IconPanel.svelte';
 import MediaPanel from '#lib/components/MediaPanel.svelte';
 import { OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
-import type { AnnotationKind } from '#lib/project/types.js';
+import type { ToolKind } from '#lib/project/types.js';
 import { m } from '#lib/i18n/index.js';
 import type { ToolGroup, ToolItem } from './types.js';
 
-function annotation(kind: AnnotationKind): ToolItem {
+function annotation(kind: ToolKind): ToolItem {
 	const info = OVERLAY_KINDS[kind];
 	return { id: kind, icon: info.icon, label: info.label, run: (a) => a.addAnnotation(kind), drag: { type: 'annotation', kind } };
 }
@@ -34,6 +35,12 @@ export const TOOL_GROUPS: ToolGroup[] = [
 		icon: 'icon-[material-symbols-light--title]',
 		label: m.tools.groups.text,
 		tabs: [{ id: 'text', label: m.tools.groups.text, items: (['text', 'callout'] as const).map(annotation) }]
+	},
+	{
+		id: 'icons',
+		icon: 'icon-[material-symbols-light--interests-outline]',
+		label: m.tools.groups.icons,
+		tabs: [{ id: 'icons', label: m.tools.groups.icons, component: IconPanel }]
 	},
 	{
 		id: 'zoom',

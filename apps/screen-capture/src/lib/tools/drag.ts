@@ -1,10 +1,20 @@
 // Drag & drop of tool tiles and media bin entries onto the preview or the timeline (HTML drag and drop, so it
 // works alongside dropping files from the desktop).
 
-import type { AnnotationKind } from '#lib/project/types.js';
-import { OVERLAY_KINDS } from '#lib/project/defaults.js';
+import type { AnnotationKind, IconData, ToolKind } from '#lib/project/types.js';
+import { isToolKind, OVERLAY_KINDS } from '#lib/project/defaults.js';
 
-export type DragPayload = { type: 'annotation'; kind: AnnotationKind } | { type: 'zoom' } | { type: 'source'; id: string };
+export type DragPayload =
+	| { type: 'annotation'; kind: ToolKind }
+	| { type: 'zoom' }
+	| { type: 'source'; id: string }
+	| { type: 'image'; id: string }
+	| { type: 'icon'; icon: IconData };
+
+const isIcon = (i: unknown): i is IconData => {
+	const icon = i as IconData | null;
+	return !!icon && typeof icon.name === 'string' && typeof icon.body === 'string' && icon.width > 0 && icon.height > 0;
+};
 
 const MIME = 'application/x-screen-capture';
 
@@ -23,9 +33,16 @@ export function hasDragPayload(e: DragEvent) {
 export function readDragPayload(e: DragEvent): DragPayload | null {
 	try {
 		const p = JSON.parse(e.dataTransfer?.getData(MIME) || 'null');
-		if (p?.type === 'annotation' && p.kind in OVERLAY_KINDS) return { type: 'annotation', kind: p.kind };
+		if (p?.type === 'annotation' && p.kind in OVERLAY_KINDS && isToolKind(p.kind as AnnotationKind)) {
+			return { type: 'annotation', kind: p.kind };
+		}
 		if (p?.type === 'zoom') return { type: 'zoom' };
 		if (p?.type === 'source' && typeof p.id === 'string') return { type: 'source', id: p.id };
+		if (p?.type === 'image' && typeof p.id === 'string') return { type: 'image', id: p.id };
+		if (p?.type === 'icon' && isIcon(p.icon)) {
+			const { name, body, width, height } = p.icon;
+			return { type: 'icon', icon: { name, body, width, height } };
+		}
 	} catch {
 		// not ours
 	}

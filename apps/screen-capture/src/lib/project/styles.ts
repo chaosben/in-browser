@@ -21,7 +21,9 @@ const NOT_STYLE: ReadonlySet<string> = new Set([
 	'y',
 	'tip',
 	'text',
-	'number'
+	'number',
+	'imageId',
+	'icon'
 ]);
 
 /** Remembered settings of one type; `duration` in seconds */

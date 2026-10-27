@@ -32,3 +32,9 @@ describe('applyStyle', () => {
 		expect(applyStyle(text(), { duration: -1 })).toMatchObject({ start: 10, end: 13 });
 	});
 });
+
+describe('styles of images and icons', () => {
+	it('never take over the picture or the icon', () => {
+		expect(styleFields({ imageId: 'x', icon: {}, shadow: false, color: '#fff' })).toEqual({ shadow: false, color: '#fff' });
+	});
+});

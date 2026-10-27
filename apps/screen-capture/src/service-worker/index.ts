@@ -16,7 +16,8 @@ const SHELL = '/';
 
 const PRECACHE = [
 	SHELL,
-	...immutable.map((file) => abs(file.path)),
+	// Except the whole icon set (~10 MB, loaded only on demand and only online, see `lib/icons/index.ts`)
+	...immutable.filter((file) => !/\/icons\.[\w-]+\.json$/.test(file.path)).map((file) => abs(file.path)),
 	// `_headers` & co. are Cloudflare configuration, not served files
 	...assets.filter((file) => !file.path.split('/').pop()!.startsWith('_')).map((file) => abs(file.path))
 ];

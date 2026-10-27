@@ -228,7 +228,7 @@
 			)}
 		{/if}
 
-		{#if o.kind !== 'blur'}
+		{#if 'color' in o}
 			<div class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.color}</span>
 				<ColorField value={o.color} projectColors={editor.colors} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
@@ -242,6 +242,34 @@
 		{/if}
 		{#if o.kind === 'line'}
 			{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
+		{/if}
+		{#if o.kind === 'image'}
+			{@const image = editor.image(o.imageId)}
+			{#if image}
+				<div class="flex flex-col gap-1">
+					<span class="text-xs opacity-70">{m.inspector.placement}</span>
+					<div class="join">
+						{#each [false, true] as cover (cover)}
+							<button
+								class="btn btn-sm join-item flex-1"
+								onclick={() => {
+									setOverlay({ rect: fitRect(image, editor.project.width, editor.project.height, cover) }, 'rect');
+									end();
+								}}
+							>
+								{#if cover}
+									<span class="icon-[material-symbols-light--fullscreen] size-5" aria-hidden="true"></span> {m.inspector.fill}
+								{:else}
+									<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span> {m.inspector.fit}
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+			{@render slider(m.inspector.radius, o.radius, 0, 0.1, 0.001, `${(o.radius * 1000).toFixed(0)}`, (v) =>
+				setOverlay({ radius: v }, 'radius')
+			)}
 		{/if}
 		{#if o.kind === 'rect'}
 			{@render slider(m.inspector.radius, o.radius, 0, 0.05, 0.001, `${(o.radius * 1000).toFixed(0)}`, (v) =>

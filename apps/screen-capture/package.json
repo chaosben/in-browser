@@ -14,7 +14,8 @@
 		"test": "npm run test:unit -- --run",
 		"deploy": "npm run build && wrangler deploy",
 		"deploy:check": "npm run build && wrangler deploy --dry-run",
-		"preview:cf": "npm run build && wrangler dev"
+		"preview:cf": "npm run build && wrangler dev",
+		"icons": "node scripts/icons.mjs"
 	},
 	"imports": {
 		"#lib": "./src/lib/index.js",
@@ -25,6 +26,7 @@
 		"@fontsource/inter": "5.3.0",
 		"@fontsource/jetbrains-mono": "5.3.0",
 		"@fontsource/montserrat": "5.3.0",
+		"@iconify-json/material-symbols-light": "1.2.97",
 		"@in-browser/brand": "*",
 		"@in-browser/vite": "*",
 		"mediabunny": "1.62.1"

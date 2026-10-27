@@ -47,7 +47,11 @@ describe('resizeCanvas', () => {
 		const a = resizeCanvas(timeline(text), from, to).items[0];
 		expect(a).toMatchObject({ x: 0.25, y: 0.75, size: 0.05, tip: { x: 0.75, y: 0.25 } });
 	});
-	it('zoom keeps w === h and shows the same area', () => {
+	it('images and icons keep their pixel size', () => {
+		const image: Annotation = { id: 'i', type: 'annotation', kind: 'image', start: 0, end: 1, track: 1, fade: false, shadow: false, rect: { x: 0, y: 0, w: 1, h: 1 }, imageId: 'p', radius: 0.02 };
+		expect(resizeCanvas(timeline(image), from, to).items[0]).toMatchObject({ rect: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 }, radius: 0.01 });
+	});
+		it('zoom keeps w === h and shows the same area', () => {
 		const t = resizeCanvas({ ...timeline(), zoom: [{ id: 'z', start: 0, end: 1, ease: 0.5, rect: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } }] }, from, { width: 2000, height: 500 });
 		expect(t.zoom[0].rect).toEqual({ x: 0.25, y: 0.25, w: 0.5, h: 0.5 });
 	});

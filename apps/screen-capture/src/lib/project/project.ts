@@ -66,6 +66,7 @@ export async function createProject(id: string, name: string, content: Source[] 
 		height,
 		background: DEFAULT_BACKGROUND,
 		sources,
+		images: [],
 		timeline
 	};
 	await saveProject(project);

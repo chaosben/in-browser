@@ -1,5 +1,18 @@
 import { m } from '#lib/i18n/index.js';
-import { newId, type Annotation, type AnnotationKind, type Rect, type Source, type VideoClip, type ZoomSegment } from './types.js';
+import {
+	newId,
+	type Annotation,
+	type AnnotationKind,
+	type IconAnnotation,
+	type IconData,
+	type ImageAnnotation,
+	type ImageAsset,
+	type Rect,
+	type Source,
+	type ToolKind,
+	type VideoClip,
+	type ZoomSegment
+} from './types.js';
 
 /** Label and icon per annotation type (classes written out in full so Tailwind finds them). */
 export const OVERLAY_KINDS: Record<AnnotationKind, { label: string; icon: string }> = {
@@ -12,8 +25,13 @@ export const OVERLAY_KINDS: Record<AnnotationKind, { label: string; icon: string
 	spotlight: { label: m.kinds.spotlight, icon: 'icon-[material-symbols-light--flashlight-on-outline]' },
 	blur: { label: m.kinds.blur, icon: 'icon-[material-symbols-light--blur-on]' },
 	text: { label: m.kinds.text, icon: 'icon-[material-symbols-light--title]' },
-	callout: { label: m.kinds.callout, icon: 'icon-[material-symbols-light--chat-bubble-outline]' }
+	callout: { label: m.kinds.callout, icon: 'icon-[material-symbols-light--chat-bubble-outline]' },
+	image: { label: m.kinds.image, icon: 'icon-[material-symbols-light--image-outline]' },
+	icon: { label: m.kinds.icon, icon: 'icon-[material-symbols-light--interests-outline]' }
 };
+
+/** Is `kind` an annotation that a tool tile creates (images and icons need their content)? */
+export const isToolKind = (kind: AnnotationKind): kind is ToolKind => kind !== 'image' && kind !== 'icon';
 
 export const ZOOM_ICON = 'icon-[material-symbols-light--zoom-in]';
 export const FREEZE_ICON = 'icon-[material-symbols-light--ac-unit]';
@@ -22,9 +40,8 @@ export const FREEZE_ICON = 'icon-[material-symbols-light--ac-unit]';
 export const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
 
 /** New annotation with sensible defaults in the center of the frame. `step`: number of a new step. */
-export function createOverlay(kind: AnnotationKind, start: number, end: number, step = 1): Annotation {
-	// The actual track is assigned by `addItem` (new items go to the front).
-	const base = { id: newId(), type: 'annotation' as const, start, end, fade: true, track: 0, shadow: true };
+export function createOverlay(kind: ToolKind, start: number, end: number, step = 1): Annotation {
+	const base = overlayBase(start, end);
 	switch (kind) {
 		case 'arrow':
 			return { ...base, kind, from: { x: 0.3, y: 0.3 }, to: { x: 0.48, y: 0.48 }, color: '#ef4444', width: 0.007 };
@@ -70,6 +87,29 @@ export function createOverlay(kind: AnnotationKind, start: number, end: number, 
 				tip: { x: 0.36, y: 0.38 }
 			};
 	}
+}
+
+// The actual track is assigned by `addItem` (new items go to the front).
+const overlayBase = (start: number, end: number) => ({ id: newId(), type: 'annotation' as const, start, end, fade: true, track: 0, shadow: true });
+
+/** Rect of `width` × `height` pixels in the canvas center, scaled down to at most `max` of the canvas (never up) */
+export function centeredRect(width: number, height: number, W: number, H: number, max = 0.5): Rect {
+	const scale = Math.min(1, (max * W) / width, (max * H) / height);
+	const w = (width * scale) / W;
+	const h = (height * scale) / H;
+	return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+}
+
+/** Own image in the center, at most half the canvas */
+export function createImage(image: ImageAsset, start: number, end: number, W: number, H: number): ImageAnnotation {
+	return { ...overlayBase(start, end), kind: 'image', rect: centeredRect(image.width, image.height, W, H), imageId: image.id, radius: 0 };
+}
+
+/** Icon in the center, 15 % of the canvas height */
+export function createIcon(icon: IconData, start: number, end: number, W: number, H: number): IconAnnotation {
+	const h = 0.15;
+	const w = (h * H * (icon.width / icon.height)) / W;
+	return { ...overlayBase(start, end), kind: 'icon', rect: { x: (1 - w) / 2, y: (1 - h) / 2, w, h }, icon, color: '#ef4444' };
 }
 
 /** New zoom segment: 2× on the center of the frame. `w === h` so the aspect ratio is preserved. */

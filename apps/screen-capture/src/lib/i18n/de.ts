@@ -159,9 +159,23 @@ const de: Messages = {
 	},
 
 	tools: {
-		groups: { media: 'Medien', annotations: 'Markierungen', text: 'Text', zoom: 'Zoom' },
+		groups: { media: 'Medien', annotations: 'Markierungen', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
 		collapse: 'Seitenleiste einklappen',
-		dropHint: 'Oder Video- und Audiodateien einfach auf den Editor ziehen.'
+		dropHint: 'Oder Video-, Audio- und Bilddateien einfach auf den Editor ziehen.'
+	},
+
+	icons: {
+		search: 'Icons suchen (englische Namen)',
+		searchAll: 'Alle Icons suchen (englische Namen)',
+		hint: 'Klick: am Abspielkopf einfügen · Ziehen: auf Vorschau oder Timeline ablegen',
+		insert: (name) => `Icon ${name} einfügen`,
+		categories: { arrows: 'Pfeile', notices: 'Hinweise', status: 'Status', input: 'Maus & Tastatur', objects: 'Objekte', people: 'Personen' },
+		noResults: 'Kein passendes Icon.',
+		limited: (n) => `Die ersten ${n} – für mehr die Suche verfeinern.`,
+		loadAll: 'Alle Icons durchsuchen (ca. 2 MB)',
+		loadAllHint: 'Lädt rund 16.000 weitere Icons. Braucht eine Internetverbindung; eingefügte Icons funktionieren danach auch offline.',
+		offline: 'Alle Icons brauchen eine Internetverbindung.',
+		loadFailed: (error) => `Die Icons konnten nicht geladen werden: ${error}`
 	},
 
 	keys: { del: 'Entf', ctrl: 'Strg' },
@@ -285,7 +299,9 @@ const de: Messages = {
 		ellipse: 'Ellipse',
 		step: 'Schritt',
 		stepN: (n) => `Schritt ${n}`,
-		callout: 'Sprechblase'
+		callout: 'Sprechblase',
+		image: 'Bild',
+		icon: 'Icon'
 	},
 
 	fonts: {
@@ -300,6 +316,8 @@ const de: Messages = {
 		insertTitle: 'Am Abspielkopf einfügen (vor allem, was dort liegt)',
 		deleteForever: 'Endgültig löschen',
 		audioOnly: 'nur Ton',
+		image: 'Bild',
+		insertImageTitle: 'Am Abspielkopf einfügen, mittig im Bild',
 		inUse: 'Wird in der Timeline verwendet',
 		deleteTitle: 'Medium löschen?',
 		confirmDelete: (name) => `„${name}“ endgültig löschen? Das kann nicht rückgängig gemacht werden.`,
@@ -315,6 +333,8 @@ const de: Messages = {
 		noMediaTrack: 'Die Datei enthält weder eine Video- noch eine Tonspur.',
 		fontFailed: (font, error) => `Schrift „${font}“ konnte nicht geladen werden: ${error}`,
 		codecUnsupported: (codec) => `Der Videocodec „${codec}“ kann von diesem Browser nicht dekodiert werden.`,
+		pictureFailed: (name) => `Bild „${name}“ konnte nicht geladen werden.`,
+		unsupportedImage: (name) => `„${name}“ ist kein unterstütztes Bild.`,
 		unsupportedFormat: (name) => `„${name}“ ist kein unterstütztes Medienformat.`,
 		cannotImport: (reasons) => `Die Datei kann nicht übernommen werden (${reasons}).`,
 		noProjectJson: (folder) => `Im Ordner „${folder}“ wurde keine project.json gefunden.`,
