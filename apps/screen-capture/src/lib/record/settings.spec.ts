@@ -21,10 +21,19 @@ describe('sanitizeRecordSettings', () => {
 			screenQuality: 'low',
 			cameraQuality: 'ultra',
 			cameraResolution: 1080,
-			audioKbps: 100,
+			micKbps: 100,
 			frameRate: 60
 		});
 		expect(s).toEqual({ ...DEFAULT_RECORD_SETTINGS, screenQuality: 'low', cameraResolution: 1080, frameRate: 60 });
+	});
+	it('takes over the filters one by one', () => {
+		const s = sanitizeRecordSettings({ micProcessing: { noiseSuppression: false, autoGainControl: 'no' } });
+		expect(s.micProcessing).toEqual({ echoCancellation: true, noiseSuppression: false, autoGainControl: true });
+		expect(s.systemProcessing).toEqual(DEFAULT_RECORD_SETTINGS.systemProcessing);
+	});
+	it('applies the former shared audio bitrate to both sources', () => {
+		expect(sanitizeRecordSettings({ audioKbps: 96 })).toMatchObject({ micKbps: 96, systemKbps: 96 });
+		expect(sanitizeRecordSettings({ audioKbps: 96, micKbps: 256 })).toMatchObject({ micKbps: 256, systemKbps: 96 });
 	});
 });
 
@@ -41,12 +50,17 @@ describe('recordBitrate', () => {
 
 describe('estimateMbPerMinute', () => {
 	const screen = { width: 1920, height: 1080 };
+	const none = { ...DEFAULT_RECORD_SETTINGS, microphone: false, camera: false, systemAudio: false };
 	it('only counts active sources', () => {
-		const base = estimateMbPerMinute(DEFAULT_RECORD_SETTINGS, screen, { camera: false, audioTracks: 0 });
-		const all = estimateMbPerMinute(DEFAULT_RECORD_SETTINGS, screen, { camera: true, audioTracks: 2 });
+		const base = estimateMbPerMinute(none, screen);
+		const all = estimateMbPerMinute({ ...none, microphone: true, camera: true, systemAudio: true }, screen);
 		expect(all).toBeGreaterThan(base);
-		// 128 kbit/s per audio track ≈ 0.96 MB per minute
-		const audio = estimateMbPerMinute(DEFAULT_RECORD_SETTINGS, screen, { camera: false, audioTracks: 1 }) - base;
-		expect(audio).toBeCloseTo(0.96, 2);
+		// 192 kbit/s ≈ 1.44 MB per minute
+		expect(estimateMbPerMinute({ ...none, microphone: true }, screen) - base).toBeCloseTo(1.44, 2);
+	});
+	it('uses the bitrate of each audio source', () => {
+		const base = estimateMbPerMinute(none, screen);
+		const audio = estimateMbPerMinute({ ...none, microphone: true, systemAudio: true, systemKbps: 96 }, screen) - base;
+		expect(audio).toBeCloseTo(1.44 + 0.72, 2);
 	});
 });

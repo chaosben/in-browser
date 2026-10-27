@@ -5,6 +5,7 @@
 	import { devices, openDevice, type DeviceKind } from '#lib/record/devices.svelte.js';
 	import { Recorder, type RecordOptions } from '#lib/record/recorder.svelte.js';
 	import {
+		AUDIO_FILTERS,
 		AUDIO_RATES,
 		CAMERA_RESOLUTIONS,
 		estimateMbPerMinute,
@@ -12,8 +13,9 @@
 		loadRecordSettings,
 		RECORD_LEVELS,
 		storeRecordSettings,
-		type RecordLevel,
-		type RecordSettings
+		type AudioKbps,
+		type AudioProcessing,
+		type RecordLevel
 	} from '#lib/record/settings.js';
 	import { formatClock, m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
@@ -34,12 +36,15 @@
 
 	// Rough size of the recording, so the effect of the quality settings can be judged
 	const mbPerMinute = $derived(
-		estimateMbPerMinute(
-			settings,
-			{ width: screen.width * devicePixelRatio, height: screen.height * devicePixelRatio },
-			{ camera: settings.camera, audioTracks: Number(settings.microphone) + Number(settings.systemAudio) }
-		)
+		estimateMbPerMinute(settings, { width: screen.width * devicePixelRatio, height: screen.height * devicePixelRatio })
 	);
+
+	/** One tab per source; all but the screen can be switched off in the tab header */
+	type SourceTab = 'screen' | 'systemAudio' | 'microphone' | 'camera';
+	const SOURCE_TABS: SourceTab[] = ['screen', 'systemAudio', 'microphone', 'camera'];
+	let tab = $state<SourceTab>('screen');
+	/** Voice processing filters the browser can switch */
+	const filters = AUDIO_FILTERS.filter((f) => navigator.mediaDevices?.getSupportedConstraints?.()[f]);
 	let countdown = $state(0);
 	let error = $state<string | null>(null);
 	let recorder = $state<Recorder | null>(null);
@@ -65,16 +70,12 @@
 	 * Opens the chosen device for a preview while setting up (also unlocks the device names). `onopen` returns
 	 * its own cleanup.
 	 */
-	function preview(
-		kind: DeviceKind,
-		deviceId: string | undefined,
-		resolution: RecordSettings['cameraResolution'] | undefined,
-		onopen: (stream: MediaStream) => () => void
-	) {
+	function preview(kind: DeviceKind, deviceId: string | undefined, onopen: (stream: MediaStream) => () => void) {
 		let cancelled = false;
 		let stream: MediaStream | null = null;
 		let cleanup = () => {};
-		openDevice(kind, deviceId, resolution)
+		// Reads the settings the device depends on, so the preview reopens when they change
+		openDevice(kind, deviceId, settings)
 			.then((s) => {
 				if (cancelled) return stopStream(s);
 				stream = s;
@@ -90,10 +91,10 @@
 		};
 	}
 
-	// Microphone level meter, so the right microphone can be recognised
+	// Microphone level meter, so the right microphone (and the effect of the filters) can be recognised
 	$effect(() => {
 		if (!settings.microphone || starting || recorder) return;
-		return preview('microphone', devices.selected.microphone, undefined, (stream) => {
+		return preview('microphone', devices.selected.microphone, (stream) => {
 			const context = new AudioContext();
 			const analyser = context.createAnalyser();
 			analyser.fftSize = 512;
@@ -119,7 +120,7 @@
 	// Live webcam preview before recording
 	$effect(() => {
 		if (!settings.camera || starting || recorder) return;
-		return preview('camera', devices.selected.camera, settings.cameraResolution, (stream) => {
+		return preview('camera', devices.selected.camera, (stream) => {
 			cameraPreview = stream;
 			return () => {
 				cameraPreview = null;
@@ -201,13 +202,43 @@
 
 {#snippet levelSelect(label: string, value: RecordLevel, onchange: (level: RecordLevel) => void)}
 	<select
-		class="select select-sm flex-1"
+		class="select select-sm w-full"
 		aria-label={label}
 		{value}
 		onchange={(e) => onchange(e.currentTarget.value as RecordLevel)}
 	>
 		{#each RECORD_LEVELS as level (level)}<option value={level}>{m.export.qualities[level]}</option>{/each}
 	</select>
+{/snippet}
+
+{#snippet audioOptions(kbps: AudioKbps, onkbps: (kbps: AudioKbps) => void, processing: AudioProcessing)}
+	<div class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
+		<span>{m.record.audioQuality}</span>
+		<select
+			class="select select-sm w-full"
+			aria-label={m.record.audioQuality}
+			value={kbps}
+			onchange={(e) => onkbps(Number(e.currentTarget.value) as AudioKbps)}
+		>
+			{#each AUDIO_RATES as rate (rate)}<option value={rate}>{rate} kbit/s</option>{/each}
+		</select>
+	</div>
+	{#if filters.length}
+		<div class="flex flex-col gap-1.5">
+			{#each filters as filter (filter)}
+				<label class="label text-sm">
+					<input
+						type="checkbox"
+						class="checkbox checkbox-sm"
+						checked={processing[filter]}
+						onchange={(e) => (processing[filter] = e.currentTarget.checked)}
+					/>
+					{m.record.filters[filter]}
+				</label>
+			{/each}
+			<p class="label text-xs whitespace-normal">{m.record.filtersHint}</p>
+		</div>
+	{/if}
 {/snippet}
 
 {#snippet deviceSelect(kind: DeviceKind, list: MediaDeviceInfo[], label: string)}
@@ -231,96 +262,93 @@
 			<p class="py-2 text-sm opacity-70">
 				{m.record.intro}
 			</p>
-			<fieldset class="fieldset gap-3">
-				<label class="label">
-					<input type="checkbox" class="toggle toggle-primary" bind:checked={settings.microphone} />
-					{m.record.microphone}
-				</label>
-				{#if settings.microphone}
-					<div class="-mt-1 flex flex-col gap-1 pl-14">
-						{@render deviceSelect('microphone', devices.microphones, m.record.microphoneDevice)}
-						<progress class="progress progress-success h-1.5 w-full" value={micLevel} max="1" aria-label={m.record.level}
-						></progress>
-						{#if deviceError.microphone}<p class="text-warning text-xs">{m.record.noMicrophone}</p>{/if}
+			<div role="tablist" class="tabs tabs-border">
+				{#each SOURCE_TABS as id (id)}
+					<div class="tab gap-2 px-3 {tab === id ? 'tab-active' : ''}">
+						{#if id !== 'screen'}
+							<input
+								type="checkbox"
+								class="checkbox checkbox-xs"
+								aria-label={m.record[id]}
+								bind:checked={settings[id]}
+								onchange={(e) => e.currentTarget.checked && (tab = id)}
+							/>
+						{/if}
+						<button
+							type="button"
+							role="tab"
+							id="record-tab-{id}"
+							aria-selected={tab === id}
+							aria-controls="record-panel-{id}"
+							onclick={() => (tab = id)}>{m.record.tabs[id]}</button
+						>
 					</div>
-				{/if}
-				<label class="label">
-					<input type="checkbox" class="toggle toggle-primary" bind:checked={settings.camera} />
-					{m.record.camera}
-				</label>
-				{#if settings.camera}
-					<div class="-mt-1 flex flex-col gap-2 pl-14">
-						{@render deviceSelect('camera', devices.cameras, m.record.cameraDevice)}
-						<!-- Fixed size from the start, so the dialog does not jump when the picture arrives -->
-						<div class="rounded-box bg-base-300 relative grid aspect-video w-48 place-items-center overflow-hidden">
-							<video
-								class="absolute inset-0 h-full w-full object-cover {cameraPlaying ? '' : 'invisible'}"
-								autoplay
-								muted
-								playsinline
-								aria-label={m.record.cameraPreview}
-								onplaying={() => (cameraPlaying = true)}
-								{@attach (video) => {
-									video.srcObject = cameraPreview;
-								}}
-							></video>
-							{#if deviceError.camera}
-								<span class="icon-[material-symbols-light--videocam-off-outline] size-8 opacity-60" aria-hidden="true"></span>
-							{:else if !cameraPlaying}
-								<span class="loading loading-spinner opacity-60"></span>
-							{/if}
+				{/each}
+			</div>
+			<div role="tabpanel" id="record-panel-{tab}" aria-labelledby="record-tab-{tab}" class="py-3">
+				<fieldset class="fieldset gap-3" disabled={tab !== 'screen' && !settings[tab]}>
+					{#if tab === 'screen'}
+						<div class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
+							<span>{m.record.videoQuality}</span>
+							{@render levelSelect(m.record.videoQuality, settings.screenQuality, (v) => (settings.screenQuality = v))}
+							<span>{m.record.frameRate}</span>
+							<select class="select select-sm w-full" bind:value={settings.frameRate} aria-label={m.record.frameRate}>
+								{#each FRAME_RATES as fps (fps)}<option value={fps}>{fps} fps</option>{/each}
+							</select>
 						</div>
-						{#if deviceError.camera}<p class="text-warning text-xs">{m.record.noCamera}</p>{/if}
-					</div>
-				{/if}
-				<p class="label -mt-2 pl-14 text-xs whitespace-normal">
-					{m.record.separateTracksHint}
-				</p>
-				<label class="label">
-					<input type="checkbox" class="toggle toggle-primary" bind:checked={settings.systemAudio} />
-					{m.record.systemAudio}
-				</label>
-				<p class="label -mt-2 pl-14 text-xs whitespace-normal">
-					{m.record.systemAudioHint}
-				</p>
+					{:else if tab === 'systemAudio'}
+						<p class="label text-xs whitespace-normal">{m.record.systemAudioHint}</p>
+						{@render audioOptions(settings.systemKbps, (v) => (settings.systemKbps = v), settings.systemProcessing)}
+					{:else if tab === 'microphone'}
+						<div class="flex flex-col gap-1">
+							{@render deviceSelect('microphone', devices.microphones, m.record.microphoneDevice)}
+							<progress class="progress progress-success h-1.5 w-full" value={micLevel} max="1" aria-label={m.record.level}
+							></progress>
+							{#if deviceError.microphone}<p class="text-warning text-xs">{m.record.noMicrophone}</p>{/if}
+						</div>
+						{@render audioOptions(settings.micKbps, (v) => (settings.micKbps = v), settings.micProcessing)}
+					{:else}
+						<div class="flex flex-col gap-2">
+							{@render deviceSelect('camera', devices.cameras, m.record.cameraDevice)}
+							<!-- Fixed size from the start, so the dialog does not jump when the picture arrives -->
+							<div class="rounded-box bg-base-300 relative grid aspect-video w-48 place-items-center overflow-hidden">
+								<video
+									class="absolute inset-0 h-full w-full object-cover {cameraPlaying ? '' : 'invisible'}"
+									autoplay
+									muted
+									playsinline
+									aria-label={m.record.cameraPreview}
+									onplaying={() => (cameraPlaying = true)}
+									{@attach (video) => {
+										video.srcObject = cameraPreview;
+									}}
+								></video>
+								{#if deviceError.camera}
+									<span class="icon-[material-symbols-light--videocam-off-outline] size-8 opacity-60" aria-hidden="true"></span>
+								{:else if settings.camera && !cameraPlaying}
+									<span class="loading loading-spinner opacity-60"></span>
+								{/if}
+							</div>
+							{#if deviceError.camera}<p class="text-warning text-xs">{m.record.noCamera}</p>{/if}
+						</div>
+						<div class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
+							<span>{m.record.videoQuality}</span>
+							{@render levelSelect(m.record.videoQuality, settings.cameraQuality, (v) => (settings.cameraQuality = v))}
+							<span>{m.record.resolution}</span>
+							<select class="select select-sm w-full" bind:value={settings.cameraResolution} aria-label={m.record.resolution}>
+								{#each CAMERA_RESOLUTIONS as r (r)}<option value={r}>{r}p</option>{/each}
+							</select>
+						</div>
+					{/if}
+				</fieldset>
+			</div>
+			<fieldset class="fieldset border-base-300 gap-2 border-t pt-3">
+				<p class="label text-xs whitespace-normal">{m.record.separateTracksHint}</p>
 				<label class="label">
 					<input type="checkbox" class="toggle toggle-primary" bind:checked={settings.countdown} />
 					{m.record.countdown}
 				</label>
-				<details class="collapse-arrow bg-base-200 rounded-box collapse">
-					<summary class="collapse-title min-h-0 py-2 text-sm font-semibold">
-						{m.record.quality}
-						<span class="ml-2 font-normal opacity-60">{m.record.sizePerMinute(mbPerMinute.toFixed(0))}</span>
-					</summary>
-					<div class="collapse-content grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
-						<span>{m.record.screenQuality}</span>
-						<div class="flex gap-2">
-							{@render levelSelect(m.record.screenQuality, settings.screenQuality, (v) => (settings.screenQuality = v))}
-							<select class="select select-sm w-24" bind:value={settings.frameRate} aria-label={m.record.frameRate}>
-								{#each FRAME_RATES as fps (fps)}<option value={fps}>{fps} fps</option>{/each}
-							</select>
-						</div>
-						{#if settings.camera}
-							<span>{m.record.cameraQuality}</span>
-							<div class="flex gap-2">
-								{@render levelSelect(m.record.cameraQuality, settings.cameraQuality, (v) => (settings.cameraQuality = v))}
-								<select
-									class="select select-sm w-24"
-									bind:value={settings.cameraResolution}
-									aria-label={m.record.cameraResolution}
-								>
-									{#each CAMERA_RESOLUTIONS as r (r)}<option value={r}>{r}p</option>{/each}
-								</select>
-							</div>
-						{/if}
-						{#if settings.microphone || settings.systemAudio}
-							<span>{m.record.audioQuality}</span>
-							<select class="select select-sm w-32" bind:value={settings.audioKbps} aria-label={m.record.audioQuality}>
-								{#each AUDIO_RATES as kbps (kbps)}<option value={kbps}>{kbps} kbit/s</option>{/each}
-							</select>
-						{/if}
-					</div>
-				</details>
+				<p class="text-sm opacity-60">{m.record.sizePerMinute(mbPerMinute.toFixed(0))}</p>
 			</fieldset>
 			{#if error}<div role="alert" class="alert alert-error mt-4">{error}</div>{/if}
 			<div class="modal-action">

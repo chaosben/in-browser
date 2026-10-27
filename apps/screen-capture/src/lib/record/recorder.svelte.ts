@@ -34,6 +34,9 @@ export interface RecordOptions {
  */
 const KEYFRAMES = { screen: 1, camera: 2 } as const;
 
+/** Recordings are re-encoded on export anyway, so prefer the better-sounding Opus for them. */
+const RECORD_AUDIO_CODECS = ['opus', 'aac'] as const;
+
 export type RecorderState = 'idle' | 'recording' | 'paused' | 'finalizing' | 'done';
 
 type Role = 'screen' | 'camera' | 'mic';
@@ -78,20 +81,20 @@ export class Recorder {
 	async acquire(options: RecordOptions): Promise<MediaStream> {
 		this.#display = await navigator.mediaDevices.getDisplayMedia({
 			video: { frameRate: { ideal: options.settings.frameRate } },
-			audio: options.systemAudio,
+			audio: options.systemAudio && { ...options.settings.systemProcessing },
 			// Chromium-specific options
 			...({ selfBrowserSurface: 'exclude', surfaceSwitching: 'include', systemAudio: 'include' } as object)
 		});
 		if (options.microphone) {
 			try {
-				this.#mic = await openDevice('microphone', options.microphoneId);
+				this.#mic = await openDevice('microphone', options.microphoneId, options.settings);
 			} catch {
 				this.warning = m.record.noMicrophone;
 			}
 		}
 		if (options.camera) {
 			try {
-				this.camera = await openDevice('camera', options.cameraId, options.settings.cameraResolution);
+				this.camera = await openDevice('camera', options.cameraId, options.settings);
 			} catch {
 				this.warning ??= m.record.noCamera;
 			}
@@ -106,7 +109,7 @@ export class Recorder {
 	async start(options: RecordOptions, onEnded: () => void) {
 		if (!this.#display) throw new Error(m.record.noScreen);
 		const screenTrack = this.#display.getVideoTracks()[0];
-		const audioCodec = this.#display.getAudioTracks().length || this.#mic ? await pickAudioCodec() : null;
+		const audioCodec = this.#display.getAudioTracks().length || this.#mic ? await pickAudioCodec(RECORD_AUDIO_CODECS) : null;
 		if ((this.#display.getAudioTracks().length || this.#mic) && !audioCodec) this.warning = m.record.noAudioEncoder;
 
 		// Screen with system audio
@@ -114,7 +117,7 @@ export class Recorder {
 		const { settings } = options;
 		screen.sources.push(await this.#video(screen, screenTrack, 'screen', settings.screenQuality, settings.frameRate));
 		const systemAudio = this.#display.getAudioTracks()[0];
-		if (systemAudio && audioCodec) screen.sources.push(this.#audio(screen, systemAudio, audioCodec, settings.audioKbps));
+		if (systemAudio && audioCodec) screen.sources.push(this.#audio(screen, systemAudio, audioCodec, settings.systemKbps));
 
 		const cameraTrack = this.camera?.getVideoTracks()[0];
 		if (cameraTrack) {
@@ -124,7 +127,7 @@ export class Recorder {
 		const micTrack = this.#mic?.getAudioTracks()[0];
 		if (micTrack && audioCodec) {
 			const part = await this.#part('mic');
-			part.sources.push(this.#audio(part, micTrack, audioCodec, settings.audioKbps));
+			part.sources.push(this.#audio(part, micTrack, audioCodec, settings.micKbps));
 		}
 
 		this.#onEnded = onEnded;

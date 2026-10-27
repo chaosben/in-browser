@@ -6,6 +6,11 @@ export const RECORD_LEVELS: readonly RecordLevel[] = ['low', 'medium', 'high', '
 export const AUDIO_RATES = [96, 128, 192, 256] as const;
 export const CAMERA_RESOLUTIONS = [720, 1080] as const;
 export const FRAME_RATES = [30, 60] as const;
+/** Browser voice processing, switchable per audio source */
+export const AUDIO_FILTERS = ['echoCancellation', 'noiseSuppression', 'autoGainControl'] as const;
+
+export type AudioProcessing = Record<(typeof AUDIO_FILTERS)[number], boolean>;
+export type AudioKbps = (typeof AUDIO_RATES)[number];
 
 /** Webcams are always recorded at this frame rate */
 export const CAMERA_FPS = 30;
@@ -20,8 +25,12 @@ export interface RecordSettings {
 	screenQuality: RecordLevel;
 	cameraQuality: RecordLevel;
 	cameraResolution: (typeof CAMERA_RESOLUTIONS)[number];
-	/** System audio and microphone, in kbit/s */
-	audioKbps: (typeof AUDIO_RATES)[number];
+	/** Audio bitrates in kbit/s */
+	micKbps: AudioKbps;
+	systemKbps: AudioKbps;
+	/** Voice processing: meant for speech, dulls music */
+	micProcessing: AudioProcessing;
+	systemProcessing: AudioProcessing;
 	frameRate: (typeof FRAME_RATES)[number];
 }
 
@@ -33,7 +42,10 @@ export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
 	screenQuality: 'high',
 	cameraQuality: 'very-high',
 	cameraResolution: 720,
-	audioKbps: 128,
+	micKbps: 192,
+	systemKbps: 192,
+	micProcessing: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+	systemProcessing: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
 	frameRate: 30
 };
 
@@ -55,17 +67,14 @@ export function cameraSize(resolution: RecordSettings['cameraResolution']) {
 }
 
 /** Approximate file size per minute of all active sources, in MB */
-export function estimateMbPerMinute(
-	settings: RecordSettings,
-	screen: { width: number; height: number },
-	active: { camera: boolean; audioTracks: number }
-) {
+export function estimateMbPerMinute(settings: RecordSettings, screen: { width: number; height: number }) {
 	let bitrate = recordBitrate('screen', settings.screenQuality, screen.width, screen.height, settings.frameRate);
-	if (active.camera) {
+	if (settings.camera) {
 		const { width, height } = cameraSize(settings.cameraResolution);
 		bitrate += recordBitrate('camera', settings.cameraQuality, width, height, CAMERA_FPS);
 	}
-	bitrate += active.audioTracks * settings.audioKbps * 1000;
+	if (settings.microphone) bitrate += settings.micKbps * 1000;
+	if (settings.systemAudio) bitrate += settings.systemKbps * 1000;
 	return (bitrate * 60) / 8 / 1_000_000;
 }
 
@@ -73,11 +82,17 @@ const STORAGE_KEY = 'screen-capture:record-settings';
 
 /** Takes over valid values only; everything else falls back to the default. */
 export function sanitizeRecordSettings(raw: unknown): RecordSettings {
-	const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof RecordSettings, unknown>>;
+	const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof RecordSettings | 'audioKbps', unknown>>;
 	const pick = <T>(value: unknown, allowed: readonly T[], fallback: T) =>
 		allowed.includes(value as T) ? (value as T) : fallback;
 	const d = DEFAULT_RECORD_SETTINGS;
 	const flag = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
+	const filters = (value: unknown, fallback: AudioProcessing) => {
+		const v = (value && typeof value === 'object' ? value : {}) as Partial<Record<keyof AudioProcessing, unknown>>;
+		return Object.fromEntries(AUDIO_FILTERS.map((f) => [f, flag(v[f], fallback[f])])) as AudioProcessing;
+	};
+	// Formerly one bitrate for both audio sources
+	const kbps = (value: unknown, fallback: AudioKbps) => pick(value ?? r.audioKbps, AUDIO_RATES, fallback);
 	return {
 		microphone: flag(r.microphone, d.microphone),
 		camera: flag(r.camera, d.camera),
@@ -86,7 +101,10 @@ export function sanitizeRecordSettings(raw: unknown): RecordSettings {
 		screenQuality: pick(r.screenQuality, RECORD_LEVELS, d.screenQuality),
 		cameraQuality: pick(r.cameraQuality, RECORD_LEVELS, d.cameraQuality),
 		cameraResolution: pick(r.cameraResolution, CAMERA_RESOLUTIONS, d.cameraResolution),
-		audioKbps: pick(r.audioKbps, AUDIO_RATES, d.audioKbps),
+		micKbps: kbps(r.micKbps, d.micKbps),
+		systemKbps: kbps(r.systemKbps, d.systemKbps),
+		micProcessing: filters(r.micProcessing, d.micProcessing),
+		systemProcessing: filters(r.systemProcessing, d.systemProcessing),
 		frameRate: pick(r.frameRate, FRAME_RATES, d.frameRate)
 	};
 }

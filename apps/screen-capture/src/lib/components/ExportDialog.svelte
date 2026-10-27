@@ -156,6 +156,7 @@
 					<option value={96}>96 kbit/s</option>
 					<option value={128}>128 kbit/s</option>
 					<option value={192}>192 kbit/s</option>
+					<option value={256}>256 kbit/s</option>
 				</select>
 			</fieldset>
 

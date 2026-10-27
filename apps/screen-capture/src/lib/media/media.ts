@@ -17,9 +17,12 @@ export function openInput(blob: Blob) {
 	return new Input({ formats: ALL_FORMATS, source: new BlobSource(blob) });
 }
 
-/** First available AAC or Opus encoding (Chrome on Linux sometimes lacks AAC). */
-export async function pickAudioCodec(): Promise<AudioCodec | null> {
-	for (const codec of ['aac', 'opus'] as const) {
+/**
+ * First available audio encoding in the given order (Chrome on Linux sometimes lacks AAC). AAC plays everywhere,
+ * Opus sounds better at the same bitrate (no low-pass around 16 kHz).
+ */
+export async function pickAudioCodec(preferred: readonly AudioCodec[] = ['aac', 'opus']): Promise<AudioCodec | null> {
+	for (const codec of preferred) {
 		if (await canEncodeAudio(codec)) return codec;
 	}
 	return null;

@@ -3,24 +3,25 @@
 
 import { CAMERA_FPS, cameraSize, type RecordSettings } from './settings.js';
 
+/** What the constraints of a device depend on */
+export type DeviceSettings = Pick<RecordSettings, 'cameraResolution' | 'micProcessing'>;
+
 const STORAGE_KEY = 'screen-capture:record-devices';
 
 export type DeviceKind = 'microphone' | 'camera';
 
-function constraints(kind: DeviceKind, resolution: RecordSettings['cameraResolution']): MediaTrackConstraints {
-	if (kind === 'microphone') return { echoCancellation: true, noiseSuppression: true };
-	const { width, height } = cameraSize(resolution);
+function constraints(kind: DeviceKind, settings: DeviceSettings): MediaTrackConstraints {
+	if (kind === 'microphone') return { ...settings.micProcessing };
+	const { width, height } = cameraSize(settings.cameraResolution);
 	return { width: { ideal: width }, height: { ideal: height }, frameRate: { ideal: CAMERA_FPS } };
 }
 
-/** Opens the chosen device (cameras at `resolution`); if it is gone, falls back to the default device once. */
-export async function openDevice(
-	kind: DeviceKind,
-	deviceId?: string,
-	resolution: RecordSettings['cameraResolution'] = 720
-): Promise<MediaStream> {
+/** Opens the chosen device with the given settings; if it is gone, falls back to the default device once. */
+export async function openDevice(kind: DeviceKind, deviceId: string | undefined, settings: DeviceSettings): Promise<MediaStream> {
+	// Read the constraints right away (also outside a retry), so effects calling this depend on them
+	const base = constraints(kind, settings);
 	const request = (id?: string) => {
-		const track = { ...constraints(kind, resolution), ...(id && { deviceId: { exact: id } }) };
+		const track = { ...base, ...(id && { deviceId: { exact: id } }) };
 		return navigator.mediaDevices.getUserMedia(kind === 'microphone' ? { audio: track } : { video: track });
 	};
 	if (!deviceId) return request();

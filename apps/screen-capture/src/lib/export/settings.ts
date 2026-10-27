@@ -10,7 +10,7 @@ export interface ExportSettings {
 	/** Only with `quality: 'custom'`, in Mbit/s. */
 	customMbps: number;
 	/** Audio bitrate in kbit/s, `0` = no audio. */
-	audioKbps: 0 | 96 | 128 | 192;
+	audioKbps: 0 | 96 | 128 | 192 | 256;
 }
 
 export const DEFAULT_SETTINGS: ExportSettings = {
@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: ExportSettings = {
 	fps: 30,
 	quality: 'high',
 	customMbps: 8,
-	audioKbps: 128
+	audioKbps: 192
 };
 
 export const RESOLUTIONS = [2160, 1440, 1080, 720, 480] as const;
