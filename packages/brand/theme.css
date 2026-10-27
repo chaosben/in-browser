@@ -1,0 +1,16 @@
+/* Shared styling of all in-browser.de apps. Include in layout.css after `@import 'tailwindcss';` */
+@plugin '@iconify/tailwind4';
+@plugin 'daisyui' {
+	/* Without data-theme the page follows the system; the switch sets data-theme explicitly. */
+	themes:
+		light --default,
+		dark --prefersdark;
+}
+
+/* Generate the classes of the brand components */
+@source './src';
+
+html,
+body {
+	height: 100%;
+}

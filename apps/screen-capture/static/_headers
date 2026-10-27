@@ -1,0 +1,18 @@
+# Header rules for Cloudflare Workers Static Assets (copied to build/)
+
+# File names contain a hash – cache permanently
+/_app/immutable/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: display-capture=(self), microphone=(self), camera=(self), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Always revalidate the Service Worker and manifest so new versions get through
+/service-worker.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache

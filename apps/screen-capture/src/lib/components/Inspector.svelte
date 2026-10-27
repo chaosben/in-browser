@@ -1,0 +1,355 @@
+<script lang="ts">
+	import ColorField from './ColorField.svelte';
+	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
+	import type { Editor } from '#lib/project/editor.svelte.js';
+	import type { Annotation, Clip, ClipShape, ZoomSegment } from '#lib/project/types.js';
+	import {
+		clipDuration,
+		remove,
+		removeZoom,
+		retimeAnnotation,
+		retimeZoom,
+		trim,
+		ungroup,
+		updateItem,
+		updateZoom
+	} from '#lib/timeline/ops.js';
+	import { m } from '#lib/i18n/index.js';
+	import { formatTime } from '#lib/util/format.js';
+
+	interface Props {
+		editor: Editor;
+	}
+
+	let { editor }: Props = $props();
+
+	const overlay = $derived(editor.selectedOverlay);
+	const zoom = $derived(editor.selectedZoom);
+	const clip = $derived(editor.selectedClip);
+	/** Several selected, without a primary item (e.g. Ctrl+A) */
+	const multiple = $derived(editor.selectedItems.length > 1 && !editor.selectedItem ? editor.selectedItems : null);
+	/** Other items selected along with it (e.g. the group of the clicked clip) */
+	const others = $derived(editor.selectedItem ? editor.selectedItems.length - 1 : 0);
+	/** Are selected items linked? */
+	const grouped = $derived(editor.selectedItems.some((item) => item.group));
+
+	// Sliders: all changes of one drag form one undo step (ended via `onchange`)
+	function setOverlay(patch: Partial<Annotation>, field: string) {
+		const o = overlay;
+		if (o) editor.update((t) => updateItem(t, o.id, patch), `insp-${o.id}-${field}`);
+	}
+
+	function setZoom(patch: Partial<Omit<ZoomSegment, 'start' | 'end'>>, field: string) {
+		const z = zoom;
+		if (z) editor.update((t) => updateZoom(t, z.id, patch), `insp-${z.id}-${field}`);
+	}
+
+	/** Change zoom level, keeping the view's center where possible */
+	function setZoomLevel(level: number) {
+		const z = zoom;
+		if (!z) return;
+		const w = 1 / level;
+		const cx = z.rect.x + z.rect.w / 2;
+		const cy = z.rect.y + z.rect.h / 2;
+		const clamp = (v: number) => Math.min(Math.max(v, 0), 1 - w);
+		setZoom({ rect: { x: clamp(cx - w / 2), y: clamp(cy - w / 2), w, h: w } }, 'level');
+	}
+
+	function setTiming(start: number, length: number) {
+		if (overlay) editor.update((t) => retimeAnnotation(t, overlay.id, start, start + length));
+		else if (zoom) editor.update((t) => retimeZoom(t, zoom.id, start, start + length));
+	}
+
+	function removeSelected() {
+		const ids = editor.selectedIds;
+		if (ids.length) editor.update((t) => remove(t, ids));
+		else if (zoom) editor.update((t) => removeZoom(t, zoom.id));
+	}
+
+	function unlink() {
+		const ids = editor.selectedIds;
+		editor.update((t) => ungroup(t, ids));
+	}
+
+	function setClip(c: Clip, patch: Partial<Clip>, field: string) {
+		editor.update((t) => updateItem(t, c.id, patch), `insp-${c.id}-${field}`);
+	}
+
+	const SHAPES: { value: ClipShape; label: string; icon: string }[] = [
+		{ value: 'rect', label: m.inspector.shapeRect, icon: 'icon-[material-symbols-light--crop-landscape-outline]' },
+		{ value: 'rounded', label: m.inspector.shapeRounded, icon: 'icon-[material-symbols-light--rounded-corner]' },
+		{ value: 'circle', label: m.inspector.shapeCircle, icon: 'icon-[material-symbols-light--circle-outline]' }
+	];
+
+	const end = () => editor.endGesture();
+
+	/** Fit the clip or let it fill the canvas (center: canvas center) */
+	function place(c: Clip, cover: boolean) {
+		const source = editor.source(c.sourceId);
+		if (!source) return;
+		const rect = fitRect(source, editor.project.width, editor.project.height, cover);
+		editor.update((t) => updateItem(t, c.id, { rect }));
+	}
+
+	/** Color change from the ColorField: drag = one undo step, `final` completes it */
+	function setColor(field: 'color' | 'background', value: string | null, final: boolean) {
+		setOverlay({ [field]: value } as Partial<Annotation>, field);
+		if (final) end();
+	}
+	const num = (e: Event) => Number((e.currentTarget as HTMLInputElement).value);
+</script>
+
+{#snippet slider(label: string, value: number, min: number, max: number, step: number, display: string, onset: (v: number) => void)}
+	<label class="flex flex-col gap-1">
+		<span class="flex justify-between text-xs"><span class="opacity-70">{label}</span><span>{display}</span></span>
+		<input type="range" class="range range-xs" {min} {max} {step} {value} oninput={(e) => onset(num(e))} onchange={end} />
+	</label>
+{/snippet}
+
+{#snippet timing(start: number, stop: number)}
+	<div class="grid grid-cols-2 gap-2">
+		<label class="flex flex-col gap-1 text-xs">
+			<span class="opacity-70">{m.inspector.start}</span>
+			<input
+				type="number"
+				class="input input-xs"
+				min="0"
+				step="0.1"
+				value={start.toFixed(2)}
+				onchange={(e) => setTiming(num(e), stop - start)}
+			/>
+		</label>
+		<label class="flex flex-col gap-1 text-xs">
+			<span class="opacity-70">{m.inspector.duration}</span>
+			<input
+				type="number"
+				class="input input-xs"
+				min="0.1"
+				step="0.1"
+				value={(stop - start).toFixed(2)}
+				onchange={(e) => setTiming(start, num(e))}
+			/>
+		</label>
+	</div>
+{/snippet}
+
+<div class="flex flex-col gap-4 p-3 text-sm">
+	{#if multiple}
+		<h3 class="flex items-center gap-2 font-semibold">
+			<span class="icon-[material-symbols-light--select-all] size-5" aria-hidden="true"></span>
+			{m.inspector.selected(multiple.length)}
+		</h3>
+		<p class="text-xs opacity-70">{m.inspector.multipleHint}</p>
+	{:else if overlay}
+		{@const o = overlay}
+		<h3 class="flex items-center gap-2 font-semibold">
+			<span class="{OVERLAY_KINDS[o.kind].icon} size-5" aria-hidden="true"></span>
+			{OVERLAY_KINDS[o.kind].label}
+		</h3>
+
+		{#if o.kind === 'text'}
+			<label class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.text}</span>
+				<textarea
+					class="textarea textarea-sm"
+					rows="3"
+					value={o.text}
+					oninput={(e) => setOverlay({ text: e.currentTarget.value }, 'text')}
+					onchange={end}
+				></textarea>
+			</label>
+			{@render slider(m.inspector.fontSize, o.size, 0.015, 0.15, 0.001, `${Math.round(o.size * 100)} %`, (v) =>
+				setOverlay({ size: v }, 'size')
+			)}
+			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.background}</span>
+				<ColorField value={o.background} allowNone onchange={(v, final) => setColor('background', v, final)} />
+			</div>
+		{/if}
+
+		{#if o.kind !== 'blur'}
+			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.color}</span>
+				<ColorField value={o.color} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
+			</div>
+		{/if}
+
+		{#if o.kind === 'arrow' || o.kind === 'rect'}
+			{@render slider(m.inspector.lineWidth, o.width, 0.002, 0.02, 0.0005, `${(o.width * 1000).toFixed(1)}`, (v) =>
+				setOverlay({ width: v }, 'width')
+			)}
+		{/if}
+		{#if o.kind === 'rect'}
+			{@render slider(m.inspector.radius, o.radius, 0, 0.05, 0.001, `${(o.radius * 1000).toFixed(0)}`, (v) =>
+				setOverlay({ radius: v }, 'radius')
+			)}
+		{/if}
+		{#if o.kind === 'blur'}
+			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.blurArea}</span>
+				<div class="join">
+					{#each [{ value: 'inside', label: m.inspector.blurInside, icon: 'icon-[material-symbols-light--crop-free]' }, { value: 'outside', label: m.inspector.blurOutside, icon: 'icon-[material-symbols-light--filter-center-focus]' }] as option (option.value)}
+						<button
+							class="btn btn-sm join-item flex-1 {o.area === option.value ? 'btn-primary' : ''}"
+							onclick={() => {
+								setOverlay({ area: option.value as 'inside' | 'outside' }, 'area');
+								end();
+							}}
+						>
+							<span class="{option.icon} size-5" aria-hidden="true"></span>
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+			{@render slider(m.inspector.strength, o.strength, 0.002, 0.05, 0.001, `${(o.strength * 1000).toFixed(0)}`, (v) =>
+				setOverlay({ strength: v }, 'strength')
+			)}
+		{/if}
+
+		{@render timing(o.start, o.end)}
+		<label class="label text-xs">
+			<input
+				type="checkbox"
+				class="checkbox checkbox-xs"
+				checked={o.fade}
+				onchange={(e) => {
+					setOverlay({ fade: e.currentTarget.checked }, 'fade');
+					end();
+				}}
+			/>
+			{m.inspector.fade}
+		</label>
+	{:else if zoom}
+		{@const z = zoom}
+		<h3 class="flex items-center gap-2 font-semibold">
+			<span class="{ZOOM_ICON} size-5" aria-hidden="true"></span> {m.inspector.zoomSegment}
+		</h3>
+		<p class="text-xs opacity-70">{m.inspector.zoomHint}</p>
+		{@render slider(m.inspector.zoomLevel, 1 / z.rect.w, 1.1, 6, 0.1, `${(1 / z.rect.w).toFixed(1)}×`, setZoomLevel)}
+		{@render slider(m.inspector.ease, z.ease, 0, 2, 0.05, `${z.ease.toFixed(2)} s`, (v) => setZoom({ ease: v }, 'ease'))}
+		{@render timing(z.start, z.end)}
+	{:else if clip}
+		{@const c = clip}
+		{@const source = editor.source(c.sourceId)}
+		<h3 class="flex items-center gap-2 font-semibold">
+			{#if c.type === 'freeze'}
+				<span class="{FREEZE_ICON} size-5" aria-hidden="true"></span> {m.inspector.freeze}
+			{:else if source && !source.hasVideo}
+				<span class="icon-[material-symbols-light--music-note] size-5" aria-hidden="true"></span> {m.inspector.audioClip}
+			{:else}
+				<span class="icon-[material-symbols-light--movie-outline] size-5" aria-hidden="true"></span> {m.inspector.clip}
+			{/if}
+		</h3>
+		<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+			<dt class="opacity-70">{m.inspector.source}</dt>
+			<dd class="truncate">{source?.name ?? '–'}</dd>
+			{#if c.type === 'video'}
+				<dt class="opacity-70">{m.inspector.range}</dt>
+				<dd>{formatTime(c.in, 2)} – {formatTime(c.out, 2)}</dd>
+			{:else}
+				<dt class="opacity-70">{m.inspector.frameAt}</dt>
+				<dd>{formatTime(c.at, 2)}</dd>
+			{/if}
+			<dt class="opacity-70">{m.export.duration}</dt>
+			<dd>{formatTime(clipDuration(c), 2)}</dd>
+		</dl>
+		{#if source?.hasVideo}
+			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.placement}</span>
+				<div class="join">
+					<button class="btn btn-sm join-item flex-1" onclick={() => place(c, false)}>
+						<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span> {m.inspector.fit}
+					</button>
+					<button class="btn btn-sm join-item flex-1" onclick={() => place(c, true)}>
+						<span class="icon-[material-symbols-light--fullscreen] size-5" aria-hidden="true"></span> {m.inspector.fill}
+					</button>
+				</div>
+				<p class="text-xs opacity-60">{m.inspector.placementHint}</p>
+			</div>
+			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.shape}</span>
+				<div class="join">
+					{#each SHAPES as shape (shape.value)}
+						<button
+							class="btn btn-sm join-item flex-1 {(c.shape ?? 'rect') === shape.value ? 'btn-primary' : ''}"
+							onclick={() => editor.update((t) => updateItem(t, c.id, { shape: shape.value }))}
+							title={shape.label}
+							aria-label={shape.label}
+						>
+							<span class="{shape.icon} size-5" aria-hidden="true"></span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+		{#if c.type === 'video' && source?.hasAudio}
+			{@const volume = c.volume ?? 1}
+			<div class="flex items-end gap-2">
+				<div class="flex-1">
+					{@render slider(m.inspector.volume, volume, 0, 1, 0.01, `${Math.round(volume * 100)} %`, (v) =>
+						setClip(c, { volume: v }, 'volume')
+					)}
+				</div>
+				<button
+					class="btn btn-sm btn-square {volume === 0 ? 'btn-warning' : 'btn-ghost'}"
+					onclick={() => editor.update((t) => updateItem(t, c.id, { volume: volume === 0 ? 1 : 0 }))}
+					title={m.inspector.mute}
+					aria-label={m.inspector.mute}
+					aria-pressed={volume === 0}
+				>
+					<span
+						class="{volume === 0 ? 'icon-[material-symbols-light--volume-off-outline]' : 'icon-[material-symbols-light--volume-up-outline]'} size-5"
+						aria-hidden="true"
+					></span>
+				</button>
+			</div>
+		{/if}
+		{#if c.type === 'freeze'}
+			<label class="flex flex-col gap-1 text-xs">
+				<span class="opacity-70">{m.inspector.duration}</span>
+				<input
+					type="number"
+					class="input input-xs"
+					min="0.1"
+					step="0.5"
+					value={c.duration.toFixed(2)}
+					onchange={(e) => editor.update((t) => trim(t, c.id, 'out', num(e), 0))}
+				/>
+			</label>
+		{/if}
+	{:else}
+		<h3 class="flex items-center gap-2 font-semibold">
+			<span class="icon-[material-symbols-light--movie-edit-outline] size-5" aria-hidden="true"></span> {m.inspector.project}
+		</h3>
+		<div class="flex flex-col gap-1">
+			<span class="text-xs opacity-70">{m.inspector.background}</span>
+			<ColorField value={editor.project.background} opaque onchange={(v) => v && editor.setBackground(v)} />
+		</div>
+		<div class="flex flex-col gap-2 text-xs opacity-70">
+			<p>{m.inspector.nothing}</p>
+			<p>{m.inspector.nothingHint}</p>
+			<p>
+				<kbd class="kbd kbd-xs">S</kbd> {m.inspector.shortcuts.split} · <kbd class="kbd kbd-xs">F</kbd>
+				{m.inspector.shortcuts.hold} · <kbd class="kbd kbd-xs">{m.keys.del}</kbd>
+				{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
+				{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">Esc</kbd>
+				{m.inspector.shortcuts.deselect}
+			</p>
+		</div>
+	{/if}
+
+	{#if others > 0}
+		<p class="text-xs opacity-70">{m.inspector.alsoSelected(others)}</p>
+	{/if}
+	{#if grouped}
+		<button class="btn btn-sm btn-outline" onclick={unlink}>
+			<span class="icon-[material-symbols-light--link-off] size-5" aria-hidden="true"></span> {m.inspector.unlink}
+		</button>
+	{/if}
+	{#if multiple || overlay || zoom || clip}
+		<button class="btn btn-sm btn-outline btn-error" onclick={removeSelected}>
+			<span class="icon-[material-symbols-light--delete-outline] size-5" aria-hidden="true"></span> {m.common.delete}
+		</button>
+	{/if}
+</div>

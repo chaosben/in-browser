@@ -1,0 +1,14 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "in-browser",
+	"compatibility_date": "2026-10-26",
+	// Only our own domain, no *.workers.dev or preview URLs
+	"workers_dev": false,
+	"preview_urls": false,
+	"routes": [{ "pattern": "in-browser.de", "custom_domain": true }],
+	// Purely static site (no Worker code); unknown paths serve the SPA shell 404.html with status 404
+	"assets": {
+		"directory": "./build",
+		"not_found_handling": "404-page"
+	}
+}

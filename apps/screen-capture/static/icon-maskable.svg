@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+	<title>Screen Capture</title>
+	<!-- Full-bleed background; motif inside the safe zone (middle 80 %) for round/cropped app icons -->
+	<rect width="64" height="64" fill="#1d232a"/>
+	<g transform="translate(9.6 9.6) scale(0.7)">
+		<rect x="4" y="10" width="56" height="38" rx="6" fill="#e5e7eb"/>
+		<rect x="8" y="14" width="48" height="30" rx="3" fill="#3b82f6"/>
+		<rect x="24" y="50" width="16" height="4" rx="1" fill="#e5e7eb"/>
+		<rect x="16" y="54" width="32" height="4" rx="2" fill="#e5e7eb"/>
+		<circle cx="32" cy="29" r="9" fill="#fff"/>
+		<circle cx="32" cy="29" r="6" fill="#ef4444"/>
+	</g>
+</svg>
