@@ -353,7 +353,7 @@
 			{#if error}<div role="alert" class="alert alert-error mt-4">{error}</div>{/if}
 			<div class="modal-action">
 				<button class="btn btn-ghost" onclick={cancel}>{m.common.cancel}</button>
-				<button class="btn btn-primary" onclick={start}><span class="icon-[material-symbols-light--screen-share-outline] size-5" aria-hidden="true"></span> {m.record.chooseScreen}</button>
+				<button class="btn btn-primary" onclick={start}><span class="icon-[material-symbols-light--screen-share-outline] size-5" aria-hidden="true"></span> {m.record.chooseSource}</button>
 			</div>
 		{:else if countdown > 0}
 			<div class="flex flex-col items-center gap-2 py-8">

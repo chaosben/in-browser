@@ -192,7 +192,7 @@
 		addAnnotation,
 		addZoom: addZoomSegment,
 		record: openRecordDialog,
-		importVideo: () => {
+		importMedia: () => {
 			if (!importing) fileInput?.click();
 		}
 	};

@@ -127,7 +127,7 @@
 	{:else}
 		<section class="flex flex-wrap gap-3">
 			<button class="btn btn-primary btn-lg" onclick={startRecording}><span class="icon-[material-symbols-light--screen-record-outline] size-6" aria-hidden="true"></span> {m.home.newRecording}</button>
-			<button class="btn btn-lg" onclick={() => fileInput?.click()} disabled={!!importing}><span class="icon-[material-symbols-light--upload-file] size-6" aria-hidden="true"></span> {m.home.importVideo}</button>
+			<button class="btn btn-lg" onclick={() => fileInput?.click()} disabled={!!importing}><span class="icon-[material-symbols-light--upload-file] size-6" aria-hidden="true"></span> {m.home.importMedia}</button>
 			{#if folderSupported()}
 				<button class="btn btn-lg btn-ghost" onclick={openFolder}><span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span> {m.home.openFolder}</button>
 			{/if}

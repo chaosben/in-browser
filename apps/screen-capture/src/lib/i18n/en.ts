@@ -29,26 +29,26 @@ const en = {
 			`This browser does not support everything the app needs (${missing}). Please use a current desktop browser (recommended: Chrome or Edge).`,
 		screenCapture: 'Screen capture',
 		newRecording: 'New recording',
-		importVideo: 'Import video',
+		importMedia: 'Import media',
 		openFolder: 'Open project folder',
 		projects: 'Projects',
 		storage: (used: string, quota: string) => `${used} GB of ${quota} GB used`,
-		empty: 'No projects yet. Start a recording, import a video or drop a video file here.',
+		empty: 'No projects yet. Start a recording, import media or drop a video or audio file here.',
 		changed: (date: string) => `modified ${date}`,
 		confirmDelete: (name: string) => `Delete project “${name}” including all recordings?`,
 		footer: 'Projects are stored in this browser. To back them up or share them, use “Save as folder” in the editor.',
-		dropToCreate: 'Drop to create a new project from the video'
+		dropToCreate: 'Drop to create a new project from the file'
 	},
 
 	record: {
 		title: 'New recording',
-		intro: 'After clicking “Choose screen”, the browser asks which screen, window or tab to record.',
+		intro: 'After clicking “Choose screen or window”, the browser asks which screen, window or tab to record.',
 		microphone: 'Record microphone',
 		systemAudio: 'Record system/tab audio',
 		systemAudioHint: 'Only works on Windows or when recording a browser tab.',
 		countdown: '3 second countdown',
 		frameRate: 'Frame rate',
-		chooseScreen: 'Choose screen',
+		chooseSource: 'Choose screen or window',
 		startingSoon: 'Recording starts in a moment …',
 		recording: 'Recording',
 		paused: 'Paused',
@@ -61,7 +61,7 @@ const en = {
 		saveFailed: (error: string) => `The recording could not be saved: ${error}`,
 		noMicrophone: 'No access to the microphone – recording without microphone.',
 		noSystemAudio: 'The browser did not share any system/tab audio.',
-		noScreen: 'No screen selected.',
+		noSource: 'Nothing selected to record.',
 		noVideoEncoder: 'This browser cannot encode video (WebCodecs is missing).',
 		noAudioEncoder: 'This browser cannot encode audio – recording without sound.',
 		failed: (error: string) => `Recording error: ${error}`,
@@ -126,7 +126,7 @@ const en = {
 		backToOverview: 'Back to overview',
 		projectName: 'Project name',
 		addRecording: 'Add recording',
-		importVideo: 'Import video',
+		importMedia: 'Import media',
 		saveFolder: 'Save as folder',
 		savedToFolder: (name: string) => `Project saved to folder “${name}”`,
 		export: 'Export',
@@ -156,7 +156,7 @@ const en = {
 	tools: {
 		groups: { media: 'Media', annotations: 'Annotations', text: 'Text', zoom: 'Zoom' },
 		collapse: 'Collapse panel',
-		dropHint: 'Or drop video files anywhere onto the editor.'
+		dropHint: 'Or drop video or audio files anywhere onto the editor.'
 	},
 
 	keys: { del: 'Del' },
@@ -278,7 +278,7 @@ const en = {
 		noMediaTrack: 'The file contains neither a video nor an audio track.',
 		fontFailed: (font: string, error: string) => `Font “${font}” could not be loaded: ${error}`,
 		codecUnsupported: (codec: string) => `This browser cannot decode the video codec “${codec}”.`,
-		unsupportedFormat: (name: string) => `“${name}” is not a supported video format.`,
+		unsupportedFormat: (name: string) => `“${name}” is not a supported media format.`,
 		cannotImport: (reasons: string) => `The file cannot be imported (${reasons}).`,
 		noProjectJson: (folder: string) => `No project.json was found in the folder “${folder}”.`,
 		unknownFormat: 'Unknown project format.',

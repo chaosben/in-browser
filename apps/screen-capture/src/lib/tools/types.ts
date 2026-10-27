@@ -16,7 +16,7 @@ export interface ToolActions {
 	addAnnotation(kind: AnnotationKind, at?: DropPlace): void;
 	addZoom(at?: DropPlace): void;
 	record(): void;
-	importVideo(): void;
+	importMedia(): void;
 }
 
 export interface ToolProps {

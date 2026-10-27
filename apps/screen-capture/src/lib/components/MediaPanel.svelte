@@ -10,8 +10,8 @@
 	<button class="btn btn-sm btn-primary" onclick={() => actions.record()}>
 		<span class="icon-[material-symbols-light--screen-record-outline] size-5" aria-hidden="true"></span> {m.editor.addRecording}
 	</button>
-	<button class="btn btn-sm" onclick={() => actions.importVideo()}>
-		<span class="icon-[material-symbols-light--upload-file] size-5" aria-hidden="true"></span> {m.editor.importVideo}
+	<button class="btn btn-sm" onclick={() => actions.importMedia()}>
+		<span class="icon-[material-symbols-light--upload-file] size-5" aria-hidden="true"></span> {m.editor.importMedia}
 	</button>
 	<p class="text-xs opacity-60">{m.tools.dropHint}</p>
 </div>

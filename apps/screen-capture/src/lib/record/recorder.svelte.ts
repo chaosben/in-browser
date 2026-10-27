@@ -107,7 +107,7 @@ export class Recorder {
 
 	/** Starts recording. `onEnded` is called when the user stops sharing in the browser. */
 	async start(options: RecordOptions, onEnded: () => void) {
-		if (!this.#display) throw new Error(m.record.noScreen);
+		if (!this.#display) throw new Error(m.record.noSource);
 		const screenTrack = this.#display.getVideoTracks()[0];
 		const audioCodec = this.#display.getAudioTracks().length || this.#mic ? await pickAudioCodec(RECORD_AUDIO_CODECS) : null;
 		if ((this.#display.getAudioTracks().length || this.#mic) && !audioCodec) this.warning = m.record.noAudioEncoder;

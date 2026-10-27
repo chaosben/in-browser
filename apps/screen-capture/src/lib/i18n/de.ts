@@ -29,28 +29,28 @@ const de: Messages = {
 			`Dieser Browser unterstützt nicht alles, was die App braucht (${missing}). Bitte einen aktuellen Desktop-Browser verwenden (empfohlen: Chrome oder Edge).`,
 		screenCapture: 'Bildschirmaufnahme',
 		newRecording: 'Neue Aufnahme',
-		importVideo: 'Video importieren',
+		importMedia: 'Medien importieren',
 		openFolder: 'Projektordner öffnen',
 		projects: 'Projekte',
 		storage: (used, quota) => `${used} GB von ${quota} GB belegt`,
-		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere ein Video oder ziehe eine Videodatei hierher.',
+		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien oder ziehe eine Video- oder Audiodatei hierher.',
 		changed: (date) => `geändert ${date}`,
 		confirmDelete: (name) => `Projekt „${name}“ mit allen Aufnahmen löschen?`,
 		footer:
 			'Projekte werden im Speicher dieses Browsers abgelegt. Zum Sichern oder Weitergeben im Editor „Als Ordner speichern“ verwenden.',
-		dropToCreate: 'Loslassen, um ein neues Projekt aus dem Video zu erstellen'
+		dropToCreate: 'Loslassen, um ein neues Projekt aus der Datei zu erstellen'
 	},
 
 	record: {
 		title: 'Neue Aufnahme',
 		intro:
-			'Nach dem Klick auf „Bildschirm wählen“ fragt der Browser, welcher Bildschirm, welches Fenster oder welcher Tab aufgenommen werden soll.',
+			'Nach dem Klick auf „Bildschirm oder Fenster wählen“ fragt der Browser, welcher Bildschirm, welches Fenster oder welcher Tab aufgenommen werden soll.',
 		microphone: 'Mikrofon aufnehmen',
 		systemAudio: 'System-/Tab-Ton aufnehmen',
 		systemAudioHint: 'Funktioniert nur unter Windows oder bei der Aufnahme eines Browser-Tabs.',
 		countdown: '3 Sekunden Countdown',
 		frameRate: 'Bildrate',
-		chooseScreen: 'Bildschirm wählen',
+		chooseSource: 'Bildschirm oder Fenster wählen',
 		startingSoon: 'Aufnahme startet gleich …',
 		recording: 'Aufnahme läuft',
 		paused: 'Pausiert',
@@ -63,7 +63,7 @@ const de: Messages = {
 		saveFailed: (error) => `Aufnahme konnte nicht gespeichert werden: ${error}`,
 		noMicrophone: 'Kein Zugriff auf das Mikrofon – es wird ohne Mikrofon aufgenommen.',
 		noSystemAudio: 'Der Browser hat keinen System-/Tab-Ton freigegeben.',
-		noScreen: 'Kein Bildschirm ausgewählt.',
+		noSource: 'Nichts zum Aufnehmen ausgewählt.',
 		noVideoEncoder: 'Dieser Browser kann kein Video kodieren (WebCodecs fehlt).',
 		noAudioEncoder: 'Dieser Browser kann keinen Ton kodieren – es wird ohne Ton aufgenommen.',
 		failed: (error) => `Aufnahmefehler: ${error}`,
@@ -128,7 +128,7 @@ const de: Messages = {
 		backToOverview: 'Zur Übersicht',
 		projectName: 'Projektname',
 		addRecording: 'Aufnahme hinzufügen',
-		importVideo: 'Video importieren',
+		importMedia: 'Medien importieren',
 		saveFolder: 'Als Ordner speichern',
 		savedToFolder: (name) => `Projekt im Ordner „${name}“ gespeichert`,
 		export: 'Exportieren',
@@ -158,7 +158,7 @@ const de: Messages = {
 	tools: {
 		groups: { media: 'Medien', annotations: 'Markierungen', text: 'Text', zoom: 'Zoom' },
 		collapse: 'Seitenleiste einklappen',
-		dropHint: 'Oder Videodateien einfach auf den Editor ziehen.'
+		dropHint: 'Oder Video- und Audiodateien einfach auf den Editor ziehen.'
 	},
 
 	keys: { del: 'Entf' },
@@ -287,7 +287,7 @@ const de: Messages = {
 		noMediaTrack: 'Die Datei enthält weder eine Video- noch eine Tonspur.',
 		fontFailed: (font, error) => `Schrift „${font}“ konnte nicht geladen werden: ${error}`,
 		codecUnsupported: (codec) => `Der Videocodec „${codec}“ kann von diesem Browser nicht dekodiert werden.`,
-		unsupportedFormat: (name) => `„${name}“ ist kein unterstütztes Videoformat.`,
+		unsupportedFormat: (name) => `„${name}“ ist kein unterstütztes Medienformat.`,
 		cannotImport: (reasons) => `Die Datei kann nicht übernommen werden (${reasons}).`,
 		noProjectJson: (folder) => `Im Ordner „${folder}“ wurde keine project.json gefunden.`,
 		unknownFormat: 'Unbekanntes Projektformat.',
