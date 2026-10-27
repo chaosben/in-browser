@@ -1,5 +1,6 @@
 import { saveProject } from '#lib/storage/opfs.js';
 import { addItem, appendClip, duration, emptyTimeline, findItem } from '#lib/timeline/ops.js';
+import type { Size } from './canvas.js';
 import { cameraRect, createClip, DEFAULT_BACKGROUND } from './defaults.js';
 import { newId, type Project, type Source, type Timeline } from './types.js';
 import { formatDateTime, m } from '#lib/i18n/index.js';
@@ -48,11 +49,14 @@ export function canvasSize(sources: Source[]) {
 	return { width: first?.width ?? 1920, height: first?.height ?? 1080 };
 }
 
-/** Creates a project with the given sources or a recording and saves it. */
-export async function createProject(id: string, name: string, content: Source[] | Recording): Promise<Project> {
+/**
+ * Creates a project with the given sources or a recording and saves it. Without `size` the first source
+ * with a picture sets the canvas.
+ */
+export async function createProject(id: string, name: string, content: Source[] | Recording, size?: Size): Promise<Project> {
 	const now = Date.now();
 	const sources = Array.isArray(content) ? content : recordingSources(content);
-	const { width, height } = canvasSize(sources);
+	const { width, height } = size ?? canvasSize(sources);
 	let timeline = emptyTimeline();
 	if (Array.isArray(content)) for (const s of content) timeline = placeSource(timeline, s, width, height);
 	else timeline = placeRecording(timeline, content, width, height);
@@ -79,4 +83,9 @@ export function projectDuration(project: Project): number {
 
 export function defaultProjectName(): string {
 	return m.common.recordingName(formatDateTime(Date.now(), 'short'));
+}
+
+/** Name suggested for an empty project */
+export function emptyProjectName(): string {
+	return m.common.projectName(formatDateTime(Date.now(), 'short'));
 }

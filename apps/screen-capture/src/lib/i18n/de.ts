@@ -13,7 +13,8 @@ const de: Messages = {
 		saving: 'Speichert …',
 		saved: 'Gespeichert',
 		importing: (name) => `Importiere ${name} …`,
-		recordingName: (time) => `Aufnahme ${time}`
+		recordingName: (time) => `Aufnahme ${time}`,
+		projectName: (time) => `Projekt ${time}`
 	},
 
 	brand: {
@@ -30,10 +31,11 @@ const de: Messages = {
 		screenCapture: 'Bildschirmaufnahme',
 		newRecording: 'Neue Aufnahme',
 		importMedia: 'Medien importieren',
+		emptyProject: 'Leeres Projekt',
 		openFolder: 'Projektordner öffnen',
 		projects: 'Projekte',
 		storage: (used, quota) => `${used} GB von ${quota} GB belegt`,
-		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien oder ziehe eine Video- oder Audiodatei hierher.',
+		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien, lege ein leeres Projekt an oder ziehe eine Video- oder Audiodatei hierher.',
 		changed: (date) => `geändert ${date}`,
 		deleteTitle: 'Projekt löschen?',
 		confirmDelete: (name) => `Projekt „${name}“ mit allen Aufnahmen löschen?`,
@@ -202,6 +204,26 @@ const de: Messages = {
 		changeDuration: 'Dauer ändern'
 	},
 
+	newProject: {
+		title: 'Leeres Projekt',
+		name: 'Name',
+		size: 'Leinwandgröße',
+		create: 'Anlegen'
+	},
+
+	canvasSize: {
+		fullHd: 'Full HD 16:9',
+		hd: 'HD 16:9',
+		qhd: 'QHD 16:9',
+		uhd: '4K 16:9',
+		portrait: 'Hochformat 9:16',
+		square: 'Quadrat 1:1',
+		feed: 'Hochformat 4:5',
+		custom: 'Eigene',
+		width: 'Breite in Pixeln',
+		height: 'Höhe in Pixeln'
+	},
+
 	canvasDialog: {
 		title: 'Leinwand vergrößern?',
 		keep: 'Größe beibehalten'
@@ -255,6 +277,9 @@ const de: Messages = {
 		project: 'Projekt',
 		canvas: 'Leinwand',
 		growCanvasHint: 'Bisheriger Inhalt behält seine Größe und rückt in die Mitte.',
+		changeCanvas: 'Ändern',
+		applyCanvas: 'Übernehmen',
+		changeCanvasHint: 'Der Inhalt behält seine Größe und bleibt mittig; auf einer kleineren Leinwand ragt er evtl. über den Rand.',
 		placement: 'Position im Bild',
 		fit: 'Einpassen',
 		fill: 'Füllen',

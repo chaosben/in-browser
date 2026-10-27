@@ -3,9 +3,11 @@
 	import { resolve } from '$app/paths';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
 	import { BRAND } from '#lib/brand.js';
+	import NewProjectDialog from '#lib/components/NewProjectDialog.svelte';
 	import RecordDialog from '#lib/components/RecordDialog.svelte';
 	import { importFile, isMediaFile, MEDIA_ACCEPT } from '#lib/media/media.js';
 	import { createProject, defaultProjectName, newId, projectDuration, type Recording } from '#lib/project/project.js';
+	import type { Size } from '#lib/project/canvas.js';
 	import type { Project, Source } from '#lib/project/types.js';
 	import { folderSupported, openFromFolder } from '#lib/storage/folder.js';
 	import { deleteProject, listProjects, requestPersistence, storageEstimate } from '#lib/storage/opfs.js';
@@ -23,6 +25,7 @@
 	let projects = $state<Project[] | null>(null);
 	let usage = $state<string | null>(null);
 	let recordingFor = $state<string | null>(null);
+	let creating = $state(false);
 	let importing = $state<{ name: string; progress: number } | null>(null);
 	let fileInput = $state<HTMLInputElement>();
 
@@ -52,6 +55,18 @@
 		// Remove the directory of the project that was never created
 		deleteProject(recordingFor!).catch(() => {});
 		recordingFor = null;
+	}
+
+	async function createEmpty(name: string, size: Size) {
+		creating = false;
+		requestPersistence();
+		const id = newId();
+		try {
+			await createProject(id, name, [], size);
+			await goto(resolve('/editor/[id]', { id }));
+		} catch (e) {
+			toast(errorMessage(e), 'error', 8000);
+		}
 	}
 
 	let draggingFiles = $state(false);
@@ -135,6 +150,7 @@
 		<section class="flex flex-wrap gap-3">
 			<button class="btn btn-primary btn-lg" onclick={startRecording}><span class="icon-[material-symbols-light--screen-record-outline] size-6" aria-hidden="true"></span> {m.home.newRecording}</button>
 			<button class="btn btn-lg" onclick={() => fileInput?.click()} disabled={!!importing}><span class="icon-[material-symbols-light--upload-file] size-6" aria-hidden="true"></span> {m.home.importMedia}</button>
+			<button class="btn btn-lg" onclick={() => (creating = true)}><span class="icon-[material-symbols-light--add-box-outline] size-6" aria-hidden="true"></span> {m.home.emptyProject}</button>
 			{#if folderSupported()}
 				<button class="btn btn-lg btn-ghost" onclick={openFolder}><span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span> {m.home.openFolder}</button>
 			{/if}
@@ -211,4 +227,8 @@
 
 {#if recordingFor}
 	<RecordDialog projectId={recordingFor} ondone={recorded} oncancel={cancelRecording} />
+{/if}
+
+{#if creating}
+	<NewProjectDialog oncreate={createEmpty} oncancel={() => (creating = false)} />
 {/if}

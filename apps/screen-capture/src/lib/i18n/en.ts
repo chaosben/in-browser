@@ -13,7 +13,8 @@ const en = {
 		saving: 'Saving …',
 		saved: 'Saved',
 		importing: (name: string) => `Importing ${name} …`,
-		recordingName: (time: string) => `Recording ${time}`
+		recordingName: (time: string) => `Recording ${time}`,
+		projectName: (time: string) => `Project ${time}`
 	},
 
 	brand: {
@@ -30,10 +31,11 @@ const en = {
 		screenCapture: 'Screen capture',
 		newRecording: 'New recording',
 		importMedia: 'Import media',
+		emptyProject: 'Empty project',
 		openFolder: 'Open project folder',
 		projects: 'Projects',
 		storage: (used: string, quota: string) => `${used} GB of ${quota} GB used`,
-		empty: 'No projects yet. Start a recording, import media or drop a video or audio file here.',
+		empty: 'No projects yet. Start a recording, import media, create an empty project or drop a video or audio file here.',
 		changed: (date: string) => `modified ${date}`,
 		deleteTitle: 'Delete project?',
 		confirmDelete: (name: string) => `Delete project “${name}” including all recordings?`,
@@ -200,6 +202,26 @@ const en = {
 		changeDuration: 'Change duration'
 	},
 
+	newProject: {
+		title: 'Empty project',
+		name: 'Name',
+		size: 'Canvas size',
+		create: 'Create'
+	},
+
+	canvasSize: {
+		fullHd: 'Full HD 16:9',
+		hd: 'HD 16:9',
+		qhd: 'QHD 16:9',
+		uhd: '4K 16:9',
+		portrait: 'Portrait 9:16',
+		square: 'Square 1:1',
+		feed: 'Portrait 4:5',
+		custom: 'Custom',
+		width: 'Width in pixels',
+		height: 'Height in pixels'
+	},
+
 	canvasDialog: {
 		title: 'Enlarge canvas?',
 		keep: 'Keep size'
@@ -245,6 +267,9 @@ const en = {
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',
+		changeCanvas: 'Change',
+		applyCanvas: 'Apply',
+		changeCanvasHint: 'Content keeps its size and stays centered; on a smaller canvas it may reach over the edge.',
 		placement: 'Position in the picture',
 		fit: 'Fit',
 		fill: 'Fill',

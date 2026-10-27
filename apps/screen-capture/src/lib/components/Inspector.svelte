@@ -1,5 +1,7 @@
 <script lang="ts">
+	import CanvasSizeField from './CanvasSizeField.svelte';
 	import ColorField from './ColorField.svelte';
+	import type { Size } from '#lib/project/canvas.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type ZoomSegment } from '#lib/project/types.js';
@@ -30,6 +32,8 @@
 	const clip = $derived(editor.selectedClip);
 	/** Suggestion for the project panel: canvas that shows shrunk clips 1:1 */
 	const largerCanvas = $derived(editor.largerCanvas());
+	/** Canvas size being chosen in the project panel (`null`: closed) */
+	let canvasDraft = $state<Size | null>(null);
 	/** Several selected, without a primary item (e.g. Ctrl+A) */
 	const multiple = $derived(editor.selectedItems.length > 1 && !editor.selectedItem ? editor.selectedItems : null);
 	/** Other items selected along with it (e.g. the group of the clicked clip) */
@@ -426,10 +430,33 @@
 			<span class="icon-[material-symbols-light--movie-edit-outline] size-5" aria-hidden="true"></span> {m.inspector.project}
 		</h3>
 		<div class="flex flex-col gap-1">
-			<span class="flex justify-between text-xs">
+			<span class="flex items-center justify-between text-xs">
 				<span class="opacity-70">{m.inspector.canvas}</span>
-				<span class="tabular-nums">{editor.project.width} × {editor.project.height}</span>
+				<span class="flex items-center gap-1">
+					<span class="tabular-nums">{editor.project.width} × {editor.project.height}</span>
+					<button
+						class="btn btn-ghost btn-xs"
+						onclick={() => (canvasDraft = canvasDraft ? null : { width: editor.project.width, height: editor.project.height })}
+						aria-expanded={!!canvasDraft}
+					>
+						{m.inspector.changeCanvas}
+					</button>
+				</span>
 			</span>
+			{#if canvasDraft}
+				{@const draft = canvasDraft}
+				<CanvasSizeField value={draft} onchange={(s) => (canvasDraft = s)} />
+				<p class="text-xs opacity-60">{m.inspector.changeCanvasHint}</p>
+				<button
+					class="btn btn-sm btn-primary"
+					onclick={() => {
+						editor.resizeCanvas(draft);
+						canvasDraft = null;
+					}}
+				>
+					{m.inspector.applyCanvas}
+				</button>
+			{/if}
 			{#if largerCanvas}
 				{@const size = largerCanvas}
 				<button class="btn btn-sm" onclick={() => editor.resizeCanvas(size)}>

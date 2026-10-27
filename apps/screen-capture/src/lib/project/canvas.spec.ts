@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { growTo, refitDefaults, resizeCanvas, shrunkSources } from './canvas';
+import { clampCanvasSize, growTo, refitDefaults, resizeCanvas, shrunkSources } from './canvas';
 import { cameraRect, fitRect } from './defaults';
 import type { Annotation, Clip, Source, Timeline } from './types';
 
@@ -105,5 +105,12 @@ describe('shrunkSources', () => {
 			{ ...clip({ x: 0.7, y: 0.7, w: 0.25, h: 0.25 }), id: 'c', sourceId: 'cam' }
 		);
 		expect(shrunkSources(t, [big, small, cam], from).map((s) => s.id)).toEqual(['big']);
+	});
+});
+
+describe('clampCanvasSize', () => {
+	it('rounds down to even sizes within the limits', () => {
+		expect(clampCanvasSize({ width: 1001, height: 15 })).toEqual({ width: 1000, height: 16 });
+		expect(clampCanvasSize({ width: 9999, height: NaN })).toEqual({ width: 7680, height: 16 });
 	});
 });

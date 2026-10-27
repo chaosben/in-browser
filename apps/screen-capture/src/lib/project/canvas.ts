@@ -1,6 +1,6 @@
-// Growing the canvas: positions are fractions of the canvas (x/w of its width, y/h and sizes of its height),
-// so a new canvas size means converting everything. Existing content keeps its size in pixels and moves to
-// the center; the new space around it stays empty.
+// Resizing the canvas: positions are fractions of the canvas (x/w of its width, y/h and sizes of its height),
+// so a new canvas size means converting everything. Existing content keeps its size in pixels and stays
+// centered; new space around it stays empty, on a smaller canvas it reaches over the edge.
 
 import { cameraRect, fitRect } from './defaults.js';
 import type { Annotation, Item, Point, Rect, Source, Timeline, ZoomSegment } from './types.js';
@@ -10,7 +10,30 @@ export interface Size {
 	height: number;
 }
 
-/** Converts all positions and sizes from canvas `from` to the (larger) canvas `to`, content centered */
+/** Sizes offered for a new project or when changing the canvas (`name` → `m.canvasSize`) */
+export const CANVAS_PRESETS = [
+	{ name: 'fullHd', width: 1920, height: 1080 },
+	{ name: 'hd', width: 1280, height: 720 },
+	{ name: 'qhd', width: 2560, height: 1440 },
+	{ name: 'uhd', width: 3840, height: 2160 },
+	{ name: 'portrait', width: 1080, height: 1920 },
+	{ name: 'square', width: 1080, height: 1080 },
+	{ name: 'feed', width: 1080, height: 1350 }
+] as const;
+
+export const MIN_CANVAS = 16;
+export const MAX_CANVAS = 7680;
+
+/** Even pixel counts (like the export) within MIN_CANVAS…MAX_CANVAS */
+export function clampCanvasSize(size: Size): Size {
+	const clamp = (v: number) => {
+		const even = Math.floor((Number.isFinite(v) ? v : MIN_CANVAS) / 2) * 2;
+		return Math.min(Math.max(even, MIN_CANVAS), MAX_CANVAS);
+	};
+	return { width: clamp(size.width), height: clamp(size.height) };
+}
+
+/** Converts all positions and sizes from canvas `from` to canvas `to`, content centered */
 export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline {
 	if (from.width === to.width && from.height === to.height) return timeline;
 	const sx = from.width / to.width;

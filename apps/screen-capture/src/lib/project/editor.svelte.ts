@@ -214,8 +214,8 @@ export class Editor {
 	}
 
 	/**
-	 * Grows the canvas (one undo step): existing content keeps its size in pixels and moves to the center,
-	 * clips that were shrunk to fit fill the new canvas 1:1, webcams move to its corner.
+	 * Resizes the canvas (one undo step): existing content keeps its size in pixels and stays centered,
+	 * clips that were shrunk to fit a smaller canvas fill a larger one 1:1, webcams move to its corner.
 	 */
 	resizeCanvas(size: Size) {
 		const from = { width: this.project.width, height: this.project.height };
