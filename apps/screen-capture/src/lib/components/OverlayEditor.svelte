@@ -46,6 +46,13 @@
 		return () => (player.forcedView = null);
 	});
 
+	// Selected annotations show at full opacity while paused – otherwise a new one is invisible at its start
+	$effect(() => {
+		player.opaque = new Set(editor.selectedIds);
+		untrack(() => player.redraw());
+		return () => (player.opaque = new Set());
+	});
+
 	/** Bounds of an annotation; text sizes change once their font has loaded */
 	function bounds(o: Annotation) {
 		void fontState.version;
