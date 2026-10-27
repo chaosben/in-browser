@@ -1,8 +1,10 @@
-// The whole Material Symbols Light set (~16,000 icons, ~10 MB JSON) is a separate asset that is only fetched on
-// demand. The Service Worker deliberately does not precache it (see `service-worker/index.ts`), so it needs the
-// network – inserted icons keep their SVG and work offline anyway.
+// Whole icon sets (Material Symbols ~16,000, Tabler ~6,000, Phosphor ~9,000 icons, 2–8 MB JSON each) are separate
+// assets that are only fetched on demand. The Service Worker deliberately does not precache them (see
+// `service-worker/index.ts`), so they need the network – inserted icons keep their SVG and work offline anyway.
 
-import setUrl from '@iconify-json/material-symbols-light/icons.json?url';
+import materialUrl from '@iconify-json/material-symbols/icons.json?url';
+import phosphorUrl from '@iconify-json/ph/icons.json?url';
+import tablerUrl from '@iconify-json/tabler/icons.json?url';
 import type { IconData } from '#lib/project/types.js';
 
 interface IconSet {
@@ -11,20 +13,33 @@ interface IconSet {
 	icons: Record<string, { body: string; width?: number; height?: number; hidden?: boolean }>;
 }
 
-let all: Promise<IconData[]> | null = null;
+/** Offered sets; all free to use without attribution. `size`: approximate download (compressed) */
+export const ICON_SETS = [
+	{ id: 'material', name: 'Material Symbols', license: 'Apache 2.0', count: 16000, size: '1.2 MB', url: materialUrl },
+	{ id: 'tabler', name: 'Tabler Icons', license: 'MIT', count: 6000, size: '0.3 MB', url: tablerUrl },
+	{ id: 'ph', name: 'Phosphor', license: 'MIT', count: 9000, size: '0.9 MB', url: phosphorUrl }
+] as const;
+
+export type IconSetId = (typeof ICON_SETS)[number]['id'];
+
+const loaded = new Map<IconSetId, Promise<IconData[]>>();
 
 /** Whole icon set, loaded once */
-export function loadAllIcons(): Promise<IconData[]> {
-	all ??= fetchIcons().catch((e) => {
-		// Allow another attempt (e.g. once back online)
-		all = null;
-		throw e;
-	});
-	return all;
+export function loadAllIcons(id: IconSetId): Promise<IconData[]> {
+	let icons = loaded.get(id);
+	if (!icons) {
+		icons = fetchIcons(ICON_SETS.find((s) => s.id === id)!.url).catch((e) => {
+			// Allow another attempt (e.g. once back online)
+			loaded.delete(id);
+			throw e;
+		});
+		loaded.set(id, icons);
+	}
+	return icons;
 }
 
-async function fetchIcons(): Promise<IconData[]> {
-	const response = await fetch(setUrl);
+async function fetchIcons(url: string): Promise<IconData[]> {
+	const response = await fetch(url);
 	if (!response.ok) throw new Error(`HTTP ${response.status}`);
 	return iconList(await response.json());
 }

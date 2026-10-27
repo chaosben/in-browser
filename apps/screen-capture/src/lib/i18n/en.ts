@@ -166,15 +166,19 @@ const en = {
 
 	icons: {
 		search: 'Search icons (English names)',
-		searchAll: 'Search all icons (English names)',
+		searchSet: (set: string) => `Search ${set} (English names)`,
+		source: 'Icon source',
+		curated: 'Selection (offline)',
 		hint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline',
 		insert: (name: string) => `Insert icon ${name}`,
 		categories: { arrows: 'Arrows', notices: 'Notices', status: 'Status', input: 'Mouse & keyboard', objects: 'Objects', people: 'People' },
 		noResults: 'No matching icon.',
 		limited: (n: number) => `Showing the first ${n} – refine the search for more.`,
-		loadAll: 'Search all icons (approx. 2 MB)',
-		loadAllHint: 'Loads about 16,000 more icons. Needs an internet connection; icons you insert keep working offline.',
-		offline: 'All icons need an internet connection.',
+		load: (size: string) => `Load all icons (approx. ${size})`,
+		loadHint: (count: number) =>
+			`Loads about ${count.toLocaleString('en')} icons. Needs an internet connection; icons you insert keep working offline.`,
+		license: (set: string, license: string) => `${set} · ${license} license`,
+		offline: 'Loading an icon set needs an internet connection.',
 		loadFailed: (error: string) => `The icons could not be loaded: ${error}`
 	},
 
