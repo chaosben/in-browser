@@ -380,7 +380,7 @@
 
 	<div class="flex">
 		<!-- Track headers stay put when scrolling horizontally -->
-		<div class="relative w-20 shrink-0" style="height: {height}px">
+		<div class="relative w-24 shrink-0" style="height: {height}px">
 			<div
 				class="bg-base-300 absolute inset-x-0 flex items-center justify-center rounded-l opacity-80"
 				style="top: {zoomTop}px; height: {ZOOM_H}px"
@@ -391,7 +391,7 @@
 			{#each rows as row (row.track)}
 				{@const state = trackState(timeline, row.track)}
 				<div
-					class="bg-base-300 absolute inset-x-0 flex items-center gap-0.5 rounded-l pl-1 text-[10px]"
+					class="bg-base-300 absolute inset-x-0 flex items-center gap-0.5 overflow-hidden rounded-l pl-1 text-[10px]"
 					style="top: {row.top}px; height: {row.height - 1}px"
 				>
 					{#if row.track === tracks}
