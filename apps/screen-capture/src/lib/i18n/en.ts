@@ -192,6 +192,7 @@ const en = {
 		color: 'Color',
 		colorValue: (c: string) => `Color ${c}`,
 		customColor: 'Custom color',
+		recentColors: 'Recent and project colors',
 		lineWidth: 'Line width',
 		radius: 'Corner radius',
 		strength: 'Strength',

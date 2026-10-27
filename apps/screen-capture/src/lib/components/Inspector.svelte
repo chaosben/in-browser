@@ -205,6 +205,7 @@
 				<ColorField
 					value={o.background}
 					allowNone={o.kind === 'text'}
+					projectColors={editor.colors}
 					onchange={(v, final) => setColor('background', v, final)}
 				/>
 			</div>
@@ -233,7 +234,7 @@
 		{#if o.kind !== 'blur'}
 			<div class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.color}</span>
-				<ColorField value={o.color} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
+				<ColorField value={o.color} projectColors={editor.colors} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
 			</div>
 		{/if}
 
@@ -382,7 +383,7 @@
 		</h3>
 		<div class="flex flex-col gap-1">
 			<span class="text-xs opacity-70">{m.inspector.background}</span>
-			<ColorField value={editor.project.background} opaque onchange={(v) => v && editor.setBackground(v)} />
+			<ColorField value={editor.project.background} opaque projectColors={editor.colors} onchange={(v) => v && editor.setBackground(v)} />
 		</div>
 		<div class="flex flex-col gap-2 text-xs opacity-70">
 			<p>{m.inspector.nothing}</p>

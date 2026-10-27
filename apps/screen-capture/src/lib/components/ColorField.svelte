@@ -1,15 +1,30 @@
+<script module lang="ts">
+	import { loadRecent, pushRecent, storeRecent } from '#lib/util/recent-colors.js';
+
+	// Shared by all color fields, so a color picked in one is offered in the others right away
+	let recent = $state(loadRecent());
+
+	function remember(hex: string) {
+		recent = pushRecent(recent, hex);
+		storeRecent(recent);
+	}
+</script>
+
 <script lang="ts">
 	import { m } from '#lib/i18n/index.js';
 	import { COLORS } from '#lib/project/defaults.js';
 	import { formatColor, parseColor } from '#lib/util/color.js';
+	import { mergeSwatches } from '#lib/util/recent-colors.js';
 
 	interface Props {
 		/** CSS color (`#rrggbb[aa]`) or `null` for "None" */
 		value: string | null;
 		/** Offers "None" (e.g. text background) */
 		allowNone?: boolean;
-		/** Opaque colors only (no opacity slider), e.g. for the project background */
+		/** Opaque colors only (no opacity), e.g. for the project background */
 		opaque?: boolean;
+		/** Colors already used in the project (`#rrggbb`), offered next to the recent ones */
+		projectColors?: string[];
 		/**
 		 * `final` is `false` during a drag (slider, color picker) and `true` at the end or on a
 		 * click – the caller uses it to complete the undo step.
@@ -17,24 +32,64 @@
 		onchange: (value: string | null, final: boolean) => void;
 	}
 
-	let { value, allowNone = false, opaque = false, onchange }: Props = $props();
+	let { value, allowNone = false, opaque = false, projectColors = [], onchange }: Props = $props();
+
+	const popoverId = $props.id();
+	let opacityButton = $state<HTMLButtonElement>();
 
 	const parsed = $derived(value === null ? null : parseColor(value));
 	/** When switching from "None" to a color: full opacity */
 	const alpha = $derived(parsed?.alpha ?? 1);
+	const percent = $derived(Math.round(alpha * 100));
+	const custom = $derived(mergeSwatches(recent, projectColors, COLORS));
+
+	/** Applies a color with the current opacity */
+	const apply = (hex: string, final: boolean) => onchange(formatColor(hex, alpha), final);
+
+	/** New custom color from the picker: moves to the front of the remembered ones once final */
+	function pick(hex: string, final: boolean) {
+		apply(hex, final);
+		if (final && !COLORS.includes(hex)) remember(hex);
+	}
+
+	function setAlpha(input: HTMLInputElement, final: boolean) {
+		if (parsed) onchange(formatColor(parsed.hex, Number(input.value) / 100), final);
+	}
+
+	/** Popovers live in the top layer: place it below the button, right-aligned */
+	function placePopover(e: ToggleEvent) {
+		const popover = e.currentTarget as HTMLElement;
+		if (e.newState !== 'open' || !opacityButton) return;
+		const rect = opacityButton.getBoundingClientRect();
+		popover.style.top = `${rect.bottom + 4}px`;
+		popover.style.left = `${Math.max(4, rect.right - popover.offsetWidth)}px`;
+	}
 
 	// Checkerboard behind the swatches makes transparency visible
 	const checker =
 		'background-image: repeating-conic-gradient(#9ca3af 0 25%, #f3f4f6 0 50%); background-size: 8px 8px';
-	const swatch = 'relative size-6 overflow-hidden rounded border';
+	const swatchClass = 'relative size-5 shrink-0 overflow-hidden rounded border';
 	const selected = 'border-base-content ring-primary ring-2';
 </script>
 
+{#snippet swatch(color: string)}
+	<button
+		class="{swatchClass} {parsed?.hex === color ? selected : 'border-base-content/30'}"
+		style={checker}
+		onclick={() => apply(color, true)}
+		title={color}
+		aria-label={m.inspector.colorValue(color)}
+	>
+		<span class="absolute inset-0" style="background: {formatColor(color, alpha)}"></span>
+	</button>
+{/snippet}
+
+<!-- Swatches on the left (custom ones in the same columns as the presets), tools on the right -->
 <div class="flex flex-col gap-2">
-	<div class="flex flex-wrap items-center gap-1">
+	<div class="flex items-center gap-1">
 		{#if allowNone}
 			<button
-				class="{swatch} bg-base-100 {value === null ? selected : 'border-base-content/30'}"
+				class="{swatchClass} bg-base-100 {value === null ? selected : 'border-base-content/30'}"
 				onclick={() => onchange(null, true)}
 				title={m.inspector.none}
 				aria-label={m.inspector.none}
@@ -44,44 +99,64 @@
 			</button>
 		{/if}
 		{#each COLORS as color (color)}
-			<button
-				class="{swatch} {parsed?.hex === color ? selected : 'border-base-content/30'}"
-				style={checker}
-				onclick={() => onchange(formatColor(color, alpha), true)}
-				title={color}
-				aria-label={m.inspector.colorValue(color)}
-			>
-				<span class="absolute inset-0" style="background: {formatColor(color, alpha)}"></span>
-			</button>
+			{@render swatch(color)}
 		{/each}
+
+		{#if parsed && !opaque}
+			<button
+				bind:this={opacityButton}
+				popovertarget={popoverId}
+				class="btn btn-xs ml-auto w-14 gap-0.5 px-1 font-normal tabular-nums"
+				title={m.inspector.opacity}
+				aria-label={m.inspector.opacity}
+			>
+				<span class="icon-[material-symbols-light--opacity] size-4 shrink-0" aria-hidden="true"></span>{percent}%
+			</button>
+			<!-- Opens only via the button; closes on a click outside or Esc -->
+			<div
+				id={popoverId}
+				popover
+				class="bg-base-100 text-base-content border-base-300 rounded-box m-0 w-52 border p-3 shadow"
+				ontoggle={placePopover}
+			>
+				<div class="flex items-center gap-2">
+					<input
+						type="range"
+						class="range range-xs flex-1"
+						min="0"
+						max="100"
+						step="1"
+						value={percent}
+						aria-label={m.inspector.opacity}
+						oninput={(e) => setAlpha(e.currentTarget, false)}
+						onchange={(e) => setAlpha(e.currentTarget, true)}
+					/>
+					<span class="w-9 text-right text-xs tabular-nums">{percent} %</span>
+				</div>
+			</div>
+		{/if}
+	</div>
+
+	<div class="flex items-center gap-1">
+		{#if custom.length}
+			{#if allowNone}
+				<!-- Keeps the custom colors below the presets, not below "None" -->
+				<span class="size-5 shrink-0" aria-hidden="true"></span>
+			{/if}
+			<div class="flex items-center gap-1" role="group" aria-label={m.inspector.recentColors}>
+				{#each custom as color (color)}
+					{@render swatch(color)}
+				{/each}
+			</div>
+		{/if}
 		<input
 			type="color"
-			class="size-7 cursor-pointer bg-transparent"
+			class="ml-auto size-6 shrink-0 cursor-pointer bg-transparent"
 			value={parsed?.hex ?? '#000000'}
-			oninput={(e) => onchange(formatColor(e.currentTarget.value, alpha), false)}
-			onchange={(e) => onchange(formatColor(e.currentTarget.value, alpha), true)}
+			oninput={(e) => pick(e.currentTarget.value, false)}
+			onchange={(e) => pick(e.currentTarget.value, true)}
 			title={m.inspector.customColor}
 			aria-label={m.inspector.customColor}
 		/>
 	</div>
-
-	{#if parsed && !opaque}
-		<label class="flex items-center gap-2 text-xs">
-			<span class="opacity-70">{m.inspector.opacity}</span>
-			<input
-				type="range"
-				class="range range-xs flex-1"
-				min="0"
-				max="100"
-				step="1"
-				value={Math.round(alpha * 100)}
-				oninput={(e) => onchange(formatColor(parsed.hex, Number(e.currentTarget.value) / 100), false)}
-				onchange={(e) => onchange(formatColor(parsed.hex, Number(e.currentTarget.value) / 100), true)}
-			/>
-			<span class="w-9 text-right tabular-nums">{Math.round(alpha * 100)} %</span>
-			<span class="relative size-5 overflow-hidden rounded border border-base-content/30" style={checker}>
-				<span class="absolute inset-0" style="background: {value}"></span>
-			</span>
-		</label>
-	{/if}
 </div>

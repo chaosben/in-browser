@@ -5,6 +5,7 @@ import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, placeSource, recordingSources, type Recording } from './project.js';
 import type { Item, Project, Selection, Source, Timeline, TrackState } from './types.js';
 import { m } from '#lib/i18n/index.js';
+import { parseColor } from '#lib/util/color.js';
 
 const HISTORY_LIMIT = 100;
 
@@ -75,6 +76,18 @@ export class Editor {
 	get selectedZoom() {
 		const s = this.selection;
 		return s?.kind === 'zoom' ? (this.project.timeline.zoom.find((z) => z.id === s.id) ?? null) : null;
+	}
+
+	/** Colors used in the project (`#rrggbb`, without opacity), offered for reuse in the color fields */
+	get colors(): string[] {
+		const values: (string | null)[] = [];
+		for (const item of this.project.timeline.items) {
+			if (item.type !== 'annotation') continue;
+			if ('color' in item) values.push(item.color);
+			if ('background' in item) values.push(item.background);
+		}
+		values.push(this.project.background);
+		return [...new Set(values.filter((v) => v !== null).map((v) => parseColor(v).hex))];
 	}
 
 	/** Selects exactly one item or zoom segment */

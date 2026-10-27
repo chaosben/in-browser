@@ -194,6 +194,7 @@ const de: Messages = {
 		color: 'Farbe',
 		colorValue: (c) => `Farbe ${c}`,
 		customColor: 'Eigene Farbe',
+		recentColors: 'Zuletzt verwendete und Projektfarben',
 		lineWidth: 'Linienstärke',
 		radius: 'Eckenradius',
 		strength: 'Stärke',
