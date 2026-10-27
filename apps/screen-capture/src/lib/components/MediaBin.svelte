@@ -4,6 +4,7 @@
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import type { Source } from '#lib/project/types.js';
 	import { setDragPayload } from '#lib/tools/drag.js';
+	import { ask } from '#lib/ui/confirm.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
 
@@ -36,7 +37,7 @@
 		const message = editor.isSourceInHistory(source.id)
 			? m.mediaBin.confirmDeleteHistory(source.name)
 			: m.mediaBin.confirmDelete(source.name);
-		if (!confirm(message)) return;
+		if (!(await ask({ title: m.mediaBin.deleteTitle, message, confirm: m.common.delete, danger: true }))) return;
 		await editor.removeSource(source.id);
 		onremoved();
 	}

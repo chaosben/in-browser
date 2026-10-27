@@ -35,6 +35,7 @@ const en = {
 		storage: (used: string, quota: string) => `${used} GB of ${quota} GB used`,
 		empty: 'No projects yet. Start a recording, import media or drop a video or audio file here.',
 		changed: (date: string) => `modified ${date}`,
+		deleteTitle: 'Delete project?',
 		confirmDelete: (name: string) => `Delete project “${name}” including all recordings?`,
 		footer: 'Projects are stored in this browser. To back them up or share them, use “Save as folder” in the editor.',
 		dropToCreate: 'Drop to create a new project from the file'
@@ -290,6 +291,7 @@ const en = {
 		deleteForever: 'Delete permanently',
 		audioOnly: 'audio only',
 		inUse: 'Used in the timeline',
+		deleteTitle: 'Delete media?',
 		confirmDelete: (name: string) => `Delete “${name}” permanently? This cannot be undone.`,
 		confirmDeleteHistory: (name: string) =>
 			`Delete “${name}” permanently? Undo steps that still use this file will be lost. This cannot be undone.`

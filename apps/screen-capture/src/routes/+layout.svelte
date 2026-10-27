@@ -5,6 +5,7 @@
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import { BRAND } from '#lib/brand.js';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 	import Toasts from '#lib/components/Toasts.svelte';
 	import { locale, m } from '#lib/i18n/index.js';
 	import type { LayoutProps } from './$types';
@@ -37,4 +38,5 @@
 	</div>
 </div>
 <Toasts />
+<ConfirmDialog />
 <UpdateBanner />

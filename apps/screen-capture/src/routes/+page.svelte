@@ -9,6 +9,7 @@
 	import type { Project, Source } from '#lib/project/types.js';
 	import { folderSupported, openFromFolder } from '#lib/storage/folder.js';
 	import { deleteProject, listProjects, requestPersistence, storageEstimate } from '#lib/storage/opfs.js';
+	import { ask } from '#lib/ui/confirm.svelte.js';
 	import { toast } from '#lib/ui/toast.svelte.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
@@ -88,7 +89,13 @@
 	}
 
 	async function remove(project: Project) {
-		if (!confirm(m.home.confirmDelete(project.name))) return;
+		const ok = await ask({
+			title: m.home.deleteTitle,
+			message: m.home.confirmDelete(project.name),
+			confirm: m.common.delete,
+			danger: true
+		});
+		if (!ok) return;
 		await deleteProject(project.id);
 		await refresh();
 	}

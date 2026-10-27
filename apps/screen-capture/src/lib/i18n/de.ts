@@ -35,6 +35,7 @@ const de: Messages = {
 		storage: (used, quota) => `${used} GB von ${quota} GB belegt`,
 		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien oder ziehe eine Video- oder Audiodatei hierher.',
 		changed: (date) => `geändert ${date}`,
+		deleteTitle: 'Projekt löschen?',
 		confirmDelete: (name) => `Projekt „${name}“ mit allen Aufnahmen löschen?`,
 		footer:
 			'Projekte werden im Speicher dieses Browsers abgelegt. Zum Sichern oder Weitergeben im Editor „Als Ordner speichern“ verwenden.',
@@ -300,6 +301,7 @@ const de: Messages = {
 		deleteForever: 'Endgültig löschen',
 		audioOnly: 'nur Ton',
 		inUse: 'Wird in der Timeline verwendet',
+		deleteTitle: 'Medium löschen?',
 		confirmDelete: (name) => `„${name}“ endgültig löschen? Das kann nicht rückgängig gemacht werden.`,
 		confirmDeleteHistory: (name) =>
 			`„${name}“ endgültig löschen? Rückgängig-Schritte, die diese Datei noch verwenden, gehen dabei verloren. Das kann nicht rückgängig gemacht werden.`
