@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { growTo, refitLarger, resizeCanvas, shrunkSources } from './canvas';
-import { fitRect } from './defaults';
+import { growTo, refitDefaults, resizeCanvas, shrunkSources } from './canvas';
+import { cameraRect, fitRect } from './defaults';
 import type { Annotation, Clip, Source, Timeline } from './types';
 
 const from = { width: 1000, height: 500 };
@@ -66,19 +66,27 @@ describe('growTo', () => {
 	});
 });
 
-describe('refitLarger', () => {
+describe('refitDefaults', () => {
 	it('a larger source in its default placement fills the new canvas', () => {
 		const s = source(2000, 1000);
-		const t = refitLarger(resizeCanvas(timeline(clip(fitRect(s, from.width, from.height))), from, to), [s], from, to);
+		const t = refitDefaults(resizeCanvas(timeline(clip(fitRect(s, from.width, from.height))), from, to), [s], from, to);
 		expect((t.items[0] as Clip).rect).toEqual({ x: 0, y: 0, w: 1, h: 1 });
 	});
 	it('smaller sources and moved clips keep their pixel size', () => {
 		const small = source(1000, 500);
 		const t1 = resizeCanvas(timeline(clip()), from, to);
-		expect(refitLarger(t1, [small], from, to).items[0]).toEqual(t1.items[0]);
+		expect(refitDefaults(t1, [small], from, to).items[0]).toEqual(t1.items[0]);
 		const big = source(2000, 1000);
 		const t2 = resizeCanvas(timeline(clip({ x: 0.1, y: 0.1, w: 0.5, h: 0.5 })), from, to);
-		expect(refitLarger(t2, [big], from, to).items[0]).toEqual(t2.items[0]);
+		expect(refitDefaults(t2, [big], from, to).items[0]).toEqual(t2.items[0]);
+	});
+});
+
+describe('refitDefaults: webcam', () => {
+	it('a webcam in its default corner moves to the corner of the new canvas', () => {
+		const cam = source(640, 360);
+		const t = refitDefaults(resizeCanvas(timeline(clip(cameraRect(cam, from.width, from.height))), from, to), [cam], from, to);
+		expect((t.items[0] as Clip).rect).toEqual(cameraRect(cam, to.width, to.height));
 	});
 });
 

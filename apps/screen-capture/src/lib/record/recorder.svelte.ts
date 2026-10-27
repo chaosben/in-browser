@@ -193,9 +193,10 @@ export class Recorder {
 						height: even(Math.max(height, screen.height * devicePixelRatio))
 					}
 				: null;
-		if (box) ({ width, height } = box);
-		// Explicit bitrate, so the size estimate in the dialog matches what is encoded
+		// Explicit bitrate, so the size estimate in the dialog matches what is encoded. It follows the shared
+		// surface, not the box: a small window on a large monitor would otherwise get far too many bits.
 		const quality = new Quality({ bitrate: recordBitrate(kind, level, width, height, frameRate) });
+		if (box) ({ width, height } = box);
 		// VP9 with screen-content tools keeps text much sharper than (usually hardware) H.264 in realtime mode
 		const codecs = kind === 'screen' ? (['vp9', 'avc', 'av1'] as const) : (['avc', 'vp9', 'av1'] as const);
 		const codec = await getFirstEncodableVideoCodec([...codecs], { width, height });

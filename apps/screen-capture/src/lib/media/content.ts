@@ -75,3 +75,15 @@ export function anchorFactors(anchor: Anchor = 'center') {
 	const y = anchor.startsWith('top') ? 0 : anchor.startsWith('bottom') ? 1 : 0.5;
 	return { x, y };
 }
+
+/**
+ * Part of an image (`width` × `height`, showing the source's used area) that the window covered at source
+ * time `t`, centered; `null` without size changes
+ */
+export function visibleRect(source: Source, t: number, width: number, height: number) {
+	if (!source.sizes) return null;
+	const v = contentSizeAt(source, t);
+	const w = (Math.min(v.width, source.width) * width) / source.width;
+	const h = (Math.min(v.height, source.height) * height) / source.height;
+	return { x: (width - w) / 2, y: (height - h) / 2, w, h };
+}

@@ -56,13 +56,29 @@
 		if (parsed) onchange(formatColor(parsed.hex, Number(input.value) / 100), final);
 	}
 
-	/** Popovers live in the top layer: place it below the button, right-aligned */
+	/** Removes the listeners that close the open popover */
+	let unlisten: (() => void) | undefined;
+	$effect(() => () => unlisten?.());
+
+	/**
+	 * Popovers live in the top layer: place it below the button, right-aligned. It does not follow the button,
+	 * so scrolling or resizing closes it.
+	 */
 	function placePopover(e: ToggleEvent) {
+		unlisten?.();
+		unlisten = undefined;
 		const popover = e.currentTarget as HTMLElement;
 		if (e.newState !== 'open' || !opacityButton) return;
 		const rect = opacityButton.getBoundingClientRect();
 		popover.style.top = `${rect.bottom + 4}px`;
 		popover.style.left = `${Math.max(4, rect.right - popover.offsetWidth)}px`;
+		const close = () => popover.hidePopover();
+		window.addEventListener('scroll', close, { capture: true });
+		window.addEventListener('resize', close);
+		unlisten = () => {
+			window.removeEventListener('scroll', close, { capture: true });
+			window.removeEventListener('resize', close);
+		};
 	}
 
 	// Checkerboard behind the swatches makes transparency visible

@@ -1,6 +1,6 @@
 import { deleteMediaFile, saveProject } from '#lib/storage/opfs.js';
 import { addItem, clipsOf, findItem, groupOf, isClip, setTrackState } from '#lib/timeline/ops.js';
-import { growTo, refitLarger, resizeCanvas, shrunkSources, type Size } from './canvas.js';
+import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, placeSource, recordingSources, type Recording } from './project.js';
@@ -192,7 +192,7 @@ export class Editor {
 
 	/**
 	 * Grows the canvas (one undo step): existing content keeps its size in pixels and moves to the center,
-	 * clips that were shrunk to fit fill the new canvas 1:1.
+	 * clips that were shrunk to fit fill the new canvas 1:1, webcams move to its corner.
 	 */
 	resizeCanvas(size: Size) {
 		const from = { width: this.project.width, height: this.project.height };
@@ -201,7 +201,7 @@ export class Editor {
 		this.#undo = [...this.#undo, before].slice(-HISTORY_LIMIT);
 		this.#redo = [];
 		this.#lastMergeKey = null;
-		const timeline = refitLarger(resizeCanvas(before.timeline, from, size), this.project.sources, from, size);
+		const timeline = refitDefaults(resizeCanvas(before.timeline, from, size), this.project.sources, from, size);
 		this.project = { ...this.project, width: size.width, height: size.height };
 		this.#setTimeline(timeline, before.timeline, true);
 	}

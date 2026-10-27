@@ -1,6 +1,6 @@
 import { AudioBufferSink, CanvasSink } from 'mediabunny';
 import type { Source } from '#lib/project/types.js';
-import { sourceCrop } from './content.js';
+import { sourceCrop, visibleRect } from './content.js';
 import { mediaFile, readMediaText, writeMediaText } from '#lib/storage/opfs.js';
 import { openInput } from './media.js';
 
@@ -56,12 +56,23 @@ async function computeThumbnails(projectId: string, source: Source): Promise<Thu
 	const sink = new CanvasSink(track, { height: THUMB_HEIGHT, crop: source.crop ? sourceCrop(source) : undefined });
 	const timestamps = Array.from({ length: Math.ceil(source.duration / interval) }, (_, i) => i * interval);
 	const images: ImageBitmap[] = [];
+	let i = 0;
 	for await (const wrapped of sink.canvasesAtTimestamps(timestamps)) {
-		if (wrapped) images.push(await createImageBitmap(wrapped.canvas));
+		const t = timestamps[i++];
+		if (wrapped) images.push(await createImageBitmap(onlyWindow(wrapped.canvas, source, t)));
 		else if (images.length) images.push(images[images.length - 1]);
 	}
 	if (images.length === 0) return null;
 	return { interval, images, aspect: images[0].width / images[0].height };
+}
+
+/** Resized window recordings: keeps only the window at time `t`, the rest transparent (same image size) */
+function onlyWindow(image: HTMLCanvasElement | OffscreenCanvas, source: Source, t: number) {
+	const r = visibleRect(source, t, image.width, image.height);
+	if (!r) return image;
+	const canvas = new OffscreenCanvas(image.width, image.height);
+	canvas.getContext('2d')?.drawImage(image, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+	return canvas;
 }
 
 async function loadPeaks(projectId: string, source: Source): Promise<Peaks | null> {

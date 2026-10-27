@@ -2,7 +2,7 @@
 // so a new canvas size means converting everything. Existing content keeps its size in pixels and moves to
 // the center; the new space around it stays empty.
 
-import { fitRect } from './defaults.js';
+import { cameraRect, fitRect } from './defaults.js';
 import type { Annotation, Item, Point, Rect, Source, Timeline, ZoomSegment } from './types.js';
 
 export interface Size {
@@ -75,18 +75,23 @@ export function shrunkSources(timeline: Timeline, sources: Source[], canvas: Siz
 }
 
 /**
- * Clips that were only shrunk to fit the old canvas (default placement, source larger than the canvas) fill
- * the new one 1:1 after the canvas has grown.
+ * Clips still in a default placement after the canvas has grown: those that were only shrunk to fit the old
+ * canvas (source larger than it) fill the new one 1:1, webcam overlays move to the corner of the new one.
+ * Moved or resized clips stay as they are.
  */
-export function refitLarger(timeline: Timeline, sources: Source[], from: Size, to: Size): Timeline {
+export function refitDefaults(timeline: Timeline, sources: Source[], from: Size, to: Size): Timeline {
 	const items = timeline.items.map((item) => {
 		if (item.type === 'annotation') return item;
 		const source = sources.find((s) => s.id === item.sourceId);
-		if (!source?.hasVideo || (source.width <= from.width && source.height <= from.height)) return item;
-		// Compare with the default placement in the old canvas, converted like everything else
-		const fitted = resizeCanvas({ items: [{ ...item, rect: fitRect(source, from.width, from.height) }], tracks: [], zoom: [] }, from, to);
-		const expected = (fitted.items[0] as typeof item).rect;
-		return near(item.rect, expected) ? { ...item, rect: fitRect(source, to.width, to.height) } : item;
+		if (!source?.hasVideo) return item;
+		// Default placement in the old canvas, converted like everything else
+		const was = (rect: Rect) => near(item.rect, (resizeCanvas(timeline1({ ...item, rect }), from, to).items[0] as typeof item).rect);
+		const larger = source.width > from.width || source.height > from.height;
+		if (larger && was(fitRect(source, from.width, from.height))) return { ...item, rect: fitRect(source, to.width, to.height) };
+		if (was(cameraRect(source, from.width, from.height))) return { ...item, rect: cameraRect(source, to.width, to.height) };
+		return item;
 	});
 	return { ...timeline, items };
 }
+
+const timeline1 = (item: Item): Timeline => ({ items: [item], tracks: [], zoom: [] });

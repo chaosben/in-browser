@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchorFactors, captureLayout, contentSizeAt, placeInBox, sourceCrop } from './content';
+import { anchorFactors, captureLayout, contentSizeAt, placeInBox, sourceCrop, visibleRect } from './content';
 import type { Source } from '#lib/project/types.js';
 
 const source = (extra: Partial<Source> = {}): Source => ({
@@ -78,5 +78,15 @@ describe('anchorFactors', () => {
 		expect(anchorFactors('bottom')).toEqual({ x: 0.5, y: 1 });
 		expect(anchorFactors('right')).toEqual({ x: 1, y: 0.5 });
 		expect(anchorFactors('bottom-right')).toEqual({ x: 1, y: 1 });
+	});
+});
+
+describe('visibleRect', () => {
+	it('null without size changes', () => {
+		expect(visibleRect(source(), 1, 80, 60)).toBeNull();
+	});
+	it('centered window part, scaled to the image', () => {
+		const s = source({ sizes: [{ t: 0, width: 400, height: 300 }] });
+		expect(visibleRect(s, 1, 80, 60)).toEqual({ x: 20, y: 15, w: 40, h: 30 });
 	});
 });
