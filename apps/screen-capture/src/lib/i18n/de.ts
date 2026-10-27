@@ -133,6 +133,8 @@ const de: Messages = {
 		savedToFolder: (name) => `Projekt im Ordner „${name}“ gespeichert`,
 		export: 'Exportieren',
 		recordingAdded: 'Aufnahme hinzugefügt',
+		largerMedia: (size, canvas) => `Das neue Material (${size}) ist größer als die Leinwand (${canvas}).`,
+		growCanvas: 'Leinwand vergrößern',
 		add: (what) => `${what} hinzufügen`,
 		dragHint: 'Klicken: am Abspielkopf einfügen · Ziehen: in Vorschau oder Timeline ablegen',
 		zoomSegment: 'Zoom-Abschnitt',
@@ -185,6 +187,11 @@ const de: Messages = {
 		changeDuration: 'Dauer ändern'
 	},
 
+	canvasDialog: {
+		title: 'Leinwand vergrößern?',
+		keep: 'Größe beibehalten'
+	},
+
 	inspector: {
 		text: 'Text',
 		fontSize: 'Schriftgröße',
@@ -230,6 +237,8 @@ const de: Messages = {
 			deselect: 'Auswahl aufheben'
 		},
 		project: 'Projekt',
+		canvas: 'Leinwand',
+		growCanvasHint: 'Bisheriger Inhalt behält seine Größe und rückt in die Mitte.',
 		placement: 'Position im Bild',
 		fit: 'Einpassen',
 		fill: 'Füllen',
@@ -239,6 +248,19 @@ const de: Messages = {
 		shapeRect: 'Rechteck',
 		shapeRounded: 'Abgerundet',
 		shapeCircle: 'Kreis',
+		windowPosition: 'Fensterposition',
+		windowPositionHint: 'Wo das Fenster steht, solange es kleiner als seine größte Ausdehnung ist.',
+		anchors: {
+			'top-left': 'Oben links',
+			top: 'Oben',
+			'top-right': 'Oben rechts',
+			left: 'Links',
+			center: 'Mitte',
+			right: 'Rechts',
+			'bottom-left': 'Unten links',
+			bottom: 'Unten',
+			'bottom-right': 'Unten rechts'
+		},
 		volume: 'Lautstärke',
 		mute: 'Stumm',
 		unlink: 'Verknüpfung lösen',

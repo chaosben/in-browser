@@ -1,13 +1,21 @@
-import type { ClipShape, Rect, Timeline } from '#lib/project/types.js';
+import { anchorFactors } from '#lib/media/content.js';
+import type { Anchor, ClipShape, Rect, Timeline } from '#lib/project/types.js';
 import { itemsAt, trackState, viewAt } from '#lib/timeline/ops.js';
 import { drawOverlay, overlayAlpha } from './overlays.js';
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+/** The area `x`, `y`, `width` × `height` of `image` fills the clip's rect */
 export interface Frame {
 	image: CanvasImageSource;
+	x?: number;
+	y?: number;
 	width: number;
 	height: number;
+	/** Only this centered part is drawn (recorded window smaller than its largest size); the rest stays empty */
+	visible?: { width: number; height: number };
+	/** Where the visible part sits in the rect (default: center) */
+	anchor?: Anchor;
 }
 
 export interface Scene {
@@ -58,7 +66,7 @@ export function renderFrame(ctx: Ctx2D, width: number, height: number, scene: Sc
 /** Draws a clip frame into its rect, rounded or as a circle (centered, diameter = shorter side) */
 function drawClip(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number, shape: ClipShape) {
 	if (shape === 'rect') {
-		ctx.drawImage(frame.image, x, y, w, h);
+		drawFrame(ctx, frame, x, y, w, h);
 		return;
 	}
 	ctx.save();
@@ -66,6 +74,19 @@ function drawClip(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: 
 	if (shape === 'rounded') ctx.roundRect(x, y, w, h, 0.08 * Math.min(w, h));
 	else ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) / 2, 0, 2 * Math.PI);
 	ctx.clip();
-	ctx.drawImage(frame.image, x, y, w, h);
+	drawFrame(ctx, frame, x, y, w, h);
 	ctx.restore();
+}
+
+function drawFrame(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number) {
+	const { width, height } = frame;
+	const vw = Math.min(frame.visible?.width ?? width, width);
+	const vh = Math.min(frame.visible?.height ?? height, height);
+	const dw = (w * vw) / width;
+	const dh = (h * vh) / height;
+	// The window is always centered in the file, only its place in the rect can change
+	const sx = (frame.x ?? 0) + (width - vw) / 2;
+	const sy = (frame.y ?? 0) + (height - vh) / 2;
+	const f = anchorFactors(frame.anchor);
+	ctx.drawImage(frame.image, sx, sy, vw, vh, x + (w - dw) * f.x, y + (h - dh) * f.y, dw, dh);
 }

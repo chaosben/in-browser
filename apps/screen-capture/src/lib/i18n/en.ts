@@ -131,6 +131,8 @@ const en = {
 		savedToFolder: (name: string) => `Project saved to folder “${name}”`,
 		export: 'Export',
 		recordingAdded: 'Recording added',
+		largerMedia: (size: string, canvas: string) => `The new material (${size}) is larger than the canvas (${canvas}).`,
+		growCanvas: 'Enlarge canvas',
 		add: (what: string) => `Add ${what.toLowerCase()}`,
 		dragHint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline',
 		zoomSegment: 'Zoom segment',
@@ -183,6 +185,11 @@ const en = {
 		changeDuration: 'Change duration'
 	},
 
+	canvasDialog: {
+		title: 'Enlarge canvas?',
+		keep: 'Keep size'
+	},
+
 	inspector: {
 		text: 'Text',
 		fontSize: 'Font size',
@@ -221,6 +228,8 @@ const en = {
 		nothingHint: 'Click a clip, an annotation or a zoom segment in the timeline, or add something new from the bar on the left.',
 		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', deselect: 'Deselect' },
 		project: 'Project',
+		canvas: 'Canvas',
+		growCanvasHint: 'Existing content keeps its size and moves to the center.',
 		placement: 'Position in the picture',
 		fit: 'Fit',
 		fill: 'Fill',
@@ -230,6 +239,19 @@ const en = {
 		shapeRect: 'Rectangle',
 		shapeRounded: 'Rounded',
 		shapeCircle: 'Circle',
+		windowPosition: 'Window position',
+		windowPositionHint: 'Where the window sits while it is smaller than its largest size.',
+		anchors: {
+			'top-left': 'Top left',
+			top: 'Top',
+			'top-right': 'Top right',
+			left: 'Left',
+			center: 'Center',
+			right: 'Right',
+			'bottom-left': 'Bottom left',
+			bottom: 'Bottom',
+			'bottom-right': 'Bottom right'
+		},
 		volume: 'Volume',
 		mute: 'Mute',
 		unlink: 'Unlink',

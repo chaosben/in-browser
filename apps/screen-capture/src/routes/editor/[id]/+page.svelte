@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { BRAND } from '#lib/brand.js';
+	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import OverlayEditor from '#lib/components/OverlayEditor.svelte';
@@ -91,6 +93,12 @@
 		const { width, height } = editor.project;
 		const scale = Math.min(1, 1920 / width, 1080 / height);
 		return { width: Math.round(width * scale), height: Math.round(height * scale) };
+	});
+
+	// Setting the canvas size clears it (e.g. after growing the canvas or undoing that): draw again
+	$effect(() => {
+		void previewSize;
+		untrack(() => player?.redraw());
 	});
 
 	/** Selected items on unlocked tracks */
@@ -523,5 +531,11 @@
 		<RecordDialog projectId={editor.project.id} ondone={recorded} oncancel={() => (dialog = null)} />
 	{:else if dialog === 'export'}
 		<ExportDialog project={editor.project} onclose={() => (dialog = null)} />
+	{:else if editor.canvasOffer}
+		<CanvasDialog
+			canvas={editor.project}
+			size={editor.canvasOffer.size}
+			onanswer={(grow) => editor?.answerCanvasOffer(grow)}
+		/>
 	{/if}
 {/if}

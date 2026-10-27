@@ -5,6 +5,7 @@
 	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type ZoomSegment } from '#lib/project/types.js';
 	import { rememberDuration, rememberStyle } from '#lib/project/styles.js';
 	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
+	import { ANCHORS } from '#lib/media/content.js';
 	import {
 		clipDuration,
 		remove,
@@ -28,6 +29,8 @@
 	const overlay = $derived(editor.selectedOverlay);
 	const zoom = $derived(editor.selectedZoom);
 	const clip = $derived(editor.selectedClip);
+	/** Suggestion for the project panel: canvas that shows shrunk clips 1:1 */
+	const largerCanvas = $derived(editor.largerCanvas());
 	/** Several selected, without a primary item (e.g. Ctrl+A) */
 	const multiple = $derived(editor.selectedItems.length > 1 && !editor.selectedItem ? editor.selectedItems : null);
 	/** Other items selected along with it (e.g. the group of the clicked clip) */
@@ -341,6 +344,25 @@
 					{/each}
 				</div>
 			</div>
+			{#if source.sizes}
+				<!-- Recorded window was resized: where it sits while it is smaller -->
+				<div class="flex flex-col gap-1">
+					<span class="text-xs opacity-70">{m.inspector.windowPosition}</span>
+					<div class="grid w-fit grid-cols-3 gap-1">
+						{#each ANCHORS as anchor (anchor)}
+							<button
+								class="btn btn-xs btn-square {(c.anchor ?? 'center') === anchor ? 'btn-primary' : ''}"
+								onclick={() => editor.update((t) => updateItem(t, c.id, { anchor }))}
+								title={m.inspector.anchors[anchor]}
+								aria-label={m.inspector.anchors[anchor]}
+							>
+								<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+							</button>
+						{/each}
+					</div>
+					<p class="text-xs opacity-60">{m.inspector.windowPositionHint}</p>
+				</div>
+			{/if}
 		{/if}
 		{#if c.type === 'video' && source?.hasAudio}
 			{@const volume = c.volume ?? 1}
@@ -381,6 +403,20 @@
 		<h3 class="flex items-center gap-2 font-semibold">
 			<span class="icon-[material-symbols-light--movie-edit-outline] size-5" aria-hidden="true"></span> {m.inspector.project}
 		</h3>
+		<div class="flex flex-col gap-1">
+			<span class="flex justify-between text-xs">
+				<span class="opacity-70">{m.inspector.canvas}</span>
+				<span class="tabular-nums">{editor.project.width} × {editor.project.height}</span>
+			</span>
+			{#if largerCanvas}
+				{@const size = largerCanvas}
+				<button class="btn btn-sm" onclick={() => editor.resizeCanvas(size)}>
+					<span class="icon-[material-symbols-light--open-in-full] size-5" aria-hidden="true"></span>
+					{m.editor.growCanvas} ({size.width} × {size.height})
+				</button>
+				<p class="text-xs opacity-60">{m.inspector.growCanvasHint}</p>
+			{/if}
+		</div>
 		<div class="flex flex-col gap-1">
 			<span class="text-xs opacity-70">{m.inspector.background}</span>
 			<ColorField value={editor.project.background} opaque projectColors={editor.colors} onchange={(v) => v && editor.setBackground(v)} />

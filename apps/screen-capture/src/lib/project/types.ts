@@ -11,6 +11,20 @@ export interface Source {
 	width: number;
 	height: number;
 	hasAudio: boolean;
+	/**
+	 * Recordings of a resized window: top-left corner (pixels) of the used `width` × `height` area in the
+	 * file; missing = (0, 0). The window was drawn 1:1 and centered into a larger fixed frame.
+	 */
+	crop?: { x: number; y: number };
+	/** Recordings of a resized window: window size over time; outside of it the clip stays empty. */
+	sizes?: SourceSize[];
+}
+
+/** Size of the recorded window from source time `t` (seconds) on */
+export interface SourceSize {
+	t: number;
+	width: number;
+	height: number;
 }
 
 /** Common fields of all items on a track. Items on the same track never overlap in time. */
@@ -27,6 +41,9 @@ interface ItemBase {
 /** Crop of a clip in the frame */
 export type ClipShape = 'rect' | 'rounded' | 'circle';
 
+/** Where a recorded window sits in its clip while it is smaller than its largest size (default: center) */
+export type Anchor = 'top-left' | 'top' | 'top-right' | 'left' | 'center' | 'right' | 'bottom-left' | 'bottom' | 'bottom-right';
+
 /**
  * A segment of a source on the timeline (including audio-only sources). `in`/`out` are seconds within
  * the source.
@@ -39,6 +56,7 @@ export interface VideoClip extends ItemBase {
 	/** Position on the canvas (content coordinates), default: source fitted */
 	rect: Rect;
 	shape?: ClipShape;
+	anchor?: Anchor;
 	/** Volume 0…1 (default 1) */
 	volume?: number;
 }
@@ -51,6 +69,7 @@ export interface FreezeClip extends ItemBase {
 	duration: number;
 	rect: Rect;
 	shape?: ClipShape;
+	anchor?: Anchor;
 }
 
 export type Clip = VideoClip | FreezeClip;

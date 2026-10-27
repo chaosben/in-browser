@@ -1,6 +1,7 @@
 import { untrack } from 'svelte';
 import type { Clip, Project, Rect } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
+import { frameArea } from '#lib/media/content.js';
 import { mediaFile } from '#lib/storage/opfs.js';
 import { clipsAt, clipsOf, duration, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { m } from '#lib/i18n/index.js';
@@ -264,10 +265,13 @@ export class Player {
 		for (const clip of clipsAt(project.timeline, this.time)) {
 			const video = this.#assigned.get(clip.id)?.video;
 			if (!video) continue;
+			const source = project.sources.find((s) => s.id === clip.sourceId);
+			const t = sourceTime(clip, this.time);
 			const still = video.seeking ? this.#stills.get(video) : undefined;
-			if (still) frames.set(clip.id, { image: still, width: still.width, height: still.height });
+			const anchor = clip.anchor;
+			if (still) frames.set(clip.id, { image: still, anchor, ...frameArea(source, t, still.width, still.height) });
 			else if (video.readyState >= 2) {
-				frames.set(clip.id, { image: video, width: video.videoWidth, height: video.videoHeight });
+				frames.set(clip.id, { image: video, anchor, ...frameArea(source, t, video.videoWidth, video.videoHeight) });
 			}
 		}
 		renderFrame(ctx, canvas.width, canvas.height, {

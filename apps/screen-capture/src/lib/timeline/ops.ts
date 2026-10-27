@@ -506,6 +506,7 @@ export function insertFreeze(
 			track: item.track,
 			rect: item.rect,
 			shape: item.shape,
+			anchor: item.anchor,
 			group: item.group,
 			start: t,
 			at,

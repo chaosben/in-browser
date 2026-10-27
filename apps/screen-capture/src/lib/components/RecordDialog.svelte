@@ -179,7 +179,8 @@
 			const describe = (file: string | undefined, name: string) =>
 				file ? describeSource(projectId, file, name, 'recording') : Promise.resolve(undefined);
 			ondone({
-				screen: (await describe(screen, m.common.recordingName(clock)))!,
+				// Resized window: only the area of the largest window, empty around smaller ones
+				screen: { ...(await describe(screen, m.common.recordingName(clock)))!, ...recorder.screenLayout },
 				camera: await describe(camera, m.record.cameraName(clock)),
 				mic: await describe(mic, m.record.micName(clock))
 			});

@@ -1,5 +1,6 @@
 import { deleteMediaFile, saveProject } from '#lib/storage/opfs.js';
 import { addItem, clipsOf, findItem, groupOf, isClip, setTrackState } from '#lib/timeline/ops.js';
+import { growTo, refitLarger, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, placeSource, recordingSources, type Recording } from './project.js';
@@ -9,6 +10,11 @@ import { parseColor } from '#lib/util/color.js';
 
 const HISTORY_LIMIT = 100;
 
+/** Undo/redo step: the canvas size belongs to it, because positions are relative to the canvas */
+interface Snapshot extends Size {
+	timeline: Timeline;
+}
+
 /**
  * Holds the open project. Timeline changes go through `update`, which maintains undo/redo
  * and saves automatically (debounced). The project is only ever replaced immutably.
@@ -17,9 +23,11 @@ export class Editor {
 	project: Project = $state.raw()!;
 	selection = $state<Selection>(null);
 	saving = $state(false);
+	/** Open question whether to grow the canvas for new material that is shown shrunk */
+	canvasOffer = $state.raw<{ size: Size; sourceIds: string[] } | null>(null);
 
-	#undo = $state.raw<Timeline[]>([]);
-	#redo = $state.raw<Timeline[]>([]);
+	#undo = $state.raw<Snapshot[]>([]);
+	#redo = $state.raw<Snapshot[]>([]);
 	#lastMergeKey: string | null = null;
 	#saveTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -130,10 +138,10 @@ export class Editor {
 	update(fn: (timeline: Timeline) => Timeline, mergeKey?: string) {
 		const before = this.project.timeline;
 		const merging = !!mergeKey && mergeKey === this.#lastMergeKey && this.#undo.length > 0;
-		const base = merging ? this.#undo.at(-1)! : before;
+		const base = merging ? this.#undo.at(-1)!.timeline : before;
 		const after = fn(base);
 		if (after === before) return;
-		if (!merging) this.#undo = [...this.#undo, before].slice(-HISTORY_LIMIT);
+		if (!merging) this.#undo = [...this.#undo, this.#snapshot()].slice(-HISTORY_LIMIT);
 		this.#lastMergeKey = mergeKey ?? null;
 		this.#redo = [];
 		this.#setTimeline(after, before);
@@ -148,18 +156,74 @@ export class Editor {
 		const previous = this.#undo.at(-1);
 		if (!previous) return;
 		this.#undo = this.#undo.slice(0, -1);
-		this.#redo = [...this.#redo, this.project.timeline];
+		this.#redo = [...this.#redo, this.#snapshot()];
 		this.#lastMergeKey = null;
-		this.#setTimeline(previous, this.project.timeline);
+		this.#restore(previous);
 	}
 
 	redo() {
 		const next = this.#redo.at(-1);
 		if (!next) return;
 		this.#redo = this.#redo.slice(0, -1);
-		this.#undo = [...this.#undo, this.project.timeline];
+		this.#undo = [...this.#undo, this.#snapshot()];
 		this.#lastMergeKey = null;
-		this.#setTimeline(next, this.project.timeline);
+		this.#restore(next);
+	}
+
+	#snapshot(): Snapshot {
+		return { timeline: this.project.timeline, width: this.project.width, height: this.project.height };
+	}
+
+	#restore({ timeline, width, height }: Snapshot) {
+		const resized = width !== this.project.width || height !== this.project.height;
+		const previous = this.project.timeline;
+		if (resized) this.project = { ...this.project, width, height };
+		this.#setTimeline(timeline, previous, resized);
+	}
+
+	/**
+	 * Canvas size that shows clips shrunk to fit (larger sources, see `shrunkSources`) 1:1 – only for
+	 * `sourceIds` if given; `null` if nothing is shrunk.
+	 */
+	largerCanvas(sourceIds?: string[]): Size | null {
+		const shrunk = shrunkSources(this.project.timeline, this.project.sources, this.project);
+		return growTo(this.project, sourceIds ? shrunk.filter((s) => sourceIds.includes(s.id)) : shrunk);
+	}
+
+	/**
+	 * Grows the canvas (one undo step): existing content keeps its size in pixels and moves to the center,
+	 * clips that were shrunk to fit fill the new canvas 1:1.
+	 */
+	resizeCanvas(size: Size) {
+		const from = { width: this.project.width, height: this.project.height };
+		if (from.width === size.width && from.height === size.height) return;
+		const before = this.#snapshot();
+		this.#undo = [...this.#undo, before].slice(-HISTORY_LIMIT);
+		this.#redo = [];
+		this.#lastMergeKey = null;
+		const timeline = refitLarger(resizeCanvas(before.timeline, from, size), this.project.sources, from, size);
+		this.project = { ...this.project, width: size.width, height: size.height };
+		this.#setTimeline(timeline, before.timeline, true);
+	}
+
+	/**
+	 * After new material was placed: asks whether to grow the canvas if it is shown shrunk. Several additions
+	 * in a row (e.g. importing several files) share one question.
+	 */
+	#offerLargerCanvas(sourceIds: string[]) {
+		const ids = [...(this.canvasOffer?.sourceIds ?? []), ...sourceIds];
+		const size = this.largerCanvas(ids);
+		this.canvasOffer = size && { size, sourceIds: ids };
+	}
+
+	/** Answer to `canvasOffer` */
+	answerCanvasOffer(grow: boolean) {
+		const offer = this.canvasOffer;
+		this.canvasOffer = null;
+		if (!grow || !offer) return;
+		// Recomputed: things may have changed in the meantime
+		const size = this.largerCanvas(offer.sourceIds);
+		if (size) this.resizeCanvas(size);
 	}
 
 	rename(name: string) {
@@ -196,13 +260,16 @@ export class Editor {
 		this.#addSources([source]);
 		const { width, height } = this.project;
 		this.update((t) => placeSource(t, source, width, height, at));
+		this.#offerLargerCanvas([source.id]);
 	}
 
 	/** Adds a recording (screen, optionally webcam and microphone, linked). */
 	addRecording(recording: Recording) {
-		this.#addSources(recordingSources(recording));
+		const sources = recordingSources(recording);
+		this.#addSources(sources);
 		const { width, height } = this.project;
 		this.update((t) => placeRecording(t, recording, width, height));
+		this.#offerLargerCanvas(sources.map((s) => s.id));
 	}
 
 	/** Inserts a source at `at` – on a track in front of everything already there – and selects it. */
@@ -212,6 +279,7 @@ export class Editor {
 		const clip = createClip(source, this.project.width, this.project.height, at);
 		this.update((t) => addItem(t, clip));
 		this.select('item', clip.id);
+		this.#offerLargerCanvas([sourceId]);
 	}
 
 	/** Is the source used in the timeline or in the undo/redo history? */
@@ -221,7 +289,7 @@ export class Editor {
 
 	/** Is the source only kept alive by the undo/redo history? */
 	isSourceInHistory(sourceId: string) {
-		const uses = (t: Timeline) => usesSource(t, sourceId);
+		const uses = (s: Snapshot) => usesSource(s.timeline, sourceId);
 		return this.#undo.some(uses) || this.#redo.some(uses);
 	}
 
@@ -232,7 +300,7 @@ export class Editor {
 	async removeSource(sourceId: string) {
 		const source = this.source(sourceId);
 		if (!source || this.isSourceInTimeline(sourceId)) return;
-		const pruned = pruneHistory(this.#undo, this.#redo, (t) => usesSource(t, sourceId));
+		const pruned = pruneHistory(this.#undo, this.#redo, (s) => usesSource(s.timeline, sourceId));
 		this.#undo = pruned.undo;
 		this.#redo = pruned.redo;
 		this.#lastMergeKey = null;
@@ -241,7 +309,8 @@ export class Editor {
 		await deleteMediaFile(this.project.id, source.file);
 	}
 
-	#setTimeline(timeline: Timeline, previous: Timeline) {
+	/** `resized`: the canvas size changed too, so the preview must be rebuilt */
+	#setTimeline(timeline: Timeline, previous: Timeline, resized = false) {
 		this.project = { ...this.project, timeline };
 		const s = this.selection;
 		if (s) {
@@ -252,7 +321,7 @@ export class Editor {
 				if (ids.length !== s.ids.length) this.selectItems(ids, s.primary);
 			}
 		}
-		this.onTimelineChange(clipsChanged(timeline, previous));
+		this.onTimelineChange(resized || clipsChanged(timeline, previous));
 		this.#scheduleSave();
 	}
 

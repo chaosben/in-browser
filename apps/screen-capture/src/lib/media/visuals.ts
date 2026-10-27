@@ -1,5 +1,6 @@
 import { AudioBufferSink, CanvasSink } from 'mediabunny';
 import type { Source } from '#lib/project/types.js';
+import { sourceCrop } from './content.js';
 import { mediaFile, readMediaText, writeMediaText } from '#lib/storage/opfs.js';
 import { openInput } from './media.js';
 
@@ -51,7 +52,8 @@ async function computeThumbnails(projectId: string, source: Source): Promise<Thu
 	const track = await input.getPrimaryVideoTrack();
 	if (!track) return null;
 	const interval = Math.max(1, source.duration / MAX_THUMBS);
-	const sink = new CanvasSink(track, { height: THUMB_HEIGHT });
+	// Resized window recordings: only the area of the largest window
+	const sink = new CanvasSink(track, { height: THUMB_HEIGHT, crop: source.crop ? sourceCrop(source) : undefined });
 	const timestamps = Array.from({ length: Math.ceil(source.duration / interval) }, (_, i) => i * interval);
 	const images: ImageBitmap[] = [];
 	for await (const wrapped of sink.canvasesAtTimestamps(timestamps)) {

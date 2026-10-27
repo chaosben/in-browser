@@ -13,6 +13,7 @@ import {
 	type InputVideoTrack,
 	type WrappedCanvas
 } from 'mediabunny';
+import { sourceCrop, visibleAt } from '#lib/media/content.js';
 import { openInput, pickAudioCodec } from '#lib/media/media.js';
 import type { Project, VideoClip } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
@@ -175,9 +176,12 @@ export async function exportProject(
 			}
 			const frames = new Map<string, Frame>();
 			for (const clip of active) {
+				const src = source(clip.sourceId);
 				let stream = streams.get(clip.id);
 				if (!stream) {
-					const sink = new CanvasSink(await videoTrack(clip.sourceId), { poolSize: 2 });
+					// Resized window recordings: only the area of the largest window
+					const crop = src?.crop ? sourceCrop(src) : undefined;
+					const sink = new CanvasSink(await videoTrack(clip.sourceId), { poolSize: 2, crop });
 					if (clip.type === 'freeze') {
 						stream = { current: toFrame(await sink.getCanvas(clip.at)) };
 					} else {
@@ -194,7 +198,8 @@ export async function exportProject(
 					const next = await stream.frames.next();
 					if (!next.done) stream.current = toFrame(next.value) ?? stream.current;
 				}
-				if (stream.current) frames.set(clip.id, stream.current);
+				const visible = src && visibleAt(src, sourceTime(clip, t));
+				if (stream.current) frames.set(clip.id, visible ? { ...stream.current, visible, anchor: clip.anchor } : stream.current);
 			}
 			renderFrame(ctx!, width, height, { t, timeline, background: project.background, frames });
 			await videoSource.add(t, 1 / settings.fps);

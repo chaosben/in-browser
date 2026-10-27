@@ -235,6 +235,11 @@ describe('insertFreeze', () => {
 			[6, 2]
 		]);
 	});
+	it('the still keeps shape and window position', () => {
+		const t = insertFreeze(tl({ ...clip('a', 0, 0, 10), shape: 'rounded', anchor: 'top-left' }), 4, 2);
+		const freeze = t.items.find((i) => i.type === 'freeze');
+		expect(freeze && 'anchor' in freeze && [freeze.shape, freeze.anchor]).toEqual(['rounded', 'top-left']);
+	});
 	it('clips without a picture get no still, only a gap', () => {
 		const t = insertFreeze(tl(clip('a', 0, 0, 10), { ...clip('m', 0, 0, 10, 1), sourceId: 'mic' }), 4, 2, undefined, (s) => s !== 'mic');
 		expect(t.items.filter((i) => i.type === 'freeze').map((f) => f.track)).toEqual([0]);

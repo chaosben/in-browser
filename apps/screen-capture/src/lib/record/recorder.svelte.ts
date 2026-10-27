@@ -6,12 +6,14 @@ import {
 	Output,
 	Quality,
 	StreamTarget,
-	type AudioCodec
+	type AudioCodec,
+	type VideoSample
 } from 'mediabunny';
+import { captureLayout, placeInBox } from '#lib/media/content.js';
 import { pickAudioCodec } from '#lib/media/media.js';
 import { openDevice } from './devices.svelte.js';
 import { CAMERA_FPS, recordBitrate, type RecordLevel, type RecordSettings } from './settings.js';
-import { newId } from '#lib/project/types.js';
+import { newId, type Source, type SourceSize } from '#lib/project/types.js';
 import { deleteMediaFile, mediaWritable } from '#lib/storage/opfs.js';
 import { m } from '#lib/i18n/index.js';
 
@@ -40,6 +42,13 @@ const RECORD_AUDIO_CODECS = ['opus', 'aac'] as const;
 export type RecorderState = 'idle' | 'recording' | 'paused' | 'finalizing' | 'done';
 
 type Role = 'screen' | 'camera' | 'mic';
+
+interface Size {
+	width: number;
+	height: number;
+}
+
+const even = (n: number) => Math.ceil(n / 2) * 2;
 type TrackSource = MediaStreamVideoTrackSource | MediaStreamAudioTrackSource;
 
 /** One output file of the recording */
@@ -69,12 +78,22 @@ export class Recorder {
 	#timer: ReturnType<typeof setInterval> | undefined;
 	#lastTick = 0;
 	#onEnded: (() => void) | null = null;
+	/** Fixed size of the screen video; windows are drawn 1:1 and centered into it, see `#video` */
+	#box: Size | null = null;
+	/** Largest window and size changes over time */
+	#max: Size = { width: 0, height: 0 };
+	#sizes: SourceSize[] = [];
 
 	constructor(private projectId: string) {}
 
 	/** File names of the recorded parts */
 	get files(): Partial<Record<Role, string>> {
 		return Object.fromEntries(this.#parts.map((p) => [p.role, p.fileName]));
+	}
+
+	/** Size fields of the screen source: only the area of the largest window, see `captureLayout` */
+	get screenLayout(): Pick<Source, 'width' | 'height' | 'crop' | 'sizes'> | null {
+		return this.#box && this.#max.width > 0 ? captureLayout(this.#box, this.#max, this.#sizes) : null;
 	}
 
 	/** Requests screen, microphone and webcam (browser dialogs). Must be called from a user action. */
@@ -163,7 +182,18 @@ export class Recorder {
 	}
 
 	async #video(part: Part, track: MediaStreamTrack, kind: 'screen' | 'camera', level: RecordLevel, frameRate: number) {
-		const { width = 1920, height = 1080 } = track.getSettings();
+		const settings = track.getSettings();
+		let { width = 1920, height = 1080 } = settings;
+		// A shared window can grow up to the size of the monitor, but the encoder needs a fixed size: record into
+		// a box that large and keep the window unscaled. The source later only uses the largest window.
+		const box =
+			kind === 'screen'
+				? {
+						width: even(Math.max(width, screen.width * devicePixelRatio)),
+						height: even(Math.max(height, screen.height * devicePixelRatio))
+					}
+				: null;
+		if (box) ({ width, height } = box);
 		// Explicit bitrate, so the size estimate in the dialog matches what is encoded
 		const quality = new Quality({ bitrate: recordBitrate(kind, level, width, height, frameRate) });
 		// VP9 with screen-content tools keeps text much sharper than (usually hardware) H.264 in realtime mode
@@ -177,13 +207,34 @@ export class Recorder {
 				quality,
 				keyFrameInterval: KEYFRAMES[kind],
 				contentHint: kind === 'screen' ? 'text' : undefined,
-				// With window captures the size changes when the window is resized.
-				sizeChangeBehavior: 'contain'
+				// With window captures the size changes when the window is resized; the box keeps it constant.
+				sizeChangeBehavior: box ? 'passThrough' : 'contain',
+				transform: box ? { process: this.#intoBox(box) } : undefined
 			},
 			{ frameRate }
 		);
 		part.output.addVideoTrack(source, { frameRate });
 		return source;
+	}
+
+	/** Draws every frame 1:1 and centered into the box and remembers the window size over time */
+	#intoBox(box: Size) {
+		this.#box = box;
+		const canvas = new OffscreenCanvas(box.width, box.height);
+		const ctx = canvas.getContext('2d', { alpha: false })!;
+		let last: Size | null = null;
+		return (sample: VideoSample) => {
+			const place = placeInBox(box, { width: sample.displayWidth, height: sample.displayHeight });
+			if (place.width !== last?.width || place.height !== last.height) {
+				last = { width: place.width, height: place.height };
+				this.#sizes.push({ t: sample.timestamp, ...last });
+				this.#max = { width: Math.max(this.#max.width, last.width), height: Math.max(this.#max.height, last.height) };
+			}
+			ctx.fillStyle = '#000';
+			ctx.fillRect(0, 0, box.width, box.height);
+			sample.draw(ctx, place.x, place.y, place.width, place.height);
+			return canvas;
+		};
 	}
 
 	#audio(part: Part, track: MediaStreamTrack, codec: AudioCodec, kbps: number) {
