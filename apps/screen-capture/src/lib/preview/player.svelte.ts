@@ -75,6 +75,9 @@ export class Player {
 
 	attach(canvas: HTMLCanvasElement) {
 		this.#canvas = canvas;
+		// Fonts of text annotations load on first use – draw again once they are there
+		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
+		document.fonts.addEventListener('loadingdone', this.#redrawLater);
 		// Called from a Svelte attachment: without untrack the attachment would subscribe to the values read
 		// here (playing, time, …), rerun on every change and stop playback immediately.
 		untrack(() => this.refresh());
@@ -274,7 +277,10 @@ export class Player {
 		});
 	}
 
+	#redrawLater = () => this.redraw();
+
 	destroy() {
+		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
 		this.pause();
 		for (const { video } of this.#assigned.values()) unload(video);
 		for (const videos of this.#pool.values()) videos.forEach(unload);

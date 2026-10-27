@@ -25,7 +25,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
 			{
 				id: 'annotations',
 				label: m.tools.groups.annotations,
-				items: (['arrow', 'rect', 'highlight', 'spotlight', 'blur'] as const).map(annotation)
+				items: (['arrow', 'line', 'rect', 'ellipse', 'highlight', 'spotlight', 'blur', 'step'] as const).map(annotation)
 			}
 		]
 	},
@@ -33,7 +33,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
 		id: 'text',
 		icon: 'icon-[material-symbols-light--title]',
 		label: m.tools.groups.text,
-		tabs: [{ id: 'text', label: m.tools.groups.text, items: [annotation('text')] }]
+		tabs: [{ id: 'text', label: m.tools.groups.text, items: (['text', 'callout'] as const).map(annotation) }]
 	},
 	{
 		id: 'zoom',

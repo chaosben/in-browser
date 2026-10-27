@@ -4,6 +4,7 @@
 	import type { Annotation, Clip, Rect } from '#lib/project/types.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import { m } from '#lib/i18n/index.js';
+	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { overlayBounds } from '#lib/render/overlays.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt } from '#lib/timeline/ops.js';
 
@@ -44,6 +45,12 @@
 		untrack(() => player.redraw());
 		return () => (player.forcedView = null);
 	});
+
+	/** Bounds of an annotation; text sizes change once their font has loaded */
+	function bounds(o: Annotation) {
+		void fontState.version;
+		return overlayBounds(o, W, H);
+	}
 
 	/** Content coordinates → CSS percent within the visible view */
 	const px = (v: number) => `${(v - view.x) / view.w * 100}%`;
@@ -91,13 +98,18 @@
 		drag(e, (dx, dy) => {
 			switch (o.kind) {
 				case 'arrow':
+				case 'line':
 					return patchOverlay(
 						o.id,
 						{ from: { x: o.from.x + dx, y: o.from.y + dy }, to: { x: o.to.x + dx, y: o.to.y + dy } },
 						key
 					);
 				case 'text':
+				case 'step':
 					return patchOverlay(o.id, { x: o.x + dx, y: o.y + dy }, key);
+				case 'callout':
+					// The pointer moves along
+					return patchOverlay(o.id, { x: o.x + dx, y: o.y + dy, tip: { x: o.tip.x + dx, y: o.tip.y + dy } }, key);
 				default:
 					return patchOverlay(o.id, { rect: { ...o.rect, x: o.rect.x + dx, y: o.rect.y + dy } }, key);
 			}
@@ -125,21 +137,26 @@
 	function resizeOverlay(e: PointerEvent, o: Annotation, corner: Corner) {
 		const key = `resize-${o.id}-${e.timeStamp}`;
 		drag(e, (dx, dy) => {
-			if (o.kind === 'arrow') return;
-			if (o.kind === 'text') {
+			if (o.kind === 'arrow' || o.kind === 'line') return;
+			if (o.kind === 'text' || o.kind === 'callout') {
 				// Dragging the corner scales the font
 				const b = overlayBounds(o, W, H);
 				return patchOverlay(o.id, { size: Math.max(0.012, o.size * ((b.h + dy) / b.h)) }, key);
+			}
+			if (o.kind === 'step') {
+				// The center stays, the corner sets the diameter
+				return patchOverlay(o.id, { size: Math.max(0.02, o.size + 2 * dy) }, key);
 			}
 			patchOverlay(o.id, { rect: resized(o.rect, corner, dx, dy) }, key);
 		});
 	}
 
-	function moveArrowEnd(e: PointerEvent, o: Annotation, end: 'from' | 'to') {
-		if (o.kind !== 'arrow') return;
-		const key = `arrow-${o.id}-${end}-${e.timeStamp}`;
-		const p = o[end];
-		drag(e, (dx, dy) => patchOverlay(o.id, { [end]: { x: p.x + dx, y: p.y + dy } }, key));
+	/** Moves an end of an arrow or line, or the tip of a speech bubble */
+	function movePoint(e: PointerEvent, o: Annotation, point: 'from' | 'to' | 'tip') {
+		const p = point === 'tip' ? (o.kind === 'callout' ? o.tip : null) : o.kind === 'arrow' || o.kind === 'line' ? o[point] : null;
+		if (!p) return;
+		const key = `point-${o.id}-${point}-${e.timeStamp}`;
+		drag(e, (dx, dy) => patchOverlay(o.id, { [point]: { x: p.x + dx, y: p.y + dy } }, key));
 	}
 
 	// --- Clips (picture-in-picture): move and scale with fixed aspect ratio
@@ -277,7 +294,7 @@
 			{#if item.type === 'annotation'}
 				<div
 					class="absolute cursor-move {frame}"
-					style={boxStyle(overlayBounds(item, W, H), 0.02)}
+					style={boxStyle(bounds(item), 0.02)}
 					onpointerdown={(e) => moveOverlay(e, item)}
 					role="presentation"
 				></div>
@@ -305,27 +322,34 @@
 
 		{#if selectedOverlay && active.some((o) => o.id === selectedOverlay.id)}
 			{@const o = selectedOverlay}
-			{#if o.kind === 'arrow'}
+			{#if o.kind === 'arrow' || o.kind === 'line'}
 				<div
 					class="{handle} cursor-crosshair"
 					style="left: {px(o.from.x)}; top: {py(o.from.y)}"
-					onpointerdown={(e) => moveArrowEnd(e, o, 'from')}
+					onpointerdown={(e) => movePoint(e, o, 'from')}
 					role="presentation"
 				></div>
 				<div
 					class="{handle} cursor-crosshair rounded-full"
 					style="left: {px(o.to.x)}; top: {py(o.to.y)}"
-					onpointerdown={(e) => moveArrowEnd(e, o, 'to')}
+					onpointerdown={(e) => movePoint(e, o, 'to')}
 					role="presentation"
 				></div>
-			{:else if o.kind === 'text'}
-				{@const b = overlayBounds(o, W, H)}
+			{:else if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step'}
 				<div
 					class="{handle} {cursors.se}"
-					style={cornerPos(b, 'se')}
+					style={cornerPos(bounds(o), 'se')}
 					onpointerdown={(e) => resizeOverlay(e, o, 'se')}
 					role="presentation"
 				></div>
+				{#if o.kind === 'callout'}
+					<div
+						class="{handle} cursor-crosshair rounded-full"
+						style="left: {px(o.tip.x)}; top: {py(o.tip.y)}"
+						onpointerdown={(e) => movePoint(e, o, 'tip')}
+						role="presentation"
+					></div>
+				{/if}
 			{:else}
 				{#each CORNERS as c (c)}
 					<div

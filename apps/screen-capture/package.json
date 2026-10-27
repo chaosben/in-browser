@@ -21,6 +21,10 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"dependencies": {
+		"@fontsource/caveat": "5.3.0",
+		"@fontsource/inter": "5.3.0",
+		"@fontsource/jetbrains-mono": "5.3.0",
+		"@fontsource/montserrat": "5.3.0",
 		"@in-browser/brand": "*",
 		"@in-browser/vite": "*",
 		"mediabunny": "1.62.1"

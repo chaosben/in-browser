@@ -202,6 +202,11 @@ const de: Messages = {
 		start: 'Start (s)',
 		duration: 'Dauer (s)',
 		fade: 'Weich ein- und ausblenden',
+		shadow: 'Schatten',
+		font: 'Schrift',
+		dashed: 'Gestrichelt',
+		stepNumber: 'Nummer',
+		size: 'Größe',
 		zoomSegment: 'Zoom-Abschnitt',
 		zoomHint: 'Den Ausschnitt in der Vorschau verschieben oder an den Ecken größer und kleiner ziehen.',
 		zoomLevel: 'Zoomstufe',
@@ -246,7 +251,16 @@ const de: Messages = {
 		highlight: 'Textmarker',
 		spotlight: 'Spotlight',
 		blur: 'Weichzeichnen',
-		text: 'Text'
+		text: 'Text',
+		line: 'Linie',
+		ellipse: 'Ellipse',
+		step: 'Schritt',
+		stepN: (n) => `Schritt ${n}`,
+		callout: 'Sprechblase'
+	},
+
+	fonts: {
+		system: 'Systemschrift'
 	},
 
 	mediaBin: {
@@ -268,6 +282,7 @@ const de: Messages = {
 
 	errors: {
 		noMediaTrack: 'Die Datei enthält weder eine Video- noch eine Tonspur.',
+		fontFailed: (font, error) => `Schrift „${font}“ konnte nicht geladen werden: ${error}`,
 		codecUnsupported: (codec) => `Der Videocodec „${codec}“ kann von diesem Browser nicht dekodiert werden.`,
 		unsupportedFormat: (name) => `„${name}“ ist kein unterstütztes Videoformat.`,
 		cannotImport: (reasons) => `Die Datei kann nicht übernommen werden (${reasons}).`,

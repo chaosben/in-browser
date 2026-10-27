@@ -200,6 +200,11 @@ const en = {
 		start: 'Start (s)',
 		duration: 'Duration (s)',
 		fade: 'Fade in and out',
+		shadow: 'Shadow',
+		font: 'Font',
+		dashed: 'Dashed',
+		stepNumber: 'Number',
+		size: 'Size',
 		zoomSegment: 'Zoom segment',
 		zoomHint: 'Move the area in the preview or drag its corners to make it larger or smaller.',
 		zoomLevel: 'Zoom level',
@@ -237,7 +242,16 @@ const en = {
 		highlight: 'Highlighter',
 		spotlight: 'Spotlight',
 		blur: 'Blur',
-		text: 'Text'
+		text: 'Text',
+		line: 'Line',
+		ellipse: 'Ellipse',
+		step: 'Step',
+		stepN: (n: number) => `Step ${n}`,
+		callout: 'Speech bubble'
+	},
+
+	fonts: {
+		system: 'System font'
 	},
 
 	mediaBin: {
@@ -259,6 +273,7 @@ const en = {
 
 	errors: {
 		noMediaTrack: 'The file contains neither a video nor an audio track.',
+		fontFailed: (font: string, error: string) => `Font “${font}” could not be loaded: ${error}`,
 		codecUnsupported: (codec: string) => `This browser cannot decode the video codec “${codec}”.`,
 		unsupportedFormat: (name: string) => `“${name}” is not a supported video format.`,
 		cannotImport: (reasons: string) => `The file cannot be imported (${reasons}).`,

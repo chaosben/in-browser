@@ -2,7 +2,8 @@
 	import ColorField from './ColorField.svelte';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
-	import type { Annotation, Clip, ClipShape, ZoomSegment } from '#lib/project/types.js';
+	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type ZoomSegment } from '#lib/project/types.js';
+	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
 	import {
 		clipDuration,
 		remove,
@@ -106,6 +107,21 @@
 	</label>
 {/snippet}
 
+{#snippet checkbox(label: string, checked: boolean, onset: (v: boolean) => void)}
+	<label class="label text-xs">
+		<input
+			type="checkbox"
+			class="checkbox checkbox-xs"
+			{checked}
+			onchange={(e) => {
+				onset(e.currentTarget.checked);
+				end();
+			}}
+		/>
+		{label}
+	</label>
+{/snippet}
+
 {#snippet timing(start: number, stop: number)}
 	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col gap-1 text-xs">
@@ -147,7 +163,7 @@
 			{OVERLAY_KINDS[o.kind].label}
 		</h3>
 
-		{#if o.kind === 'text'}
+		{#if o.kind === 'text' || o.kind === 'callout'}
 			<label class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.text}</span>
 				<textarea
@@ -161,10 +177,50 @@
 			{@render slider(m.inspector.fontSize, o.size, 0.015, 0.15, 0.001, `${Math.round(o.size * 100)} %`, (v) =>
 				setOverlay({ size: v }, 'size')
 			)}
+			<label class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.font}</span>
+				<!-- Load all fonts once the list opens, so every option shows in its own font -->
+				<select
+					class="select select-sm"
+					style="font-family: {FONTS[o.font].family}"
+					value={o.font}
+					onfocus={() => FONT_IDS.forEach(loadFont)}
+					onchange={(e) => {
+						setOverlay({ font: e.currentTarget.value as FontId }, 'font');
+						end();
+					}}
+				>
+					{#each FONT_IDS as id (id)}<option value={id} style="font-family: {FONTS[id].family}">{FONTS[id].label}</option>{/each}
+				</select>
+			</label>
 			<div class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.background}</span>
-				<ColorField value={o.background} allowNone onchange={(v, final) => setColor('background', v, final)} />
+				<ColorField
+					value={o.background}
+					allowNone={o.kind === 'text'}
+					onchange={(v, final) => setColor('background', v, final)}
+				/>
 			</div>
+		{/if}
+
+		{#if o.kind === 'step'}
+			<label class="flex flex-col gap-1 text-xs">
+				<span class="opacity-70">{m.inspector.stepNumber}</span>
+				<input
+					type="number"
+					class="input input-xs"
+					min="1"
+					step="1"
+					value={o.number}
+					onchange={(e) => {
+						setOverlay({ number: Math.max(1, Math.round(num(e)) || 1) }, 'number');
+						end();
+					}}
+				/>
+			</label>
+			{@render slider(m.inspector.size, o.size, 0.03, 0.2, 0.001, `${Math.round(o.size * 100)} %`, (v) =>
+				setOverlay({ size: v }, 'size')
+			)}
 		{/if}
 
 		{#if o.kind !== 'blur'}
@@ -174,10 +230,13 @@
 			</div>
 		{/if}
 
-		{#if o.kind === 'arrow' || o.kind === 'rect'}
+		{#if o.kind === 'arrow' || o.kind === 'rect' || o.kind === 'ellipse' || o.kind === 'line'}
 			{@render slider(m.inspector.lineWidth, o.width, 0.002, 0.02, 0.0005, `${(o.width * 1000).toFixed(1)}`, (v) =>
 				setOverlay({ width: v }, 'width')
 			)}
+		{/if}
+		{#if o.kind === 'line'}
+			{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
 		{/if}
 		{#if o.kind === 'rect'}
 			{@render slider(m.inspector.radius, o.radius, 0, 0.05, 0.001, `${(o.radius * 1000).toFixed(0)}`, (v) =>
@@ -208,18 +267,10 @@
 		{/if}
 
 		{@render timing(o.start, o.end)}
-		<label class="label text-xs">
-			<input
-				type="checkbox"
-				class="checkbox checkbox-xs"
-				checked={o.fade}
-				onchange={(e) => {
-					setOverlay({ fade: e.currentTarget.checked }, 'fade');
-					end();
-				}}
-			/>
-			{m.inspector.fade}
-		</label>
+		{@render checkbox(m.inspector.fade, o.fade, (v) => setOverlay({ fade: v }, 'fade'))}
+		{#if hasShadow(o)}
+			{@render checkbox(m.inspector.shadow, o.shadow, (v) => setOverlay({ shadow: v }, 'shadow'))}
+		{/if}
 	{:else if zoom}
 		{@const z = zoom}
 		<h3 class="flex items-center gap-2 font-semibold">

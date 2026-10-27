@@ -4,11 +4,15 @@ import { newId, type Annotation, type AnnotationKind, type Rect, type Source, ty
 /** Label and icon per annotation type (classes written out in full so Tailwind finds them). */
 export const OVERLAY_KINDS: Record<AnnotationKind, { label: string; icon: string }> = {
 	arrow: { label: m.kinds.arrow, icon: 'icon-[material-symbols-light--arrow-outward]' },
+	line: { label: m.kinds.line, icon: 'icon-[material-symbols-light--diagonal-line]' },
 	rect: { label: m.kinds.rect, icon: 'icon-[material-symbols-light--crop-square-outline]' },
+	ellipse: { label: m.kinds.ellipse, icon: 'icon-[material-symbols-light--circle-outline]' },
+	step: { label: m.kinds.step, icon: 'icon-[material-symbols-light--counter-1-outline]' },
 	highlight: { label: m.kinds.highlight, icon: 'icon-[material-symbols-light--ink-highlighter-outline]' },
 	spotlight: { label: m.kinds.spotlight, icon: 'icon-[material-symbols-light--flashlight-on-outline]' },
 	blur: { label: m.kinds.blur, icon: 'icon-[material-symbols-light--blur-on]' },
-	text: { label: m.kinds.text, icon: 'icon-[material-symbols-light--title]' }
+	text: { label: m.kinds.text, icon: 'icon-[material-symbols-light--title]' },
+	callout: { label: m.kinds.callout, icon: 'icon-[material-symbols-light--chat-bubble-outline]' }
 };
 
 export const ZOOM_ICON = 'icon-[material-symbols-light--zoom-in]';
@@ -17,15 +21,21 @@ export const FREEZE_ICON = 'icon-[material-symbols-light--ac-unit]';
 /** Swatches of the color picker (opacity is set separately) */
 export const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
 
-/** New annotation with sensible defaults in the center of the frame. */
-export function createOverlay(kind: AnnotationKind, start: number, end: number): Annotation {
+/** New annotation with sensible defaults in the center of the frame. `step`: number of a new step. */
+export function createOverlay(kind: AnnotationKind, start: number, end: number, step = 1): Annotation {
 	// The actual track is assigned by `addItem` (new items go to the front).
-	const base = { id: newId(), type: 'annotation' as const, start, end, fade: true, track: 0 };
+	const base = { id: newId(), type: 'annotation' as const, start, end, fade: true, track: 0, shadow: true };
 	switch (kind) {
 		case 'arrow':
 			return { ...base, kind, from: { x: 0.3, y: 0.3 }, to: { x: 0.48, y: 0.48 }, color: '#ef4444', width: 0.007 };
+		case 'line':
+			return { ...base, kind, from: { x: 0.3, y: 0.6 }, to: { x: 0.7, y: 0.6 }, color: '#ef4444', width: 0.005, dashed: false };
 		case 'rect':
 			return { ...base, kind, rect: { x: 0.35, y: 0.38, w: 0.3, h: 0.24 }, color: '#ef4444', width: 0.005, radius: 0.01 };
+		case 'ellipse':
+			return { ...base, kind, rect: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }, color: '#ef4444', width: 0.005 };
+		case 'step':
+			return { ...base, kind, x: 0.5, y: 0.5, size: 0.07, number: step, color: '#ef4444' };
 		case 'highlight':
 			return { ...base, kind, rect: { x: 0.35, y: 0.46, w: 0.3, h: 0.08 }, color: '#facc1566' };
 		case 'spotlight':
@@ -41,7 +51,23 @@ export function createOverlay(kind: AnnotationKind, start: number, end: number):
 				text: m.kinds.text,
 				size: 0.05,
 				color: '#ffffff',
-				background: '#000000a6'
+				font: 'system',
+				background: '#000000a6',
+				// Like before: a translucent box has no shadow
+				shadow: false
+			};
+		case 'callout':
+			return {
+				...base,
+				kind,
+				x: 0.4,
+				y: 0.2,
+				text: m.kinds.callout,
+				size: 0.04,
+				color: '#000000',
+				font: 'system',
+				background: '#ffffff',
+				tip: { x: 0.36, y: 0.38 }
 			};
 	}
 }

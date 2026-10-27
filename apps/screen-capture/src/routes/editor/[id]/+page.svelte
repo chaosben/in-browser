@@ -26,6 +26,7 @@
 		clipsAt,
 		insertFreeze,
 		itemEnd,
+		nextStepNumber,
 		remove,
 		removeZoom,
 		sendBackward,
@@ -126,7 +127,7 @@
 	function addAnnotation(kind: AnnotationKind) {
 		if (!editor || !player) return;
 		const start = player.time;
-		const overlay = createOverlay(kind, start, start + 3);
+		const overlay = createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline));
 		editor.update((t) => addItem(t, overlay));
 		editor.select('item', overlay.id);
 	}

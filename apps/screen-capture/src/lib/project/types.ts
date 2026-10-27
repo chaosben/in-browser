@@ -77,7 +77,15 @@ interface AnnotationBase extends ItemBase {
 	fade: boolean;
 }
 
-export interface ArrowAnnotation extends AnnotationBase {
+/** Bundled fonts for text annotations (see `render/fonts.svelte.ts`) */
+export type FontId = 'system' | 'inter' | 'caveat' | 'jetbrains-mono' | 'montserrat';
+
+interface Shadowed {
+	/** Soft drop shadow */
+	shadow: boolean;
+}
+
+export interface ArrowAnnotation extends AnnotationBase, Shadowed {
 	kind: 'arrow';
 	from: Point;
 	to: Point;
@@ -85,12 +93,41 @@ export interface ArrowAnnotation extends AnnotationBase {
 	width: number;
 }
 
-export interface RectAnnotation extends AnnotationBase {
+export interface LineAnnotation extends AnnotationBase, Shadowed {
+	kind: 'line';
+	from: Point;
+	to: Point;
+	color: string;
+	width: number;
+	dashed: boolean;
+}
+
+export interface RectAnnotation extends AnnotationBase, Shadowed {
 	kind: 'rect';
 	rect: Rect;
 	color: string;
 	width: number;
 	radius: number;
+}
+
+export interface EllipseAnnotation extends AnnotationBase, Shadowed {
+	kind: 'ellipse';
+	rect: Rect;
+	color: string;
+	width: number;
+}
+
+/** Numbered circle for step-by-step instructions */
+export interface StepAnnotation extends AnnotationBase, Shadowed {
+	kind: 'step';
+	/** Center */
+	x: number;
+	y: number;
+	/** Diameter */
+	size: number;
+	number: number;
+	/** Fill; the number is drawn in black or white, whichever reads better */
+	color: string;
 }
 
 export interface HighlightAnnotation extends AnnotationBase {
@@ -116,26 +153,50 @@ export interface BlurAnnotation extends AnnotationBase {
 	area: 'inside' | 'outside';
 }
 
-export interface TextAnnotation extends AnnotationBase {
-	kind: 'text';
+interface TextBase extends AnnotationBase, Shadowed {
 	/** Top-left corner */
 	x: number;
 	y: number;
 	text: string;
 	size: number;
 	color: string;
+	font: FontId;
+}
+
+export interface TextAnnotation extends TextBase {
+	kind: 'text';
 	background: string | null;
+}
+
+/** Text box with a pointer to `tip` */
+export interface CalloutAnnotation extends TextBase {
+	kind: 'callout';
+	background: string;
+	tip: Point;
 }
 
 export type Annotation =
 	| ArrowAnnotation
+	| LineAnnotation
 	| RectAnnotation
+	| EllipseAnnotation
+	| StepAnnotation
 	| HighlightAnnotation
 	| SpotlightAnnotation
 	| BlurAnnotation
-	| TextAnnotation;
+	| TextAnnotation
+	| CalloutAnnotation;
 
 export type AnnotationKind = Annotation['kind'];
+
+export type ShadowedAnnotation = Extract<Annotation, Shadowed>;
+
+const SHADOWED: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse', 'step', 'text', 'callout']);
+
+/** Annotations with a switchable drop shadow (not highlight, spotlight and blur) */
+export function hasShadow(a: Annotation): a is ShadowedAnnotation {
+	return SHADOWED.has(a.kind);
+}
 
 /** Everything that can be placed on a track */
 export type Item = Clip | Annotation;
@@ -200,6 +261,17 @@ export function parseProject(raw: unknown): Project {
 	return {
 		...p,
 		sources: p.sources.map((s) => (typeof s.hasVideo === 'boolean' ? s : { ...s, hasVideo: true })),
-		timeline: { items: p.timeline.items, tracks: p.timeline.tracks ?? [], zoom: p.timeline.zoom ?? [] }
+		timeline: { items: p.timeline.items.map(fillItem), tracks: p.timeline.tracks ?? [], zoom: p.timeline.zoom ?? [] }
 	};
+}
+
+/** Fields added to annotations later; defaults keep older projects looking the same */
+function fillItem(item: Item): Item {
+	if (item.type !== 'annotation') return item;
+	const raw = item as unknown as Record<string, unknown>;
+	const patch: Record<string, unknown> = {};
+	if ((item.kind === 'text' || item.kind === 'callout') && !raw.font) patch.font = 'system';
+	// Text used to get a shadow only without a background
+	if (hasShadow(item) && typeof raw.shadow !== 'boolean') patch.shadow = item.kind === 'text' ? !item.background : true;
+	return Object.keys(patch).length ? ({ ...item, ...patch } as Annotation) : item;
 }

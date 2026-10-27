@@ -484,7 +484,13 @@
 							aria-label={OVERLAY_KINDS[item.kind].label}
 						>
 							<span class="{OVERLAY_KINDS[item.kind].icon} size-3.5 shrink-0" aria-hidden="true"></span>
-							<span class="truncate">{item.kind === 'text' ? item.text : OVERLAY_KINDS[item.kind].label}</span>
+							<span class="truncate"
+								>{item.kind === 'text' || item.kind === 'callout'
+									? item.text
+									: item.kind === 'step'
+										? m.kinds.stepN(item.number)
+										: OVERLAY_KINDS[item.kind].label}</span
+							>
 							{@render edges((e, part) => itemDown(e, item, part))}
 						</div>
 					{:else}

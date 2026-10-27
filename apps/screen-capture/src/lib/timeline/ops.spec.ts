@@ -13,6 +13,7 @@ import {
 	groupOf,
 	moveItem,
 	moveItems,
+	nextStepNumber,
 	remove,
 	retimeAnnotation,
 	retimeZoom,
@@ -49,7 +50,9 @@ function text(id: string, start: number, end: number, track = 1): Annotation {
 		text: id,
 		size: 0.05,
 		color: '#fff',
-		background: null
+		font: 'system',
+		background: null,
+		shadow: true
 	};
 }
 
@@ -329,6 +332,28 @@ describe('Zoom', () => {
 	});
 });
 
+describe('nextStepNumber', () => {
+	const step = (id: string, number: number): Annotation => ({
+		id,
+		type: 'annotation',
+		kind: 'step',
+		start: 0,
+		end: 1,
+		fade: false,
+		track: 1,
+		x: 0.5,
+		y: 0.5,
+		size: 0.07,
+		number,
+		color: '#ef4444',
+		shadow: true
+	});
+	it('starts at 1 and continues after the highest number', () => {
+		expect(nextStepNumber(tl(text('t', 0, 1)))).toBe(1);
+		expect(nextStepNumber(tl(step('a', 1), step('b', 4), step('c', 2)))).toBe(5);
+	});
+});
+
 describe('parseProject', () => {
 	it('accepts version 1', () => {
 		const p = parseProject({
@@ -340,6 +365,26 @@ describe('parseProject', () => {
 		});
 		expect(p.timeline).toEqual({ items: [], tracks: [], zoom: [] });
 		expect(p.sources[0].hasVideo).toBe(true);
+	});
+	it('fills in font and shadow of older annotations so they look the same', () => {
+		const old = (kind: string, extra = {}) => ({ id: kind, type: 'annotation', kind, start: 0, end: 1, track: 0, ...extra });
+		const p = parseProject({
+			version: 1,
+			id: 'x',
+			sources: [],
+			timeline: {
+				items: [old('text', { background: '#000000a6' }), old('text', { background: null }), old('arrow'), old('blur')]
+			}
+		});
+		const [boxed, plain, arrow, blur] = p.timeline.items as unknown as Record<string, unknown>[];
+		expect(boxed).toMatchObject({ font: 'system', shadow: false });
+		expect(plain).toMatchObject({ font: 'system', shadow: true });
+		expect(arrow).toMatchObject({ shadow: true });
+		expect(arrow.font).toBeUndefined();
+		expect(blur.shadow).toBeUndefined();
+		// Idempotent: filled items stay the same objects
+		const again = parseProject(p);
+		again.timeline.items.forEach((item, i) => expect(item).toBe(p.timeline.items[i]));
 	});
 	it('rejects unknown data and other versions', () => {
 		expect(() => parseProject({ foo: 1 })).toThrow();

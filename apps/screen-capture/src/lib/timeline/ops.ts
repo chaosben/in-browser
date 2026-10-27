@@ -65,6 +65,13 @@ export function itemsAt(timeline: Timeline, t: number): Item[] {
 		.sort((a, b) => a.track - b.track);
 }
 
+/** Number for a new step annotation: one more than the highest so far */
+export function nextStepNumber(timeline: Timeline): number {
+	let max = 0;
+	for (const item of timeline.items) if (item.type === 'annotation' && item.kind === 'step') max = Math.max(max, item.number);
+	return max + 1;
+}
+
 export function clipsAt(timeline: Timeline, t: number): Clip[] {
 	return itemsAt(timeline, t).filter(isClip);
 }
