@@ -69,6 +69,7 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				size: 0.05,
 				color: '#ffffff',
 				font: 'system',
+				align: 'left',
 				background: '#000000a6',
 				// Like before: a translucent box has no shadow
 				shadow: false
@@ -83,6 +84,7 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				size: 0.04,
 				color: '#000000',
 				font: 'system',
+				align: 'left',
 				background: '#ffffff',
 				tip: { x: 0.36, y: 0.38 }
 			};

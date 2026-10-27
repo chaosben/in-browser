@@ -41,11 +41,13 @@ describe('resizeCanvas', () => {
 			size: 0.1,
 			color: '#000',
 			font: 'system',
+			align: 'left',
+			boxWidth: 0.4,
 			background: '#fff',
 			tip: { x: 1, y: 0 }
 		};
 		const a = resizeCanvas(timeline(text), from, to).items[0];
-		expect(a).toMatchObject({ x: 0.25, y: 0.75, size: 0.05, tip: { x: 0.75, y: 0.25 } });
+		expect(a).toMatchObject({ x: 0.25, y: 0.75, size: 0.05, boxWidth: 0.2, tip: { x: 0.75, y: 0.25 } });
 	});
 	it('images and icons keep their pixel size', () => {
 		const image: Annotation = { id: 'i', type: 'annotation', kind: 'image', start: 0, end: 1, track: 1, fade: false, shadow: false, rect: { x: 0, y: 0, w: 1, h: 1 }, imageId: 'p', radius: 0.02 };

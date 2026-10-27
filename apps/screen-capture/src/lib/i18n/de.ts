@@ -232,6 +232,13 @@ const de: Messages = {
 	inspector: {
 		text: 'Text',
 		fontSize: 'Schriftgröße',
+		align: 'Ausrichtung',
+		alignLeft: 'Links',
+		alignCenter: 'Zentriert',
+		alignRight: 'Rechts',
+		alignJustify: 'Blocksatz',
+		autoWidth: 'Breite automatisch',
+		autoWidthHint: 'Die Box ist wieder so breit wie die längste Zeile, ohne Umbruch. Eine Seite der Box ziehen legt eine feste Breite fest.',
 		background: 'Hintergrund',
 		none: 'Keiner',
 		opacity: 'Deckkraft',

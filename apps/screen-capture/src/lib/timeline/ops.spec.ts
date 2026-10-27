@@ -53,6 +53,7 @@ function text(id: string, start: number, end: number, track = 1): Annotation {
 		size: 0.05,
 		color: '#fff',
 		font: 'system',
+		align: 'left',
 		background: null,
 		shadow: true
 	};
@@ -398,7 +399,7 @@ describe('parseProject', () => {
 		const images = [{ id: 'i', file: 'i.png', name: 'Logo', width: 10, height: 10 }];
 		expect(parseProject({ ...base, images }).images).toEqual(images);
 	});
-	it('fills in font and shadow of older annotations so they look the same', () => {
+	it('fills in font, alignment and shadow of older annotations so they look the same', () => {
 		const old = (kind: string, extra = {}) => ({ id: kind, type: 'annotation', kind, start: 0, end: 1, track: 0, ...extra });
 		const p = parseProject({
 			version: 1,
@@ -409,7 +410,7 @@ describe('parseProject', () => {
 			}
 		});
 		const [boxed, plain, arrow, blur] = p.timeline.items as unknown as Record<string, unknown>[];
-		expect(boxed).toMatchObject({ font: 'system', shadow: false });
+		expect(boxed).toMatchObject({ font: 'system', align: 'left', shadow: false });
 		expect(plain).toMatchObject({ font: 'system', shadow: true });
 		expect(arrow).toMatchObject({ shadow: true });
 		expect(arrow.font).toBeUndefined();

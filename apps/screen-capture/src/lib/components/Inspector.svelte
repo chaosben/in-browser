@@ -4,7 +4,7 @@
 	import type { Size } from '#lib/project/canvas.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
-	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type ZoomSegment } from '#lib/project/types.js';
+	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type TextAlign, type ZoomSegment } from '#lib/project/types.js';
 	import { rememberDuration, rememberStyle } from '#lib/project/styles.js';
 	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
 	import { ANCHORS } from '#lib/media/content.js';
@@ -90,6 +90,13 @@
 		{ value: 'circle', label: m.inspector.shapeCircle, icon: 'icon-[material-symbols-light--circle-outline]' }
 	];
 
+	const ALIGNS: { value: TextAlign; label: string; icon: string }[] = [
+		{ value: 'left', label: m.inspector.alignLeft, icon: 'icon-[material-symbols-light--format-align-left]' },
+		{ value: 'center', label: m.inspector.alignCenter, icon: 'icon-[material-symbols-light--format-align-center]' },
+		{ value: 'right', label: m.inspector.alignRight, icon: 'icon-[material-symbols-light--format-align-right]' },
+		{ value: 'justify', label: m.inspector.alignJustify, icon: 'icon-[material-symbols-light--format-align-justify]' }
+	];
+
 	const end = () => editor.endGesture();
 
 	/** Fit the clip or let it fill the canvas (center: canvas center) */
@@ -112,6 +119,29 @@
 	<label class="flex flex-col gap-1">
 		<span class="flex justify-between text-xs"><span class="opacity-70">{label}</span><span>{display}</span></span>
 		<input type="range" class="range range-xs" {min} {max} {step} {value} oninput={(e) => onset(num(e))} onchange={end} />
+	</label>
+{/snippet}
+
+<!-- Size relative to the canvas height, shown and entered in canvas pixels -->
+{#snippet pixels(label: string, value: number, min: number, onset: (v: number) => void)}
+	<label class="flex items-center justify-between gap-2 text-xs">
+		<span class="opacity-70">{label}</span>
+		<span class="flex items-center gap-1">
+			<input
+				type="number"
+				class="input input-xs w-20 text-right"
+				{min}
+				step="1"
+				value={Math.round(value * editor.project.height)}
+				onchange={(e) => {
+					const px = Math.max(min, Math.round(num(e)) || min);
+					e.currentTarget.value = String(px);
+					onset(px / editor.project.height);
+					end();
+				}}
+			/>
+			<span class="opacity-70">px</span>
+		</span>
 	</label>
 {/snippet}
 
@@ -182,9 +212,40 @@
 					onchange={end}
 				></textarea>
 			</label>
-			{@render slider(m.inspector.fontSize, o.size, 0.015, 0.15, 0.001, `${Math.round(o.size * 100)} %`, (v) =>
-				setOverlay({ size: v }, 'size')
-			)}
+			{@render pixels(m.inspector.fontSize, o.size, 4, (v) => setOverlay({ size: v }, 'size'))}
+			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.align}</span>
+				<div class="flex items-center gap-2">
+					<div class="join">
+						{#each ALIGNS as a (a.value)}
+							<button
+								class="btn btn-xs join-item {o.align === a.value ? 'btn-active' : ''}"
+								onclick={() => {
+									setOverlay({ align: a.value }, 'align');
+									end();
+								}}
+								title={a.label}
+								aria-label={a.label}
+								aria-pressed={o.align === a.value}
+							>
+								<span class="{a.icon} size-4" aria-hidden="true"></span>
+							</button>
+						{/each}
+					</div>
+					{#if o.boxWidth !== undefined}
+						<button
+							class="btn btn-xs btn-ghost ml-auto"
+							onclick={() => {
+								setOverlay({ boxWidth: undefined }, 'boxWidth');
+								end();
+							}}
+							title={m.inspector.autoWidthHint}
+						>
+							{m.inspector.autoWidth}
+						</button>
+					{/if}
+				</div>
+			</div>
 			<label class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.font}</span>
 				<!-- Load all fonts once the list opens, so every option shows in its own font -->
@@ -227,9 +288,7 @@
 					}}
 				/>
 			</label>
-			{@render slider(m.inspector.size, o.size, 0.03, 0.2, 0.001, `${Math.round(o.size * 100)} %`, (v) =>
-				setOverlay({ size: v }, 'size')
-			)}
+			{@render pixels(m.inspector.size, o.size, 8, (v) => setOverlay({ size: v }, 'size'))}
 		{/if}
 
 		{#if 'color' in o}

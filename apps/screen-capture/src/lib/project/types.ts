@@ -97,6 +97,8 @@ interface AnnotationBase extends ItemBase {
 }
 
 /** Bundled fonts for text annotations (see `render/fonts.svelte.ts`) */
+export type TextAlign = 'left' | 'center' | 'right' | 'justify';
+
 export type FontId = 'system' | 'inter' | 'caveat' | 'jetbrains-mono' | 'montserrat';
 
 interface Shadowed {
@@ -180,6 +182,9 @@ interface TextBase extends AnnotationBase, Shadowed {
 	size: number;
 	color: string;
 	font: FontId;
+	align: TextAlign;
+	/** Fixed box width (fraction of the canvas width), the text wraps inside; without it the box fits the longest line */
+	boxWidth?: number;
 }
 
 export interface TextAnnotation extends TextBase {
@@ -333,6 +338,7 @@ function fillItem(item: Item): Item {
 	const raw = item as unknown as Record<string, unknown>;
 	const patch: Record<string, unknown> = {};
 	if ((item.kind === 'text' || item.kind === 'callout') && !raw.font) patch.font = 'system';
+	if ((item.kind === 'text' || item.kind === 'callout') && !raw.align) patch.align = 'left';
 	// Text used to get a shadow only without a background
 	if (hasShadow(item) && typeof raw.shadow !== 'boolean') patch.shadow = item.kind === 'text' ? !item.background : true;
 	return Object.keys(patch).length ? ({ ...item, ...patch } as Annotation) : item;

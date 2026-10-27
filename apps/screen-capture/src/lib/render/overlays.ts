@@ -185,8 +185,24 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			ctx.fillStyle = a.color;
 			ctx.textBaseline = 'top';
 			const pad = a.background ? box.font * TEXT_PADDING : 0;
+			const inner = box.w - 2 * pad;
 			box.lines.forEach((line, i) => {
-				ctx.fillText(line, box.x + pad, box.y + pad + i * box.font * LINE_HEIGHT + box.font * 0.1);
+				const y = box.y + pad + i * box.font * LINE_HEIGHT + box.font * 0.1;
+				const words = line.text.split(' ');
+				if (a.align === 'justify' && !line.last && words.length > 1) {
+					// Canvas has no justified text: spread the remaining space over the gaps between the words
+					const widths = words.map((w) => ctx.measureText(w).width);
+					const gap = (inner - widths.reduce((sum, w) => sum + w, 0)) / (words.length - 1);
+					let x = box.x + pad;
+					words.forEach((word, j) => {
+						ctx.fillText(word, x, y);
+						x += widths[j] + gap;
+					});
+					return;
+				}
+				const free = inner - ctx.measureText(line.text).width;
+				const offset = a.align === 'center' ? free / 2 : a.align === 'right' ? free : 0;
+				ctx.fillText(line.text, box.x + pad + offset, y);
 			});
 			break;
 		}
@@ -242,17 +258,57 @@ export function calloutTail(box: Rect, tip: Point): [Point, Point, Point] | null
 	return area > 0 ? [a, tip, b] : [b, tip, a];
 }
 
+export interface TextLine {
+	text: string;
+	/** Ends a paragraph (stays left-aligned in justified text) */
+	last: boolean;
+}
+
+/**
+ * Breaks text into lines: paragraphs at `\n`, without `maxWidth` nothing else. With it, lines wrap between
+ * words; a word that is too long on its own is split between characters.
+ */
+export function wrapText(text: string, measure: (s: string) => number, maxWidth?: number): TextLine[] {
+	const lines: TextLine[] = [];
+	for (const paragraph of text.split('\n')) {
+		if (maxWidth === undefined) {
+			lines.push({ text: paragraph, last: true });
+			continue;
+		}
+		let line = '';
+		for (const word of paragraph.split(' ').filter(Boolean)) {
+			const candidate = line ? `${line} ${word}` : word;
+			if (measure(candidate) <= maxWidth) {
+				line = candidate;
+				continue;
+			}
+			if (line) lines.push({ text: line, last: false });
+			line = word;
+			// Too long on its own: split between characters (at least one per line)
+			while (measure(line) > maxWidth && line.length > 1) {
+				let n = line.length - 1;
+				while (n > 1 && measure(line.slice(0, n)) > maxWidth) n--;
+				lines.push({ text: line.slice(0, n), last: false });
+				line = line.slice(n);
+			}
+		}
+		lines.push({ text: line, last: true });
+	}
+	return lines;
+}
+
 /** Dimensions of a text box in canvas pixels. Sets `ctx.font` along the way. */
 export function textBox(ctx: Ctx2D, a: TextAnnotation | CalloutAnnotation, W: number, H: number) {
 	const font = a.size * H;
 	ctx.font = fontCss(a.font, font);
-	const lines = (a.text || ' ').split('\n');
-	const width = Math.max(...lines.map((l) => ctx.measureText(l).width));
 	const pad = a.background ? font * TEXT_PADDING : 0;
+	const fixed = a.boxWidth === undefined ? undefined : a.boxWidth * W;
+	const lines = wrapText(a.text || ' ', (s) => ctx.measureText(s).width, fixed === undefined ? undefined : Math.max(fixed - 2 * pad, 1));
+	const width = fixed ?? Math.max(...lines.map((l) => ctx.measureText(l.text).width)) + 2 * pad;
 	return {
 		x: a.x * W,
 		y: a.y * H,
-		w: width + 2 * pad,
+		w: width,
 		h: lines.length * font * LINE_HEIGHT + 2 * pad,
 		font,
 		lines

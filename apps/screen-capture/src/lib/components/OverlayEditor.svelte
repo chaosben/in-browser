@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Editor } from '#lib/project/editor.svelte.js';
-	import type { Annotation, Clip, Rect } from '#lib/project/types.js';
+	import type { Annotation, CalloutAnnotation, Clip, Rect, TextAnnotation } from '#lib/project/types.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { rememberStyle } from '#lib/project/styles.js';
@@ -143,15 +143,37 @@
 			}
 			if (o.kind === 'arrow' || o.kind === 'line') return;
 			if (o.kind === 'text' || o.kind === 'callout') {
-				// Dragging the corner scales the font
+				// A corner scales everything (font and a fixed width alike, so the text wraps the same); the
+				// opposite corner stays
 				const b = overlayBounds(o, W, H);
-				return resizeTo(o, Math.max(0.012, o.size * ((b.h + dy) / b.h)), key);
+				const sx = corner.includes('e') ? 1 : -1;
+				const sy = corner.includes('s') ? 1 : -1;
+				const size = Math.max(0.012, o.size * ((b.h + sy * dy) / b.h));
+				const k = size / o.size;
+				const boxWidth = o.boxWidth === undefined ? {} : { boxWidth: o.boxWidth * k };
+				const x = sx > 0 ? b.x : b.x + b.w * (1 - k);
+				const y = sy > 0 ? b.y : b.y + b.h * (1 - k);
+				// One patch: within a gesture every update starts from the state before it
+				patchOverlay(o.id, { ...boxWidth, x, y, size }, key);
+				return rememberStyle(o.kind, { size });
 			}
 			if (o.kind === 'step') {
 				// The center stays, the corner sets the diameter
 				return resizeTo(o, Math.max(0.02, o.size + 2 * dy), key);
 			}
 			patchOverlay(o.id, { rect: resized(o.rect, corner, dx, dy) }, key);
+		});
+	}
+
+	/** A side of a text box sets a fixed width, the text wraps inside; the opposite side stays */
+	function resizeWidth(e: PointerEvent, o: TextAnnotation | CalloutAnnotation, side: 'w' | 'e') {
+		const key = `width-${o.id}-${e.timeStamp}`;
+		const b = overlayBounds(o, W, H);
+		// At least about two characters wide
+		const min = (2 * o.size * H) / W;
+		drag(e, (dx) => {
+			const boxWidth = Math.max(b.w + (side === 'e' ? dx : -dx), min);
+			patchOverlay(o.id, side === 'e' ? { boxWidth } : { boxWidth, x: b.x + b.w - boxWidth }, key);
 		});
 	}
 
@@ -244,6 +266,8 @@
 
 	const handle =
 		'absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/60 bg-white shadow cursor-pointer';
+	const sideHandle =
+		'absolute h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/60 bg-white shadow cursor-ew-resize';
 	const cursors: Record<Corner, string> = {
 		nw: 'cursor-nwse-resize',
 		se: 'cursor-nwse-resize',
@@ -328,13 +352,32 @@
 					onpointerdown={(e) => movePoint(e, o, 'to')}
 					role="presentation"
 				></div>
-			{:else if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step'}
+			{:else if o.kind === 'step'}
 				<div
 					class="{handle} {cursors.se}"
 					style={cornerPos(bounds(o), 'se')}
 					onpointerdown={(e) => resizeOverlay(e, o, 'se')}
 					role="presentation"
 				></div>
+			{:else if o.kind === 'text' || o.kind === 'callout'}
+				{@const b = bounds(o)}
+				{#each CORNERS as c (c)}
+					<div
+						class="{handle} {cursors[c]}"
+						style={cornerPos(b, c)}
+						onpointerdown={(e) => resizeOverlay(e, o, c)}
+						role="presentation"
+					></div>
+				{/each}
+				<!-- Sides: box width, the text wraps -->
+				{#each ['w', 'e'] as const as side (side)}
+					<div
+						class="{sideHandle}"
+						style="left: {px(side === 'w' ? b.x : b.x + b.w)}; top: {py(b.y + b.h / 2)}"
+						onpointerdown={(e) => resizeWidth(e, o, side)}
+						role="presentation"
+					></div>
+				{/each}
 				{#if o.kind === 'callout'}
 					<div
 						class="{handle} cursor-crosshair rounded-full"

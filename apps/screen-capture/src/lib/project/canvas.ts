@@ -42,6 +42,8 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 	const oy = (to.height - from.height) / 2 / to.height;
 	const point = (p: Point): Point => ({ x: p.x * sx + ox, y: p.y * sy + oy });
 	const rect = (r: Rect): Rect => ({ ...point(r), w: r.w * sx, h: r.h * sy });
+	// Fixed text boxes keep their width in pixels, so the text wraps the same
+	const boxWidth = (w: number | undefined) => (w === undefined ? {} : { boxWidth: w * sx });
 
 	const annotation = (a: Annotation): Annotation => {
 		switch (a.kind) {
@@ -61,10 +63,11 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 			case 'blur':
 				return { ...a, rect: rect(a.rect), strength: a.strength * sy };
 			case 'step':
-			case 'text':
 				return { ...a, ...point(a), size: a.size * sy };
+			case 'text':
+				return { ...a, ...point(a), size: a.size * sy, ...boxWidth(a.boxWidth) };
 			case 'callout':
-				return { ...a, ...point(a), size: a.size * sy, tip: point(a.tip) };
+				return { ...a, ...point(a), size: a.size * sy, ...boxWidth(a.boxWidth), tip: point(a.tip) };
 		}
 	};
 	const item = (i: Item): Item => (i.type === 'annotation' ? annotation(i) : { ...i, rect: rect(i.rect) });

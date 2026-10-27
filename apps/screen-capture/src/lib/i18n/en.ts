@@ -230,6 +230,13 @@ const en = {
 	inspector: {
 		text: 'Text',
 		fontSize: 'Font size',
+		align: 'Alignment',
+		alignLeft: 'Left',
+		alignCenter: 'Center',
+		alignRight: 'Right',
+		alignJustify: 'Justified',
+		autoWidth: 'Auto width',
+		autoWidthHint: 'The box fits the longest line again, without wrapping. Drag a side of the box to set a fixed width.',
 		background: 'Background',
 		none: 'None',
 		opacity: 'Opacity',
