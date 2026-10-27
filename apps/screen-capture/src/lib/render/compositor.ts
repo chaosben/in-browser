@@ -20,8 +20,8 @@ export interface Scene {
 	frames: Map<string, Frame>;
 	/** Forces a view (e.g. full frame while editing a zoom segment). */
 	view?: Rect;
-	/** Annotations drawn at full opacity, ignoring their fade (selected ones while editing) */
-	opaque?: ReadonlySet<string>;
+	/** Fade annotations in and out (default); the paused preview draws them at full opacity */
+	fades?: boolean;
 }
 
 /**
@@ -44,7 +44,7 @@ export function renderFrame(ctx: Ctx2D, width: number, height: number, scene: Sc
 	for (const item of itemsAt(scene.timeline, scene.t)) {
 		if (trackState(scene.timeline, item.track).hidden) continue;
 		if (item.type === 'annotation') {
-			drawOverlay(ctx, item, width, height, scene.opaque?.has(item.id) ? 1 : overlayAlpha(item, scene.t));
+			drawOverlay(ctx, item, width, height, scene.fades === false ? 1 : overlayAlpha(item, scene.t));
 			continue;
 		}
 		const frame = scene.frames.get(item.id);

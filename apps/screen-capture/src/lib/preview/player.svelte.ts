@@ -23,8 +23,6 @@ export class Player {
 	playing = $state(false);
 	/** Forced view, e.g. full frame while editing a zoom segment. */
 	forcedView = $state<Rect | null>(null);
-	/** Annotations shown without fading while paused (the selected ones), so a new one is visible at its start */
-	opaque: ReadonlySet<string> = new Set();
 
 	#urls = new Map<string, string>();
 	/** Free video elements per source */
@@ -126,7 +124,7 @@ export class Player {
 		this.playing = false;
 		cancelAnimationFrame(this.#raf);
 		for (const { video } of this.#assigned.values()) video.pause();
-		// Selected annotations are drawn without fading again
+		// Annotations are drawn without fading again
 		this.redraw();
 	}
 
@@ -278,7 +276,8 @@ export class Player {
 			background: project.background,
 			frames,
 			view: this.forcedView ?? undefined,
-			opaque: this.playing ? undefined : this.opaque
+			// Paused: everything under the playhead is visible, also at the very start of a fade-in
+			fades: this.playing
 		});
 	}
 
