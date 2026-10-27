@@ -13,6 +13,7 @@
 	import type { Recording } from '#lib/project/project.js';
 	import { Player } from '#lib/preview/player.svelte.js';
 	import { createOverlay, createZoom, FREEZE_ICON } from '#lib/project/defaults.js';
+	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
 	import type { AnnotationKind } from '#lib/project/types.js';
 	import { folderSupported, saveToFolder } from '#lib/storage/folder.js';
@@ -127,7 +128,8 @@
 	function addAnnotation(kind: AnnotationKind) {
 		if (!editor || !player) return;
 		const start = player.time;
-		const overlay = createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline));
+		// Same settings as the last annotation of this type
+		const overlay = applyStyle(createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline)), loadStyle(kind));
 		editor.update((t) => addItem(t, overlay));
 		editor.select('item', overlay.id);
 	}

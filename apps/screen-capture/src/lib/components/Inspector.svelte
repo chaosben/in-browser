@@ -3,6 +3,7 @@
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type ZoomSegment } from '#lib/project/types.js';
+	import { rememberDuration, rememberStyle } from '#lib/project/styles.js';
 	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
 	import {
 		clipDuration,
@@ -37,7 +38,10 @@
 	// Sliders: all changes of one drag form one undo step (ended via `onchange`)
 	function setOverlay(patch: Partial<Annotation>, field: string) {
 		const o = overlay;
-		if (o) editor.update((t) => updateItem(t, o.id, patch), `insp-${o.id}-${field}`);
+		if (!o) return;
+		editor.update((t) => updateItem(t, o.id, patch), `insp-${o.id}-${field}`);
+		// The next annotation of this type starts with the same settings
+		rememberStyle(o.kind, patch);
 	}
 
 	function setZoom(patch: Partial<Omit<ZoomSegment, 'start' | 'end'>>, field: string) {
@@ -57,7 +61,10 @@
 	}
 
 	function setTiming(start: number, length: number) {
-		if (overlay) editor.update((t) => retimeAnnotation(t, overlay.id, start, start + length));
+		if (overlay) {
+			editor.update((t) => retimeAnnotation(t, overlay.id, start, start + length));
+			rememberDuration(overlay.kind, length);
+		}
 		else if (zoom) editor.update((t) => retimeZoom(t, zoom.id, start, start + length));
 	}
 

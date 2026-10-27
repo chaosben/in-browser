@@ -4,6 +4,7 @@
 	import type { Annotation, Clip, Rect } from '#lib/project/types.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import { m } from '#lib/i18n/index.js';
+	import { rememberStyle } from '#lib/project/styles.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { overlayBounds } from '#lib/render/overlays.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt } from '#lib/timeline/ops.js';
@@ -99,6 +100,12 @@
 		editor.update((t) => updateItem(t, id, patch), key);
 	}
 
+	/** Size dragged at the corner (text, speech bubble, step) – also used for the next annotation of that type */
+	function resizeTo(o: Annotation, size: number, key: string) {
+		patchOverlay(o.id, { size }, key);
+		rememberStyle(o.kind, { size });
+	}
+
 	function moveOverlay(e: PointerEvent, o: Annotation) {
 		editor.select('item', o.id);
 		const key = `move-${o.id}-${e.timeStamp}`;
@@ -148,11 +155,11 @@
 			if (o.kind === 'text' || o.kind === 'callout') {
 				// Dragging the corner scales the font
 				const b = overlayBounds(o, W, H);
-				return patchOverlay(o.id, { size: Math.max(0.012, o.size * ((b.h + dy) / b.h)) }, key);
+				return resizeTo(o, Math.max(0.012, o.size * ((b.h + dy) / b.h)), key);
 			}
 			if (o.kind === 'step') {
 				// The center stays, the corner sets the diameter
-				return patchOverlay(o.id, { size: Math.max(0.02, o.size + 2 * dy) }, key);
+				return resizeTo(o, Math.max(0.02, o.size + 2 * dy), key);
 			}
 			patchOverlay(o.id, { rect: resized(o.rect, corner, dx, dy) }, key);
 		});
