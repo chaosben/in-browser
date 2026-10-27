@@ -29,6 +29,10 @@ export class Player {
 	#pool = new Map<string, HTMLVideoElement[]>();
 	/** Video element per clip (visible clips and clips about to start) */
 	#assigned = new Map<string, { sourceId: string; video: HTMLVideoElement }>();
+	/** Last picture of each video, drawn while it seeks (instead of flashing the background) */
+	#stills = new WeakMap<HTMLVideoElement, HTMLCanvasElement>();
+	/** Seek target that waits for the running seek of a video, so fast scrubbing does not starve it */
+	#pendingSeek = new WeakMap<HTMLVideoElement, number>();
 	#canvas: HTMLCanvasElement | null = null;
 	/** `performance.now()` at timeline time 0 (during playback) */
 	#clockOrigin = 0;
@@ -57,7 +61,7 @@ export class Player {
 				.map(async (s) => {
 					const url = URL.createObjectURL(await mediaFile(id, s.file));
 					this.#urls.set(s.id, url);
-					const video = createVideo(url);
+					const video = this.#createVideo(url);
 					this.#pool.set(s.id, [video]);
 					await new Promise<void>((resolve, reject) => {
 						video.addEventListener('loadeddata', () => resolve(), { once: true });
@@ -157,26 +161,65 @@ export class Player {
 			video.volume = clip.type === 'video' && !track.muted && !track.hidden ? (clip.volume ?? 1) : 0;
 			if (!playing || clip.type === 'freeze') {
 				video.pause();
-				if (Math.abs(video.currentTime - target) > 0.001) {
-					video.addEventListener('seeked', () => this.redraw(), { once: true });
-					video.currentTime = target;
-				}
+				this.#seekVideo(video, target, 0.001);
 			} else if (video.paused) {
-				if (Math.abs(video.currentTime - target) > 0.05) video.currentTime = target;
+				this.#seekVideo(video, target, 0.05);
 				video.play().catch((e) => {
 					// Abort via pause() (e.g. clip end) is not an error
 					if (!(e instanceof DOMException && e.name === 'AbortError')) this.#fail(e);
 				});
 			} else if (!video.seeking && Math.abs(video.currentTime - target) > MAX_DRIFT) {
-				video.currentTime = target;
+				this.#seekVideo(video, target, 0);
 			}
 		}
 		// Seek clips about to start to their start point in advance
 		for (const clip of upcoming) {
 			const video = this.#video(clip);
 			const target = sourceTime(clip, clip.start);
-			if (video && video.paused && Math.abs(video.currentTime - target) > 0.05) video.currentTime = target;
+			if (video && video.paused) this.#seekVideo(video, target, 0.05);
 		}
+	}
+
+	/**
+	 * Seeks a video unless it is within `tolerance` of `target`. While a seek is running, only the newest target is
+	 * remembered and applied on `seeked`; the current picture is kept for drawing until the new one is there.
+	 */
+	#seekVideo(video: HTMLVideoElement, target: number, tolerance: number) {
+		// While seeking, currentTime already reports the target of the running seek
+		const off = Math.abs(video.currentTime - target) > tolerance;
+		if (video.seeking) {
+			if (off) this.#pendingSeek.set(video, target);
+			else this.#pendingSeek.delete(video);
+			return;
+		}
+		if (!off) return;
+		this.#keepStill(video);
+		video.currentTime = target;
+	}
+
+	#keepStill(video: HTMLVideoElement) {
+		if (video.readyState < 2 || !video.videoWidth) return;
+		let still = this.#stills.get(video);
+		if (!still) {
+			still = document.createElement('canvas');
+			this.#stills.set(video, still);
+		}
+		if (still.width !== video.videoWidth || still.height !== video.videoHeight) {
+			still.width = video.videoWidth;
+			still.height = video.videoHeight;
+		}
+		still.getContext('2d')?.drawImage(video, 0, 0);
+	}
+
+	#createVideo(url: string) {
+		const video = createVideo(url);
+		video.addEventListener('seeked', () => {
+			this.redraw();
+			const next = this.#pendingSeek.get(video);
+			this.#pendingSeek.delete(video);
+			if (next !== undefined) this.#seekVideo(video, next, 0.001);
+		});
+		return video;
 	}
 
 	/** Video element for a clip (from the source's pool, created if needed) */
@@ -188,7 +231,7 @@ export class Player {
 		let video = this.#pool.get(clip.sourceId)?.pop();
 		if (!video) {
 			// Second simultaneous clip of the same source: own element, draw once loaded
-			video = createVideo(url);
+			video = this.#createVideo(url);
 			video.addEventListener('loadeddata', () => this.redraw(), { once: true });
 		}
 		this.#assigned.set(clip.id, { sourceId: clip.sourceId, video });
@@ -199,6 +242,7 @@ export class Player {
 		const assigned = this.#assigned.get(clipId);
 		if (!assigned) return;
 		assigned.video.pause();
+		this.#pendingSeek.delete(assigned.video);
 		this.#assigned.delete(clipId);
 		const free = this.#pool.get(assigned.sourceId);
 		if (free) free.push(assigned.video);
@@ -214,7 +258,10 @@ export class Player {
 		const frames = new Map<string, Frame>();
 		for (const clip of clipsAt(project.timeline, this.time)) {
 			const video = this.#assigned.get(clip.id)?.video;
-			if (video && video.readyState >= 2) {
+			if (!video) continue;
+			const still = video.seeking ? this.#stills.get(video) : undefined;
+			if (still) frames.set(clip.id, { image: still, width: still.width, height: still.height });
+			else if (video.readyState >= 2) {
 				frames.set(clip.id, { image: video, width: video.videoWidth, height: video.videoHeight });
 			}
 		}

@@ -40,7 +40,7 @@ The footer of each deployed app shows the commit it was built from.
 
 ## How this was built
 
-in-browser.de is a co-work of Benjamin Schwarze and Claude (Anthropic) as an AI pair programmer: ideas, decisions
+in-browser.de is a co-work of Benjamin and Claude as an AI pair programmer: ideas, decisions
 and testing by Benjamin, much of the implementation written together with Claude.
 
 ## License
