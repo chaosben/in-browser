@@ -122,6 +122,20 @@ export function groupOf(timeline: Timeline, id: string): string[] {
 	return timeline.items.filter((item) => item.group === group).map((item) => item.id);
 }
 
+/**
+ * Links the items: they get a common new group. Groups they already belong to are merged completely, so no
+ * half group is left behind.
+ */
+export function group(timeline: Timeline, ids: string[], groupId = newId()): Timeline {
+	const merged = new Set(timeline.items.filter((item) => ids.includes(item.id) && item.group).map((item) => item.group));
+	return {
+		...timeline,
+		items: timeline.items.map((item) =>
+			ids.includes(item.id) || (item.group && merged.has(item.group)) ? { ...item, group: groupId } : item
+		)
+	};
+}
+
 /** Unlinks the items */
 export function ungroup(timeline: Timeline, ids: string[]): Timeline {
 	return {

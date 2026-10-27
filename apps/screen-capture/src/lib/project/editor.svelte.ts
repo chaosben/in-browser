@@ -1,5 +1,5 @@
 import { deleteMediaFile, saveProject } from '#lib/storage/opfs.js';
-import { addItem, clipsOf, findItem, groupOf, isClip, setTrackState } from '#lib/timeline/ops.js';
+import { addItem, clipsOf, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
 import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
@@ -96,6 +96,29 @@ export class Editor {
 		}
 		values.push(this.project.background);
 		return [...new Set(values.filter((v) => v !== null).map((v) => parseColor(v).hex))];
+	}
+
+	/** Selected items on unlocked tracks */
+	get #editableIds(): string[] {
+		const timeline = this.project.timeline;
+		return this.selectedItems.filter((item) => !trackState(timeline, item.track).locked).map((item) => item.id);
+	}
+
+	/** Can the selection be linked (at least two items, not all in the same group yet)? */
+	get canLink() {
+		const groups = new Set(this.selectedItems.map((item) => item.group ?? item.id));
+		return this.#editableIds.length > 1 && groups.size > 1;
+	}
+
+	/** Links the selected items (Ctrl+G) */
+	link() {
+		if (this.canLink) this.update((t) => group(t, this.#editableIds));
+	}
+
+	/** Unlinks the selected items (Ctrl+Shift+G) */
+	unlink() {
+		const ids = this.#editableIds;
+		if (ids.length) this.update((t) => ungroup(t, ids));
 	}
 
 	/** Selects exactly one item or zoom segment */

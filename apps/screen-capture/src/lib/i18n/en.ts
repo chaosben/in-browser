@@ -161,7 +161,7 @@ const en = {
 		dropHint: 'Or drop video or audio files anywhere onto the editor.'
 	},
 
-	keys: { del: 'Del' },
+	keys: { del: 'Del', ctrl: 'Ctrl' },
 
 	timeline: {
 		zoom: 'Zoom',
@@ -226,7 +226,7 @@ const en = {
 		frameAt: 'Frame at',
 		nothing: 'Nothing selected.',
 		nothingHint: 'Click a clip, an annotation or a zoom segment in the timeline, or add something new from the bar on the left.',
-		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', deselect: 'Deselect' },
+		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect' },
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',
@@ -255,6 +255,9 @@ const en = {
 		volume: 'Volume',
 		mute: 'Mute',
 		unlink: 'Unlink',
+		unlinkTitle: 'Unlink the selected items (Ctrl+Shift+G)',
+		link: 'Link',
+		linkTitle: 'Link the selected items: they are then selected, moved and deleted together (Ctrl+G)',
 		selected: (n: number) => `${n} items selected`,
 		alsoSelected: (n: number) => `${n} more selected (linked) – they move and are deleted together. Alt+click selects a single one.`,
 		multipleHint: 'Drag in the timeline to move them together. Split, hold frame and delete apply to all of them.'

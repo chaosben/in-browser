@@ -263,6 +263,10 @@
 		} else if (mod && key === 'y') {
 			e.preventDefault();
 			editor.redo();
+		} else if (mod && key === 'g') {
+			e.preventDefault();
+			if (e.shiftKey) editor.unlink();
+			else editor.link();
 		} else if (mod && key === 'a') {
 			e.preventDefault();
 			editor.selectItems(editor.project.timeline.items.map((item) => item.id));

@@ -163,7 +163,7 @@ const de: Messages = {
 		dropHint: 'Oder Video- und Audiodateien einfach auf den Editor ziehen.'
 	},
 
-	keys: { del: 'Entf' },
+	keys: { del: 'Entf', ctrl: 'Strg' },
 
 	timeline: {
 		zoom: 'Zoom',
@@ -234,6 +234,7 @@ const de: Messages = {
 			hold: 'Frame halten',
 			delete: 'Löschen',
 			deleteGap: 'Löschen, Lücke lassen',
+			link: 'Verknüpfen',
 			deselect: 'Auswahl aufheben'
 		},
 		project: 'Projekt',
@@ -264,6 +265,9 @@ const de: Messages = {
 		volume: 'Lautstärke',
 		mute: 'Stumm',
 		unlink: 'Verknüpfung lösen',
+		unlinkTitle: 'Verknüpfung der ausgewählten Elemente lösen (Strg+Umschalt+G)',
+		link: 'Verknüpfen',
+		linkTitle: 'Ausgewählte Elemente verknüpfen: Sie werden dann gemeinsam ausgewählt, verschoben und gelöscht (Strg+G)',
 		selected: (n) => `${n} Elemente ausgewählt`,
 		alsoSelected: (n) => `${n} weitere mit ausgewählt (verknüpft) – werden gemeinsam verschoben und gelöscht. Alt+Klick wählt einzeln.`,
 		multipleHint: 'In der Timeline ziehen verschiebt sie gemeinsam. Teilen, Frame halten und Löschen wirken auf alle.'

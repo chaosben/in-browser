@@ -8,6 +8,7 @@ import {
 	bringToFront,
 	clipsAt,
 	duration,
+	group,
 	insertFreeze,
 	itemsAt,
 	groupOf,
@@ -395,5 +396,25 @@ describe('parseProject', () => {
 		expect(() => parseProject({ foo: 1 })).toThrow();
 		expect(() => parseProject({ version: 3, sources: [], timeline: { clips: [] } })).toThrow();
 		expect(() => parseProject({ version: 2, sources: [], timeline: { items: [] } })).toThrow();
+	});
+});
+
+describe('group', () => {
+	it('links loose items', () => {
+		const t = group(tl(clip('a', 0, 0, 5), text('x', 1, 2), clip('b', 0, 0, 5, 2)), ['a', 'x'], 'g');
+		expect(t.items.map((i) => i.group)).toEqual(['g', 'g', undefined]);
+	});
+	it('merges existing groups completely', () => {
+		const t = group(
+			tl({ ...clip('a', 0, 0, 5), group: 'r' }, { ...clip('b', 0, 0, 5, 1), group: 'r' }, { ...text('x', 1, 2), group: 's' }, { ...text('y', 1, 2, 3), group: 's' }, text('z', 1, 2, 4)),
+			['a', 'x'],
+			'g'
+		);
+		expect(t.items.map((i) => i.group)).toEqual(['g', 'g', 'g', 'g', undefined]);
+	});
+	it('leaves other items untouched', () => {
+		const loose = text('z', 1, 2, 4);
+		const t = group(tl(clip('a', 0, 0, 5), clip('b', 0, 0, 5, 1), loose), ['a', 'b'], 'g');
+		expect(t.items[2]).toBe(loose);
 	});
 });

@@ -13,7 +13,6 @@
 		retimeAnnotation,
 		retimeZoom,
 		trim,
-		ungroup,
 		updateItem,
 		updateZoom
 	} from '#lib/timeline/ops.js';
@@ -75,11 +74,6 @@
 		const ids = editor.selectedIds;
 		if (ids.length) editor.update((t) => remove(t, ids));
 		else if (zoom) editor.update((t) => removeZoom(t, zoom.id));
-	}
-
-	function unlink() {
-		const ids = editor.selectedIds;
-		editor.update((t) => ungroup(t, ids));
 	}
 
 	function setClip(c: Clip, patch: Partial<Clip>, field: string) {
@@ -428,7 +422,8 @@
 				<kbd class="kbd kbd-xs">S</kbd> {m.inspector.shortcuts.split} · <kbd class="kbd kbd-xs">F</kbd>
 				{m.inspector.shortcuts.hold} · <kbd class="kbd kbd-xs">{m.keys.del}</kbd>
 				{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
-				{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">Esc</kbd>
+				{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">G</kbd>
+				{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">Esc</kbd>
 				{m.inspector.shortcuts.deselect}
 			</p>
 		</div>
@@ -437,8 +432,13 @@
 	{#if others > 0}
 		<p class="text-xs opacity-70">{m.inspector.alsoSelected(others)}</p>
 	{/if}
+	{#if editor.canLink}
+		<button class="btn btn-sm btn-outline" onclick={() => editor.link()} title={m.inspector.linkTitle}>
+			<span class="icon-[material-symbols-light--link] size-5" aria-hidden="true"></span> {m.inspector.link}
+		</button>
+	{/if}
 	{#if grouped}
-		<button class="btn btn-sm btn-outline" onclick={unlink}>
+		<button class="btn btn-sm btn-outline" onclick={() => editor.unlink()} title={m.inspector.unlinkTitle}>
 			<span class="icon-[material-symbols-light--link-off] size-5" aria-hidden="true"></span> {m.inspector.unlink}
 		</button>
 	{/if}
