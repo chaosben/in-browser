@@ -1,7 +1,7 @@
 // PWA state for the installable in-browser.de tools: register the Service Worker, offer installation,
 // announce new versions. Only active in the production build (the dev server has no Service Worker).
 
-import { dev } from '$app/env';
+import { dev, version } from '$app/env';
 import { resolve } from '$app/paths';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -15,6 +15,19 @@ export const pwa = $state({
 	/** A new version is loaded and waiting for “Reload”. */
 	updateReady: false
 });
+
+/** Asks a Service Worker for its build version; `null` if it does not answer (older workers without the message). */
+function workerVersion(worker: ServiceWorker): Promise<string | null> {
+	return new Promise((resolve) => {
+		const channel = new MessageChannel();
+		const timeout = setTimeout(() => resolve(null), 2000);
+		channel.port1.onmessage = (e) => {
+			clearTimeout(timeout);
+			resolve(typeof e.data === 'string' ? e.data : null);
+		};
+		worker.postMessage('VERSION', [channel.port2]);
+	});
+}
 
 let installEvent: BeforeInstallPromptEvent | null = null;
 let waiting: ServiceWorker | null = null;
@@ -41,12 +54,16 @@ export function initPwa() {
 		.then((registration) => {
 			const track = (worker: ServiceWorker | null) => {
 				if (!worker) return;
-				const check = () => {
+				let checked = false;
+				const check = async () => {
 					// Only an update if a version already controls the page (not on first install)
-					if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-						waiting = worker;
-						pwa.updateReady = true;
-					}
+					if (checked || worker.state !== 'installed' || !navigator.serviceWorker.controller) return;
+					checked = true;
+					// Navigations are network first: the page may already run the version the new worker brings.
+					// Then just swap the worker (and its offline cache) – nothing to reload.
+					if ((await workerVersion(worker)) === version) return worker.postMessage('SKIP_WAITING');
+					waiting = worker;
+					pwa.updateReady = true;
 				};
 				check();
 				worker.addEventListener('statechange', check);

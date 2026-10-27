@@ -1,7 +1,8 @@
 // Service Worker: makes the app installable and usable offline.
 // - Build files and `static/` are precached on install (one cache per version).
 // - Navigations: network first, offline the cached app shell (SPA, every path serves index.html).
-// - A new version waits until the page activates it via the `SKIP_WAITING` message (user clicks "Reload").
+// - A new version waits until the page activates it via the `SKIP_WAITING` message (user clicks "Reload"), or
+//   silently when the page already runs that version (`VERSION` message).
 // Media come from the OPFS or as blob: URLs and do not go through the Service Worker.
 
 import { version } from '$app/env';
@@ -36,6 +37,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('message', (event) => {
 	if (event.data === 'SKIP_WAITING') self.skipWaiting();
+	// The page compares it with its own version (see `initPwa`)
+	else if (event.data === 'VERSION') event.ports[0]?.postMessage(version);
 });
 
 self.addEventListener('fetch', (event) => {
