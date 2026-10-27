@@ -6,7 +6,7 @@ import type { ToolGroup, ToolItem } from './types.js';
 
 function annotation(kind: AnnotationKind): ToolItem {
 	const info = OVERLAY_KINDS[kind];
-	return { id: kind, icon: info.icon, label: info.label, run: (a) => a.addAnnotation(kind) };
+	return { id: kind, icon: info.icon, label: info.label, run: (a) => a.addAnnotation(kind), drag: { type: 'annotation', kind } };
 }
 
 /** Left tool rail: only things you add to the project. Editing tools sit above the timeline. */
@@ -43,7 +43,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
 			{
 				id: 'zoom',
 				label: m.tools.groups.zoom,
-				items: [{ id: 'zoom', icon: ZOOM_ICON, label: m.editor.zoomSegment, run: (a) => a.addZoom() }]
+				items: [
+					{ id: 'zoom', icon: ZOOM_ICON, label: m.editor.zoomSegment, run: (a) => a.addZoom(), drag: { type: 'zoom' } }
+				]
 			}
 		]
 	}

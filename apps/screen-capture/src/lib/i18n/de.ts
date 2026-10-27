@@ -134,6 +134,7 @@ const de: Messages = {
 		export: 'Exportieren',
 		recordingAdded: 'Aufnahme hinzugefügt',
 		add: (what) => `${what} hinzufügen`,
+		dragHint: 'Klicken: am Abspielkopf einfügen · Ziehen: in Vorschau oder Timeline ablegen',
 		zoomSegment: 'Zoom-Abschnitt',
 		holdFrame: 'Frame halten',
 		holdFrameTitle: 'Frame am Abspielkopf halten (F)',
@@ -264,6 +265,7 @@ const de: Messages = {
 	},
 
 	mediaBin: {
+		dragHint: 'In die Timeline ziehen, um an dieser Stelle einzufügen',
 		empty: 'Noch keine Medien.',
 		noAudio: 'ohne Ton',
 		insert: 'Einfügen',

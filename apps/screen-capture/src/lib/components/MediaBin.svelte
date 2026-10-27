@@ -3,6 +3,7 @@
 	import { thumbnails } from '#lib/media/visuals.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import type { Source } from '#lib/project/types.js';
+	import { setDragPayload } from '#lib/tools/drag.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
 
@@ -47,7 +48,14 @@
 	{/if}
 	{#each editor.project.sources as source (source.id)}
 		{@const used = editor.isSourceInTimeline(source.id)}
-		<div class="bg-base-100 rounded-box flex gap-2 p-2">
+		<div
+			class="bg-base-100 rounded-box flex cursor-grab gap-2 p-2"
+			title={m.mediaBin.dragHint}
+			draggable="true"
+			ondragstart={(e) => setDragPayload(e, { type: 'source', id: source.id })}
+			role="group"
+			aria-label={source.name}
+		>
 			{#if source.hasVideo}
 				<canvas class="h-12 w-20 shrink-0 rounded bg-black object-cover" {@attach (c) => preview(c, source)}></canvas>
 			{:else}

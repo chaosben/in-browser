@@ -15,9 +15,11 @@
 	import { createOverlay, createZoom, FREEZE_ICON } from '#lib/project/defaults.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
-	import type { AnnotationKind } from '#lib/project/types.js';
+	import type { Annotation, AnnotationKind, Point } from '#lib/project/types.js';
+	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
+	import { hasDragPayload, readDragPayload, type DragPayload } from '#lib/tools/drag.js';
 	import { folderSupported, saveToFolder } from '#lib/storage/folder.js';
-	import type { ToolActions } from '#lib/tools/types.js';
+	import type { DropPlace, ToolActions } from '#lib/tools/types.js';
 	import { cleanupMedia, loadProject } from '#lib/storage/opfs.js';
 	import {
 		addItem,
@@ -33,7 +35,8 @@
 		sendBackward,
 		trackState,
 		sendToBack,
-		split
+		split,
+		viewAt
 	} from '#lib/timeline/ops.js';
 	import { toast } from '#lib/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
@@ -50,6 +53,8 @@
 	let timeline = $state<ReturnType<typeof Timeline>>();
 	let freezeSeconds = $state(3);
 	let draggingFiles = $state(false);
+	/** A tile or media entry is dragged over the preview (highlighted as drop target) */
+	let overPreview = $state(false);
 
 	$effect(() => {
 		const id = page.params.id;
@@ -125,19 +130,26 @@
 		player.seek(t);
 	}
 
-	function addAnnotation(kind: AnnotationKind) {
+	function addAnnotation(kind: AnnotationKind, at: DropPlace = {}) {
 		if (!editor || !player) return;
-		const start = player.time;
+		const start = at.start ?? player.time;
 		// Same settings as the last annotation of this type
-		const overlay = applyStyle(createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline)), loadStyle(kind));
+		let overlay = applyStyle(createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline)), loadStyle(kind));
+		if (at.point) {
+			// Center on the drop point
+			const b = overlayBounds(overlay, editor.project.width, editor.project.height);
+			const move = moveAnnotation(overlay, at.point.x - (b.x + b.w / 2), at.point.y - (b.y + b.h / 2));
+			overlay = { ...overlay, ...move } as Annotation;
+		}
 		editor.update((t) => addItem(t, overlay));
 		editor.select('item', overlay.id);
+		// Dropped onto the timeline: show it
+		if (at.start !== undefined) player.seek(start);
 	}
 
 	/** Zoom section starting at the playhead (within the timeline) */
-	function newZoomRange(length: number) {
+	function newZoomRange(length: number, start = player?.time ?? 0) {
 		if (!player) return null;
-		const start = player.time;
 		const end = Math.min(start + length, player.duration);
 		if (end - start < 0.2) {
 			toast(m.editor.playheadAtEnd, 'warning');
@@ -146,13 +158,20 @@
 		return { start, end };
 	}
 
-	function addZoomSegment() {
-		const range = newZoomRange(4);
-		if (!editor || !range) return;
+	function addZoomSegment(at: DropPlace = {}) {
+		const range = newZoomRange(4, at.start);
+		if (!editor || !player || !range) return;
 		const segment = createZoom(range.start, range.end);
+		if (at.point) {
+			// Centered on the drop point, within the frame
+			const { w, h } = segment.rect;
+			const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
+			segment.rect = { w, h, x: clamp(at.point.x - w / 2, 1 - w), y: clamp(at.point.y - h / 2, 1 - h) };
+		}
 		editor.update((t) => addZoom(t, segment));
 		if (editor.project.timeline.zoom.some((z) => z.id === segment.id)) editor.select('zoom', segment.id);
 		else toast(m.editor.zoomExists, 'warning');
+		if (at.start !== undefined) player.seek(range.start);
 	}
 
 	/** Deletes the selection (excluding locked tracks); later clips move up, with `gap` a gap remains. */
@@ -272,14 +291,63 @@
 		}
 	}
 
+	/** Where a tile or media entry may be dropped */
+	function dropZone(e: DragEvent) {
+		const target = e.target as HTMLElement;
+		if (target.closest('[data-timeline]')) return 'timeline';
+		if (target.closest('[data-preview]')) return 'preview';
+		return null;
+	}
+
 	function onDragOver(e: DragEvent) {
+		if (hasDragPayload(e)) {
+			const zone = dropZone(e);
+			overPreview = zone === 'preview';
+			if (!zone) return;
+			e.preventDefault();
+			e.dataTransfer!.dropEffect = 'copy';
+			return;
+		}
 		if (!e.dataTransfer?.types.includes('Files')) return;
 		e.preventDefault();
 		draggingFiles = true;
 	}
 
+	/** Content coordinates under the mouse in the preview (also when zoomed in) */
+	function previewPoint(e: DragEvent): Point | undefined {
+		const el = (e.target as HTMLElement).closest<HTMLElement>('[data-preview]');
+		if (!el || !editor || !player) return undefined;
+		const rect = el.getBoundingClientRect();
+		const view = player.forcedView ?? viewAt(editor.project.timeline, player.time);
+		return {
+			x: view.x + ((e.clientX - rect.left) / rect.width) * view.w,
+			y: view.y + ((e.clientY - rect.top) / rect.height) * view.h
+		};
+	}
+
+	/** Tile or media entry dropped: on the timeline at the time under the mouse, in the preview at that spot */
+	function dropPayload(payload: DragPayload, e: DragEvent) {
+		const zone = dropZone(e);
+		if (!editor || !player || !zone) return;
+		const at: DropPlace =
+			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : { point: previewPoint(e) };
+		if (payload.type === 'annotation') addAnnotation(payload.kind, at);
+		else if (payload.type === 'zoom') addZoomSegment(at);
+		else {
+			editor.insertSource(payload.id, at.start ?? player.time);
+			if (at.start !== undefined) player.seek(at.start);
+		}
+	}
+
 	function onDrop(e: DragEvent) {
 		draggingFiles = false;
+		overPreview = false;
+		const payload = readDragPayload(e);
+		if (payload) {
+			e.preventDefault();
+			dropPayload(payload, e);
+			return;
+		}
 		if (!e.dataTransfer?.files.length) return;
 		e.preventDefault();
 		// Dragged onto the timeline: audio files start at the drop position
@@ -288,7 +356,8 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
+<!-- Also when a drag is cancelled (Esc) or ends outside the window -->
+<svelte:window onkeydown={onKey} ondragend={() => (overPreview = false)} />
 <svelte:head><title>{editor?.project.name ?? m.editor.title} · {BRAND.tool}</title></svelte:head>
 
 {#if loadError}
@@ -303,7 +372,7 @@
 		class="relative flex h-full flex-col overflow-hidden"
 		ondragover={onDragOver}
 		ondragleave={(e) => {
-			if (e.currentTarget === e.target) draggingFiles = false;
+			if (e.currentTarget === e.target) draggingFiles = overPreview = false;
 		}}
 		ondrop={onDrop}
 		role="application"
@@ -361,7 +430,8 @@
 				<!-- Preview with editing layer -->
 				<div class="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4 [container-type:size]">
 					<div
-						class="relative shadow-lg"
+						class="relative shadow-lg {overPreview ? 'ring-primary ring-4' : ''}"
+						data-preview
 						style="width: min(100cqw, calc(100cqh * {previewSize.width / previewSize.height})); aspect-ratio: {previewSize.width} / {previewSize.height}"
 					>
 						<canvas

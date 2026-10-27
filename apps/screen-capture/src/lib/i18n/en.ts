@@ -132,6 +132,7 @@ const en = {
 		export: 'Export',
 		recordingAdded: 'Recording added',
 		add: (what: string) => `Add ${what.toLowerCase()}`,
+		dragHint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline',
 		zoomSegment: 'Zoom segment',
 		holdFrame: 'Hold frame',
 		holdFrameTitle: 'Hold the frame at the playhead (F)',
@@ -255,6 +256,7 @@ const en = {
 	},
 
 	mediaBin: {
+		dragHint: 'Drag onto the timeline to insert at that point',
 		empty: 'No media yet.',
 		noAudio: 'no audio',
 		insert: 'Insert',

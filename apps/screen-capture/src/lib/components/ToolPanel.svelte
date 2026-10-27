@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { TOOL_GROUPS } from '#lib/tools/groups.js';
 	import { toolState } from '#lib/tools/state.svelte.js';
+	import { setDragPayload } from '#lib/tools/drag.js';
 	import type { ToolProps } from '#lib/tools/types.js';
 	import { m } from '#lib/i18n/index.js';
 
@@ -42,6 +43,9 @@
 						<button
 							class="btn bg-base-100 h-auto flex-col gap-1 py-3 font-normal"
 							aria-label={m.editor.add(item.label)}
+							title={item.drag ? m.editor.dragHint : undefined}
+							draggable={!!item.drag}
+							ondragstart={(e) => item.drag && setDragPayload(e, item.drag)}
 							onclick={() => item.run(actions)}
 						>
 							<span class="{item.icon} size-8" aria-hidden="true"></span>

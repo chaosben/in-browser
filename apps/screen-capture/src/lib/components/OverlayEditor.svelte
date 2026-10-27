@@ -6,7 +6,7 @@
 	import { m } from '#lib/i18n/index.js';
 	import { rememberStyle } from '#lib/project/styles.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
-	import { overlayBounds } from '#lib/render/overlays.js';
+	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt } from '#lib/timeline/ops.js';
 
 	interface Props {
@@ -109,25 +109,7 @@
 	function moveOverlay(e: PointerEvent, o: Annotation) {
 		editor.select('item', o.id);
 		const key = `move-${o.id}-${e.timeStamp}`;
-		drag(e, (dx, dy) => {
-			switch (o.kind) {
-				case 'arrow':
-				case 'line':
-					return patchOverlay(
-						o.id,
-						{ from: { x: o.from.x + dx, y: o.from.y + dy }, to: { x: o.to.x + dx, y: o.to.y + dy } },
-						key
-					);
-				case 'text':
-				case 'step':
-					return patchOverlay(o.id, { x: o.x + dx, y: o.y + dy }, key);
-				case 'callout':
-					// The pointer moves along
-					return patchOverlay(o.id, { x: o.x + dx, y: o.y + dy, tip: { x: o.tip.x + dx, y: o.tip.y + dy } }, key);
-				default:
-					return patchOverlay(o.id, { rect: { ...o.rect, x: o.rect.x + dx, y: o.rect.y + dy } }, key);
-			}
-		});
+		drag(e, (dx, dy) => patchOverlay(o.id, moveAnnotation(o, dx, dy), key));
 	}
 
 	/** Move a corner of a rect, the opposite corner stays fixed. */

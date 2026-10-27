@@ -226,6 +226,24 @@ export function textBox(ctx: Ctx2D, a: TextAnnotation | CalloutAnnotation, W: nu
 	};
 }
 
+/** Change that moves an annotation by an offset in content coordinates */
+export function moveAnnotation(a: Annotation, dx: number, dy: number): Partial<Annotation> {
+	const by = (p: Point) => ({ x: p.x + dx, y: p.y + dy });
+	switch (a.kind) {
+		case 'arrow':
+		case 'line':
+			return { from: by(a.from), to: by(a.to) };
+		case 'text':
+		case 'step':
+			return { x: a.x + dx, y: a.y + dy };
+		case 'callout':
+			// The pointer moves along
+			return { x: a.x + dx, y: a.y + dy, tip: by(a.tip) };
+		default:
+			return { rect: { ...a.rect, x: a.rect.x + dx, y: a.rect.y + dy } };
+	}
+}
+
 let measureCtx: OffscreenCanvasRenderingContext2D | null = null;
 
 /** Bounding box of an annotation, normalized (for selection and handles in the editor). */
