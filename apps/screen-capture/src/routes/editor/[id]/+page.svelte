@@ -217,7 +217,8 @@
 		if (!editor || !s) return;
 		if (s.kind === 'zoom') return editor.update((t) => removeZoom(t, s.id));
 		const ids = editable().map((item) => item.id);
-		if (ids.length) editor.update((t) => remove(t, ids, !gap));
+		const ed = editor;
+		if (ids.length) ed.update((t) => remove(t, ids, !gap, (id) => !!ed.source(id)?.hasVideo));
 	}
 
 	function openRecordDialog() {

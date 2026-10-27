@@ -160,9 +160,17 @@ describe('split', () => {
 });
 
 describe('remove', () => {
-	it('with ripple everything moves up, annotations in the range are dropped or shortened', () => {
+	it('with ripple only empty time is closed: annotations in the range stay complete and move up', () => {
 		const t = tl(clip('a', 0, 0, 2), clip('b', 2, 0, 3), clip('c', 5, 0, 2), text('x', 2.5, 3.5), text('y', 4, 6, 2));
-		expect(layout(remove(t, ['b']))).toEqual({ a: [0, 0, 2], c: [0, 2, 4], y: [1, 2, 3] });
+		// Empty were [2, 2.5) and [3.5, 4)
+		expect(layout(remove(t, ['b']))).toEqual({ a: [0, 0, 2], x: [1, 2, 3], y: [2, 3, 5], c: [0, 4, 6] });
+	});
+	it('removing a clip without a picture cuts no time and keeps everything else', () => {
+		// Long music under a short video, text where only music is left
+		const t = tl(clip('v', 0, 0, 6), { ...clip('m', 0, 0, 12, 1), sourceId: 'music' }, text('x', 9, 10, 2));
+		const r = remove(t, ['m'], true, (s) => s !== 'music');
+		expect(layout(r)).toEqual({ v: [0, 0, 6], x: [1, 9, 10] });
+		expect(duration(r)).toBe(10);
 	});
 	it('without ripple a gap remains', () => {
 		const t = tl(clip('a', 0, 0, 2), clip('b', 2, 0, 3), clip('c', 5, 0, 2));
@@ -192,6 +200,10 @@ describe('trim', () => {
 	it('out point without ripple stops at the neighbor', () => {
 		expect(layout(trim(t, 'a', 'out', 3, 10, false))).toMatchObject({ a: [0, 0, 3], b: [0, 4, 8] });
 		expect(layout(trim(t, 'a', 'out', 6, 10, false))).toMatchObject({ a: [0, 0, 4] });
+	});
+	it('trimming keeps annotations over the trimmed part', () => {
+		const u = tl(clip('a', 0, 0, 4), clip('b', 4, 0, 4), text('x', 3, 3.5));
+		expect(layout(trim(u, 'a', 'out', 2, 10))).toMatchObject({ a: [0, 0, 2], x: [1, 2, 2.5], b: [0, 2.5, 6.5] });
 	});
 	it('in point with ripple: start stays, later items move', () => {
 		const r = trim(t, 'b', 'in', 1, 10);

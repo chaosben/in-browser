@@ -72,7 +72,7 @@
 
 	function removeSelected() {
 		const ids = editor.selectedIds;
-		if (ids.length) editor.update((t) => remove(t, ids));
+		if (ids.length) editor.update((t) => remove(t, ids, true, (id) => !!editor.source(id)?.hasVideo));
 		else if (zoom) editor.update((t) => removeZoom(t, zoom.id));
 	}
 

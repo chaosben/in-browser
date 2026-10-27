@@ -313,8 +313,8 @@ export function rippleInsert(timeline: Timeline, at: number, delta: number): Tim
 }
 
 /**
- * Removes the range [from, to), which must not contain a clip: annotations in it are dropped or
- * shortened, everything after it moves up.
+ * Removes the range [from, to), which must be empty (see `uncovered`): everything after it moves up.
+ * Annotations reaching into it are only shortened as a safeguard against rounding.
  */
 function rippleRemove(timeline: Timeline, from: number, to: number): Timeline {
 	const d = to - from;
@@ -334,11 +334,14 @@ function rippleRemove(timeline: Timeline, from: number, to: number): Timeline {
 	return { ...withItems(timeline, items), zoom: retimeZoomItems(timeline.zoom, map) };
 }
 
-/** Parts of [from, to) that contain no clip */
+/**
+ * Parts of [from, to) where nothing lies – no clip and no annotation. Annotations are independent elements on
+ * the canvas, so closing time never drops or shortens one; it only moves along.
+ */
 function uncovered(timeline: Timeline, from: number, to: number): Timed[] {
 	const result: Timed[] = [];
 	let t = from;
-	const clips = clipsOf(timeline)
+	const clips = timeline.items
 		.map(span)
 		.filter((s) => s.end > from + EPS && s.start < to - EPS)
 		.sort((a, b) => a.start - b.start);
@@ -350,7 +353,7 @@ function uncovered(timeline: Timeline, from: number, to: number): Timed[] {
 	return result;
 }
 
-/** Closes the gaps in [from, to) where no clip remains (from back to front). */
+/** Closes the gaps in [from, to) where nothing remains (from back to front). */
 function closeGaps(timeline: Timeline, from: number, to: number): Timeline {
 	return uncovered(timeline, from, to).reduceRight((t, gap) => rippleRemove(t, gap.start, gap.end), timeline);
 }
@@ -397,10 +400,16 @@ export function split(timeline: Timeline, t: number, ids?: string[]): Timeline {
 }
 
 /**
- * Removes items. For clips with `ripple` everything later moves up, as far as no other clip remains
- * in their range; without `ripple` gaps remain. Annotations never leave a ripple.
+ * Removes items – only these, never others. For clips with a picture and `ripple` everything later moves up,
+ * as far as nothing else remains in their range; without `ripple` gaps remain. Annotations and clips without
+ * a picture (music, microphone) never leave a ripple: removing background sound does not cut the video.
  */
-export function remove(timeline: Timeline, ids: string[], ripple = true): Timeline {
+export function remove(
+	timeline: Timeline,
+	ids: string[],
+	ripple = true,
+	hasPicture: (sourceId: string) => boolean = () => true
+): Timeline {
 	const removed = timeline.items.filter((x) => ids.includes(x.id));
 	if (removed.length === 0) return timeline;
 	let result = withItems(
@@ -410,7 +419,8 @@ export function remove(timeline: Timeline, ids: string[], ripple = true): Timeli
 	if (!ripple) return result;
 	// Merge ranges and close from the end so earlier ranges stay valid
 	const ranges: Timed[] = [];
-	for (const r of removed.filter(isClip).map(span).sort((a, b) => a.start - b.start)) {
+	const cuts = removed.filter((x): x is Clip => isClip(x) && hasPicture(x.sourceId));
+	for (const r of cuts.map(span).sort((a, b) => a.start - b.start)) {
 		const last = ranges.at(-1);
 		if (last && r.start <= last.end + EPS) last.end = Math.max(last.end, r.end);
 		else ranges.push({ ...r });
