@@ -38,10 +38,11 @@ describe('sanitizeRecordSettings', () => {
 });
 
 describe('recordBitrate', () => {
-	it('increases with the level, cameras get more than screens', () => {
-		const rates = RECORD_LEVELS.map((level) => recordBitrate('camera', level, 1280, 720, 30));
-		expect([...rates].sort((a, b) => a - b)).toEqual(rates);
-		expect(recordBitrate('camera', 'high', 1280, 720, 30)).toBeGreaterThan(recordBitrate('screen', 'high', 1280, 720, 30));
+	it('increases with the level', () => {
+		for (const kind of ['screen', 'camera'] as const) {
+			const rates = RECORD_LEVELS.map((level) => recordBitrate(kind, level, 1280, 720, 30));
+			expect([...rates].sort((a, b) => a - b)).toEqual(rates);
+		}
 	});
 	it('gives the webcam at "very high" clearly more than the former 2.8 Mbit/s', () => {
 		expect(recordBitrate('camera', 'very-high', 1280, 720, 30)).toBeGreaterThan(5_000_000);

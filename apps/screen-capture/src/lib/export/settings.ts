@@ -30,8 +30,8 @@ export const QUALITY_LABELS: Record<QualityPreset, string> = m.export.qualities;
 const BITS_PER_PIXEL: Record<Exclude<QualityPreset, 'custom'>, number> = {
 	low: 0.04,
 	medium: 0.07,
-	high: 0.1,
-	'very-high': 0.16
+	high: 0.12,
+	'very-high': 0.2
 };
 
 /** Output size: never upscale, even pixel counts (required for H.264). */

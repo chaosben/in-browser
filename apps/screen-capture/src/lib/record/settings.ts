@@ -49,10 +49,10 @@ export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
 	frameRate: 30
 };
 
-// Bits per pixel and frame. Live tracks are encoded in realtime mode, and webcam images are noisy and move
-// constantly – they need clearly more than mostly static screen content to stay sharp.
+// Bits per pixel and frame. Live tracks are encoded in realtime mode: webcam images are noisy and move constantly,
+// screen recordings need headroom for sharp text edges (they are re-encoded on export).
 const BITS_PER_PIXEL: Record<'screen' | 'camera', Record<RecordLevel, number>> = {
-	screen: { low: 0.04, medium: 0.07, high: 0.1, 'very-high': 0.16 },
+	screen: { low: 0.06, medium: 0.1, high: 0.16, 'very-high': 0.25 },
 	camera: { low: 0.06, medium: 0.1, high: 0.14, 'very-high': 0.2 }
 };
 

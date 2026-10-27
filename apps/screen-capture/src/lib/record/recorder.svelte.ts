@@ -114,6 +114,8 @@ export class Recorder {
 
 		// Screen with system audio
 		const screen = await this.#part('screen');
+		// Keep sharp text over smooth motion (capture and encoder)
+		screenTrack.contentHint = 'text';
 		const { settings } = options;
 		screen.sources.push(await this.#video(screen, screenTrack, 'screen', settings.screenQuality, settings.frameRate));
 		const systemAudio = this.#display.getAudioTracks()[0];
@@ -164,7 +166,9 @@ export class Recorder {
 		const { width = 1920, height = 1080 } = track.getSettings();
 		// Explicit bitrate, so the size estimate in the dialog matches what is encoded
 		const quality = new Quality({ bitrate: recordBitrate(kind, level, width, height, frameRate) });
-		const codec = await getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width, height });
+		// VP9 with screen-content tools keeps text much sharper than (usually hardware) H.264 in realtime mode
+		const codecs = kind === 'screen' ? (['vp9', 'avc', 'av1'] as const) : (['avc', 'vp9', 'av1'] as const);
+		const codec = await getFirstEncodableVideoCodec([...codecs], { width, height });
 		if (!codec) throw new Error(m.record.noVideoEncoder);
 		const source = new MediaStreamVideoTrackSource(
 			track as MediaStreamVideoTrack,
@@ -172,6 +176,7 @@ export class Recorder {
 				codec,
 				quality,
 				keyFrameInterval: KEYFRAMES[kind],
+				contentHint: kind === 'screen' ? 'text' : undefined,
 				// With window captures the size changes when the window is resized.
 				sizeChangeBehavior: 'contain'
 			},
