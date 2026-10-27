@@ -213,6 +213,22 @@ export function moveItem(timeline: Timeline, id: string, start: number): Timelin
 	return item ? moveItems(timeline, [id], start - item.start) : timeline;
 }
 
+/** Sets the start time without regard to neighbors (not before 0); annotations keep their length. */
+export function shiftItem(timeline: Timeline, id: string, start: number): Timeline {
+	const item = findItem(timeline, id);
+	if (!item) return timeline;
+	const s = Math.max(0, start);
+	return updateItem(timeline, id, item.type === 'annotation' ? { start: s, end: item.end + s - item.start } : { start: s });
+}
+
+/**
+ * Moves an item to `start` on track `target` (dragged to another track): neighbors on the old track
+ * don't stop it; if the target track is occupied there, a new track is inserted (see `setTrack`).
+ */
+export function placeItem(timeline: Timeline, id: string, start: number, target: number): Timeline {
+	return setTrack(shiftItem(timeline, id, start), id, target);
+}
+
 /** Sets start/end of an annotation, clamped to the neighbors on its own track. */
 export function retimeAnnotation(timeline: Timeline, id: string, start: number, end: number): Timeline {
 	const o = findItem(timeline, id);

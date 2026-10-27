@@ -9,11 +9,11 @@
 		duration as timelineDuration,
 		findItem,
 		itemEnd,
-		moveItem,
 		moveItems,
+		placeItem,
 		retimeAnnotation,
 		retimeZoom,
-		setTrack,
+		shiftItem,
 		trackCount,
 		trackState,
 		trim
@@ -241,7 +241,12 @@
 				// Horizontal: change time, the track stays the same
 				horizontal ||= Math.abs(ev.clientX - x0) >= 4;
 				if (!horizontal) return;
-				if (part === 'body') {
+				if (part === 'body' && trackDrop && trackDrop.track !== track) {
+					// Bound for another track: neighbors on the old one don't stop it (shown in the target row)
+					const s = Math.max(0, snap(ids, start + dt, end - start));
+					current = [s, s + end - start];
+					editor.update((tl) => shiftItem(tl, id, s), key);
+				} else if (part === 'body') {
 					const s = snap(ids, start + dt, end - start);
 					current = [s, s + end - start];
 					editor.update((tl) => moveItems(tl, ids, s - start), key);
@@ -256,7 +261,7 @@
 					// Same undo step: applied to the state before the drag, hence time and track together
 					const target = trackDrop.track;
 					const [s] = current;
-					editor.update((tl) => setTrack(horizontal ? moveItem(tl, id, s) : tl, id, target), key);
+					editor.update((tl) => placeItem(tl, id, horizontal ? s : start, target), key);
 				}
 				trackDrop = null;
 			}
@@ -468,7 +473,7 @@
 				{/if}
 
 				{#each timeline.items as item (item.id)}
-					{@const row = rowOf(item.track)}
+					{@const row = rowOf(trackDrop?.id === item.id ? trackDrop.track : item.track)}
 					{@const width = (itemEnd(item) - item.start) * pxPerSec}
 					{@const selected = editor.isSelected('item', item.id)}
 					{@const state = trackState(timeline, item.track)}

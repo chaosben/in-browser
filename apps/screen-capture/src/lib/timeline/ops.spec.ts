@@ -15,6 +15,7 @@ import {
 	moveItem,
 	moveItems,
 	nextStepNumber,
+	placeItem,
 	remove,
 	retimeAnnotation,
 	retimeZoom,
@@ -127,6 +128,13 @@ describe('tracks', () => {
 		expect(layout(moveItem(t, 'b', 1)).b).toEqual([0, 2, 4]);
 		expect(layout(moveItem(t, 'b', 20)).b).toEqual([0, 20, 22]);
 		expect(layout(moveItem(t, 'a', -3)).a).toEqual([0, 0, 2]);
+	});
+	it('placeItem passes neighbors on the old track when changing tracks', () => {
+		const t = tl(clip('a', 0, 0, 5), text('x', 6, 8, 0), text('y', 0, 1, 1));
+		expect(layout(placeItem(t, 'x', 2, 1)).x).toEqual([1, 2, 4]);
+		// Occupied there: new track above, the annotation keeps its length
+		expect(layout(placeItem(t, 'x', 0.5, 1))).toEqual({ a: [0, 0, 5], x: [2, 0.5, 2.5], y: [1, 0, 1] });
+		expect(layout(placeItem(t, 'x', -3, 2)).x.slice(1)).toEqual([0, 2]);
 	});
 	it('retimeAnnotation clamps to the neighbors', () => {
 		const t = tl(text('x', 1, 2), text('y', 5, 6));
