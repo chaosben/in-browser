@@ -436,7 +436,12 @@ const help: typeof enHelp = {
 				},
 				colors: {
 					title: 'Farben',
-					text: 'Vorgabefarben in der ersten Reihe, darunter deine eigenen – die zuletzt gewählten und die im Projekt benutzten. „Deckkraft“ macht eine Farbe durchscheinend; der Farbwähler rechts bietet jede beliebige Farbe.'
+					text: 'Vorgabefarben in der ersten Reihe, darunter deine eigenen – die zuletzt gewählten und die im Projekt benutzten. Die Felder zeigen die Farbe immer deckend, damit sie erkennbar bleibt; wie durchscheinend sie ist, zeigt der Knopf „Deckkraft“ (Farbe über Schachbrett und Prozent). Der Farbwähler rechts bietet jede beliebige Farbe.',
+					options: {
+						opacity: { label: 'Deckkraft', text: '100 % ist deckend, 0 % unsichtbar. Textmarker und Spotlight nutzen sie als Stärke.' },
+						palette: { label: 'Vorgabefarben', text: 'Zieh eine Farbe aus der zweiten Reihe auf eine Vorgabe, um sie zu ersetzen; zieh eine Vorgabe auf eine andere, um beide zu tauschen. Sie gelten in allen Farbfeldern und allen Projekten. Der Knopf neben dem Farbwähler stellt die Standardfarben wieder her (nur nach einer Änderung sichtbar).' }
+					},
+					tip: 'Leg die Farben, die du immer wieder brauchst – etwa deine Firmenfarben –, einmal in die Vorgaben; dann sind sie in jedem Projekt einen Klick entfernt und rutschen nicht aus den zuletzt benutzten Farben heraus.'
 				}
 			}
 		},

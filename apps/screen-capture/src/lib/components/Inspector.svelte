@@ -162,7 +162,7 @@
 			{label}
 			value={Math.round(value * H)}
 			unit="px"
-			min={Math.max(1, Math.ceil(min * H))}
+			min={min === 0 ? 0 : Math.max(1, Math.ceil(min * H))}
 			max={Math.max(1, Math.floor(max * H))}
 			oninput={(px) => onset(px / H)}
 			oncommit={end}

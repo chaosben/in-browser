@@ -279,6 +279,8 @@ const en = {
 		colorValue: (c: string) => `Color ${c}`,
 		customColor: 'Custom color',
 		recentColors: 'Recent and project colors',
+		paletteHint: 'drag a color here to replace it',
+		resetPalette: 'Restore default colors',
 		lineWidth: 'Line width',
 		radius: 'Corner radius',
 		padding: 'Padding',

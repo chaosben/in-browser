@@ -458,7 +458,12 @@ const help = {
 				},
 				colors: {
 					title: 'Colors',
-					text: 'Preset colors in the first row, your own colors below – the latest ones you picked and those used in the project. “Opacity” makes a color translucent; the picker on the right offers any color.'
+					text: 'Preset colors in the first row, your own colors below – the latest ones you picked and those used in the project. The swatches always show the color opaque, so it stays recognizable; how translucent it is shows the “Opacity” button (color over a checkerboard and percent). The picker on the right offers any color.',
+					options: {
+						opacity: { label: 'Opacity', text: '100 % is opaque, 0 % invisible. Highlighter and spotlight use it as their strength.' },
+						palette: { label: 'Preset colors', text: 'Drag a color from the second row onto a preset to replace it; drag a preset onto another one to swap them. They apply in all color fields and all projects. The button next to the picker restores the default colors (only shown after a change).' }
+					},
+					tip: 'Put the colors you use again and again – e.g. your brand colors – into the presets once; then they are one click away in every project and do not get pushed out of the recent colors.'
 				}
 			}
 		},

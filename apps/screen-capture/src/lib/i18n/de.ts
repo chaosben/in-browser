@@ -280,6 +280,8 @@ const de: Messages = {
 		colorValue: (c) => `Farbe ${c}`,
 		customColor: 'Eigene Farbe',
 		recentColors: 'Zuletzt verwendete und Projektfarben',
+		paletteHint: 'zieh eine Farbe hierher, um sie zu ersetzen',
+		resetPalette: 'Standardfarben wiederherstellen',
 		lineWidth: 'Linienstärke',
 		radius: 'Eckenradius',
 		padding: 'Innenabstand',
