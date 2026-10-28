@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	avcQuantizer,
 	DEFAULT_RECORD_SETTINGS,
 	estimateMbPerMinute,
 	recordBitrate,
@@ -13,8 +14,9 @@ describe('sanitizeRecordSettings', () => {
 		expect(sanitizeRecordSettings('x')).toEqual(DEFAULT_RECORD_SETTINGS);
 	});
 	it('keeps the chosen sources', () => {
-		const s = sanitizeRecordSettings({ microphone: false, camera: true, systemAudio: 'yes', countdown: false });
-		expect(s).toMatchObject({ microphone: false, camera: true, systemAudio: false, countdown: false });
+		const s = sanitizeRecordSettings({ microphone: false, camera: true, systemAudio: 'yes', countdown: false, growWindow: 1 });
+		expect(s).toMatchObject({ microphone: false, camera: true, systemAudio: false, countdown: false, growWindow: false });
+		expect(sanitizeRecordSettings({ growWindow: true }).growWindow).toBe(true);
 	});
 	it('keeps valid values and drops unknown ones', () => {
 		const s = sanitizeRecordSettings({
@@ -22,9 +24,11 @@ describe('sanitizeRecordSettings', () => {
 			cameraQuality: 'ultra',
 			cameraResolution: 1080,
 			micKbps: 100,
-			frameRate: 60
+			frameRate: 60,
+			screenEncoder: 'turbo'
 		});
 		expect(s).toEqual({ ...DEFAULT_RECORD_SETTINGS, screenQuality: 'low', cameraResolution: 1080, frameRate: 60 });
+		expect(sanitizeRecordSettings({ screenEncoder: 'sharp' }).screenEncoder).toBe('sharp');
 	});
 	it('takes over the filters one by one', () => {
 		const s = sanitizeRecordSettings({ micProcessing: { noiseSuppression: false, autoGainControl: 'no' } });
@@ -46,6 +50,12 @@ describe('recordBitrate', () => {
 	});
 	it('gives the webcam at "very high" clearly more than the former 2.8 Mbit/s', () => {
 		expect(recordBitrate('camera', 'very-high', 1280, 720, 30)).toBeGreaterThan(5_000_000);
+	});
+});
+
+describe('avcQuantizer', () => {
+	it('gets finer with the level', () => {
+		expect(RECORD_LEVELS.map(avcQuantizer)).toEqual([29, 25, 21, 18]);
 	});
 });
 

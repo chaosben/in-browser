@@ -1,3 +1,4 @@
+import { Quality, type VideoCodec } from 'mediabunny';
 import type { QualityPreset } from '#lib/export/settings.js';
 
 export type RecordLevel = Exclude<QualityPreset, 'custom'>;
@@ -6,6 +7,9 @@ export const RECORD_LEVELS: readonly RecordLevel[] = ['low', 'medium', 'high', '
 export const AUDIO_RATES = [96, 128, 192, 256] as const;
 export const CAMERA_RESOLUTIONS = [720, 1080] as const;
 export const FRAME_RATES = [30, 60] as const;
+/** `auto`: hardware encoder if available (low CPU load), `sharp`: software VP9 (sharpest text) */
+export const SCREEN_ENCODER_MODES = ['auto', 'sharp'] as const;
+export type ScreenEncoderMode = (typeof SCREEN_ENCODER_MODES)[number];
 /** Browser voice processing, switchable per audio source */
 export const AUDIO_FILTERS = ['echoCancellation', 'noiseSuppression', 'autoGainControl'] as const;
 
@@ -32,6 +36,9 @@ export interface RecordSettings {
 	micProcessing: AudioProcessing;
 	systemProcessing: AudioProcessing;
 	frameRate: (typeof FRAME_RATES)[number];
+	/** A shared window/tab may grow while recording: encodes at monitor size (more CPU) instead of the start size */
+	growWindow: boolean;
+	screenEncoder: ScreenEncoderMode;
 }
 
 export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
@@ -46,11 +53,37 @@ export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
 	systemKbps: 192,
 	micProcessing: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 	systemProcessing: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-	frameRate: 30
+	frameRate: 30,
+	growWindow: false,
+	screenEncoder: 'auto'
 };
 
+/**
+ * Screen recordings are encoded at constant quality (quantizer, like CRF) where the encoder supports it: still
+ * screens cost almost nothing and stay sharp, motion gets the bits it needs. Mediabunny maps the level to the
+ * codec's quantizer scale (or to a bitrate as fallback). Text needs more than its video default.
+ */
+export const SCREEN_QUALITY: Record<RecordLevel, number> = { low: 0.5, medium: 0.65, high: 0.8, 'very-high': 0.92 };
+
+/**
+ * Quality of the screen video. H.264 (usually a hardware encoder here) lacks screen-content tools: it gets an
+ * explicit quantizer (scale 0–51, like Mediabunny's mapping of `SCREEN_QUALITY`) and our generous bitrate as
+ * fallback, since hardware encoders often only support bitrates.
+ */
+export function screenQuality(codec: VideoCodec, level: RecordLevel, width: number, height: number, fps: number) {
+	if (codec !== 'avc') return new Quality({ quality: SCREEN_QUALITY[level], bitrateMode: 'variable' });
+	return new Quality({
+		quantizer: avcQuantizer(level),
+		bitrate: recordBitrate('screen', level, width, height, fps),
+		bitrateMode: 'variable'
+	});
+}
+
+export const avcQuantizer = (level: RecordLevel) => Math.round(41 - 25 * SCREEN_QUALITY[level]);
+
 // Bits per pixel and frame. Live tracks are encoded in realtime mode: webcam images are noisy and move constantly,
-// screen recordings need headroom for sharp text edges (they are re-encoded on export).
+// screen recordings need headroom for sharp text edges (they are re-encoded on export). For the screen this is only
+// the upper estimate shown in the dialog, see `SCREEN_QUALITY`.
 const BITS_PER_PIXEL: Record<'screen' | 'camera', Record<RecordLevel, number>> = {
 	screen: { low: 0.06, medium: 0.1, high: 0.16, 'very-high': 0.25 },
 	camera: { low: 0.06, medium: 0.1, high: 0.14, 'very-high': 0.2 }
@@ -66,7 +99,7 @@ export function cameraSize(resolution: RecordSettings['cameraResolution']) {
 	return resolution === 1080 ? { width: 1920, height: 1080 } : { width: 1280, height: 720 };
 }
 
-/** Approximate file size per minute of all active sources, in MB */
+/** Approximate file size per minute of all active sources, in MB (upper estimate for the screen) */
 export function estimateMbPerMinute(settings: RecordSettings, screen: { width: number; height: number }) {
 	let bitrate = recordBitrate('screen', settings.screenQuality, screen.width, screen.height, settings.frameRate);
 	if (settings.camera) {
@@ -105,7 +138,9 @@ export function sanitizeRecordSettings(raw: unknown): RecordSettings {
 		systemKbps: kbps(r.systemKbps, d.systemKbps),
 		micProcessing: filters(r.micProcessing, d.micProcessing),
 		systemProcessing: filters(r.systemProcessing, d.systemProcessing),
-		frameRate: pick(r.frameRate, FRAME_RATES, d.frameRate)
+		frameRate: pick(r.frameRate, FRAME_RATES, d.frameRate),
+		growWindow: flag(r.growWindow, d.growWindow),
+		screenEncoder: pick(r.screenEncoder, SCREEN_ENCODER_MODES, d.screenEncoder)
 	};
 }
 

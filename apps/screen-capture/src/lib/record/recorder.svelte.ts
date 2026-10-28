@@ -1,5 +1,4 @@
 import {
-	getFirstEncodableVideoCodec,
 	MediaStreamAudioTrackSource,
 	MediaStreamVideoTrackSource,
 	Mp4OutputFormat,
@@ -12,7 +11,8 @@ import {
 import { captureLayout, placeInBox } from '#lib/media/content.js';
 import { pickAudioCodec } from '#lib/media/media.js';
 import { openDevice } from './devices.svelte.js';
-import { CAMERA_FPS, recordBitrate, type RecordLevel, type RecordSettings } from './settings.js';
+import { pickEncoder, pickScreenEncoder } from './encoder.js';
+import { CAMERA_FPS, recordBitrate, screenQuality, type RecordLevel, type RecordSettings } from './settings.js';
 import { newId, type Source, type SourceSize } from '#lib/project/types.js';
 import { deleteMediaFile, mediaWritable } from '#lib/storage/opfs.js';
 import { m } from '#lib/i18n/index.js';
@@ -49,6 +49,7 @@ interface Size {
 }
 
 const even = (n: number) => Math.ceil(n / 2) * 2;
+
 type TrackSource = MediaStreamVideoTrackSource | MediaStreamAudioTrackSource;
 
 /** One output file of the recording */
@@ -99,7 +100,7 @@ export class Recorder {
 	/** Requests screen, microphone and webcam (browser dialogs). Must be called from a user action. */
 	async acquire(options: RecordOptions): Promise<MediaStream> {
 		this.#display = await navigator.mediaDevices.getDisplayMedia({
-			video: { frameRate: { ideal: options.settings.frameRate } },
+			video: { frameRate: { ideal: options.settings.frameRate, max: options.settings.frameRate } },
 			audio: options.systemAudio && { ...options.settings.systemProcessing },
 			// Chromium-specific options
 			...({ selfBrowserSurface: 'exclude', surfaceSwitching: 'include', systemAudio: 'include' } as object)
@@ -136,7 +137,7 @@ export class Recorder {
 		// Keep sharp text over smooth motion (capture and encoder)
 		screenTrack.contentHint = 'text';
 		const { settings } = options;
-		screen.sources.push(await this.#video(screen, screenTrack, 'screen', settings.screenQuality, settings.frameRate));
+		screen.sources.push(await this.#video(screen, screenTrack, 'screen', settings.screenQuality, settings.frameRate, settings));
 		const systemAudio = this.#display.getAudioTracks()[0];
 		if (systemAudio && audioCodec) screen.sources.push(this.#audio(screen, systemAudio, audioCodec, settings.systemKbps));
 
@@ -181,33 +182,50 @@ export class Recorder {
 		return part;
 	}
 
-	async #video(part: Part, track: MediaStreamTrack, kind: 'screen' | 'camera', level: RecordLevel, frameRate: number) {
-		const settings = track.getSettings();
+	async #video(
+		part: Part,
+		track: MediaStreamTrack,
+		kind: 'screen' | 'camera',
+		level: RecordLevel,
+		frameRate: number,
+		screenOptions?: Pick<RecordSettings, 'growWindow' | 'screenEncoder'>
+	) {
+		const settings = track.getSettings() as MediaTrackSettings & { displaySurface?: string };
 		let { width = 1920, height = 1080 } = settings;
-		// A shared window can grow up to the size of the monitor, but the encoder needs a fixed size: record into
-		// a box that large and keep the window unscaled. The source later only uses the largest window.
+		// A shared window can change its size, but the encoder needs a fixed one: record into a box and keep the
+		// window unscaled. The box is the start size (larger windows get scaled down) or, if the window may grow,
+		// the monitor – at the cost of encoding that much. The source later only uses the largest window. A whole
+		// monitor keeps its size and needs no box.
 		const box =
-			kind === 'screen'
-				? {
-						width: even(Math.max(width, screen.width * devicePixelRatio)),
-						height: even(Math.max(height, screen.height * devicePixelRatio))
-					}
+			kind === 'screen' && settings.displaySurface !== 'monitor'
+				? screenOptions?.growWindow
+					? {
+							width: even(Math.max(width, screen.width * devicePixelRatio)),
+							height: even(Math.max(height, screen.height * devicePixelRatio))
+						}
+					: { width: even(width), height: even(height) }
 				: null;
-		// Explicit bitrate, so the size estimate in the dialog matches what is encoded. It follows the shared
-		// surface, not the box: a small window on a large monitor would otherwise get far too many bits.
-		const quality = new Quality({ bitrate: recordBitrate(kind, level, width, height, frameRate) });
+		// Screen: constant quality, see `screenQuality`; bitrates follow the shared surface, not the box. Webcam:
+		// explicit bitrate, since its noise would blow up constant-quality files; it also matches the size estimate.
+		const surface = { width, height };
 		if (box) ({ width, height } = box);
-		// VP9 with screen-content tools keeps text much sharper than (usually hardware) H.264 in realtime mode
-		const codecs = kind === 'screen' ? (['vp9', 'avc', 'av1'] as const) : (['avc', 'vp9', 'av1'] as const);
-		const codec = await getFirstEncodableVideoCodec([...codecs], { width, height });
-		if (!codec) throw new Error(m.record.noVideoEncoder);
+		const encoder =
+			kind === 'screen'
+				? await pickScreenEncoder(width, height, screenOptions?.screenEncoder ?? 'auto')
+				: await pickEncoder(['avc', 'vp9', 'av1'], width, height);
+		if (!encoder) throw new Error(m.record.noVideoEncoder);
+		const quality =
+			kind === 'screen'
+				? screenQuality(encoder.codec, level, surface.width, surface.height, frameRate)
+				: new Quality({ bitrate: recordBitrate(kind, level, width, height, frameRate) });
 		const source = new MediaStreamVideoTrackSource(
 			track as MediaStreamVideoTrack,
 			{
-				codec,
+				codec: encoder.codec,
 				quality,
 				keyFrameInterval: KEYFRAMES[kind],
 				contentHint: kind === 'screen' ? 'text' : undefined,
+				hardwareAcceleration: encoder.acceleration,
 				// With window captures the size changes when the window is resized; the box keeps it constant.
 				sizeChangeBehavior: box ? 'passThrough' : 'contain',
 				transform: box ? { process: this.#intoBox(box) } : undefined
@@ -231,6 +249,8 @@ export class Recorder {
 				this.#sizes.push({ t: sample.timestamp, ...last });
 				this.#max = { width: Math.max(this.#max.width, last.width), height: Math.max(this.#max.height, last.height) };
 			}
+			// Fills the box exactly (the usual case): pass it through without a copy
+			if (place.x === 0 && place.y === 0 && place.width === box.width && place.height === box.height) return sample;
 			ctx.fillStyle = '#000';
 			ctx.fillRect(0, 0, box.width, box.height);
 			sample.draw(ctx, place.x, place.y, place.width, place.height);

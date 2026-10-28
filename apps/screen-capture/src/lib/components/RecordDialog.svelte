@@ -3,6 +3,7 @@
 	import { describeSource } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
 	import { devices, openDevice, type DeviceKind } from '#lib/record/devices.svelte.js';
+	import { probeEncoders, pickScreenEncoder, type Encoder, type EncoderSupport } from '#lib/record/encoder.js';
 	import { Recorder, type RecordOptions } from '#lib/record/recorder.svelte.js';
 	import {
 		AUDIO_FILTERS,
@@ -12,6 +13,7 @@
 		FRAME_RATES,
 		loadRecordSettings,
 		RECORD_LEVELS,
+		SCREEN_ENCODER_MODES,
 		storeRecordSettings,
 		type AudioKbps,
 		type AudioProcessing,
@@ -38,6 +40,23 @@
 	const mbPerMinute = $derived(
 		estimateMbPerMinute(settings, { width: screen.width * devicePixelRatio, height: screen.height * devicePixelRatio })
 	);
+
+	/** Encoder the screen will be recorded with (estimated at monitor size), and what the browser supports */
+	let encoder = $state<{ chosen: Encoder; support: EncoderSupport[] } | null>(null);
+	const CODEC_NAMES: Record<string, string> = { av1: 'AV1', vp9: 'VP9', avc: 'H.264' };
+
+	$effect(() => {
+		const mode = settings.screenEncoder;
+		const width = Math.round(screen.width * devicePixelRatio);
+		const height = Math.round(screen.height * devicePixelRatio);
+		let current = true;
+		Promise.all([pickScreenEncoder(width, height, mode), probeEncoders(width, height)])
+			.then(([chosen, support]) => {
+				if (current) encoder = chosen && { chosen, support };
+			})
+			.catch((e) => console.error('Encoder check failed', e));
+		return () => (current = false);
+	});
 
 	/** One tab per source; all but the screen can be switched off in the tab header */
 	type SourceTab = 'screen' | 'systemAudio' | 'microphone' | 'camera';
@@ -297,6 +316,39 @@
 								{#each FRAME_RATES as fps (fps)}<option value={fps}>{fps} fps</option>{/each}
 							</select>
 						</div>
+						<div class="flex flex-col gap-1">
+							<label class="label text-sm">
+								<input type="checkbox" class="checkbox checkbox-sm" bind:checked={settings.growWindow} />
+								{m.record.growWindow}
+							</label>
+							<p class="label text-xs whitespace-normal">{m.record.growWindowHint}</p>
+						</div>
+						<div class="flex flex-col gap-1">
+							<select class="select select-sm w-full" bind:value={settings.screenEncoder} aria-label={m.record.encoder}>
+								{#each SCREEN_ENCODER_MODES as mode (mode)}<option value={mode}>{m.record.encoderModes[mode]}</option>{/each}
+							</select>
+							<p class="label text-xs whitespace-normal">{m.record.encoderModeHint}</p>
+						</div>
+						{#if encoder}
+							<div class="flex flex-col gap-1 text-sm">
+								<div class="flex items-center gap-2">
+									<span class="icon-[material-symbols-light--memory] size-5 opacity-60" aria-hidden="true"></span>
+									{m.record.encoder}: {CODEC_NAMES[encoder.chosen.codec]} ·
+									{encoder.chosen.hardware ? m.record.encoderHardware : m.record.encoderSoftware}
+								</div>
+								{#if !encoder.chosen.hardware && settings.screenEncoder === 'auto'}
+									<p class="text-warning text-xs">{m.record.encoderSoftwareHint}</p>
+								{/if}
+								<details class="text-xs opacity-70">
+									<summary class="cursor-pointer">{m.record.encoderDetails}</summary>
+									<ul class="mt-1 flex flex-col gap-0.5">
+										{#each encoder.support as s (s.codec)}
+											<li>{m.record.encoderSupport(CODEC_NAMES[s.codec], s.hardware, s.software)}</li>
+										{/each}
+									</ul>
+								</details>
+							</div>
+						{/if}
 					{:else if tab === 'systemAudio'}
 						<p class="label text-xs whitespace-normal">{m.record.systemAudioHint}</p>
 						{@render audioOptions(settings.systemKbps, (v) => (settings.systemKbps = v), settings.systemProcessing)}
