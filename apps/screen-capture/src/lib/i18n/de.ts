@@ -1,3 +1,4 @@
+import help from './help.de.js';
 import type { Messages } from './index.js';
 
 const de: Messages = {
@@ -27,7 +28,7 @@ const de: Messages = {
 	home: {
 		tagline: 'Bildschirm aufnehmen, schneiden und als MP4 exportieren – komplett im Browser, nichts verlässt deinen Rechner.',
 		unsupported: (missing) =>
-			`Dieser Browser unterstützt nicht alles, was die App braucht (${missing}). Bitte einen aktuellen Desktop-Browser verwenden (empfohlen: Chrome oder Edge).`,
+			`Dieser Browser unterstützt nicht alles, was die App braucht (${missing}). Bitte verwende einen aktuellen Desktop-Browser (empfohlen: Chrome oder Edge).`,
 		screenCapture: 'Bildschirmaufnahme',
 		newRecording: 'Neue Aufnahme',
 		importMedia: 'Medien importieren',
@@ -40,7 +41,7 @@ const de: Messages = {
 		deleteTitle: 'Projekt löschen?',
 		confirmDelete: (name) => `Projekt „${name}“ mit allen Aufnahmen löschen?`,
 		footer:
-			'Projekte werden im Speicher dieses Browsers abgelegt. Zum Sichern oder Weitergeben im Editor „Als Ordner speichern“ verwenden.',
+			'Projekte werden im Speicher dieses Browsers abgelegt. Zum Sichern oder Weitergeben nutze im Editor „Als Ordner speichern“.',
 		dropToCreate: 'Loslassen, um ein neues Projekt aus der Datei zu erstellen'
 	},
 
@@ -122,13 +123,13 @@ const de: Messages = {
 		export: 'Exportieren',
 		rendering: 'Video wird gerendert …',
 		finalizing: 'Datei wird abgeschlossen …',
-		keepTabOpen: 'Bitte diesen Tab geöffnet lassen.',
+		keepTabOpen: 'Lass diesen Tab bitte geöffnet.',
 		finished: 'Export fertig – der Download sollte automatisch starten.',
 		renderedIn: (time) => `gerendert in ${time}`,
 		otherSettings: 'Andere Einstellungen',
 		downloadAgain: 'Erneut herunterladen',
 		canceled: 'Export abgebrochen',
-		cannotEncode: (w, h) => `Der Browser kann ${w}×${h} nicht kodieren. Bitte eine kleinere Auflösung wählen.`,
+		cannotEncode: (w, h) => `Der Browser kann ${w}×${h} nicht kodieren. Wähle bitte eine kleinere Auflösung.`,
 		frameRateUnsupported: (w, h) => `Die gewählte Bildrate wird bei ${w}×${h} nicht unterstützt.`,
 		emptyTimeline: 'Die Timeline ist leer.',
 		noCanvas: 'Canvas nicht verfügbar.',
@@ -158,7 +159,7 @@ const de: Messages = {
 		holdFrame: 'Frame halten',
 		holdFrameTitle: 'Frame am Abspielkopf halten (F)',
 		freezeDuration: 'Dauer des Standbilds',
-		playheadAtEnd: 'Der Abspielkopf steht am Ende – bitte weiter vorne platzieren.',
+		playheadAtEnd: 'Der Abspielkopf steht am Ende – setz ihn bitte weiter nach vorne.',
 		zoomExists: 'An dieser Stelle liegt schon ein Zoom-Abschnitt.',
 		properties: 'Eigenschaften',
 		toStart: 'Zum Anfang',
@@ -271,7 +272,7 @@ const de: Messages = {
 		alignRight: 'Rechts',
 		alignJustify: 'Blocksatz',
 		autoWidth: 'Breite automatisch',
-		autoWidthHint: 'Die Box ist wieder so breit wie die längste Zeile, ohne Umbruch. Eine Seite der Box ziehen legt eine feste Breite fest.',
+		autoWidthHint: 'Die Box ist wieder so breit wie die längste Zeile, ohne Umbruch. Ziehst du an einer Seite der Box, legst du eine feste Breite fest.',
 		background: 'Hintergrundfarbe',
 		none: 'Keiner',
 		opacity: 'Deckkraft',
@@ -295,14 +296,14 @@ const de: Messages = {
 		zoomOut: 'Heraus',
 		seconds: (what) => `${what} (Sekunden)`,
 		fadeShortened: (seconds) =>
-			`Zu lang für die aktuelle Länge – es wirken nur ${seconds} s. Element verlängern oder Blenden kürzen.`,
+			`Zu lang für die aktuelle Länge – es wirken nur ${seconds} s. Verlängere das Element oder kürze die Blenden.`,
 		shadow: 'Schatten',
 		font: 'Schrift',
 		dashed: 'Gestrichelt',
 		stepNumber: 'Nummer',
 		size: 'Größe',
 		zoomSegment: 'Zoom-Abschnitt',
-		zoomHint: 'Den Ausschnitt in der Vorschau verschieben oder an den Ecken größer und kleiner ziehen.',
+		zoomHint: 'Verschiebe den Ausschnitt in der Vorschau oder zieh ihn an den Ecken größer und kleiner.',
 		zoomLevel: 'Zoomstufe',
 		ease: 'Übergang',
 		freeze: 'Standbild',
@@ -321,7 +322,8 @@ const de: Messages = {
 			deleteGap: 'Löschen, Lücke lassen',
 			link: 'Verknüpfen',
 			deselect: 'Auswahl aufheben',
-			nudge: 'In der Vorschau um 1 px verschieben (Umschalt: 10 px)'
+			nudge: 'In der Vorschau um 1 px verschieben (Umschalt: 10 px)',
+			help: 'Hilfe'
 		},
 		project: 'Projekt',
 		canvas: 'Leinwand',
@@ -333,7 +335,7 @@ const de: Messages = {
 		fit: 'Einpassen',
 		fill: 'Füllen',
 		placementHint:
-			'In der Vorschau verschieben oder an den Ecken größer und kleiner ziehen (Bild im Bild). Bildfüllende Clips per Doppelklick in der Vorschau auswählen.',
+			'Verschiebe den Clip in der Vorschau oder zieh ihn an den Ecken größer und kleiner (Bild im Bild). Bildfüllende Clips wählst du per Doppelklick in der Vorschau aus.',
 		shape: 'Form',
 		shapeRect: 'Rechteck',
 		shapeRounded: 'Abgerundet',
@@ -417,7 +419,9 @@ const de: Messages = {
 		unknownFormat: 'Unbekanntes Projektformat.',
 		newerVersion: 'Das Projekt stammt aus einer neueren Version der App.',
 		cannotPlay: (name) => `Quelle „${name}“ lässt sich nicht abspielen.`
-	}
+	},
+
+	help
 };
 
 export default de;

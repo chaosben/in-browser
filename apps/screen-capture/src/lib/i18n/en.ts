@@ -1,5 +1,7 @@
 // English texts. This file defines the structure; `de.ts` must have the same keys.
 
+import help from './help.en.js';
+
 const en = {
 	common: {
 		cancel: 'Cancel',
@@ -311,7 +313,7 @@ const en = {
 		frameAt: 'Frame at',
 		nothing: 'Nothing selected.',
 		nothingHint: 'Click a clip, an annotation or a zoom segment in the timeline, or add something new from the bar on the left.',
-		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect', nudge: 'In the preview: move by 1 px (Shift: 10 px)' },
+		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect', nudge: 'In the preview: move by 1 px (Shift: 10 px)', help: 'Help' },
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',
@@ -406,7 +408,9 @@ const en = {
 		unknownFormat: 'Unknown project format.',
 		newerVersion: 'The project was created with a newer version of the app.',
 		cannotPlay: (name: string) => `Source “${name}” cannot be played.`
-	}
+	},
+
+	help
 };
 
 export default en;
