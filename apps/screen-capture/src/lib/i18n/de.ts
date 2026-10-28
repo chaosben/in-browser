@@ -179,7 +179,7 @@ const de: Messages = {
 	},
 
 	tools: {
-		groups: { media: 'Medien', annotations: 'Markierungen', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
+		groups: { media: 'Medien', library: 'Bibliothek', annotations: 'Markierungen', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
 		collapse: 'Seitenleiste einklappen',
 		dropHint: 'Oder Video-, Audio- und Bilddateien auf den Editor ziehen: Sie landen in der Medienablage, auf der Timeline abgelegt werden sie dort eingefügt.'
 	},
@@ -403,7 +403,7 @@ const de: Messages = {
 		audioOnly: 'nur Ton',
 		image: 'Bild',
 		insertImageTitle: 'Am Abspielkopf einfügen, mittig im Bild',
-		inUse: 'Wird in der Timeline verwendet',
+		inUse: 'Wird in der Timeline oder der Projektbibliothek verwendet',
 		deleteTitle: 'Medium löschen?',
 		confirmDelete: (name) => `„${name}“ endgültig löschen? Das kann nicht rückgängig gemacht werden.`,
 		confirmDeleteHistory: (name) =>
@@ -414,6 +414,37 @@ const de: Messages = {
 		zoom: (level) => `${level}× Zoom`,
 		selectZoom: 'Zoom-Abschnitt auswählen',
 		gap: (px: number) => `${px} px`
+	},
+
+	library: {
+		project: 'Dieses Projekt',
+		global: 'Alle Projekte',
+		empty: 'Zieh Elemente hierher oder füge sie per Rechtsklick → „Zur Bibliothek hinzufügen“ hinzu.',
+		add: 'Zur Bibliothek hinzufügen …',
+		saveTitle: 'Zur Bibliothek hinzufügen',
+		name: 'Name',
+		globalHint: 'In „Alle Projekte“ kopieren Clips ihre ganze Mediendatei, nicht nur den zugeschnittenen Teil – das belegt Speicherplatz.',
+		added: (name) => `„${name}“ zur Bibliothek hinzugefügt`,
+		insert: 'Einfügen',
+		rename: 'Umbenennen',
+		copyToGlobal: 'In alle Projekte kopieren',
+		copyToProject: 'In dieses Projekt kopieren',
+		moveToGlobal: 'In alle Projekte verschieben',
+		moveToProject: 'In dieses Projekt verschieben',
+		moved: (name, where) => `„${name}“ verschoben nach „${where}“`,
+		copied: (name, where) => `„${name}“ kopiert nach „${where}“`,
+		dragHint: 'Auf der Bibliothek ablegen (öffnen: über ihr Symbol links halten)',
+		search: 'Bibliothek durchsuchen',
+		noMatches: 'Keine Treffer.',
+		view: 'Ansicht',
+		viewList: 'Liste',
+		viewGrid: 'Kacheln',
+		remove: 'Aus der Bibliothek entfernen',
+		removeTitle: 'Aus der Bibliothek entfernen?',
+		removeMessage: (name) => `„${name}“ wird aus der Bibliothek entfernt. Schon eingefügte Elemente bleiben.`,
+		removeConfirm: 'Entfernen',
+		elements: (n) => (n === 1 ? '1 Element' : `${n} Elemente`),
+		entry: (name, duration) => `${name}, ${duration}`
 	},
 
 	menu: {
@@ -438,6 +469,7 @@ const de: Messages = {
 		cannotImport: (reasons) => `Die Datei kann nicht übernommen werden (${reasons}).`,
 		noProjectJson: (folder) => `Im Ordner „${folder}“ wurde keine project.json gefunden.`,
 		unknownFormat: 'Unbekanntes Projektformat.',
+		libraryMedia: 'Die Mediendateien ließen sich nicht in die Bibliothek kopieren.',
 		newerVersion: 'Das Projekt stammt aus einer neueren Version der App.',
 		cannotPlay: (name) => `Quelle „${name}“ lässt sich nicht abspielen.`
 	},

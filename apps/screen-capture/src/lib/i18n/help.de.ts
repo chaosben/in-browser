@@ -159,6 +159,38 @@ const help: typeof enHelp = {
 				}
 			}
 		},
+		library: {
+			title: 'Bibliothek',
+			items: {
+				save: {
+					title: 'Elemente ablegen',
+					text: 'Bewahre eingestellte Elemente auf – einen gestylten Pfeil, eine Sprechblase mit Text, einen zugeschnittenen Clip samt Markierungen –, um sie wieder einzufügen. Wähle sie aus und nimm im Kontextmenü (Rechtsklick) „Zur Bibliothek hinzufügen …“, oder zieh sie aus der Vorschau oder der Timeline auf einen Abschnitt der geöffneten Gruppe „Bibliothek“ links – sobald du Vorschau oder Timeline verlässt, springt das Element zurück und hängt als Bild mit Namen am Zeiger; die Abschnitte der Bibliothek zeigen gestrichelte Rahmen, der unter dem Zeiger leuchtet auf. Lässt du woanders los, ändert sich nichts. Ist die Bibliothek zugeklappt, halte das Element kurz über ihr Symbol links, dann öffnet sie sich. Gib einen Namen und klick auf die Bibliothek, in die es soll – „Dieses Projekt“ oder „Alle Projekte“; Enter nimmt die zuletzt gewählte. Gespeichert werden alle ausgewählten Elemente mit Einstellungen, Text, Zuschnitt, Verknüpfungen und Platz im Bild; Zoom-Abschnitte nicht.',
+					options: {
+						project: { label: 'Dieses Projekt', text: 'Bleibt beim Projekt, auch in einem als Ordner gespeicherten Projekt. Nutzt die Medien des Projekts direkt, deshalb lassen sich dort benutzte Medien nicht aus der Medienablage löschen.' },
+						global: { label: 'Alle Projekte', text: 'In jedem Projekt verfügbar, auch nachdem das Ursprungsprojekt gelöscht ist. Benutzte Medien werden in die Bibliothek kopiert – bei Clips die ganze Mediendatei, nicht nur der zugeschnittene Teil; das belegt Speicherplatz.' }
+					},
+					tip: 'Leg Markierungen, Texte und Logos für alle Projekte ab – sie brauchen kaum Platz. Zugeschnittene Clips besser im Projekt, außer etwa ein Intro, das in jedes Video gehört.'
+				},
+				insert: {
+					title: 'Einfügen',
+					text: 'Klick auf eine Kachel fügt sie am Abspielkopf ein; zieh sie auf die Timeline (sie beginnt an der Ablegestelle) oder die Vorschau (am Abspielkopf). Sie behält ihren Platz im Bild und kommt vor alles, womit sie sich überschneidet; ein Rückgängig-Schritt. Medien aus der globalen Bibliothek werden ins Projekt kopiert und erscheinen in der Medienablage.'
+				},
+				manage: {
+					title: 'Verwalten',
+					text: 'Rechtsklick auf eine Kachel: einfügen, umbenennen, in die andere Bibliothek verschieben oder kopieren, entfernen. Eine Kachel in den anderen Abschnitt ziehen verschiebt sie; beim Verschieben in dieses Projekt landen ihre Medien in der Medienablage. Entfernen ändert nichts an schon eingefügten Elementen.',
+					tip: 'Bibliothek oder Zwischenablage? Die Zwischenablage ist zum schnellen Wiederholen jetzt, auch in ein anderes Projekt. Die Bibliothek ist für Bausteine, die du über längere Zeit immer wieder brauchst.'
+				},
+				view: {
+					title: 'Ansicht und Suche',
+					text: 'Die Knöpfe oben schalten zwischen zwei Ansichten um; deine Wahl wird gemerkt. Das Suchfeld daneben schränkt beide Abschnitte auf Einträge ein, deren Name oder Elemente passen (z. B. „Pfeil“ oder ein Text); Esc leert es.',
+					options: {
+						list: { label: 'Liste', text: 'Eine Zeile je Eintrag mit kleiner Vorschau – viele Einträge auf einen Blick.' },
+						grid: { label: 'Kacheln', text: 'Zwei Spalten mit großer Vorschau – du erkennst leichter, wie ein Eintrag aussieht.' }
+					},
+					tip: 'Nimm die Liste, sobald du viele Bausteine hast und sie am Namen kennst; Kacheln, solange du noch sammelst oder sie am Aussehen unterscheidest.'
+				}
+			}
+		},
 		canvas: {
 			title: 'Leinwand',
 			items: {
@@ -269,7 +301,7 @@ const help: typeof enHelp = {
 				},
 				menu: {
 					title: 'Kontextmenü',
-					text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und bietet Ausschneiden, Kopieren, Einfügen, Löschen und das Ändern der Ebene. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
+					text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und bietet Ausschneiden, Kopieren, Einfügen, Löschen, das Ändern der Ebene und das Ablegen in der Bibliothek. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
 				},
 				view: {
 					title: 'Timeline-Zoom und Höhe',

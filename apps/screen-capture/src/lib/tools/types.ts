@@ -3,6 +3,7 @@ import type { Player } from '#lib/preview/player.svelte.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
 import type { IconData, Point, ToolKind } from '#lib/project/types.js';
 import type { DragPayload } from './drag.js';
+import type { LibraryScope } from '#lib/ui/library.svelte.js';
 
 /** Where a dragged tile was dropped: `start` on the timeline, `point` (content coordinates) in the preview */
 export interface DropPlace {
@@ -18,6 +19,10 @@ export interface ToolActions {
 	addImage(imageId: string, at?: DropPlace): void;
 	addIcon(icon: IconData, at?: DropPlace): void;
 	addZoom(at?: DropPlace): void;
+	/** Library entry: at the playhead or the dropped time, keeping its place in the picture */
+	insertLibrary(scope: LibraryScope, id: string, at?: DropPlace): void;
+	/** Copies or moves a library entry into the other library */
+	transferLibrary(scope: LibraryScope, id: string, move: boolean): void;
 	record(): void;
 	importMedia(): void;
 }

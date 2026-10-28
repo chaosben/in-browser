@@ -4,7 +4,8 @@ import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from '.
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, recordingSources, type Recording } from './project.js';
-import type { ImageAsset, Item, Project, Selection, Source, Timeline, TrackState } from './types.js';
+import { newId, type ImageAsset, type Item, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
+import { entriesUse } from './library.js';
 import { m } from '#lib/i18n/index.js';
 import { parseColor } from '#lib/util/color.js';
 
@@ -175,6 +176,15 @@ export class Editor {
 		this.#lastMergeKey = null;
 	}
 
+	/** Undoes the running gesture `mergeKey` without a trace in the history (e.g. dropped onto the library) */
+	cancelGesture(mergeKey: string) {
+		const before = this.#undo.at(-1);
+		if (this.#lastMergeKey !== mergeKey || !before) return;
+		this.#undo = this.#undo.slice(0, -1);
+		this.#lastMergeKey = null;
+		this.#restore(before);
+	}
+
 	undo() {
 		const previous = this.#undo.at(-1);
 		if (!previous) return;
@@ -297,6 +307,31 @@ export class Editor {
 		this.selectItems(ids, ids[0]);
 	}
 
+	/** Media copied in from elsewhere (e.g. the global library) into the media bin */
+	addMedia(sources: Source[], images: ImageAsset[]) {
+		if (sources.length) this.#addSources(sources);
+		if (images.length) this.project = { ...this.project, images: [...this.project.images, ...images] };
+		this.#scheduleSave();
+	}
+
+	/** Saves a copy of `items` in the project library (not part of the undo history) */
+	addToLibrary(name: string, items: Item[]): LibraryEntry {
+		const entry: LibraryEntry = { id: newId(), name, items: $state.snapshot(items), sources: [], images: [] };
+		this.project = { ...this.project, library: [...this.project.library, entry] };
+		this.#scheduleSave();
+		return entry;
+	}
+
+	renameLibraryEntry(id: string, name: string) {
+		this.project = { ...this.project, library: this.project.library.map((e) => (e.id === id ? { ...e, name } : e)) };
+		this.#scheduleSave();
+	}
+
+	removeLibraryEntry(id: string) {
+		this.project = { ...this.project, library: this.project.library.filter((e) => e.id !== id) };
+		this.#scheduleSave();
+	}
+
 	/** Adds a recording (screen, optionally webcam and microphone, linked). */
 	addRecording(recording: Recording) {
 		const sources = recordingSources(recording);
@@ -316,9 +351,9 @@ export class Editor {
 		this.#offerLargerCanvas([sourceId]);
 	}
 
-	/** Is the source used in the timeline or in the undo/redo history? */
+	/** Is the source used in the timeline or in the project library? */
 	isSourceInTimeline(sourceId: string) {
-		return usesSource(this.project.timeline, sourceId);
+		return usesSource(this.project.timeline, sourceId) || entriesUse(this.project.library, sourceId);
 	}
 
 	/** Is the source only kept alive by the undo/redo history? */
@@ -354,7 +389,7 @@ export class Editor {
 	}
 
 	isImageInTimeline(imageId: string) {
-		return usesImage(this.project.timeline, imageId);
+		return usesImage(this.project.timeline, imageId) || entriesUse(this.project.library, imageId);
 	}
 
 	isImageInHistory(imageId: string) {

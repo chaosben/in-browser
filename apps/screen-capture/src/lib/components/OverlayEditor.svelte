@@ -4,6 +4,7 @@
 	import { itemIcon, itemLabel } from '#lib/project/labels.js';
 	import type { Annotation, CalloutAnnotation, Clip, Item, Rect, TextAnnotation } from '#lib/project/types.js';
 	import type { MenuEntry } from '#lib/ui/context-menu.svelte.js';
+	import { endLibraryDrag, saveSelection, trackLibraryDrag, type LibraryScope } from '#lib/ui/library.svelte.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { rememberStyle } from '#lib/project/styles.js';
@@ -105,8 +106,11 @@
 		lockAxis: boolean;
 	}
 
-	/** Mouse drag; `onmove` receives the offset in content coordinates. */
-	function drag(e: PointerEvent, onmove: (dx: number, dy: number, step: DragStep) => void) {
+	/**
+	 * Mouse drag; `onmove` receives the offset in content coordinates. With `libraryKey` (the gesture's undo key)
+	 * the selection can be dropped onto the library: there the move is undone and the save dialog opens.
+	 */
+	function drag(e: PointerEvent, onmove: (dx: number, dy: number, step: DragStep) => void, libraryKey?: string) {
 		if (e.button !== 0) return;
 		e.stopPropagation();
 		e.preventDefault();
@@ -119,8 +123,15 @@
 		const y0 = e.clientY;
 		const { w, h } = view;
 		const tol = { x: (SNAP_PX / rect.width) * w, y: (SNAP_PX / rect.height) * h };
+		let target: LibraryScope | null = null;
 		const move = (ev: PointerEvent) => {
 			guides = null;
+			if (libraryKey) {
+				// Outside the preview area the elements hang at the pointer, on their way to the library
+				const away = trackLibraryDrag(editor, ev.clientX, ev.clientY, layer.closest('[data-preview-area]'));
+				target = away.target;
+				if (away.outside) return editor.cancelGesture(libraryKey);
+			}
 			onmove(((ev.clientX - x0) / rect.width) * w, ((ev.clientY - y0) / rect.height) * h, {
 				tol: snapping.active(ev) ? tol : null,
 				lockAxis: ev.shiftKey
@@ -132,6 +143,8 @@
 			el.removeEventListener('pointerup', up);
 			el.removeEventListener('pointercancel', up);
 			editor.endGesture();
+			endLibraryDrag();
+			if (target) saveSelection(editor, target);
 		};
 		el.addEventListener('pointermove', move);
 		el.addEventListener('pointerup', up);
@@ -175,7 +188,7 @@
 		drag(e, (dx, dy, step) => {
 			const d = moveBy(b, dx, dy, step, targets);
 			patchOverlay(o.id, moveAnnotation(o, d.dx, d.dy), key);
-		});
+		}, key);
 	}
 
 	/** Move a corner of a rect, the opposite corner stays fixed. */
@@ -306,7 +319,7 @@
 		drag(e, (dx, dy, step) => {
 			const d = moveBy(r, dx, dy, step, targets);
 			editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + d.dx, y: r.y + d.dy } }), key);
-		});
+		}, key);
 	}
 
 	function resizeClip(e: PointerEvent, c: Clip, corner: Corner) {

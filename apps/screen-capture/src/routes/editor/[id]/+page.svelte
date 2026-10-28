@@ -27,7 +27,7 @@
 	import { hasDragPayload, readDragPayload, type DragPayload } from '#lib/tools/drag.js';
 	import { folderSupported, saveToFolder } from '#lib/storage/folder.js';
 	import type { DropPlace, ToolActions } from '#lib/tools/types.js';
-	import { cleanupMedia, loadProject } from '#lib/storage/opfs.js';
+	import { cleanupMedia, libraryMediaFile, loadProject, mediaFile } from '#lib/storage/opfs.js';
 	import {
 		clampTimelineHeight,
 		DEFAULT_TIMELINE_HEIGHT,
@@ -55,7 +55,13 @@
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { helpState } from '#lib/ui/help.svelte.js';
 	import { openContextMenu, type MenuEntry } from '#lib/ui/context-menu.svelte.js';
-	import { clipboard, prepareMedia } from '#lib/project/clipboard.svelte.js';
+	import { clipboard } from '#lib/project/clipboard.svelte.js';
+	import { prepareMedia, type ItemsWithMedia } from '#lib/project/transfer.js';
+	import { globalLibrary } from '#lib/project/library.svelte.js';
+	import { mediaOf } from '#lib/project/library.js';
+	import { libraryUi, saveSelection, type LibraryScope } from '#lib/ui/library.svelte.js';
+	import LibrarySaveDialog from '#lib/components/LibrarySaveDialog.svelte';
+	import DragGhost from '#lib/components/DragGhost.svelte';
 	import { toast } from '#lib/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
@@ -271,19 +277,90 @@
 		removeSelected();
 	}
 
-	/** Pastes at the playhead; media from another project is copied into this one first */
-	async function paste() {
-		const data = clipboard.data;
-		if (!editor || !player || !data?.items.length) return;
+	/**
+	 * Inserts copied items at `at`; media they lack is copied into the project first (`read` opens it where it is,
+	 * `null`: already in this project's folder)
+	 */
+	async function insertWithMedia(data: ItemsWithMedia, at: number, read: ((file: string) => Promise<File>) | null) {
+		if (!editor || !data.items.length) return;
 		const ed = editor;
-		const at = player.time;
 		try {
-			const { items, sources, images, skipped } = await prepareMedia(data, ed.project, () =>
+			const { items, sources, images, skipped } = await prepareMedia(data, ed.project, read, () =>
 				toast(m.editor.copyingMedia)
 			);
 			if (items.length) ed.paste(items, at, sources, images);
 			if (sources.length) await sourcesAdded();
 			if (skipped) toast(m.editor.pasteSkipped(skipped), 'warning', 6000);
+		} catch (e) {
+			console.error(e);
+			toast(errorMessage(e), 'error', 8000);
+		}
+	}
+
+	/** Pastes at the playhead; media from another project is copied into this one first */
+	function paste() {
+		const data = clipboard.data;
+		if (!editor || !player || !data) return;
+		const from = data.projectId;
+		insertWithMedia(data, player.time, from === editor.project.id ? null : (file) => mediaFile(from, file));
+	}
+
+	function libraryEntry(scope: LibraryScope, id: string) {
+		return (scope === 'project' ? editor?.project.library : globalLibrary.entries)?.find((e) => e.id === id);
+	}
+
+	/** Library entry at the playhead or the dropped time (it keeps its place in the picture) */
+	async function insertLibrary(scope: LibraryScope, id: string, at?: DropPlace) {
+		const entry = libraryEntry(scope, id);
+		if (!editor || !player || !entry) return;
+		const start = at?.start ?? player.time;
+		await insertWithMedia(entry, start, scope === 'project' ? null : libraryMediaFile);
+		if (at?.start !== undefined) player.seek(at.start);
+	}
+
+	/** Adds items to a library: in the project, or globally with copies of their media */
+	async function addToLibrary(name: string, scope: LibraryScope, items: TimelineData['items']) {
+		if (!editor) return;
+		if (scope === 'project') editor.addToLibrary(name, items);
+		else await globalLibrary.add(name, { items, ...mediaOf(items, editor.project.sources, editor.project.images) }, editor.project.id);
+	}
+
+	async function saveToLibrary(name: string, scope: LibraryScope, items: TimelineData['items']) {
+		try {
+			await addToLibrary(name, scope, items);
+			libraryUi.scope = scope;
+			toolState.group = 'library';
+			toast(m.library.added(name), 'success');
+		} catch (e) {
+			console.error(e);
+			toast(errorMessage(e), 'error', 8000);
+		}
+	}
+
+	/** Copies or moves an entry into the other library; on errors it stays where it was */
+	async function transferLibrary(scope: LibraryScope, id: string, move: boolean) {
+		const entry = libraryEntry(scope, id);
+		if (!editor || !entry) return;
+		const ed = editor;
+		const target: LibraryScope = scope === 'project' ? 'global' : 'project';
+		try {
+			if (target === 'global') await addToLibrary(entry.name, 'global', entry.items);
+			else {
+				const { items, sources, images, skipped } = await prepareMedia(entry, ed.project, libraryMediaFile, () =>
+					toast(m.editor.copyingMedia)
+				);
+				// Not complete: keep the global entry
+				if (skipped) return toast(m.editor.pasteSkipped(skipped), 'warning', 6000);
+				ed.addMedia(sources, images);
+				if (sources.length) await sourcesAdded();
+				ed.addToLibrary(entry.name, items);
+			}
+			if (move) {
+				if (scope === 'project') ed.removeLibraryEntry(id);
+				else await globalLibrary.remove(id);
+			}
+			const where = target === 'project' ? m.library.project : m.library.global;
+			toast(move ? m.library.moved(entry.name, where) : m.library.copied(entry.name, where), 'success');
 		} catch (e) {
 			console.error(e);
 			toast(errorMessage(e), 'error', 8000);
@@ -350,6 +427,13 @@
 					[m.menu.toBack, 'icon-[material-symbols-light--flip-to-back]', `${ctrl}+${m.keys.shift}+↓`, sendToBack]
 				] as const
 			).map(([label, icon, keys, op]) => ({ label, icon, keys, disabled: !arrangeable(op), run: () => arrange(op) })),
+			{ separator: true },
+			{
+				label: m.library.add,
+				icon: 'icon-[material-symbols-light--bookmark-add-outline]',
+				disabled: !items.length,
+				run: () => editor && saveSelection(editor)
+			},
 			...(extra.length ? [{ separator: true } as const, ...extra] : [])
 		]);
 	}
@@ -364,6 +448,8 @@
 		addImage,
 		addIcon,
 		addZoom: addZoomSegment,
+		insertLibrary,
+		transferLibrary,
 		record: openRecordDialog,
 		importMedia: () => {
 			if (!importing) fileInput?.click();
@@ -553,6 +639,7 @@
 		else if (payload.type === 'zoom') addZoomSegment(at);
 		else if (payload.type === 'image') addImage(payload.id, at);
 		else if (payload.type === 'icon') addIcon(payload.icon, at);
+		else if (payload.type === 'library') insertLibrary(payload.scope, payload.id, at);
 		else insertSource(payload.id, at);
 	}
 
@@ -654,7 +741,7 @@
 			<ToolRail />
 			<ToolPanel {editor} {player} {actions} />
 
-			<section class="flex min-w-0 flex-1 flex-col">
+			<section class="flex min-w-0 flex-1 flex-col" data-preview-area>
 				<!-- Preview with editing layer -->
 				<div class="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4 [container-type:size]">
 					<div
@@ -763,6 +850,8 @@
 
 		<HelpWindow />
 		<ContextMenu />
+		<LibrarySaveDialog onsave={saveToLibrary} />
+		<DragGhost {editor} />
 
 		{#if draggingFiles}
 			<div

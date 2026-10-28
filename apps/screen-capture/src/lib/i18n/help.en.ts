@@ -181,6 +181,38 @@ const help = {
 				}
 			}
 		},
+		library: {
+			title: 'Library',
+			items: {
+				save: {
+					title: 'Save elements',
+					text: 'Keep elements you have set up – a styled arrow, a speech bubble with text, a trimmed clip with its annotations – to insert them again. Select them and choose “Add to library …” in the context menu (right click), or drag them from the preview or the timeline onto a section of the open Library group on the left – as soon as you leave the preview or timeline, the element snaps back and hangs at the pointer as a picture with its name; the library sections show dashed frames and the one under the pointer lights up. Released elsewhere, nothing changes. With the library closed, hold the element over its icon on the left for a moment to open it. Give it a name and click the library it goes into – “This project” or “All projects”; Enter takes the one you chose last time. Saved are all selected elements with their settings, text, trimming, links and place in the picture; zoom segments are not.',
+					options: {
+						project: { label: 'This project', text: 'Stays with the project, also in a project saved as a folder. Uses the project’s media directly, so media used there cannot be deleted from the media bin.' },
+						global: { label: 'All projects', text: 'Available in every project, even after the original project is deleted. Media it uses is copied into the library – for clips the whole media file, not only the trimmed part, so it takes storage space.' }
+					},
+					tip: 'Save annotations, texts and logos for all projects – they hardly take any space. Keep trimmed clips in the project, unless it is something like an intro that belongs in every video.'
+				},
+				insert: {
+					title: 'Insert',
+					text: 'Click a tile to insert it at the playhead, or drag it onto the timeline (it starts where you drop it) or the preview (at the playhead). It keeps its place in the picture and goes in front of what it overlaps; one undo step. Media from the global library is copied into the project and appears in the media bin.'
+				},
+				manage: {
+					title: 'Manage',
+					text: 'Right-click a tile to insert, rename, move or copy it into the other library, or remove it. Dragging a tile into the other section moves it; moving into this project copies its media into the media bin. Removing does not affect elements already inserted.',
+					tip: 'Library or clipboard? The clipboard is for quickly repeating something now, also into another project. The library is for building blocks you need again and again over time.'
+				},
+				view: {
+					title: 'View and search',
+					text: 'The buttons at the top switch between two views; your choice is remembered. The search field next to them narrows both sections to entries whose name or elements match (e.g. “arrow” or a text); Esc clears it.',
+					options: {
+						list: { label: 'List', text: 'One line per entry with a small preview – many entries at a glance.' },
+						grid: { label: 'Tiles', text: 'Two columns with a large preview – easier to recognize what an entry looks like.' }
+					},
+					tip: 'Use the list once you have many building blocks and know them by name; tiles while you are still collecting them or tell them apart by their look.'
+				}
+			}
+		},
 		canvas: {
 			title: 'Canvas',
 			items: {
@@ -291,7 +323,7 @@ const help = {
 				},
 				menu: {
 					title: 'Context menu',
-					text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and offers cut, copy, paste, delete and changing the layer. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
+					text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and offers cut, copy, paste, delete, changing the layer and adding to the library. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
 				},
 				view: {
 					title: 'Timeline zoom and height',

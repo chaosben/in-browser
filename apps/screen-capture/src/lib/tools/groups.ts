@@ -1,4 +1,5 @@
 import IconPanel from '#lib/components/IconPanel.svelte';
+import LibraryPanel from '#lib/components/LibraryPanel.svelte';
 import MediaPanel from '#lib/components/MediaPanel.svelte';
 import { OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 import type { ToolKind } from '#lib/project/types.js';
@@ -17,6 +18,12 @@ export const TOOL_GROUPS: ToolGroup[] = [
 		icon: 'icon-[material-symbols-light--video-library-outline]',
 		label: m.tools.groups.media,
 		tabs: [{ id: 'media', label: m.tools.groups.media, component: MediaPanel }]
+	},
+	{
+		id: 'library',
+		icon: 'icon-[material-symbols-light--bookmarks-outline]',
+		label: m.tools.groups.library,
+		tabs: [{ id: 'library', label: m.tools.groups.library, component: LibraryPanel }]
 	},
 	{
 		id: 'annotations',

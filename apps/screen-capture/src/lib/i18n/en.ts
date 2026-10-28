@@ -178,7 +178,7 @@ const en = {
 	},
 
 	tools: {
-		groups: { media: 'Media', annotations: 'Annotations', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
+		groups: { media: 'Media', library: 'Library', annotations: 'Annotations', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
 		collapse: 'Collapse panel',
 		dropHint: 'Or drop video, audio or image files onto the editor: they go to the media bin, onto the timeline they are inserted right there.'
 	},
@@ -390,7 +390,7 @@ const en = {
 		audioOnly: 'audio only',
 		image: 'Image',
 		insertImageTitle: 'Insert at the playhead, in the center of the picture',
-		inUse: 'Used in the timeline',
+		inUse: 'Used in the timeline or the project library',
 		deleteTitle: 'Delete media?',
 		confirmDelete: (name: string) => `Delete “${name}” permanently? This cannot be undone.`,
 		confirmDeleteHistory: (name: string) =>
@@ -401,6 +401,37 @@ const en = {
 		zoom: (level: string) => `${level}× zoom`,
 		selectZoom: 'Select zoom segment',
 		gap: (px: number) => `${px} px`
+	},
+
+	library: {
+		project: 'This project',
+		global: 'All projects',
+		empty: 'Drag elements here or right-click them → “Add to library”.',
+		add: 'Add to library …',
+		saveTitle: 'Add to library',
+		name: 'Name',
+		globalHint: 'Into “All projects”, clips copy their whole media file, not just the trimmed part – this takes storage space.',
+		added: (name: string) => `“${name}” added to the library`,
+		insert: 'Insert',
+		rename: 'Rename',
+		copyToGlobal: 'Copy to all projects',
+		copyToProject: 'Copy to this project',
+		moveToGlobal: 'Move to all projects',
+		moveToProject: 'Move to this project',
+		moved: (name: string, where: string) => `“${name}” moved to “${where}”`,
+		copied: (name: string, where: string) => `“${name}” copied to “${where}”`,
+		dragHint: 'Drop onto the library (open it: hold over its icon on the left)',
+		search: 'Search library',
+		noMatches: 'No matches.',
+		view: 'View',
+		viewList: 'List',
+		viewGrid: 'Tiles',
+		remove: 'Remove from library',
+		removeTitle: 'Remove from library?',
+		removeMessage: (name: string) => `“${name}” will be removed from the library. Elements already inserted stay.`,
+		removeConfirm: 'Remove',
+		elements: (n: number) => (n === 1 ? '1 element' : `${n} elements`),
+		entry: (name: string, duration: string) => `${name}, ${duration}`
 	},
 
 	menu: {
@@ -425,6 +456,7 @@ const en = {
 		cannotImport: (reasons: string) => `The file cannot be imported (${reasons}).`,
 		noProjectJson: (folder: string) => `No project.json was found in the folder “${folder}”.`,
 		unknownFormat: 'Unknown project format.',
+		libraryMedia: 'The media files could not be copied into the library.',
 		newerVersion: 'The project was created with a newer version of the app.',
 		cannotPlay: (name: string) => `Source “${name}” cannot be played.`
 	},

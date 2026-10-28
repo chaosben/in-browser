@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { TOOL_GROUPS } from '#lib/tools/groups.js';
 	import { toolState } from '#lib/tools/state.svelte.js';
+	import { libraryUi } from '#lib/ui/library.svelte.js';
 </script>
 
 <div
@@ -14,7 +15,11 @@
 			role="tab"
 			aria-selected={active}
 			aria-label={group.label}
-			class="btn btn-ghost btn-square tooltip tooltip-right {active ? 'btn-active text-primary' : ''}"
+			class="btn btn-ghost btn-square tooltip tooltip-right {active ? 'btn-active text-primary' : ''} {group.id === 'library' &&
+			libraryUi.dragging
+				? 'ring-primary ring-2'
+				: ''}"
+			data-tool-group={group.id}
 			data-tip={group.label}
 			onclick={() => toolState.toggle(group.id)}
 		>

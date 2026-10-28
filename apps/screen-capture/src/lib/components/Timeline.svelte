@@ -22,6 +22,7 @@
 	import { formatTime } from '#lib/util/format.js';
 	import { annotationLabel } from '#lib/project/labels.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
+	import { endLibraryDrag, saveSelection, trackLibraryDrag, type LibraryScope } from '#lib/ui/library.svelte.js';
 
 	interface Props {
 		editor: Editor;
@@ -266,6 +267,9 @@
 		const t0 = timeAt(e.clientX);
 		let horizontal = false;
 		let current: [number, number] = [start, end];
+		// Dropped onto the library: the move is undone and the save dialog opens
+		let library: LibraryScope | null = null;
+		const origin = (e.currentTarget as HTMLElement).closest('[data-timeline]');
 		drag(e, {
 			onclick: () => {
 				if (wasSelected) editor.clickItem(id, { single });
@@ -273,6 +277,13 @@
 				else if (player.time < start || player.time >= end) player.seek(start);
 			},
 			onmove: (dt, ev) => {
+				// Outside the timeline the elements hang at the pointer, on their way to the library
+				const away = part === 'body' ? trackLibraryDrag(editor, ev.clientX, ev.clientY, origin) : null;
+				library = away?.target ?? null;
+				if (away?.outside) {
+					trackDrop = null;
+					return editor.cancelGesture(key);
+				}
 				// Vertical (single item only, on the bar itself, from 8 px): show target track, applied on release
 				if (ids.length === 1 && part === 'body' && (trackDrop || Math.abs(ev.clientY - y0) >= 8)) {
 					const target = trackAt(ev.clientY);
@@ -297,6 +308,8 @@
 				}
 			},
 			onend: () => {
+				endLibraryDrag();
+				if (library) return saveSelection(editor, library);
 				if (trackDrop && trackDrop.track !== track) {
 					// Same undo step: applied to the state before the drag, hence time and track together
 					const target = trackDrop.track;

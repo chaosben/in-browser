@@ -1,9 +1,11 @@
-import { parseProject, type Project } from '#lib/project/types.js';
+import { fillItem, parseProject, type LibraryEntry, type Project } from '#lib/project/types.js';
 
 // Layout in the Origin Private File System:
 //   projects/<id>/project.json
 //   projects/<id>/media/<file>
 //   exports/<file>             (temporary export files)
+//   library/library.json       (global library: entries usable in all projects)
+//   library/media/<file>       (copies of the media files global entries use)
 
 async function root() {
 	return navigator.storage.getDirectory();
@@ -108,16 +110,39 @@ export async function cleanupMedia(project: Project): Promise<void> {
 	await Promise.all(orphans.map((name) => deleteMediaFile(project.id, name)));
 }
 
-export async function readMediaText(projectId: string, file: string): Promise<string | null> {
-	try {
-		return await (await mediaFile(projectId, file)).text();
-	} catch {
-		return null;
-	}
-}
-
 export async function writeMediaText(projectId: string, file: string, text: string): Promise<void> {
 	const writable = await mediaWritable(projectId, file);
 	await writable.write(text);
 	await writable.close();
+}
+
+/** Entries of the global library */
+export async function loadLibrary(): Promise<LibraryEntry[]> {
+	try {
+		const file = await (await (await dir('library')).getFileHandle('library.json')).getFile();
+		const raw = JSON.parse(await file.text());
+		return Array.isArray(raw) ? raw.map((e: LibraryEntry) => ({ ...e, items: e.items.map(fillItem) })) : [];
+	} catch (e) {
+		if (e instanceof DOMException && e.name === 'NotFoundError') return [];
+		throw e;
+	}
+}
+
+export async function saveLibrary(entries: LibraryEntry[]): Promise<void> {
+	const handle = await (await dir('library')).getFileHandle('library.json', { create: true });
+	const writable = await handle.createWritable();
+	await writable.write(JSON.stringify(entries));
+	await writable.close();
+}
+
+export async function libraryMediaFile(file: string): Promise<File> {
+	return (await (await dir('library', 'media')).getFileHandle(file)).getFile();
+}
+
+export async function libraryMediaWritable(file: string): Promise<FileSystemWritableFileStream> {
+	return (await (await dir('library', 'media')).getFileHandle(file, { create: true })).createWritable();
+}
+
+export async function deleteLibraryMedia(file: string): Promise<void> {
+	await (await dir('library', 'media')).removeEntry(file).catch(() => {});
 }

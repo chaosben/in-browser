@@ -334,6 +334,20 @@ export interface Project {
 	/** Own images (media bin); placed as `image` annotations */
 	images: ImageAsset[];
 	timeline: Timeline;
+	/** Saved elements to reuse in this project (not part of the undo history) */
+	library: LibraryEntry[];
+}
+
+/**
+ * Saved selection of items to insert again (project or global library). `sources`/`images`: the media they use –
+ * only filled in the global library, which keeps its own copies of the files.
+ */
+export interface LibraryEntry {
+	id: string;
+	name: string;
+	items: Item[];
+	sources: Source[];
+	images: ImageAsset[];
 }
 
 /** Image file in the project's media folder */
@@ -365,6 +379,7 @@ export function parseProject(raw: unknown): Project {
 		...p,
 		sources: p.sources.map((s) => (typeof s.hasVideo === 'boolean' ? s : { ...s, hasVideo: true })),
 		images: Array.isArray(p.images) ? p.images : [],
+		library: Array.isArray(p.library) ? p.library.map((e) => ({ ...e, items: e.items.map(fillItem) })) : [],
 		timeline: {
 			items: p.timeline.items.map(fillItem),
 			tracks: p.timeline.tracks ?? [],
@@ -374,7 +389,7 @@ export function parseProject(raw: unknown): Project {
 }
 
 /** Fields added to annotations later; defaults keep older projects looking the same */
-function fillItem(item: Item): Item {
+export function fillItem(item: Item): Item {
 	if (item.type !== 'annotation') return item;
 	const raw = item as unknown as Record<string, unknown>;
 	const patch: Record<string, unknown> = {};

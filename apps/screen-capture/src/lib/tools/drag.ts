@@ -3,13 +3,15 @@
 
 import type { AnnotationKind, IconData, ToolKind } from '#lib/project/types.js';
 import { isToolKind, OVERLAY_KINDS } from '#lib/project/defaults.js';
+import type { LibraryScope } from '#lib/ui/library.svelte.js';
 
 export type DragPayload =
 	| { type: 'annotation'; kind: ToolKind }
 	| { type: 'zoom' }
 	| { type: 'source'; id: string }
 	| { type: 'image'; id: string }
-	| { type: 'icon'; icon: IconData };
+	| { type: 'icon'; icon: IconData }
+	| { type: 'library'; scope: LibraryScope; id: string };
 
 const isIcon = (i: unknown): i is IconData => {
 	const icon = i as IconData | null;
@@ -39,6 +41,9 @@ export function readDragPayload(e: DragEvent): DragPayload | null {
 		if (p?.type === 'zoom') return { type: 'zoom' };
 		if (p?.type === 'source' && typeof p.id === 'string') return { type: 'source', id: p.id };
 		if (p?.type === 'image' && typeof p.id === 'string') return { type: 'image', id: p.id };
+		if (p?.type === 'library' && (p.scope === 'project' || p.scope === 'global') && typeof p.id === 'string') {
+			return { type: 'library', scope: p.scope, id: p.id };
+		}
 		if (p?.type === 'icon' && isIcon(p.icon)) {
 			const { name, body, width, height } = p.icon;
 			return { type: 'icon', icon: { name, body, width, height } };
