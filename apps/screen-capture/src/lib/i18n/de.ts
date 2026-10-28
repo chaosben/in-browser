@@ -147,6 +147,8 @@ const de: Messages = {
 		savedToFolder: (name) => `Projekt im Ordner „${name}“ gespeichert`,
 		export: 'Exportieren',
 		recordingAdded: 'Aufnahme hinzugefügt',
+		snapping: 'Einrasten',
+		snappingTitle: 'Einrasten an Kanten, Mitten und gleichen Abständen (Alt beim Ziehen kehrt um)',
 		importedToBin: (n: number) => (n === 1 ? 'Zur Medienablage hinzugefügt' : `${n} Dateien zur Medienablage hinzugefügt`),
 		largerMedia: (size, canvas) => `Das neue Material (${size}) ist größer als die Leinwand (${canvas}).`,
 		growCanvas: 'Leinwand vergrößern',
@@ -318,7 +320,8 @@ const de: Messages = {
 			delete: 'Löschen',
 			deleteGap: 'Löschen, Lücke lassen',
 			link: 'Verknüpfen',
-			deselect: 'Auswahl aufheben'
+			deselect: 'Auswahl aufheben',
+			nudge: 'In der Vorschau um 1 px verschieben (Umschalt: 10 px)'
 		},
 		project: 'Projekt',
 		canvas: 'Leinwand',
@@ -398,7 +401,8 @@ const de: Messages = {
 
 	preview: {
 		zoom: (level) => `${level}× Zoom`,
-		selectZoom: 'Zoom-Abschnitt auswählen'
+		selectZoom: 'Zoom-Abschnitt auswählen',
+		gap: (px: number) => `${px} px`
 	},
 
 	errors: {

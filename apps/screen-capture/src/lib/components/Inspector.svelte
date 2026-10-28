@@ -710,7 +710,8 @@
 					{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
 					{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">G</kbd>
 					{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">Esc</kbd>
-					{m.inspector.shortcuts.deselect}
+					{m.inspector.shortcuts.deselect} · <kbd class="kbd kbd-xs">← ↑ → ↓</kbd>
+					{m.inspector.shortcuts.nudge}
 				</p>
 			</div>
 		{/if}

@@ -50,6 +50,7 @@
 		viewAt
 	} from '#lib/timeline/ops.js';
 	import { toolState } from '#lib/tools/state.svelte.js';
+	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { toast } from '#lib/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
@@ -622,6 +623,16 @@
 				</button>
 				<button class="btn btn-sm btn-ghost" onclick={() => editor?.redo()} disabled={!editor.canRedo}>
 					<span class="icon-[material-symbols-light--redo] size-5" aria-hidden="true"></span> {m.editor.redo}
+				</button>
+				<div class="divider divider-horizontal mx-1"></div>
+				<!-- Preview and timeline alike -->
+				<button
+					class="btn btn-sm btn-ghost {snapping.enabled ? 'btn-active' : ''}"
+					onclick={() => (snapping.enabled = !snapping.enabled)}
+					aria-pressed={snapping.enabled}
+					title={m.editor.snappingTitle}
+				>
+					<span class="icon-[material-symbols-light--grid-guides-outline] size-5" aria-hidden="true"></span> {m.editor.snapping}
 				</button>
 			</div>
 

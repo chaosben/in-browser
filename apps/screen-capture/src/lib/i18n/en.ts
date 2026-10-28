@@ -145,6 +145,8 @@ const en = {
 		savedToFolder: (name: string) => `Project saved to folder “${name}”`,
 		export: 'Export',
 		recordingAdded: 'Recording added',
+		snapping: 'Snap',
+		snappingTitle: 'Snap to edges, centers and equal spacing (hold Alt while dragging for the opposite)',
 		importedToBin: (n: number) => (n === 1 ? 'Added to the media bin' : `${n} files added to the media bin`),
 		largerMedia: (size: string, canvas: string) => `The new material (${size}) is larger than the canvas (${canvas}).`,
 		growCanvas: 'Enlarge canvas',
@@ -309,7 +311,7 @@ const en = {
 		frameAt: 'Frame at',
 		nothing: 'Nothing selected.',
 		nothingHint: 'Click a clip, an annotation or a zoom segment in the timeline, or add something new from the bar on the left.',
-		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect' },
+		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect', nudge: 'In the preview: move by 1 px (Shift: 10 px)' },
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',
@@ -388,7 +390,8 @@ const en = {
 
 	preview: {
 		zoom: (level: string) => `${level}× zoom`,
-		selectZoom: 'Select zoom segment'
+		selectZoom: 'Select zoom segment',
+		gap: (px: number) => `${px} px`
 	},
 
 	errors: {

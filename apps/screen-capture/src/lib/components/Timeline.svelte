@@ -21,6 +21,7 @@
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
 	import { oneLine } from '#lib/util/text.js';
+	import { snapping } from '#lib/ui/snapping.svelte.js';
 
 	interface Props {
 		editor: Editor;
@@ -147,6 +148,7 @@
 		const onmove = (ev: PointerEvent) => {
 			if (!moved && Math.abs(ev.clientX - x0) < 4 && Math.abs(ev.clientY - y0) < 4) return;
 			moved = true;
+			snapOn = snapping.active(ev);
 			handlers.onmove((ev.clientX - x0) / scale, ev);
 		};
 		const onup = () => {
@@ -188,9 +190,12 @@
 		return points;
 	}
 
+	/** Snapping in the current drag step (switch, reversed with Alt) */
+	let snapOn = true;
+
 	/** Snaps a point in time (e.g. a dragged edge). */
 	function snapTime(exclude: string[], t: number) {
-		const range = SNAP_PX / pxPerSec;
+		const range = snapOn ? SNAP_PX / pxPerSec : 0;
 		let best: { at: number; d: number } | null = null;
 		for (const p of snapPoints(exclude)) {
 			const d = Math.abs(p - t);
@@ -202,7 +207,7 @@
 
 	/** Snaps `start` (or the end, given length `length`). */
 	function snap(exclude: string[], start: number, length: number) {
-		const range = SNAP_PX / pxPerSec;
+		const range = snapOn ? SNAP_PX / pxPerSec : 0;
 		let best: { start: number; at: number; d: number } | null = null;
 		for (const p of snapPoints(exclude)) {
 			// Put start or end on the point

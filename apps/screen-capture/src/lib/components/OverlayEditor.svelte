@@ -8,7 +8,17 @@
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { ZOOM_ICON } from '#lib/project/defaults.js';
-	import { snapAspect, snapLine, snapMove, snapPoint, snapTargets, type Guides, type Tolerance } from '#lib/preview/snap.js';
+	import {
+		snapAspect,
+		snapLine,
+		snapMove,
+		snapPoint,
+		snapTargets,
+		type Guides,
+		type SnapTargets,
+		type Tolerance
+	} from '#lib/preview/snap.js';
+	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
 
 	interface Props {
@@ -84,14 +94,20 @@
 		return snapTargets(boxes);
 	}
 
-	/**
-	 * Mouse drag; `onmove` receives the offset in content coordinates and the snap distance per axis (`null`
-	 * while Alt is held: free placement).
-	 */
-	function drag(e: PointerEvent, onmove: (dx: number, dy: number, tol: Tolerance | null) => void) {
+	interface DragStep {
+		/** Snap distance per axis; `null`: snapping off (switch, or reversed with Alt) */
+		tol: Tolerance | null;
+		/** Shift: move along one axis only */
+		lockAxis: boolean;
+	}
+
+	/** Mouse drag; `onmove` receives the offset in content coordinates. */
+	function drag(e: PointerEvent, onmove: (dx: number, dy: number, step: DragStep) => void) {
 		if (e.button !== 0) return;
 		e.stopPropagation();
 		e.preventDefault();
+		// Arrow keys now move the selection
+		layer.focus({ preventScroll: true });
 		const el = e.currentTarget as HTMLElement;
 		el.setPointerCapture(e.pointerId);
 		const rect = layer.getBoundingClientRect();
@@ -101,7 +117,10 @@
 		const tol = { x: (SNAP_PX / rect.width) * w, y: (SNAP_PX / rect.height) * h };
 		const move = (ev: PointerEvent) => {
 			guides = null;
-			onmove(((ev.clientX - x0) / rect.width) * w, ((ev.clientY - y0) / rect.height) * h, ev.altKey ? null : tol);
+			onmove(((ev.clientX - x0) / rect.width) * w, ((ev.clientY - y0) / rect.height) * h, {
+				tol: snapping.active(ev) ? tol : null,
+				lockAxis: ev.shiftKey
+			});
 		};
 		const up = () => {
 			guides = null;
@@ -113,6 +132,24 @@
 		el.addEventListener('pointermove', move);
 		el.addEventListener('pointerup', up);
 		el.addEventListener('pointercancel', up);
+	}
+
+	/** Offset of a moved box: Shift keeps it on the axis it moved most along, then it snaps on the free axes */
+	function moveBy(box: Rect, dx: number, dy: number, step: DragStep, targets: SnapTargets) {
+		const locked = step.lockAxis ? (Math.abs(dx) >= Math.abs(dy) ? 'y' : 'x') : null;
+		if (locked === 'x') dx = 0;
+		if (locked === 'y') dy = 0;
+		if (step.tol) {
+			const s = snapMove({ ...box, x: box.x + dx, y: box.y + dy }, targets, step.tol);
+			if (locked !== 'x') dx += s.dx;
+			if (locked !== 'y') dy += s.dy;
+			guides = {
+				x: locked === 'x' ? null : s.guides.x,
+				y: locked === 'y' ? null : s.guides.y,
+				gaps: s.guides.gaps.filter((g) => g.axis !== locked)
+			};
+		}
+		return { dx, dy };
 	}
 
 	function patchOverlay(id: string, patch: Partial<Annotation>, key: string) {
@@ -130,14 +167,9 @@
 		const key = `move-${o.id}-${e.timeStamp}`;
 		const b = bounds(o);
 		const targets = targetsFor(o.id);
-		drag(e, (dx, dy, tol) => {
-			if (tol) {
-				const s = snapMove({ ...b, x: b.x + dx, y: b.y + dy }, targets, tol);
-				dx += s.dx;
-				dy += s.dy;
-				guides = s.guides;
-			}
-			patchOverlay(o.id, moveAnnotation(o, dx, dy), key);
+		drag(e, (dx, dy, step) => {
+			const d = moveBy(b, dx, dy, step, targets);
+			patchOverlay(o.id, moveAnnotation(o, d.dx, d.dy), key);
 		});
 	}
 
@@ -174,7 +206,7 @@
 	function resizeOverlay(e: PointerEvent, o: Annotation, corner: Corner) {
 		const key = `resize-${o.id}-${e.timeStamp}`;
 		const targets = targetsFor(o.id);
-		drag(e, (dx, dy, tol) => {
+		drag(e, (dx, dy, { tol }) => {
 			if (o.kind === 'image' || o.kind === 'icon') {
 				let rect = resizedKeepingAspect(o.rect, corner, dx, dy, 0.01);
 				if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, 0.01));
@@ -224,12 +256,12 @@
 		// At least about two characters wide
 		const min = (2 * o.size * H + (o.background ? 2 * o.padding * H : 0)) / W;
 		const targets = targetsFor(o.id);
-		drag(e, (dx, _dy, tol) => {
+		drag(e, (dx, _dy, { tol }) => {
 			if (tol) {
 				const edge = side === 'e' ? b.x + b.w : b.x;
 				const s = snapLine(edge + dx, targets.xs, tol.x);
 				dx = s.value - edge;
-				guides = { x: s.line, y: null };
+				guides = { x: s.line, y: null, gaps: [] };
 			}
 			const boxWidth = Math.max(b.w + (side === 'e' ? dx : -dx), min);
 			patchOverlay(o.id, side === 'e' ? { boxWidth } : { boxWidth, x: b.x + b.w - boxWidth }, key);
@@ -242,7 +274,7 @@
 		if (!p) return;
 		const key = `point-${o.id}-${point}-${e.timeStamp}`;
 		const targets = targetsFor(o.id);
-		drag(e, (dx, dy, tol) => {
+		drag(e, (dx, dy, { tol }) => {
 			let next = { x: p.x + dx, y: p.y + dy };
 			if (tol) ({ point: next, guides } = snapPoint(next, targets, tol));
 			patchOverlay(o.id, { [point]: next }, key);
@@ -265,14 +297,9 @@
 		const key = `clip-move-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
 		const targets = targetsFor(c.id);
-		drag(e, (dx, dy, tol) => {
-			if (tol) {
-				const s = snapMove({ ...r, x: r.x + dx, y: r.y + dy }, targets, tol);
-				dx += s.dx;
-				dy += s.dy;
-				guides = s.guides;
-			}
-			editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + dx, y: r.y + dy } }), key);
+		drag(e, (dx, dy, step) => {
+			const d = moveBy(r, dx, dy, step, targets);
+			editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + d.dx, y: r.y + d.dy } }), key);
 		});
 	}
 
@@ -280,7 +307,7 @@
 		const key = `clip-resize-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
 		const targets = targetsFor(c.id);
-		drag(e, (dx, dy, tol) => {
+		drag(e, (dx, dy, { tol }) => {
 			let rect = resizedKeepingAspect(r, corner, dx, dy);
 			if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, 0.05));
 			editor.update((t) => updateItem(t, c.id, { rect }), key);
@@ -297,14 +324,9 @@
 		const key = `zoom-move-${z.id}-${e.timeStamp}`;
 		const r = z.rect;
 		const targets = targetsFor();
-		drag(e, (dx, dy, tol) => {
-			if (tol) {
-				const s = snapMove({ ...r, x: r.x + dx, y: r.y + dy }, targets, tol);
-				dx += s.dx;
-				dy += s.dy;
-				guides = s.guides;
-			}
-			const rect = { ...r, x: clamp(r.x + dx, 0, 1 - r.w), y: clamp(r.y + dy, 0, 1 - r.h) };
+		drag(e, (dx, dy, step) => {
+			const d = moveBy(r, dx, dy, step, targets);
+			const rect = { ...r, x: clamp(r.x + d.dx, 0, 1 - r.w), y: clamp(r.y + d.dy, 0, 1 - r.h) };
 			editor.update((t) => updateZoom(t, z.id, { rect }), key);
 		});
 	}
@@ -324,6 +346,56 @@
 			const rect = { x: sx > 0 ? ax : ax - w, y: sy > 0 ? ay : ay - w, w, h: w };
 			editor.update((t) => updateZoom(t, z.id, { rect }), key);
 		});
+	}
+
+	// --- Arrow keys while the preview has the focus: move the selection by canvas pixels (Shift: 10)
+
+	const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+
+	/** Running key sequence: one undo step, applied to the state at its first key */
+	let nudge: { key: string; apply: (dx: number, dy: number) => void; dx: number; dy: number } | null = null;
+
+	/** Selected element that can be moved here (not on a hidden or locked track) */
+	function nudgeTarget(): ((dx: number, dy: number, key: string) => void) | null {
+		const z = selectedZoom;
+		if (z) {
+			const r = z.rect;
+			return (dx, dy, key) =>
+				editor.update((t) => updateZoom(t, z.id, { rect: { ...r, x: clamp(r.x + dx, 0, 1 - r.w), y: clamp(r.y + dy, 0, 1 - r.h) } }), key);
+		}
+		const o = selectedOverlay;
+		if (o && active.some((item) => item.id === o.id)) return (dx, dy, key) => patchOverlay(o.id, moveAnnotation(o, dx, dy), key);
+		const c = selectedClip;
+		if (c && active.some((item) => item.id === c.id)) {
+			const r = c.rect;
+			return (dx, dy, key) => editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + dx, y: r.y + dy } }), key);
+		}
+		return null;
+	}
+
+	function onKeyDown(e: KeyboardEvent) {
+		const dir = ARROWS[e.key];
+		// Ctrl/Cmd + arrows stay with the editor (track order)
+		if (!dir || e.ctrlKey || e.metaKey || e.altKey) return;
+		if (!nudge) {
+			const move = nudgeTarget();
+			if (!move) return;
+			const key = `nudge-${e.timeStamp}`;
+			nudge = { key, apply: (dx, dy) => move(dx, dy, key), dx: 0, dy: 0 };
+		}
+		// Not the frame step of the editor's shortcuts
+		e.preventDefault();
+		e.stopPropagation();
+		const px = e.shiftKey ? 10 : 1;
+		nudge.dx += (dir[0] * px) / W;
+		nudge.dy += (dir[1] * px) / H;
+		nudge.apply(nudge.dx, nudge.dy);
+	}
+
+	function endNudge() {
+		if (!nudge) return;
+		nudge = null;
+		editor.endGesture();
 	}
 
 	function cornerPos(r: Rect, c: Corner) {
@@ -349,8 +421,17 @@
 
 <div
 	bind:this={layer}
-	class="absolute inset-0 overflow-hidden"
-	onpointerdown={() => (editor.selection = null)}
+	class="absolute inset-0 overflow-hidden outline-none"
+	tabindex="-1"
+	onpointerdown={() => {
+		editor.selection = null;
+		layer.focus({ preventScroll: true });
+	}}
+	onkeydown={onKeyDown}
+	onkeyup={(e) => {
+		if (ARROWS[e.key]) endNudge();
+	}}
+	onfocusout={endNudge}
 	role="presentation"
 >
 	{#if selectedZoom}
@@ -497,7 +578,27 @@
 		{/if}
 	{/if}
 
-	<!-- Lines snapped to while dragging (Alt: free) -->
+	<!-- Lines and equal gaps snapped to while dragging -->
+	{#each guides?.gaps ?? [] as gap, i (i)}
+		{@const length = Math.round((gap.to - gap.from) * (gap.axis === 'x' ? W : H))}
+		{#if gap.axis === 'x'}
+			<div
+				class="border-primary pointer-events-none absolute flex h-2 -translate-y-1/2 justify-center border-x"
+				style="left: {px(gap.from)}; width: {pw(gap.to - gap.from)}; top: {py(gap.at)}"
+			>
+				<div class="bg-primary absolute inset-x-0 top-1/2 h-px"></div>
+				<span class="bg-primary text-primary-content absolute top-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
+			</div>
+		{:else}
+			<div
+				class="border-primary pointer-events-none absolute flex w-2 -translate-x-1/2 items-center border-y"
+				style="top: {py(gap.from)}; height: {ph(gap.to - gap.from)}; left: {px(gap.at)}"
+			>
+				<div class="bg-primary absolute inset-y-0 left-1/2 w-px"></div>
+				<span class="bg-primary text-primary-content absolute left-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
+			</div>
+		{/if}
+	{/each}
 	{#if guides?.x != null}
 		<div class="bg-primary pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x)}"></div>
 	{/if}
