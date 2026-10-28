@@ -365,7 +365,8 @@ const en = {
 	},
 
 	preview: {
-		zoom: (level: string) => `${level}× zoom`
+		zoom: (level: string) => `${level}× zoom`,
+		selectZoom: 'Select zoom segment'
 	},
 
 	errors: {

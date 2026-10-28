@@ -375,7 +375,8 @@ const de: Messages = {
 	},
 
 	preview: {
-		zoom: (level) => `${level}× Zoom`
+		zoom: (level) => `${level}× Zoom`,
+		selectZoom: 'Zoom-Abschnitt auswählen'
 	},
 
 	errors: {

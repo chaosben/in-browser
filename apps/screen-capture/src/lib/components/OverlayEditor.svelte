@@ -7,7 +7,8 @@
 	import { rememberStyle } from '#lib/project/styles.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
-	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt } from '#lib/timeline/ops.js';
+	import { ZOOM_ICON } from '#lib/project/defaults.js';
+	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
 
 	interface Props {
 		editor: Editor;
@@ -26,8 +27,12 @@
 	const selectedZoom = $derived(editor.selectedZoom);
 	const selectedOverlay = $derived(editor.selectedOverlay);
 	const selectedClip = $derived(editor.selectedClip);
-	// While editing a zoom segment the preview shows the full frame.
-	const view = $derived(selectedZoom ? FULL_VIEW : viewAt(timeline, player.time));
+	// When paused (and while editing a zoom segment) the preview shows the full frame, so everything stays editable;
+	// the zoom is seen during playback and in the export.
+	const full = $derived(!!selectedZoom || !player.playing);
+	const view = $derived(full ? FULL_VIEW : viewAt(timeline, player.time));
+	/** Zoom segment under the playhead, marked while paused */
+	const pausedZoom = $derived(!player.playing && !selectedZoom ? zoomAt(timeline, player.time) : null);
 	// Back to front so items in front are also on top when clicked. Excludes items on
 	// hidden/locked tracks and audio-only clips (no picture).
 	const active = $derived(
@@ -41,7 +46,7 @@
 	const H = $derived(editor.project.height);
 
 	$effect(() => {
-		player.forcedView = selectedZoom ? FULL_VIEW : null;
+		player.forcedView = full ? FULL_VIEW : null;
 		// redraw reads reactive values itself (e.g. the time) – they must not trigger this effect
 		untrack(() => player.redraw());
 		return () => (player.forcedView = null);
@@ -187,6 +192,15 @@
 
 	// --- Clips: a click selects the front-most one (full-frame ones too); move and scale with fixed aspect ratio
 
+	/** Label or edge of the marked zoom area: selects the segment (the layer below would clear the selection) */
+	function pickZoom(e: PointerEvent, id: string) {
+		e.stopPropagation();
+		editor.select('zoom', id);
+	}
+
+	/** Same label for the marked and the selected zoom area */
+	const zoomLabelClass = 'bg-info text-info-content absolute top-1 left-1 flex items-center gap-0.5 rounded px-1 text-xs';
+
 	function moveClip(e: PointerEvent, c: Clip) {
 		editor.select('item', c.id);
 		const key = `clip-move-${c.id}-${e.timeStamp}`;
@@ -253,6 +267,11 @@
 	};
 </script>
 
+{#snippet zoomLabel(r: Rect)}
+	<span class="{ZOOM_ICON} size-3.5" aria-hidden="true"></span>
+	{m.preview.zoom((1 / r.w).toFixed(1))}
+{/snippet}
+
 <div
 	bind:this={layer}
 	class="absolute inset-0 overflow-hidden"
@@ -268,9 +287,7 @@
 			onpointerdown={moveZoom}
 			role="presentation"
 		>
-			<span class="bg-info text-info-content absolute top-1 left-1 rounded px-1 text-xs">
-				{m.preview.zoom((1 / r.w).toFixed(1))}
-			</span>
+			<span class={zoomLabelClass}>{@render zoomLabel(r)}</span>
 		</div>
 		{#each CORNERS as c (c)}
 			<div
@@ -300,6 +317,36 @@
 				></div>
 			{/if}
 		{/each}
+
+		{#if pausedZoom}
+			{@const z = pausedZoom}
+			<!-- Marks what the zoom will show. Label and edge select the segment; the area inside stays free for the
+				 items below (the zoom often covers almost the whole frame). After the items, so label/edge are on top. -->
+			<div
+				class="border-info pointer-events-none absolute border-2 border-dashed shadow-[0_0_0_9999px_rgba(0,0,0,0.25)] has-[[data-zoom-pick]:hover]:border-solid"
+				style={boxStyle(z.rect)}
+			>
+				{#each ['-top-1 inset-x-0 h-2', '-bottom-1 inset-x-0 h-2', '-left-1 inset-y-0 w-2', '-right-1 inset-y-0 w-2'] as edge (edge)}
+					<div
+						class="pointer-events-auto absolute cursor-pointer {edge}"
+						data-zoom-pick
+						title={m.preview.selectZoom}
+						onpointerdown={(e) => pickZoom(e, z.id)}
+						role="presentation"
+					></div>
+				{/each}
+				<button
+					type="button"
+					class="{zoomLabelClass} pointer-events-auto cursor-pointer hover:brightness-110"
+					data-zoom-pick
+					title={m.preview.selectZoom}
+					aria-label={m.preview.selectZoom}
+					onpointerdown={(e) => pickZoom(e, z.id)}
+				>
+					{@render zoomLabel(z.rect)}
+				</button>
+			</div>
+		{/if}
 
 		{#if selectedClip && active.some((c) => c.id === selectedClip.id)}
 			{@const c = selectedClip}
