@@ -330,7 +330,7 @@ const help = {
 				},
 				paused: {
 					title: 'While paused',
-					text: 'The paused preview shows everything at full opacity and without zoom, so all elements can be edited. The zoom area under the playhead is marked with a dashed frame. Fades and zoom are shown while playing and in the export.'
+					text: 'The paused preview shows everything at full opacity and without zoom, so all elements can be edited. The zoom area under the playhead is marked with a dashed frame. Fades, self-drawing shapes and zoom are shown while playing and in the export.'
 				}
 			}
 		},
@@ -380,7 +380,16 @@ const help = {
 				},
 				shapes: {
 					title: 'Arrow, line, frame, ellipse',
-					text: 'Point at or mark something. Color and line width are set in the properties; a line can be dashed, a frame can get rounded corners.'
+					text: 'Point at or mark something. Color and line width (1 px up to a tenth of the canvas height; the arrowhead grows along) are set in the properties; a line can be dashed, a frame can get rounded corners.'
+				},
+				pen: {
+					title: 'Hand-drawn and drawing itself',
+					text: 'Arrow, line, frame and ellipse can look as if drawn with a pen and draw themselves when they appear – e.g. circling something on screen.',
+					options: {
+						sketch: { label: 'Hand-drawn', text: 'Slightly irregular strokes: an ellipse circles a bit more than once with an overshoot, a frame consists of four strokes reaching over the corners, arrow and line curve slightly and the arrowhead is drawn open. The irregularity is fixed per element, so it looks the same in preview and export and does not change when you move it; a copy gets its own.' },
+						drawIn: { label: 'Draw in', text: 'Time in seconds in which the shape draws itself after its start (0 = appears at once). An exact arrow draws its shaft first, then the head appears. Dashed lines stay dashed. In the paused preview the shape is always complete; it draws while playing and in the export.' }
+					},
+					tip: 'To circle something: ellipse, hand-drawn, draw in 0.5–0.8 s and set the fade-in to 0, so the stroke appears fully colored. Faster than 0.3 s hardly reads as drawing, slower than 1.5 s feels sluggish. An arrow drawing itself in about 0.4 s points the eye in the right direction.'
 				},
 				highlight: {
 					title: 'Highlighter',
@@ -391,14 +400,18 @@ const help = {
 					text: 'Draws the eye to an area by toning down everything outside it – also clips and annotations on lower tracks. Darkening and blurring work on their own or together.',
 					options: {
 						color: { label: 'Color', text: 'Darkens (or tints) the surroundings. The opacity of the color is the strength (default black at 60 %); 0 % turns darkening off.' },
-						blur: { label: 'Blur', text: 'Blurs the surroundings, in canvas pixels; 0 px (default) turns it off. Higher values make the rest unrecognizable.' }
+						blur: { label: 'Blur', text: 'Blurs the surroundings, in canvas pixels; 0 px (default) turns it off. Higher values make the rest unrecognizable.' },
+						shape: { label: 'Shape', text: 'Rectangle (with corner radius; a large radius gives a pill shape) or ellipse filling the frame – with an equally wide and high frame a circle.' }
 					},
-					tip: 'Darkening at 40–60 % is the clearest guide and keeps the rest readable. Blur only (opacity 0 %) when the surroundings should keep their colors, e.g. a busy desktop next to a dialog. Both together when a restless background still draws attention; then a weaker darkening (20–40 %) is enough.'
+					tip: 'Darkening at 40–60 % is the clearest guide and keeps the rest readable. Blur only (opacity 0 %) when the surroundings should keep their colors, e.g. a busy desktop next to a dialog. Both together when a restless background still draws attention; then a weaker darkening (20–40 %) is enough. Ellipse for faces, webcam areas and round icons; rectangle with a small radius for buttons, fields and windows.'
 				},
 				blur: {
 					title: 'Blur',
 					text: 'Blurs the marked area, e.g. passwords, e-mail addresses or names – also clips and annotations on lower tracks. To blur everything except an area, use the spotlight.',
-					tip: 'For sensitive data, use a high strength and make the area a bit larger than the text, and check the result frame by frame in the export.'
+					options: {
+						shape: { label: 'Shape', text: 'Rectangle (with corner radius) or ellipse filling the frame.' }
+					},
+					tip: 'For sensitive data, use a high strength and make the area a bit larger than the text, and check the result frame by frame in the export. For text, the rectangle is the safest shape – an ellipse leaves the corners sharp. Ellipse for faces.'
 				},
 				step: {
 					title: 'Step',

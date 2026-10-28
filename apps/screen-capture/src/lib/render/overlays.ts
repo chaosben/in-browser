@@ -1,9 +1,10 @@
-import { hasShadow, type Annotation, type CalloutAnnotation, type Point, type Rect, type TextAnnotation } from '#lib/project/types.js';
+import { hasShadow, isDrawable, type Annotation, type BlurAnnotation, type DrawableAnnotation, type CalloutAnnotation, type SpotlightAnnotation, type Point, type Rect, type TextAnnotation } from '#lib/project/types.js';
 import { fadeAlpha } from '#lib/timeline/ops.js';
 import { parseColor } from '#lib/util/color.js';
 import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
 import { iconPicture, imagePicture } from './images.svelte.js';
+import { arrowHead, partialStrokes, strokesOf } from './sketch.js';
 
 
 const LINE_HEIGHT = 1.25;
@@ -16,6 +17,50 @@ function blurCopy(ctx: Ctx2D, radius: number) {
 	ctx.drawImage(ctx.canvas as CanvasImageSource, 0, 0);
 }
 
+function fillArrowHead(ctx: Ctx2D, x: number, y: number, angle: number, head: number) {
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x - Math.cos(angle - 0.45) * head, y - Math.sin(angle - 0.45) * head);
+	ctx.lineTo(x - Math.cos(angle + 0.45) * head, y - Math.sin(angle + 0.45) * head);
+	ctx.closePath();
+	ctx.fill();
+}
+
+/** Hand-drawn or partly drawn arrow, line, frame or ellipse, as one path of polylines */
+function drawPen(ctx: Ctx2D, a: DrawableAnnotation, W: number, H: number, progress: number) {
+	// An exact arrow draws its shaft first; its filled head appears at the end
+	const exactArrow = a.kind === 'arrow' && !a.sketch;
+	const strokes = partialStrokes(strokesOf(a, W, H), exactArrow ? progress / 0.85 : progress);
+	const lw = a.width * H;
+	if (a.shadow) shadow(ctx, H);
+	ctx.strokeStyle = ctx.fillStyle = a.color;
+	ctx.lineWidth = lw;
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+	if (a.kind === 'line' && a.dashed) ctx.setLineDash([2 * lw, 3 * lw]);
+	ctx.beginPath();
+	for (const stroke of strokes) {
+		stroke.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+	}
+	ctx.stroke();
+	if (exactArrow && progress >= 0.85) {
+		const x1 = a.from.x * W;
+		const y1 = a.from.y * H;
+		const x2 = a.to.x * W;
+		const y2 = a.to.y * H;
+		const len = Math.hypot(x2 - x1, y2 - y1);
+		if (len >= 1) fillArrowHead(ctx, x2, y2, Math.atan2(y2 - y1, x2 - x1), arrowHead(lw, len, H));
+	}
+}
+
+/** Outline of a spotlight or blur area (adds to the current path) */
+function areaPath(ctx: Ctx2D, a: SpotlightAnnotation | BlurAnnotation, x: number, y: number, w: number, h: number, H: number) {
+	if (a.shape === 'ellipse') {
+		ctx.moveTo(x + w, y + h / 2);
+		ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, 2 * Math.PI);
+	} else ctx.roundRect(x, y, w, h, Math.min(a.radius * H, w / 2, h / 2));
+}
+
 export function overlayAlpha(a: Annotation, t: number): number {
 	return fadeAlpha(t, a.start, a.end, a.fadeIn, a.fadeOut);
 }
@@ -24,7 +69,8 @@ export function overlayAlpha(a: Annotation, t: number): number {
  * Draws an annotation. `ctx` already has the zoom transform; coordinates are canvas pixels
  * (W × H) in content space.
  */
-export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alpha: number) {
+/** `progress`: how far a self-drawing shape is drawn (0…1, see `drawProgress`) */
+export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alpha: number, progress = 1) {
 	if (alpha <= 0) return;
 	if (alpha < 1 && hasShadow(a) && a.shadow) {
 		// Shape and shadow fade separately, so the shadow would shine through the translucent shape:
@@ -35,7 +81,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			layer.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
 			layer.setTransform(ctx.getTransform());
 			layer.imageSmoothingQuality = ctx.imageSmoothingQuality;
-			drawOverlay(layer, a, W, H, 1);
+			drawOverlay(layer, a, W, H, 1, progress);
 			ctx.save();
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.globalAlpha = alpha;
@@ -47,21 +93,24 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 	ctx.save();
 	ctx.globalAlpha = alpha;
 	const px = (r: Rect) => [r.x * W, r.y * H, r.w * W, r.h * H] as const;
+	if (isDrawable(a) && (a.sketch || progress < 1)) {
+		drawPen(ctx, a, W, H, progress);
+		ctx.restore();
+		return;
+	}
 
 	switch (a.kind) {
 		case 'blur': {
-			const [x, y, w, h] = px(a.rect);
 			ctx.beginPath();
-			ctx.rect(x, y, w, h);
+			areaPath(ctx, a, ...px(a.rect), H);
 			ctx.clip();
 			blurCopy(ctx, a.strength * H);
 			break;
 		}
 		case 'spotlight': {
-			const [x, y, w, h] = px(a.rect);
 			ctx.beginPath();
 			ctx.rect(-W, -H, 3 * W, 3 * H);
-			ctx.roundRect(x, y, w, h, 0.01 * H);
+			areaPath(ctx, a, ...px(a.rect), H);
 			if (a.blur > 0) {
 				ctx.save();
 				ctx.clip('evenodd');
@@ -140,7 +189,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			const lw = a.width * H;
 			const len = Math.hypot(x2 - x1, y2 - y1);
 			if (len < 1) break;
-			const head = Math.min(Math.max(lw * 3.5, 0.02 * H), len * 0.6);
+			const head = arrowHead(lw, len, H);
 			const angle = Math.atan2(y2 - y1, x2 - x1);
 			const bx = x2 - Math.cos(angle) * head * 0.8;
 			const by = y2 - Math.sin(angle) * head * 0.8;
@@ -152,12 +201,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			ctx.moveTo(x1, y1);
 			ctx.lineTo(bx, by);
 			ctx.stroke();
-			ctx.beginPath();
-			ctx.moveTo(x2, y2);
-			ctx.lineTo(x2 - Math.cos(angle - 0.45) * head, y2 - Math.sin(angle - 0.45) * head);
-			ctx.lineTo(x2 - Math.cos(angle + 0.45) * head, y2 - Math.sin(angle + 0.45) * head);
-			ctx.closePath();
-			ctx.fill();
+			fillArrowHead(ctx, x2, y2, angle, head);
 			break;
 		}
 		case 'image': {

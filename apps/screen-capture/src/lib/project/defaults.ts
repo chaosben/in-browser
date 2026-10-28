@@ -44,21 +44,21 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 	const base = overlayBase(start, end);
 	switch (kind) {
 		case 'arrow':
-			return { ...base, kind, from: { x: 0.3, y: 0.3 }, to: { x: 0.48, y: 0.48 }, color: '#ef4444', width: 0.007 };
+			return { ...base, kind, from: { x: 0.3, y: 0.3 }, to: { x: 0.48, y: 0.48 }, color: '#ef4444', width: 0.007, sketch: false, drawIn: 0 };
 		case 'line':
-			return { ...base, kind, from: { x: 0.3, y: 0.6 }, to: { x: 0.7, y: 0.6 }, color: '#ef4444', width: 0.005, dashed: false };
+			return { ...base, kind, from: { x: 0.3, y: 0.6 }, to: { x: 0.7, y: 0.6 }, color: '#ef4444', width: 0.005, dashed: false, sketch: false, drawIn: 0 };
 		case 'rect':
-			return { ...base, kind, rect: { x: 0.35, y: 0.38, w: 0.3, h: 0.24 }, color: '#ef4444', width: 0.005, radius: 0.01 };
+			return { ...base, kind, rect: { x: 0.35, y: 0.38, w: 0.3, h: 0.24 }, color: '#ef4444', width: 0.005, radius: 0.01, sketch: false, drawIn: 0 };
 		case 'ellipse':
-			return { ...base, kind, rect: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }, color: '#ef4444', width: 0.005 };
+			return { ...base, kind, rect: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }, color: '#ef4444', width: 0.005, sketch: false, drawIn: 0 };
 		case 'step':
 			return { ...base, kind, x: 0.5, y: 0.5, size: 0.07, number: step, color: '#ef4444' };
 		case 'highlight':
 			return { ...base, kind, rect: { x: 0.35, y: 0.46, w: 0.3, h: 0.08 }, color: '#facc1566' };
 		case 'spotlight':
-			return { ...base, kind, rect: { x: 0.3, y: 0.3, w: 0.4, h: 0.4 }, color: '#00000099', blur: 0 };
+			return { ...base, kind, rect: { x: 0.3, y: 0.3, w: 0.4, h: 0.4 }, color: '#00000099', blur: 0, shape: 'rect', radius: 0.01 };
 		case 'blur':
-			return { ...base, kind, rect: { x: 0.4, y: 0.44, w: 0.2, h: 0.12 }, strength: 0.012 };
+			return { ...base, kind, rect: { x: 0.4, y: 0.44, w: 0.2, h: 0.12 }, strength: 0.012, shape: 'rect', radius: 0 };
 		case 'text':
 			return {
 				...base,

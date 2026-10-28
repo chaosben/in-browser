@@ -55,14 +55,14 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 			case 'ellipse':
 				return { ...a, rect: rect(a.rect), width: a.width * sy };
 			case 'spotlight':
-				return { ...a, rect: rect(a.rect), blur: a.blur * sy };
+				return { ...a, rect: rect(a.rect), blur: a.blur * sy, radius: a.radius * sy };
 			case 'highlight':
 			case 'icon':
 				return { ...a, rect: rect(a.rect) };
 			case 'image':
 				return { ...a, rect: rect(a.rect), radius: a.radius * sy };
 			case 'blur':
-				return { ...a, rect: rect(a.rect), strength: a.strength * sy };
+				return { ...a, rect: rect(a.rect), strength: a.strength * sy, radius: a.radius * sy };
 			case 'step':
 				return { ...a, ...point(a), size: a.size * sy };
 			case 'text':

@@ -1,6 +1,6 @@
 import { anchorFactors } from '#lib/media/content.js';
-import type { Anchor, ClipShape, Rect, Timeline } from '#lib/project/types.js';
-import { fadeAlpha, itemEnd, itemsAt, trackState, viewAt } from '#lib/timeline/ops.js';
+import { isDrawable, type Anchor, type ClipShape, type Rect, type Timeline } from '#lib/project/types.js';
+import { drawProgress, fadeAlpha, itemEnd, itemsAt, trackState, viewAt } from '#lib/timeline/ops.js';
 import { drawOverlay, overlayAlpha } from './overlays.js';
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -52,7 +52,9 @@ export function renderFrame(ctx: Ctx2D, width: number, height: number, scene: Sc
 	for (const item of itemsAt(scene.timeline, scene.t)) {
 		if (trackState(scene.timeline, item.track).hidden) continue;
 		if (item.type === 'annotation') {
-			drawOverlay(ctx, item, width, height, scene.fades === false ? 1 : overlayAlpha(item, scene.t));
+			const still = scene.fades === false;
+			const progress = still || !isDrawable(item) ? 1 : drawProgress(scene.t, item.start, item.drawIn);
+			drawOverlay(ctx, item, width, height, still ? 1 : overlayAlpha(item, scene.t), progress);
 			continue;
 		}
 		const frame = scene.frames.get(item.id);

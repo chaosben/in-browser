@@ -332,6 +332,10 @@ const en = {
 		shapeRect: 'Rectangle',
 		shapeRounded: 'Rounded',
 		shapeCircle: 'Circle',
+		shapeEllipse: 'Ellipse',
+		sketch: 'Hand-drawn',
+		drawIn: 'Draw in',
+		areaShape: 'Shape',
 		windowPosition: 'Window position',
 		windowPositionHint: 'Where the window sits while it is smaller than its largest size.',
 		anchors: {

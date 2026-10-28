@@ -345,6 +345,10 @@ const de: Messages = {
 		shapeRect: 'Rechteck',
 		shapeRounded: 'Abgerundet',
 		shapeCircle: 'Kreis',
+		shapeEllipse: 'Ellipse',
+		sketch: 'Handgezeichnet',
+		drawIn: 'Zeichnen',
+		areaShape: 'Form',
 		windowPosition: 'Fensterposition',
 		windowPositionHint: 'Wo das Fenster steht, solange es kleiner als seine größte Ausdehnung ist.',
 		anchors: {

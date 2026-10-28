@@ -113,7 +113,15 @@ interface Shadowed {
 	shadow: boolean;
 }
 
-export interface ArrowAnnotation extends AnnotationBase, Shadowed {
+/** Strokes that can look hand-drawn and draw themselves */
+interface Drawable {
+	/** Slightly irregular, like drawn with a pen (fixed per element) */
+	sketch: boolean;
+	/** Seconds in which the shape draws itself after its start (0: appears at once) */
+	drawIn: number;
+}
+
+export interface ArrowAnnotation extends AnnotationBase, Shadowed, Drawable {
 	kind: 'arrow';
 	from: Point;
 	to: Point;
@@ -121,7 +129,7 @@ export interface ArrowAnnotation extends AnnotationBase, Shadowed {
 	width: number;
 }
 
-export interface LineAnnotation extends AnnotationBase, Shadowed {
+export interface LineAnnotation extends AnnotationBase, Shadowed, Drawable {
 	kind: 'line';
 	from: Point;
 	to: Point;
@@ -130,7 +138,7 @@ export interface LineAnnotation extends AnnotationBase, Shadowed {
 	dashed: boolean;
 }
 
-export interface RectAnnotation extends AnnotationBase, Shadowed {
+export interface RectAnnotation extends AnnotationBase, Shadowed, Drawable {
 	kind: 'rect';
 	rect: Rect;
 	color: string;
@@ -138,7 +146,7 @@ export interface RectAnnotation extends AnnotationBase, Shadowed {
 	radius: number;
 }
 
-export interface EllipseAnnotation extends AnnotationBase, Shadowed {
+export interface EllipseAnnotation extends AnnotationBase, Shadowed, Drawable {
 	kind: 'ellipse';
 	rect: Rect;
 	color: string;
@@ -165,18 +173,26 @@ export interface HighlightAnnotation extends AnnotationBase {
 	color: string;
 }
 
-export interface SpotlightAnnotation extends AnnotationBase {
-	kind: 'spotlight';
+/** Outline of a spotlight or blur area within its rect */
+export type AreaShape = 'rect' | 'ellipse';
+
+interface AreaBase extends AnnotationBase {
 	rect: Rect;
+	shape: AreaShape;
+	/** Corner radius of a `rect` shape as a fraction of the canvas height */
+	radius: number;
+}
+
+export interface SpotlightAnnotation extends AreaBase {
+	kind: 'spotlight';
 	/** Veil outside the area, color including opacity (`#rrggbbaa`) */
 	color: string;
 	/** Blur radius outside the area as a fraction of the canvas height, 0 = none */
 	blur: number;
 }
 
-export interface BlurAnnotation extends AnnotationBase {
+export interface BlurAnnotation extends AreaBase {
 	kind: 'blur';
-	rect: Rect;
 	/** Blur radius as a fraction of the canvas height */
 	strength: number;
 }
@@ -258,6 +274,15 @@ export type ToolKind = Exclude<AnnotationKind, 'image' | 'icon'>;
 export type ShadowedAnnotation = Extract<Annotation, Shadowed>;
 
 const SHADOWED: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse', 'step', 'text', 'callout', 'image', 'icon']);
+
+export type DrawableAnnotation = Extract<Annotation, Drawable>;
+
+const DRAWABLE: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse']);
+
+/** Annotations that can look hand-drawn and draw themselves */
+export function isDrawable(a: Annotation): a is DrawableAnnotation {
+	return DRAWABLE.has(a.kind);
+}
 
 /** Annotations with a switchable drop shadow (not highlight, spotlight and blur) */
 export function hasShadow(a: Annotation): a is ShadowedAnnotation {
@@ -359,6 +384,10 @@ function fillItem(item: Item): Item {
 	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.radius !== 'number') patch.radius = 0.3 * item.size;
 	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.padding !== 'number') patch.padding = 0.4 * item.size;
 	if (item.kind === 'spotlight' && typeof raw.blur !== 'number') patch.blur = 0;
+	if (isDrawable(item) && typeof raw.sketch !== 'boolean') patch.sketch = false;
+	if (isDrawable(item) && typeof raw.drawIn !== 'number') patch.drawIn = 0;
+	if ((item.kind === 'spotlight' || item.kind === 'blur') && raw.shape !== 'ellipse' && raw.shape !== 'rect') patch.shape = 'rect';
+	if ((item.kind === 'spotlight' || item.kind === 'blur') && typeof raw.radius !== 'number') patch.radius = item.kind === 'spotlight' ? 0.01 : 0;
 	// Text used to get a shadow only without a background
 	if (hasShadow(item) && typeof raw.shadow !== 'boolean') patch.shadow = item.kind === 'text' ? !item.background : true;
 	// Formerly one switch for both ends with a fixed 0.2 s

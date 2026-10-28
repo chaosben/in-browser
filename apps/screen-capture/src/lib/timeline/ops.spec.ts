@@ -9,6 +9,7 @@ import {
 	clipsAt,
 	duration,
 	clampFade,
+	drawProgress,
 	fadeAlpha,
 	fadeEdges,
 	group,
@@ -547,5 +548,17 @@ describe('pasteItems', () => {
 		expect(copies[0].group).toBeDefined();
 		expect(copies[0].group).toBe(copies[1].group);
 		expect(copies[0].group).not.toBe('g');
+	});
+});
+
+describe('drawProgress', () => {
+	it('draws within drawIn seconds after the start', () => {
+		expect(drawProgress(1, 1, 0.5)).toBe(0);
+		expect(drawProgress(1.25, 1, 0.5)).toBe(0.5);
+		expect(drawProgress(3, 1, 0.5)).toBe(1);
+	});
+	it('without drawIn the shape is there at once', () => {
+		expect(drawProgress(1, 1, 0)).toBe(1);
+		expect(drawProgress(1, 1)).toBe(1);
 	});
 });

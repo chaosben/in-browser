@@ -308,7 +308,7 @@ const help: typeof enHelp = {
 				},
 				paused: {
 					title: 'Im Stillstand',
-					text: 'Angehalten zeigt die Vorschau alles mit voller Deckkraft und ohne Zoom, damit du alle Elemente bearbeiten kannst. Der Zoom-Ausschnitt unter dem Abspielkopf ist gestrichelt markiert. Blenden und Zoom siehst du beim Abspielen und im Export.'
+					text: 'Angehalten zeigt die Vorschau alles mit voller Deckkraft und ohne Zoom, damit du alle Elemente bearbeiten kannst. Der Zoom-Ausschnitt unter dem Abspielkopf ist gestrichelt markiert. Blenden, sich selbst zeichnende Formen und Zoom siehst du beim Abspielen und im Export.'
 				}
 			}
 		},
@@ -358,7 +358,16 @@ const help: typeof enHelp = {
 				},
 				shapes: {
 					title: 'Pfeil, Linie, Rahmen, Ellipse',
-					text: 'Zeigen auf etwas oder markieren es. Farbe und Linienstärke stellst du in den Eigenschaften ein; eine Linie kann gestrichelt sein, ein Rahmen abgerundete Ecken bekommen.'
+					text: 'Zeigen auf etwas oder markieren es. Farbe und Linienstärke (1 px bis zu einem Zehntel der Leinwandhöhe; die Pfeilspitze wächst mit) stellst du in den Eigenschaften ein; eine Linie kann gestrichelt sein, ein Rahmen abgerundete Ecken bekommen.'
+				},
+				pen: {
+					title: 'Handgezeichnet und selbst zeichnend',
+					text: 'Pfeil, Linie, Rahmen und Ellipse können aussehen wie mit dem Stift gezeichnet und sich beim Erscheinen selbst zeichnen – etwa um etwas auf dem Bildschirm einzukreisen.',
+					options: {
+						sketch: { label: 'Handgezeichnet', text: 'Leicht unregelmäßige Striche: Eine Ellipse kreist etwas mehr als einmal mit Überschwung, ein Rahmen besteht aus vier Strichen, die über die Ecken hinausragen, Pfeil und Linie sind leicht gebogen, die Pfeilspitze ist offen gezeichnet. Die Unregelmäßigkeit ist je Element fest – in Vorschau und Export gleich und beim Verschieben unverändert; eine Kopie bekommt ihre eigene.' },
+						drawIn: { label: 'Zeichnen', text: 'Zeit in Sekunden, in der sich die Form nach ihrem Start selbst zeichnet (0 = erscheint sofort). Ein exakter Pfeil zieht zuerst den Schaft, dann erscheint die Spitze. Gestrichelte Linien bleiben gestrichelt. In der angehaltenen Vorschau ist die Form immer vollständig; gezeichnet wird beim Abspielen und im Export.' }
+					},
+					tip: 'Zum Einkreisen: Ellipse, Handgezeichnet, Zeichnen 0,5–0,8 s und das Einblenden auf 0 stellen, damit der Strich gleich in voller Farbe erscheint. Schneller als 0,3 s wirkt kaum noch wie Zeichnen, langsamer als 1,5 s zäh. Ein Pfeil, der sich in etwa 0,4 s zeichnet, lenkt den Blick in die richtige Richtung.'
 				},
 				highlight: {
 					title: 'Textmarker',
@@ -369,14 +378,18 @@ const help: typeof enHelp = {
 					text: 'Lenkt den Blick auf einen Bereich, indem es alles außerhalb zurücknimmt – auch Clips und Markierungen auf tieferen Spuren. Abdunkeln und Weichzeichnen wirken einzeln oder zusammen.',
 					options: {
 						color: { label: 'Farbe', text: 'Dunkelt die Umgebung ab (oder färbt sie ein). Die Deckkraft der Farbe ist die Stärke (Standard Schwarz mit 60 %); 0 % schaltet das Abdunkeln aus.' },
-						blur: { label: 'Weichzeichnen', text: 'Macht die Umgebung unscharf, in Leinwand-Pixeln; 0 px (Standard) schaltet es aus. Hohe Werte machen den Rest unkenntlich.' }
+						blur: { label: 'Weichzeichnen', text: 'Macht die Umgebung unscharf, in Leinwand-Pixeln; 0 px (Standard) schaltet es aus. Hohe Werte machen den Rest unkenntlich.' },
+						shape: { label: 'Form', text: 'Rechteck (mit Eckenradius; ein großer Radius ergibt eine Pillenform) oder Ellipse, die den Rahmen füllt – bei gleich breitem und hohem Rahmen ein Kreis.' }
 					},
-					tip: 'Abdunkeln mit 40–60 % führt am klarsten und lässt den Rest lesbar. Nur weichzeichnen (Deckkraft 0 %), wenn die Umgebung ihre Farben behalten soll, etwa ein voller Desktop neben einem Dialog. Beides zusammen, wenn ein unruhiger Hintergrund trotzdem ablenkt; dann reicht schwächeres Abdunkeln (20–40 %).'
+					tip: 'Abdunkeln mit 40–60 % führt am klarsten und lässt den Rest lesbar. Nur weichzeichnen (Deckkraft 0 %), wenn die Umgebung ihre Farben behalten soll, etwa ein voller Desktop neben einem Dialog. Beides zusammen, wenn ein unruhiger Hintergrund trotzdem ablenkt; dann reicht schwächeres Abdunkeln (20–40 %). Ellipse für Gesichter, Webcam-Bereiche und runde Symbole; Rechteck mit kleinem Radius für Knöpfe, Felder und Fenster.'
 				},
 				blur: {
 					title: 'Weichzeichnen',
 					text: 'Macht den markierten Bereich unscharf, etwa Passwörter, E-Mail-Adressen oder Namen – auch Clips und Markierungen auf tieferen Spuren. Soll alles außer einem Bereich unscharf werden, nimm das Spotlight.',
-					tip: 'Für vertrauliche Daten: hohe Stärke, den Bereich etwas größer als den Text ziehen und das Ergebnis im Export Bild für Bild prüfen.'
+					options: {
+						shape: { label: 'Form', text: 'Rechteck (mit Eckenradius) oder Ellipse, die den Rahmen füllt.' }
+					},
+					tip: 'Für vertrauliche Daten: hohe Stärke, den Bereich etwas größer als den Text ziehen und das Ergebnis im Export Bild für Bild prüfen. Für Text ist das Rechteck die sicherste Form – eine Ellipse lässt die Ecken scharf. Ellipse für Gesichter.'
 				},
 				step: {
 					title: 'Schritt',

@@ -9,8 +9,10 @@
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import {
 		hasShadow,
+		isDrawable,
 		type Annotation,
 		type Clip,
+		type AreaShape,
 		type ClipShape,
 		type FontId,
 		type TextAlign,
@@ -120,6 +122,11 @@
 		{ value: 'rect', label: m.inspector.shapeRect, icon: 'icon-[material-symbols-light--crop-landscape-outline]' },
 		{ value: 'rounded', label: m.inspector.shapeRounded, icon: 'icon-[material-symbols-light--rounded-corner]' },
 		{ value: 'circle', label: m.inspector.shapeCircle, icon: 'icon-[material-symbols-light--circle-outline]' }
+	];
+
+	const AREA_SHAPES: { value: AreaShape; label: string; icon: string }[] = [
+		{ value: 'rect', label: m.inspector.shapeRect, icon: 'icon-[material-symbols-light--crop-landscape-outline]' },
+		{ value: 'ellipse', label: m.inspector.shapeEllipse, icon: 'icon-[material-symbols-light--circle-outline]' }
 	];
 
 	const ALIGNS: { value: TextAlign; label: string; icon: string }[] = [
@@ -423,7 +430,7 @@
 				{@render color(m.inspector.color, o.color, (v, final) => setColor('color', v ?? o.color, final))}
 			{/if}
 			{#if o.kind === 'arrow' || o.kind === 'rect' || o.kind === 'ellipse' || o.kind === 'line'}
-				{@render pixels(m.inspector.lineWidth, o.width, 0.002, 0.02, (v) => setOverlay({ width: v }, 'width'))}
+				{@render pixels(m.inspector.lineWidth, o.width, 1 / editor.project.height, 0.1, (v) => setOverlay({ width: v }, 'width'))}
 			{/if}
 			{#if o.kind === 'line'}
 				{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
@@ -437,11 +444,38 @@
 			{#if o.kind === 'image'}
 				{@render pixels(m.inspector.radius, o.radius, 0, 0.1, (v) => setOverlay({ radius: v }, 'radius'))}
 			{/if}
+			{#if o.kind === 'spotlight' || o.kind === 'blur'}
+				<InspectorField label={m.inspector.areaShape} keywords={AREA_SHAPES.map((shape) => shape.label)}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.areaShape}</span>
+						<div class="join">
+							{#each AREA_SHAPES as shape (shape.value)}
+								<button
+									class="btn btn-sm join-item flex-1 {o.shape === shape.value ? 'btn-primary' : ''}"
+									onclick={() => {
+										setOverlay({ shape: shape.value }, 'shape');
+										end();
+									}}
+								>
+									<span class="{shape.icon} size-5" aria-hidden="true"></span>
+									{shape.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+				</InspectorField>
+				{#if o.shape === 'rect'}
+					{@render pixels(m.inspector.radius, o.radius, 0, 0.5, (v) => setOverlay({ radius: v }, 'radius'))}
+				{/if}
+			{/if}
 			{#if o.kind === 'spotlight'}
 				{@render pixels(m.inspector.spotlightBlur, o.blur, 0, 0.05, (v) => setOverlay({ blur: v }, 'blur'))}
 			{/if}
 			{#if o.kind === 'blur'}
 				{@render pixels(m.inspector.strength, o.strength, 0.002, 0.05, (v) => setOverlay({ strength: v }, 'strength'))}
+			{/if}
+			{#if isDrawable(o)}
+				{@render checkbox(m.inspector.sketch, o.sketch, (v) => setOverlay({ sketch: v }, 'sketch'))}
 			{/if}
 			{#if hasShadow(o)}
 				{@render checkbox(m.inspector.shadow, o.shadow, (v) => setOverlay({ shadow: v }, 'shadow'))}
@@ -470,6 +504,22 @@
 				o.start,
 				o.end
 			)}
+			{#if isDrawable(o)}
+				<!-- 0: appears at once; the shape draws itself while playing and in the export -->
+				<InspectorField label={m.inspector.drawIn}>
+					<NumberField
+						label={m.inspector.drawIn}
+						value={o.drawIn}
+						unit="s"
+						min={0}
+						max={Math.max(0, o.end - o.start)}
+						step={0.1}
+						decimals={2}
+						oninput={(v) => setOverlay({ drawIn: Math.min(v, o.end - o.start) }, 'drawIn')}
+						oncommit={end}
+					/>
+				</InspectorField>
+			{/if}
 		</InspectorSection>
 	{:else if zoom}
 		{@const z = zoom}

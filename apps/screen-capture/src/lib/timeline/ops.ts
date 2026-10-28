@@ -654,6 +654,12 @@ export function fadeEdges(start: number, end: number, fadeIn = 0, fadeOut = 0): 
 	return [start + fin * k, end - fout * k];
 }
 
+/** How far a self-drawing shape is drawn at `t`: 0…1 within `drawIn` seconds after `start` (0: at once) */
+export function drawProgress(t: number, start: number, drawIn = 0): number {
+	if (!(drawIn > 0)) return 1;
+	return Math.min(1, Math.max(0, (t - start) / drawIn));
+}
+
 /** Largest allowed duration of one fade so both together never exceed the element's `duration` */
 export function clampFade(value: number, other: number, duration: number): number {
 	return Math.max(0, Math.min(value, duration - Math.max(other, 0)));
