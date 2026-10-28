@@ -147,6 +147,7 @@ const de: Messages = {
 		savedToFolder: (name) => `Projekt im Ordner „${name}“ gespeichert`,
 		export: 'Exportieren',
 		recordingAdded: 'Aufnahme hinzugefügt',
+		importedToBin: (n: number) => (n === 1 ? 'Zur Medienablage hinzugefügt' : `${n} Dateien zur Medienablage hinzugefügt`),
 		largerMedia: (size, canvas) => `Das neue Material (${size}) ist größer als die Leinwand (${canvas}).`,
 		growCanvas: 'Leinwand vergrößern',
 		add: (what) => `${what} hinzufügen`,
@@ -174,7 +175,7 @@ const de: Messages = {
 	tools: {
 		groups: { media: 'Medien', annotations: 'Markierungen', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
 		collapse: 'Seitenleiste einklappen',
-		dropHint: 'Oder Video-, Audio- und Bilddateien einfach auf den Editor ziehen.'
+		dropHint: 'Oder Video-, Audio- und Bilddateien auf den Editor ziehen: Sie landen in der Medienablage, auf der Timeline abgelegt werden sie dort eingefügt.'
 	},
 
 	icons: {

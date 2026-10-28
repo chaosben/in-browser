@@ -49,6 +49,7 @@
 		split,
 		viewAt
 	} from '#lib/timeline/ops.js';
+	import { toolState } from '#lib/tools/state.svelte.js';
 	import { toast } from '#lib/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
@@ -285,26 +286,41 @@
 		toast(m.editor.recordingAdded, 'success');
 	}
 
+	/** Source from the media bin into the timeline: at the drop time, otherwise at the playhead */
+	function insertSource(sourceId: string, at: DropPlace) {
+		if (!editor || !player) return;
+		editor.insertSource(sourceId, at.start ?? player.time);
+		if (at.start !== undefined) player.seek(at.start);
+	}
+
 	/**
-	 * Imports files. Audio files start at `place.start` (default: start of the timeline), images go there or to
-	 * the dropped point (default: playhead, centered); videos are appended at the end.
+	 * Imports files into the media bin. Dropped onto the timeline or the preview (`place`), each one is also
+	 * inserted there, just like an entry dragged from the bin.
 	 */
-	async function importFiles(files: FileList | File[] | null | undefined, place: DropPlace = {}) {
+	async function importFiles(files: FileList | File[] | null | undefined, place?: DropPlace) {
 		const all = Array.from(files ?? []);
 		const media = all.filter((f) => isMediaFile(f) || isImageFile(f));
 		if (!media.length || !editor) return;
 		try {
+			let added = 0;
 			for (const file of media) {
 				importing = { name: file.name, progress: 0 };
 				if (isImageFile(file)) {
 					const image = await importImage(editor.project.id, file);
 					editor.addImage(image);
-					addImage(image.id, place);
-					continue;
+					if (place) addImage(image.id, place);
+				} else {
+					const source = await importFile(editor.project.id, file, (p) => (importing!.progress = p));
+					editor.addSource(source);
+					await sourcesAdded();
+					if (place) insertSource(source.id, place);
 				}
-				const source = await importFile(editor.project.id, file, (p) => (importing!.progress = p));
-				editor.addSource(source, place.start ?? 0);
-				await sourcesAdded();
+				added++;
+			}
+			if (!place) {
+				// Only in the bin: show it there
+				toolState.group = 'media';
+				toast(m.editor.importedToBin(added), 'success');
 			}
 		} catch (e) {
 			toast(errorMessage(e), 'error', 8000);
@@ -422,10 +438,7 @@
 		else if (payload.type === 'zoom') addZoomSegment(at);
 		else if (payload.type === 'image') addImage(payload.id, at);
 		else if (payload.type === 'icon') addIcon(payload.icon, at);
-		else {
-			editor.insertSource(payload.id, at.start ?? player.time);
-			if (at.start !== undefined) player.seek(at.start);
-		}
+		else insertSource(payload.id, at);
 	}
 
 	function onDrop(e: DragEvent) {
@@ -439,11 +452,11 @@
 		}
 		if (!e.dataTransfer?.files.length) return;
 		e.preventDefault();
-		// Dragged onto the timeline: audio files and images start at the drop position; images dropped onto the
-		// preview land at that spot
+		// Onto the timeline: inserted at the drop time; onto the preview: at the playhead (images at that spot);
+		// anywhere else only into the media bin
 		const zone = dropZone(e);
-		const place: DropPlace =
-			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : zone === 'preview' ? { point: previewPoint(e) } : {};
+		const place: DropPlace | undefined =
+			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : zone === 'preview' ? { point: previewPoint(e) } : undefined;
 		importFiles(e.dataTransfer.files, place);
 	}
 </script>

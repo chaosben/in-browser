@@ -8,6 +8,7 @@
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { ZOOM_ICON } from '#lib/project/defaults.js';
+	import { snapAspect, snapLine, snapMove, snapPoint, snapTargets, type Guides, type Tolerance } from '#lib/preview/snap.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
 
 	interface Props {
@@ -20,8 +21,12 @@
 	type Corner = 'nw' | 'ne' | 'sw' | 'se';
 	const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
 	const MIN_SIZE = 0.01;
+	/** Snap distance in screen pixels */
+	const SNAP_PX = 6;
 
 	let layer: HTMLDivElement;
+	/** Lines snapped to during a drag */
+	let guides = $state<Guides | null>(null);
 
 	const timeline = $derived(editor.project.timeline);
 	const selectedZoom = $derived(editor.selectedZoom);
@@ -70,8 +75,20 @@
 		return `left: ${px(r.x - padX)}; top: ${py(r.y - padY)}; width: ${pw(r.w + 2 * padX)}; height: ${ph(r.h + 2 * padY)}`;
 	}
 
-	/** Mouse drag; `onmove` receives the offset in content coordinates. */
-	function drag(e: PointerEvent, onmove: (dx: number, dy: number) => void) {
+	/** Lines to snap to: canvas and the other visible items under the playhead (locked ones too) */
+	function targetsFor(exclude?: string) {
+		const boxes = itemsAt(timeline, player.time)
+			.filter((item) => item.id !== exclude && !trackState(timeline, item.track).hidden)
+			.filter((item) => item.type === 'annotation' || !!editor.source(item.sourceId)?.hasVideo)
+			.map((item) => (item.type === 'annotation' ? bounds(item) : item.rect));
+		return snapTargets(boxes);
+	}
+
+	/**
+	 * Mouse drag; `onmove` receives the offset in content coordinates and the snap distance per axis (`null`
+	 * while Alt is held: free placement).
+	 */
+	function drag(e: PointerEvent, onmove: (dx: number, dy: number, tol: Tolerance | null) => void) {
 		if (e.button !== 0) return;
 		e.stopPropagation();
 		e.preventDefault();
@@ -81,9 +98,13 @@
 		const x0 = e.clientX;
 		const y0 = e.clientY;
 		const { w, h } = view;
-		const move = (ev: PointerEvent) =>
-			onmove(((ev.clientX - x0) / rect.width) * w, ((ev.clientY - y0) / rect.height) * h);
+		const tol = { x: (SNAP_PX / rect.width) * w, y: (SNAP_PX / rect.height) * h };
+		const move = (ev: PointerEvent) => {
+			guides = null;
+			onmove(((ev.clientX - x0) / rect.width) * w, ((ev.clientY - y0) / rect.height) * h, ev.altKey ? null : tol);
+		};
 		const up = () => {
+			guides = null;
 			el.removeEventListener('pointermove', move);
 			el.removeEventListener('pointerup', up);
 			el.removeEventListener('pointercancel', up);
@@ -107,7 +128,17 @@
 	function moveOverlay(e: PointerEvent, o: Annotation) {
 		editor.select('item', o.id);
 		const key = `move-${o.id}-${e.timeStamp}`;
-		drag(e, (dx, dy) => patchOverlay(o.id, moveAnnotation(o, dx, dy), key));
+		const b = bounds(o);
+		const targets = targetsFor(o.id);
+		drag(e, (dx, dy, tol) => {
+			if (tol) {
+				const s = snapMove({ ...b, x: b.x + dx, y: b.y + dy }, targets, tol);
+				dx += s.dx;
+				dy += s.dy;
+				guides = s.guides;
+			}
+			patchOverlay(o.id, moveAnnotation(o, dx, dy), key);
+		});
 	}
 
 	/** Move a corner of a rect, the opposite corner stays fixed. */
@@ -142,9 +173,12 @@
 
 	function resizeOverlay(e: PointerEvent, o: Annotation, corner: Corner) {
 		const key = `resize-${o.id}-${e.timeStamp}`;
-		drag(e, (dx, dy) => {
+		const targets = targetsFor(o.id);
+		drag(e, (dx, dy, tol) => {
 			if (o.kind === 'image' || o.kind === 'icon') {
-				return patchOverlay(o.id, { rect: resizedKeepingAspect(o.rect, corner, dx, dy, 0.01) }, key);
+				let rect = resizedKeepingAspect(o.rect, corner, dx, dy, 0.01);
+				if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, 0.01));
+				return patchOverlay(o.id, { rect }, key);
 			}
 			if (o.kind === 'arrow' || o.kind === 'line') return;
 			if (o.kind === 'text' || o.kind === 'callout') {
@@ -166,9 +200,22 @@
 				// The center stays, the corner sets the diameter
 				return resizeTo(o, Math.max(0.02, o.size + 2 * dy), key);
 			}
+			if (tol) {
+				// The dragged corner snaps; the opposite one stays
+				const r = o.rect;
+				const cx = corner.includes('w') ? r.x : r.x + r.w;
+				const cy = corner.includes('n') ? r.y : r.y + r.h;
+				const s = snapPoint({ x: cx + dx, y: cy + dy }, targets, tol);
+				dx = s.point.x - cx;
+				dy = s.point.y - cy;
+				guides = s.guides;
+			}
 			patchOverlay(o.id, { rect: resized(o.rect, corner, dx, dy) }, key);
 		});
 	}
+
+	/** Direction of a corner: 1 towards east/south, -1 towards west/north */
+	const sign = (corner: Corner, towards: 'e' | 's'): 1 | -1 => (corner.includes(towards) ? 1 : -1);
 
 	/** A side of a text box sets a fixed width, the text wraps inside; the opposite side stays */
 	function resizeWidth(e: PointerEvent, o: TextAnnotation | CalloutAnnotation, side: 'w' | 'e') {
@@ -176,7 +223,14 @@
 		const b = overlayBounds(o, W, H);
 		// At least about two characters wide
 		const min = (2 * o.size * H + (o.background ? 2 * o.padding * H : 0)) / W;
-		drag(e, (dx) => {
+		const targets = targetsFor(o.id);
+		drag(e, (dx, _dy, tol) => {
+			if (tol) {
+				const edge = side === 'e' ? b.x + b.w : b.x;
+				const s = snapLine(edge + dx, targets.xs, tol.x);
+				dx = s.value - edge;
+				guides = { x: s.line, y: null };
+			}
 			const boxWidth = Math.max(b.w + (side === 'e' ? dx : -dx), min);
 			patchOverlay(o.id, side === 'e' ? { boxWidth } : { boxWidth, x: b.x + b.w - boxWidth }, key);
 		});
@@ -187,7 +241,12 @@
 		const p = point === 'tip' ? (o.kind === 'callout' ? o.tip : null) : o.kind === 'arrow' || o.kind === 'line' ? o[point] : null;
 		if (!p) return;
 		const key = `point-${o.id}-${point}-${e.timeStamp}`;
-		drag(e, (dx, dy) => patchOverlay(o.id, { [point]: { x: p.x + dx, y: p.y + dy } }, key));
+		const targets = targetsFor(o.id);
+		drag(e, (dx, dy, tol) => {
+			let next = { x: p.x + dx, y: p.y + dy };
+			if (tol) ({ point: next, guides } = snapPoint(next, targets, tol));
+			patchOverlay(o.id, { [point]: next }, key);
+		});
 	}
 
 	// --- Clips: a click selects the front-most one (full-frame ones too); move and scale with fixed aspect ratio
@@ -205,13 +264,27 @@
 		editor.select('item', c.id);
 		const key = `clip-move-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
-		drag(e, (dx, dy) => editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + dx, y: r.y + dy } }), key));
+		const targets = targetsFor(c.id);
+		drag(e, (dx, dy, tol) => {
+			if (tol) {
+				const s = snapMove({ ...r, x: r.x + dx, y: r.y + dy }, targets, tol);
+				dx += s.dx;
+				dy += s.dy;
+				guides = s.guides;
+			}
+			editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + dx, y: r.y + dy } }), key);
+		});
 	}
 
 	function resizeClip(e: PointerEvent, c: Clip, corner: Corner) {
 		const key = `clip-resize-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
-		drag(e, (dx, dy) => editor.update((t) => updateItem(t, c.id, { rect: resizedKeepingAspect(r, corner, dx, dy) }), key));
+		const targets = targetsFor(c.id);
+		drag(e, (dx, dy, tol) => {
+			let rect = resizedKeepingAspect(r, corner, dx, dy);
+			if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, 0.05));
+			editor.update((t) => updateItem(t, c.id, { rect }), key);
+		});
 	}
 
 	// --- Zoom segment: view with fixed aspect ratio (w === h in normalized coordinates)
@@ -223,15 +296,17 @@
 		if (!z) return;
 		const key = `zoom-move-${z.id}-${e.timeStamp}`;
 		const r = z.rect;
-		drag(e, (dx, dy) =>
-			editor.update(
-				(t) =>
-					updateZoom(t, z.id, {
-						rect: { ...r, x: clamp(r.x + dx, 0, 1 - r.w), y: clamp(r.y + dy, 0, 1 - r.h) }
-					}),
-				key
-			)
-		);
+		const targets = targetsFor();
+		drag(e, (dx, dy, tol) => {
+			if (tol) {
+				const s = snapMove({ ...r, x: r.x + dx, y: r.y + dy }, targets, tol);
+				dx += s.dx;
+				dy += s.dy;
+				guides = s.guides;
+			}
+			const rect = { ...r, x: clamp(r.x + dx, 0, 1 - r.w), y: clamp(r.y + dy, 0, 1 - r.h) };
+			editor.update((t) => updateZoom(t, z.id, { rect }), key);
+		});
 	}
 
 	function resizeZoom(e: PointerEvent, corner: Corner) {
@@ -420,5 +495,13 @@
 				{/each}
 			{/if}
 		{/if}
+	{/if}
+
+	<!-- Lines snapped to while dragging (Alt: free) -->
+	{#if guides?.x != null}
+		<div class="bg-primary pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x)}"></div>
+	{/if}
+	{#if guides?.y != null}
+		<div class="bg-primary pointer-events-none absolute inset-x-0 h-px" style="top: {py(guides.y)}"></div>
 	{/if}
 </div>

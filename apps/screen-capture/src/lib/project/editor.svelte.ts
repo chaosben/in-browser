@@ -3,7 +3,7 @@ import { addItem, clipsOf, findItem, group, groupOf, isClip, setTrackState, trac
 import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
-import { canvasSize, placeRecording, placeSource, recordingSources, type Recording } from './project.js';
+import { canvasSize, placeRecording, recordingSources, type Recording } from './project.js';
 import type { ImageAsset, Item, Project, Selection, Source, Timeline, TrackState } from './types.js';
 import { m } from '#lib/i18n/index.js';
 import { parseColor } from '#lib/util/color.js';
@@ -275,15 +275,10 @@ export class Editor {
 		};
 	}
 
-	/**
-	 * Adds an imported source: videos appended at the end of track 0, audio-only sources at `at`
-	 * (start or drop position on the timeline) in front of everything already there.
-	 */
-	addSource(source: Source, at = 0) {
+	/** Adds an imported source to the media bin only; `insertSource` places it in the timeline. */
+	addSource(source: Source) {
 		this.#addSources([source]);
-		const { width, height } = this.project;
-		this.update((t) => placeSource(t, source, width, height, at));
-		this.#offerLargerCanvas([source.id]);
+		this.#scheduleSave();
 	}
 
 	/** Adds a recording (screen, optionally webcam and microphone, linked). */

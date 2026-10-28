@@ -145,6 +145,7 @@ const en = {
 		savedToFolder: (name: string) => `Project saved to folder “${name}”`,
 		export: 'Export',
 		recordingAdded: 'Recording added',
+		importedToBin: (n: number) => (n === 1 ? 'Added to the media bin' : `${n} files added to the media bin`),
 		largerMedia: (size: string, canvas: string) => `The new material (${size}) is larger than the canvas (${canvas}).`,
 		growCanvas: 'Enlarge canvas',
 		add: (what: string) => `Add ${what.toLowerCase()}`,
@@ -172,7 +173,7 @@ const en = {
 	tools: {
 		groups: { media: 'Media', annotations: 'Annotations', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
 		collapse: 'Collapse panel',
-		dropHint: 'Or drop video, audio or image files anywhere onto the editor.'
+		dropHint: 'Or drop video, audio or image files onto the editor: they go to the media bin, onto the timeline they are inserted right there.'
 	},
 
 	icons: {
