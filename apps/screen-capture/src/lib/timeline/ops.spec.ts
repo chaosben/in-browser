@@ -18,6 +18,7 @@ import {
 	moveItem,
 	moveItems,
 	nextStepNumber,
+	pasteItems,
 	placeItem,
 	remove,
 	retimeAnnotation,
@@ -514,5 +515,37 @@ describe('split and fades', () => {
 		expect(left.fadeOut).toBeUndefined();
 		expect(right).toMatchObject({ fadeOut: 1 });
 		expect(right.fadeIn).toBeUndefined();
+	});
+});
+
+describe('pasteItems', () => {
+	it('starts the copy at the playhead, keeping the spacing', () => {
+		const original = tl(clip('a', 0, 0, 2), text('t', 1, 3));
+		const { timeline, ids } = pasteItems(original, original.items, 10);
+		const [a, t] = ids.map((id) => timeline.items.find((i) => i.id === id)!);
+		expect(a.start).toBe(10);
+		expect(t.start).toBe(11);
+		expect(t.type === 'annotation' && t.end).toBe(13);
+	});
+	it('gets new ids and puts the copy in front of what it overlaps, keeping its track order', () => {
+		const original = tl(clip('a', 0, 0, 4), text('t', 0, 4, 1));
+		const { timeline, ids } = pasteItems(original, original.items, 1);
+		expect(ids).not.toContain('a');
+		const [a, t] = ids.map((id) => timeline.items.find((i) => i.id === id)!);
+		expect(a.track).toBe(2);
+		expect(t.track).toBe(3);
+	});
+	it('stays low where nothing overlaps', () => {
+		const original = tl(clip('a', 0, 0, 2), text('t', 0, 2, 3));
+		const { timeline, ids } = pasteItems(original, [original.items[1]], 5);
+		expect(timeline.items.find((i) => i.id === ids[0])!.track).toBe(0);
+	});
+	it('links the copies among themselves only', () => {
+		const original = tl({ ...clip('a', 0, 0, 2), group: 'g' }, { ...text('t', 0, 2), group: 'g' });
+		const { timeline, ids } = pasteItems(original, original.items, 5);
+		const copies = ids.map((id) => timeline.items.find((i) => i.id === id)!);
+		expect(copies[0].group).toBeDefined();
+		expect(copies[0].group).toBe(copies[1].group);
+		expect(copies[0].group).not.toBe('g');
 	});
 });

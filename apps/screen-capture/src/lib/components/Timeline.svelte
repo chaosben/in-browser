@@ -20,7 +20,7 @@
 	} from '#lib/timeline/ops.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
-	import { oneLine } from '#lib/util/text.js';
+	import { annotationLabel } from '#lib/project/labels.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 
 	interface Props {
@@ -28,9 +28,11 @@
 		player: Player;
 		/** Fixed height of the whole timeline (pixels); tracks scroll vertically inside */
 		height: number;
+		/** Opens the context menu for the selection */
+		itemMenu: (e: MouseEvent) => void;
 	}
 
-	let { editor, player, height: boxHeight }: Props = $props();
+	let { editor, player, height: boxHeight, itemMenu }: Props = $props();
 
 	const PADDING = 16;
 	const RULER = 22;
@@ -110,18 +112,9 @@
 		return timeAt(clientX);
 	}
 
-	/** Caption of an annotation bar: its text on one line, else what identifies it */
-	function annotationLabel(a: Annotation): string {
-		if (a.kind === 'text' || a.kind === 'callout') return oneLine(a.text) || OVERLAY_KINDS[a.kind].label;
-		if (a.kind === 'step') return m.kinds.stepN(a.number);
-		if (a.kind === 'image') return editor.image(a.imageId)?.name ?? OVERLAY_KINDS.image.label;
-		if (a.kind === 'icon') return a.icon.name;
-		return OVERLAY_KINDS[a.kind].label;
-	}
-
 	/** Tooltip: the full text with its lines (texts), else the caption */
 	function annotationTitle(a: Annotation): string {
-		return ((a.kind === 'text' || a.kind === 'callout') && a.text.trim()) || annotationLabel(a);
+		return ((a.kind === 'text' || a.kind === 'callout') && a.text.trim()) || annotationLabel(a, editor);
 	}
 
 	function sourceIndex(clip: Clip) {
@@ -168,6 +161,25 @@
 	}
 
 	// Ruler/background: clicking or dragging sets the playhead
+	/**
+	 * Right click: on an item, selects it unless it already is (like a click); on a zoom segment, selects that; on
+	 * free space, clears the selection and moves the playhead there (where "Paste" inserts).
+	 */
+	function onContextMenu(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		const id = target.closest<HTMLElement>('[data-item]')?.dataset.item;
+		const zoomId = target.closest<HTMLElement>('[data-zoom]')?.dataset.zoom;
+		if (id) {
+			if (!editor.isSelected('item', id)) editor.clickItem(id, { single: e.altKey });
+		} else if (zoomId) {
+			editor.select('zoom', zoomId);
+		} else {
+			editor.selection = null;
+			player.seek(timeAt(e.clientX));
+		}
+		itemMenu(e);
+	}
+
 	function scrub(e: PointerEvent, deselect = false) {
 		if (e.button !== 0) return;
 		if (deselect) editor.selection = null;
@@ -230,6 +242,8 @@
 	 * neighbor), dragging vertically moves a single item to another track.
 	 */
 	function itemDown(e: PointerEvent, item: Item, part: Part) {
+		// Right click: the context menu selects
+		if (e.button !== 0) return e.stopPropagation();
 		const { id, start, track } = item;
 		const end = itemEnd(item);
 		const single = e.altKey;
@@ -314,6 +328,7 @@
 	}
 
 	function zoomDown(e: PointerEvent, id: string, part: Part) {
+		if (e.button !== 0) return e.stopPropagation();
 		const z = timeline.zoom.find((item) => item.id === id);
 		if (!z) return;
 		const { start, end } = z;
@@ -446,7 +461,13 @@
 				{/each}
 			</div>
 
-			<div bind:this={content} class="relative" style="width: {contentWidth}px; height: {height}px">
+			<div
+				bind:this={content}
+				class="relative"
+				style="width: {contentWidth}px; height: {height}px"
+				oncontextmenu={onContextMenu}
+				role="presentation"
+			>
 				<!-- Background: clicking sets the playhead and clears the selection -->
 				<div class="absolute inset-0" onpointerdown={(e) => scrub(e, true)} role="presentation"></div>
 
@@ -482,6 +503,7 @@
 								{editor.isSelected('zoom', z.id) ? ring : ''}"
 							style="left: {x(z.start)}px; width: {Math.max((z.end - z.start) * pxPerSec, 4)}px; top: {zoomTop}px; height: {ZOOM_H}px"
 							onpointerdown={(e) => zoomDown(e, z.id, 'body')}
+							data-zoom={z.id}
 							role="button"
 							tabindex="-1"
 							aria-label={m.timeline.zoomSegment}
@@ -515,13 +537,14 @@
 					{@const state = trackState(timeline, item.track)}
 					{@const dim = state.hidden ? 'opacity-35' : state.locked ? 'opacity-60' : ''}
 					{#if item.type === 'annotation'}
-						{@const label = annotationLabel(item)}
+						{@const label = annotationLabel(item, editor)}
 						{@const kind = OVERLAY_KINDS[item.kind].label}
 						<div
 							class="bg-warning/80 text-warning-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
 								{selected ? ring : ''} {dim}"
 							style="left: {x(item.start)}px; width: {Math.max(width, 4)}px; top: {row.top + 1}px; height: {row.height - 2}px"
 							onpointerdown={(e) => itemDown(e, item, 'body')}
+							data-item={item.id}
 							role="button"
 							tabindex="-1"
 							title={annotationTitle(item)}
@@ -537,6 +560,7 @@
 							class="bg-base-300 absolute overflow-hidden rounded-md shadow {selected ? ring : ''} {dim}"
 							style="left: {x(item.start) + 1}px; width: {Math.max(width - 2, 2)}px; top: {row.top + 1}px; height: {row.height - 2}px"
 							onpointerdown={(e) => itemDown(e, item, 'body')}
+							data-item={item.id}
 							role="button"
 							tabindex="-1"
 							aria-label={item.type === 'freeze' ? m.timeline.freeze : (source?.name ?? m.timeline.missingSource)}

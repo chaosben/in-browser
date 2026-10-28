@@ -151,6 +151,9 @@ const de: Messages = {
 		snapping: 'Einrasten',
 		snappingTitle: 'Einrasten an Kanten, Mitten und gleichen Abständen (Alt beim Ziehen kehrt um)',
 		importedToBin: (n: number) => (n === 1 ? 'Zur Medienablage hinzugefügt' : `${n} Dateien zur Medienablage hinzugefügt`),
+		copyingMedia: 'Medien werden in dieses Projekt kopiert …',
+		pasteSkipped: (n) =>
+			n === 1 ? 'Ein Element ließ sich nicht einfügen: Seine Medien fehlen.' : `${n} Elemente ließen sich nicht einfügen: Ihre Medien fehlen.`,
 		largerMedia: (size, canvas) => `Das neue Material (${size}) ist größer als die Leinwand (${canvas}).`,
 		growCanvas: 'Leinwand vergrößern',
 		add: (what) => `${what} hinzufügen`,
@@ -200,7 +203,7 @@ const de: Messages = {
 		loadFailed: (error) => `Die Icons konnten nicht geladen werden: ${error}`
 	},
 
-	keys: { del: 'Entf', ctrl: 'Strg' },
+	keys: { del: 'Entf', ctrl: 'Strg', shift: 'Umschalt' },
 
 	timeline: {
 		zoom: 'Zoom',
@@ -323,6 +326,8 @@ const de: Messages = {
 			link: 'Verknüpfen',
 			deselect: 'Auswahl aufheben',
 			nudge: 'In der Vorschau um 1 px verschieben (Umschalt: 10 px)',
+			cycle: 'In der Vorschau: nächstes Element (Umschalt: voriges)',
+			clipboard: 'Kopieren, Ausschneiden, Einfügen',
 			help: 'Hilfe'
 		},
 		project: 'Projekt',
@@ -405,6 +410,18 @@ const de: Messages = {
 		zoom: (level) => `${level}× Zoom`,
 		selectZoom: 'Zoom-Abschnitt auswählen',
 		gap: (px: number) => `${px} px`
+	},
+
+	menu: {
+		cut: 'Ausschneiden',
+		copy: 'Kopieren',
+		paste: 'Einfügen',
+		delete: 'Löschen',
+		pickElement: 'Element auswählen',
+		toFront: 'Ganz nach vorne',
+		forward: 'Eine Ebene nach vorne',
+		backward: 'Eine Ebene nach hinten',
+		toBack: 'Ganz nach hinten'
 	},
 
 	errors: {

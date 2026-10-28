@@ -1,5 +1,5 @@
 import { deleteMediaFile, saveProject } from '#lib/storage/opfs.js';
-import { addItem, clipsOf, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
+import { addItem, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
 import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
@@ -279,6 +279,22 @@ export class Editor {
 	addSource(source: Source) {
 		this.#addSources([source]);
 		this.#scheduleSave();
+	}
+
+	/**
+	 * Pastes copied items at `at` (one undo step) and selects them; `sources`/`images` they need come into the
+	 * media bin first (their files are already in the project's folder).
+	 */
+	paste(items: Item[], at: number, sources: Source[] = [], images: ImageAsset[] = []) {
+		if (sources.length) this.#addSources(sources);
+		if (images.length) this.project = { ...this.project, images: [...this.project.images, ...images] };
+		let ids: string[] = [];
+		this.update((t) => {
+			const result = pasteItems(t, items, at);
+			ids = result.ids;
+			return result.timeline;
+		});
+		this.selectItems(ids, ids[0]);
 	}
 
 	/** Adds a recording (screen, optionally webcam and microphone, linked). */

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Editor } from '#lib/project/editor.svelte.js';
-	import type { Annotation, CalloutAnnotation, Clip, Rect, TextAnnotation } from '#lib/project/types.js';
+	import { itemIcon, itemLabel } from '#lib/project/labels.js';
+	import type { Annotation, CalloutAnnotation, Clip, Item, Rect, TextAnnotation } from '#lib/project/types.js';
+	import type { MenuEntry } from '#lib/ui/context-menu.svelte.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { rememberStyle } from '#lib/project/styles.js';
@@ -24,9 +26,11 @@
 	interface Props {
 		editor: Editor;
 		player: Player;
+		/** Opens the context menu for the selection, plus entries of the preview */
+		itemMenu: (e: MouseEvent, extra?: MenuEntry[]) => void;
 	}
 
-	let { editor, player }: Props = $props();
+	let { editor, player, itemMenu }: Props = $props();
 
 	type Corner = 'nw' | 'ne' | 'sw' | 'se';
 	const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
@@ -163,6 +167,7 @@
 	}
 
 	function moveOverlay(e: PointerEvent, o: Annotation) {
+		if (e.button !== 0) return;
 		editor.select('item', o.id);
 		const key = `move-${o.id}-${e.timeStamp}`;
 		const b = bounds(o);
@@ -293,6 +298,7 @@
 	const zoomLabelClass = 'bg-info text-info-content absolute top-1 left-1 flex items-center gap-0.5 rounded px-1 text-xs';
 
 	function moveClip(e: PointerEvent, c: Clip) {
+		if (e.button !== 0) return;
 		editor.select('item', c.id);
 		const key = `clip-move-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
@@ -373,7 +379,73 @@
 		return null;
 	}
 
+	/** Minimum size of an annotation's click area (thin lines), as in its `boxStyle` */
+	const MIN_HIT = 0.02;
+
+	/** Click area of an item in content coordinates */
+	function hitBox(item: Item): Rect {
+		if (item.type !== 'annotation') return item.rect;
+		const r = bounds(item);
+		const padX = Math.max(0, MIN_HIT - r.w) / 2;
+		const padY = Math.max(0, MIN_HIT - r.h) / 2;
+		return { x: r.x - padX, y: r.y - padY, w: r.w + 2 * padX, h: r.h + 2 * padY };
+	}
+
+	/** Editable items under a mouse position, the front one first */
+	function itemsUnder(e: MouseEvent): Item[] {
+		const rect = layer.getBoundingClientRect();
+		const x = view.x + ((e.clientX - rect.left) / rect.width) * view.w;
+		const y = view.y + ((e.clientY - rect.top) / rect.height) * view.h;
+		return active
+			.filter((item) => {
+				const r = hitBox(item);
+				return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+			})
+			.reverse();
+	}
+
+	/** Item highlighted from the context menu */
+	let highlighted = $state<string | null>(null);
+
+	/**
+	 * Right click: selects the front item unless one under the pointer is already selected; with several items
+	 * under the pointer, the menu lists them to select a covered one.
+	 */
+	function onContextMenu(e: MouseEvent) {
+		if (selectedZoom) return itemMenu(e);
+		const under = itemsUnder(e);
+		if (!under.length) editor.selection = null;
+		else if (!under.some((item) => editor.isSelected('item', item.id))) editor.clickItem(under[0].id);
+		layer.focus({ preventScroll: true });
+		const pick: MenuEntry[] =
+			under.length > 1
+				? [
+						{ heading: m.menu.pickElement },
+						...under.map((item) => ({
+							label: itemLabel(item, editor),
+							icon: itemIcon(item, editor),
+							run: () => editor.clickItem(item.id),
+							onhover: (on: boolean) => (highlighted = on ? item.id : null)
+						}))
+					]
+				: [];
+		itemMenu(e, pick);
+	}
+
+	/** Tab / Shift+Tab: next / previous item under the playhead, front to back */
+	function cycle(back: boolean) {
+		const order = [...active].reverse();
+		if (!order.length) return;
+		const current = order.findIndex((item) => editor.isSelected('item', item.id));
+		const next = current < 0 ? (back ? order.length - 1 : 0) : (current + (back ? -1 : 1) + order.length) % order.length;
+		editor.clickItem(order[next].id);
+	}
+
 	function onKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			e.preventDefault();
+			return cycle(e.shiftKey);
+		}
 		const dir = ARROWS[e.key];
 		// Ctrl/Cmd + arrows stay with the editor (track order)
 		if (!dir || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -423,7 +495,8 @@
 	bind:this={layer}
 	class="absolute inset-0 overflow-hidden outline-none"
 	tabindex="-1"
-	onpointerdown={() => {
+	onpointerdown={(e) => {
+		if (e.button !== 0) return;
 		editor.selection = null;
 		layer.focus({ preventScroll: true });
 	}}
@@ -432,6 +505,7 @@
 		if (ARROWS[e.key]) endNudge();
 	}}
 	onfocusout={endNudge}
+	oncontextmenu={onContextMenu}
 	role="presentation"
 >
 	{#if selectedZoom}
@@ -454,13 +528,14 @@
 			></div>
 		{/each}
 	{:else}
-		{#each active as item (item.id)}
+		<!-- The selected items last, so they are on top: a covered item, once selected, can be moved directly -->
+		{#each [...active.filter((i) => !editor.isSelected('item', i.id)), ...active.filter((i) => editor.isSelected('item', i.id))] as item (item.id)}
 			{@const selected = editor.isSelected('item', item.id)}
 			{@const frame = selected ? 'border-primary border-2 border-dashed' : 'hover:outline-primary/60 hover:outline-1'}
 			{#if item.type === 'annotation'}
 				<div
 					class="absolute cursor-move {frame}"
-					style={boxStyle(bounds(item), 0.02)}
+					style={boxStyle(bounds(item), MIN_HIT)}
 					onpointerdown={(e) => moveOverlay(e, item)}
 					role="presentation"
 				></div>
@@ -473,6 +548,12 @@
 				></div>
 			{/if}
 		{/each}
+
+		{@const lit = highlighted && active.find((item) => item.id === highlighted)}
+		{#if lit}
+			<!-- Element pointed at in the context menu -->
+			<div class="bg-primary/20 outline-primary pointer-events-none absolute outline-2 outline-dashed" style={boxStyle(hitBox(lit))}></div>
+		{/if}
 
 		{#if pausedZoom}
 			{@const z = pausedZoom}

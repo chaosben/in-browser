@@ -150,6 +150,9 @@ const en = {
 		snapping: 'Snap',
 		snappingTitle: 'Snap to edges, centers and equal spacing (hold Alt while dragging for the opposite)',
 		importedToBin: (n: number) => (n === 1 ? 'Added to the media bin' : `${n} files added to the media bin`),
+		copyingMedia: 'Copying media into this project …',
+		pasteSkipped: (n: number) =>
+			n === 1 ? 'One element could not be pasted: its media is missing.' : `${n} elements could not be pasted: their media is missing.`,
 		largerMedia: (size: string, canvas: string) => `The new material (${size}) is larger than the canvas (${canvas}).`,
 		growCanvas: 'Enlarge canvas',
 		add: (what: string) => `Add ${what.toLowerCase()}`,
@@ -199,7 +202,7 @@ const en = {
 		loadFailed: (error: string) => `The icons could not be loaded: ${error}`
 	},
 
-	keys: { del: 'Del', ctrl: 'Ctrl' },
+	keys: { del: 'Del', ctrl: 'Ctrl', shift: 'Shift' },
 
 	timeline: {
 		zoom: 'Zoom',
@@ -313,7 +316,7 @@ const en = {
 		frameAt: 'Frame at',
 		nothing: 'Nothing selected.',
 		nothingHint: 'Click a clip, an annotation or a zoom segment in the timeline, or add something new from the bar on the left.',
-		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect', nudge: 'In the preview: move by 1 px (Shift: 10 px)', help: 'Help' },
+		shortcuts: { split: 'Split', hold: 'Hold frame', delete: 'Delete', deleteGap: 'Delete, leave a gap', link: 'Link', deselect: 'Deselect', nudge: 'In the preview: move by 1 px (Shift: 10 px)', cycle: 'In the preview: next element (Shift: previous)', clipboard: 'Copy, cut, paste', help: 'Help' },
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',
@@ -394,6 +397,18 @@ const en = {
 		zoom: (level: string) => `${level}× zoom`,
 		selectZoom: 'Select zoom segment',
 		gap: (px: number) => `${px} px`
+	},
+
+	menu: {
+		cut: 'Cut',
+		copy: 'Copy',
+		paste: 'Paste',
+		delete: 'Delete',
+		pickElement: 'Select element',
+		toFront: 'Bring to front',
+		forward: 'Bring forward one layer',
+		backward: 'Send back one layer',
+		toBack: 'Send to back'
 	},
 
 	errors: {

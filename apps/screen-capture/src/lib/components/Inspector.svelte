@@ -692,9 +692,13 @@
 					{m.inspector.shortcuts.hold} · <kbd class="kbd kbd-xs">{m.keys.del}</kbd>
 					{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
 					{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">G</kbd>
-					{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">Esc</kbd>
+					{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">C</kbd>/<kbd
+						class="kbd kbd-xs">X</kbd
+					>/<kbd class="kbd kbd-xs">V</kbd>
+					{m.inspector.shortcuts.clipboard} · <kbd class="kbd kbd-xs">Esc</kbd>
 					{m.inspector.shortcuts.deselect} · <kbd class="kbd kbd-xs">← ↑ → ↓</kbd>
-					{m.inspector.shortcuts.nudge} · <kbd class="kbd kbd-xs">F1</kbd>
+					{m.inspector.shortcuts.nudge} · <kbd class="kbd kbd-xs">Tab</kbd>
+					{m.inspector.shortcuts.cycle} · <kbd class="kbd kbd-xs">F1</kbd>
 					{m.inspector.shortcuts.help}
 				</p>
 			</div>

@@ -155,6 +155,33 @@ export function addItem(timeline: Timeline, item: Item): Timeline {
 	return withItems(timeline, [...timeline.items, { ...item, track }]);
 }
 
+/**
+ * Inserts copies of `items` with the earliest one starting at `at`: new ids, links only among the copies, in front
+ * of everything they overlap in time, keeping their relative tracks and their place on the canvas.
+ */
+export function pasteItems(timeline: Timeline, items: readonly Item[], at: number): { timeline: Timeline; ids: string[] } {
+	if (!items.length) return { timeline, ids: [] };
+	const offset = at - Math.min(...items.map((item) => item.start));
+	const lowest = Math.min(...items.map((item) => item.track));
+	const groups = new Map<string, string>();
+	const copies = items.map((item) => {
+		const copy = { ...item, id: newId(), start: item.start + offset } as Item;
+		if (copy.type === 'annotation') copy.end += offset;
+		if (item.group) {
+			if (!groups.has(item.group)) groups.set(item.group, newId());
+			copy.group = groups.get(item.group);
+		}
+		return copy;
+	});
+	const below = timeline.items
+		.filter((other) => copies.some((copy) => overlaps(span(other), span(copy))))
+		.map((other) => other.track);
+	const base = Math.max(-1, ...below) + 1;
+	for (const [i, copy] of copies.entries()) copy.track = base + items[i].track - lowest;
+	const result = withItems(timeline, [...timeline.items, ...copies]);
+	return { timeline: result, ids: copies.map((copy) => copy.id) };
+}
+
 /** Appends a clip on track 0 after its last item. */
 export function appendClip(timeline: Timeline, clip: Clip): Timeline {
 	const start = timeline.items.filter((item) => item.track === 0).reduce((max, item) => Math.max(max, itemEnd(item)), 0);

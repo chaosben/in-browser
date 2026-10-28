@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { BRAND } from '#lib/brand.js';
 	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
+	import ContextMenu from '#lib/components/ContextMenu.svelte';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import HelpWindow from '#lib/components/HelpWindow.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
@@ -20,7 +21,7 @@
 	import { createIcon, createImage, createOverlay, createZoom, FREEZE_ICON } from '#lib/project/defaults.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
-	import type { Annotation, IconData, Point, ToolKind } from '#lib/project/types.js';
+	import type { Annotation, IconData, Point, Timeline as TimelineData, ToolKind } from '#lib/project/types.js';
 	import { setImageProject } from '#lib/render/images.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { hasDragPayload, readDragPayload, type DragPayload } from '#lib/tools/drag.js';
@@ -53,6 +54,8 @@
 	import { toolState } from '#lib/tools/state.svelte.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { helpState } from '#lib/ui/help.svelte.js';
+	import { openContextMenu, type MenuEntry } from '#lib/ui/context-menu.svelte.js';
+	import { clipboard, prepareMedia } from '#lib/project/clipboard.svelte.js';
 	import { toast } from '#lib/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
@@ -259,6 +262,98 @@
 		if (ids.length) ed.update((t) => remove(t, ids, !gap, (id) => !!ed.source(id)?.hasVideo));
 	}
 
+	function copySelected(items = editor?.selectedItems ?? []) {
+		if (editor && items.length) clipboard.copy(editor.project, items);
+	}
+
+	function cutSelected() {
+		copySelected(editable());
+		removeSelected();
+	}
+
+	/** Pastes at the playhead; media from another project is copied into this one first */
+	async function paste() {
+		const data = clipboard.data;
+		if (!editor || !player || !data?.items.length) return;
+		const ed = editor;
+		const at = player.time;
+		try {
+			const { items, sources, images, skipped } = await prepareMedia(data, ed.project, () =>
+				toast(m.editor.copyingMedia)
+			);
+			if (items.length) ed.paste(items, at, sources, images);
+			if (sources.length) await sourcesAdded();
+			if (skipped) toast(m.editor.pasteSkipped(skipped), 'warning', 6000);
+		} catch (e) {
+			console.error(e);
+			toast(errorMessage(e), 'error', 8000);
+		}
+	}
+
+	type Arrange = (timeline: TimelineData, id: string) => TimelineData;
+
+	/** The selected item (on an unlocked track), if `op` would change its stacking order */
+	function arrangeable(op: Arrange) {
+		const item = editor?.selectedItem;
+		if (!editor || !item || trackState(editor.project.timeline, item.track).locked) return null;
+		return op(editor.project.timeline, item.id) === editor.project.timeline ? null : item;
+	}
+
+	/** Moves the selected item one layer (track) or all the way to the front or back */
+	function arrange(op: Arrange) {
+		const item = arrangeable(op);
+		if (item) editor?.update((t) => op(t, item.id));
+	}
+
+	/**
+	 * Context menu for the selection (preview and timeline). New functions for elements go here; `extra` adds
+	 * entries of the place it was opened (e.g. the elements under the mouse pointer in the preview).
+	 */
+	function itemMenu(e: MouseEvent, extra: MenuEntry[] = []) {
+		const items = editor?.selectedItems ?? [];
+		const ctrl = m.keys.ctrl;
+		openContextMenu(e, [
+			{
+				label: m.menu.cut,
+				icon: 'icon-[material-symbols-light--content-cut]',
+				keys: `${ctrl}+X`,
+				disabled: !editable().length,
+				run: cutSelected
+			},
+			{
+				label: m.menu.copy,
+				icon: 'icon-[material-symbols-light--content-copy]',
+				keys: `${ctrl}+C`,
+				disabled: !items.length,
+				run: copySelected
+			},
+			{
+				label: m.menu.paste,
+				icon: 'icon-[material-symbols-light--content-paste]',
+				keys: `${ctrl}+V`,
+				disabled: clipboard.empty,
+				run: paste
+			},
+			{
+				label: m.menu.delete,
+				icon: 'icon-[material-symbols-light--delete-outline]',
+				keys: m.keys.del,
+				disabled: !editor?.selection || (editor.selection.kind === 'items' && !editable().length),
+				run: () => removeSelected()
+			},
+			{ separator: true },
+			...(
+				[
+					[m.menu.toFront, 'icon-[material-symbols-light--flip-to-front]', `${ctrl}+${m.keys.shift}+↑`, bringToFront],
+					[m.menu.forward, 'icon-[material-symbols-light--arrow-upward]', `${ctrl}+↑`, bringForward],
+					[m.menu.backward, 'icon-[material-symbols-light--arrow-downward]', `${ctrl}+↓`, sendBackward],
+					[m.menu.toBack, 'icon-[material-symbols-light--flip-to-back]', `${ctrl}+${m.keys.shift}+↓`, sendToBack]
+				] as const
+			).map(([label, icon, keys, op]) => ({ label, icon, keys, disabled: !arrangeable(op), run: () => arrange(op) })),
+			...(extra.length ? [{ separator: true } as const, ...extra] : [])
+		]);
+	}
+
 	function openRecordDialog() {
 		player?.pause();
 		dialog = 'record';
@@ -366,16 +461,26 @@
 			e.preventDefault();
 			if (e.shiftKey) editor.unlink();
 			else editor.link();
+		} else if ((key === 'c' || key === 'x') && mod && window.getSelection()?.toString()) {
+			// Selected text (e.g. in the help): the browser copies it
+			return;
+		} else if (mod && key === 'c') {
+			e.preventDefault();
+			copySelected();
+		} else if (mod && key === 'x') {
+			e.preventDefault();
+			cutSelected();
+		} else if (mod && key === 'v') {
+			e.preventDefault();
+			paste();
 		} else if (mod && key === 'a') {
 			e.preventDefault();
 			editor.selectItems(editor.project.timeline.items.map((item) => item.id));
 		} else if (mod && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && editor.selectedItem) {
 			// Track of the selected item (stacking order)
 			e.preventDefault();
-			const id = editor.selectedItem.id;
 			const up = e.key === 'ArrowUp';
-			const op = e.shiftKey ? (up ? bringToFront : sendToBack) : up ? bringForward : sendBackward;
-			editor.update((t) => op(t, id));
+			arrange(e.shiftKey ? (up ? bringToFront : sendToBack) : up ? bringForward : sendBackward);
 		} else if (mod) {
 			return;
 		} else if (e.key === '?') {
@@ -563,7 +668,7 @@
 							class="block h-full w-full bg-black"
 							{@attach (canvas) => player?.attach(canvas)}
 						></canvas>
-						<OverlayEditor {editor} {player} />
+						<OverlayEditor {editor} {player} {itemMenu} />
 					</div>
 				</div>
 			</section>
@@ -653,10 +758,11 @@
 				</button>
 			</div>
 
-			<Timeline bind:this={timeline} {editor} {player} height={shownTimelineHeight} />
+			<Timeline bind:this={timeline} {editor} {player} {itemMenu} height={shownTimelineHeight} />
 		</section>
 
 		<HelpWindow />
+		<ContextMenu />
 
 		{#if draggingFiles}
 			<div

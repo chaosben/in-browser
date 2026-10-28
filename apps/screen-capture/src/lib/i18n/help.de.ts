@@ -247,6 +247,30 @@ const help: typeof enHelp = {
 					keys: [['F']]
 				},
 				link: { title: 'Verknüpfen', text: 'Verknüpft die ausgewählten Elemente, sodass ein Klick sie gemeinsam auswählt, verschiebt und löscht.', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
+				clipboard: {
+					title: 'Kopieren, Ausschneiden, Einfügen',
+					text: 'Kopiert die ausgewählten Elemente – Clips und Markierungen – und fügt sie am Abspielkopf ein: Das früheste beginnt dort, die Abstände untereinander bleiben, und alle behalten ihren Platz im Bild. Die Kopie kommt vor alles, womit sie sich überschneidet, und ist ausgewählt; ein Rückgängig-Schritt. Verknüpfte Kopien sind untereinander verknüpft, nie mit den Originalen. Zoom-Abschnitte werden nicht kopiert.',
+					options: {
+						cut: { label: 'Ausschneiden', text: 'Kopiert und löscht dann wie Entf – spätere Elemente rücken nach. Elemente auf gesperrten Spuren bleiben.' },
+						other: { label: 'Anderes Projekt', text: 'Die Zwischenablage teilen sich alle Tabs und Projekte in diesem Browser. Fügst du in ein anderes Projekt ein, werden die nötigen Videos, Tondateien und Bilder in dessen Medienablage kopiert, sodass es danach eigenständig funktioniert. Gibt es ein Medium nicht mehr (Projekt oder Datei gelöscht), werden seine Elemente mit Hinweis ausgelassen.' }
+					},
+					tip: 'Um eine Markierung später zu wiederholen (z. B. denselben Pfeil für jeden Schritt), kopiere sie, setz den Abspielkopf weiter und füge ein. Für dasselbe Element zur selben Zeit in einem anderen Projekt setz dort zuerst den Abspielkopf an die Stelle.',
+					keys: [['Strg', 'C'], ['Strg', 'X'], ['Strg', 'V']]
+				},
+				layer: {
+					title: 'Ebene ändern',
+					text: 'Was vorne liegt, entscheidet die Spur: Höhere Spuren werden später gezeichnet und verdecken tiefere – auch Spotlight und Weichzeichnen wirken nur auf das, was darunter liegt. Die Ebene des ausgewählten Elements änderst du über das Kontextmenü, die Tastenkürzel oder indem du seinen Balken in der Timeline nach oben oder unten ziehst.',
+					options: {
+						forward: { label: 'Eine Ebene nach vorne / hinten', text: 'Springt vor (hinter) das nächste Element, das zur selben Zeit sichtbar ist – nicht einfach eine Spur weiter, damit jeder Schritt sichtbar etwas ändert.' },
+						front: { label: 'Ganz nach vorne / hinten', text: 'Vor (hinter) alles, was sich zeitlich mit ihm überschneidet.' }
+					},
+					tip: 'Eine Markierung, die neben einem Spotlight hell bleiben soll (z. B. ein Rahmen oder Pfeil), muss vor dem Spotlight liegen. Elemente auf gesperrten Spuren lassen sich nicht umsortieren; entsperre die Spur zuerst.',
+					keys: [['Strg', '↑'], ['Strg', '↓'], ['Strg', 'Umschalt', '↑'], ['Strg', 'Umschalt', '↓']]
+				},
+				menu: {
+					title: 'Kontextmenü',
+					text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und bietet Ausschneiden, Kopieren, Einfügen, Löschen und das Ändern der Ebene. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
+				},
 				view: {
 					title: 'Timeline-Zoom und Höhe',
 					text: 'Mit Strg + Mausrad oder dem Regler zoomst du die Timeline (bis 32×); „Alles zeigen“ passt alles ein. Zieh die Leiste über der Werkzeugleiste, um der Timeline mehr oder weniger Höhe zu geben; ein Doppelklick stellt sie zurück.'
@@ -258,7 +282,7 @@ const help: typeof enHelp = {
 			items: {
 				edit: {
 					title: 'Verschieben und skalieren',
-					text: 'Klicke ein Element in der Vorschau an, um es auszuwählen, zieh es zum Verschieben und an den Ecken zum Skalieren. Ein Klick wählt das vorderste Element unter der Maus; ein Klick auf eine leere Stelle oder Esc hebt die Auswahl auf.'
+					text: 'Klicke ein Element in der Vorschau an, um es auszuwählen, zieh es zum Verschieben und an den Ecken zum Skalieren. Ein Klick wählt das vorderste Element unter der Maus (verdeckte: siehe unten); ein Klick auf eine leere Stelle oder Esc hebt die Auswahl auf.'
 				},
 				snap: {
 					title: 'Einrasten',
@@ -270,6 +294,17 @@ const help: typeof enHelp = {
 					title: 'Pfeiltasten',
 					text: 'Hast du in die Vorschau geklickt, verschieben die Pfeiltasten das ausgewählte Element um einen Leinwand-Pixel, mit Umschalt um zehn. Eine Folge von Tastendrücken ist ein Rückgängig-Schritt.',
 					keys: [['←'], ['↑'], ['→'], ['↓'], ['Umschalt', '←']]
+				},
+				covered: {
+					title: 'Verdeckte Elemente auswählen',
+					text: 'Ein Klick trifft immer das vorderste Element. An ein Element darunter kommst du auf drei Wegen:',
+					options: {
+						menu: { label: 'Rechtsklick', text: 'Das Kontextmenü listet unter „Element auswählen“ alles unter dem Mauszeiger auf, das vorderste zuerst. Zeigst du auf einen Eintrag, wird das Element in der Vorschau hervorgehoben; ein Klick wählt es aus.' },
+						tab: { label: 'Tab', text: 'Hast du in die Vorschau geklickt, wählt Tab das nächste Element unter dem Abspielkopf von vorne nach hinten, Umschalt+Tab das vorige.' },
+						timeline: { label: 'Timeline', text: 'Ein Klick auf seinen Balken in der Timeline.' }
+					},
+					tip: 'Einmal ausgewählt, bleibt ein verdecktes Element zum Bearbeiten obenauf: Du kannst es direkt in der Vorschau verschieben und skalieren, obwohl es weiter hinter den anderen gezeichnet wird. Soll es dauerhaft nach vorne, ändere seine Spur (Strg+↑).',
+					keys: [['Tab'], ['Umschalt', 'Tab']]
 				},
 				paused: {
 					title: 'Im Stillstand',
@@ -504,7 +539,9 @@ const help: typeof enHelp = {
 				deselect: { title: 'Auswahl aufheben', text: 'Nichts mehr ausgewählt', keys: [['Esc']] },
 				link: { title: 'Verknüpfen / lösen', text: 'Ausgewählte Elemente', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
 				track: { title: 'Spur', text: 'Nach vorne / hinten; mit Umschalt ganz nach vorne / hinten', keys: [['Strg', '↑'], ['Strg', '↓']] },
+				clipboard: { title: 'Kopieren / Ausschneiden / Einfügen', text: 'Ausgewählte Elemente; eingefügt am Abspielkopf', keys: [['Strg', 'C'], ['Strg', 'X'], ['Strg', 'V']] },
 				nudge: { title: 'Pixelweise verschieben', text: 'In der Vorschau: 1 px, mit Umschalt 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
+				cycle: { title: 'Nächstes Element', text: 'In der Vorschau: von vorne nach hinten unter dem Abspielkopf; mit Umschalt rückwärts', keys: [['Tab'], ['Umschalt', 'Tab']] },
 				free: { title: 'Einrasten', text: 'Beim Ziehen: das Gegenteil des Schalters „Einrasten“', keys: [['Alt']] },
 				axis: { title: 'Eine Richtung', text: 'Beim Verschieben in der Vorschau', keys: [['Umschalt']] },
 				zoom: { title: 'Timeline-Zoom', text: 'In der Timeline', keys: [['Strg', 'Mausrad']] }

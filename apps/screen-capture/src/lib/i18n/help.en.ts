@@ -269,6 +269,30 @@ const help = {
 					keys: [['F']]
 				},
 				link: { title: 'Link', text: 'Links the selected elements, so a click selects, moves and deletes them together.', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
+				clipboard: {
+					title: 'Copy, cut, paste',
+					text: 'Copies the selected elements – clips and annotations – and pastes them at the playhead: the earliest one starts there, the spacing between them stays, and they keep their place in the picture. The copy goes in front of everything it overlaps and is selected; one undo step. Linked copies are linked among themselves, never with the originals. Zoom segments are not copied.',
+					options: {
+						cut: { label: 'Cut', text: 'Copies and then deletes like Del – later elements move up. Elements on locked tracks stay.' },
+						other: { label: 'Other project', text: 'The clipboard is shared by all tabs and projects in this browser. Pasting into another project copies the videos, audio files and images it needs into that project’s media bin, so it works on its own afterwards. If a medium no longer exists (project or file deleted), its elements are left out with a message.' }
+					},
+					tip: 'To repeat an annotation later (e.g. the same arrow style for each step), copy it, move the playhead and paste. For the same element at the same time in another project, place the playhead there first.',
+					keys: [['Ctrl', 'C'], ['Ctrl', 'X'], ['Ctrl', 'V']]
+				},
+				layer: {
+					title: 'Change the layer',
+					text: 'What is in front is decided by the track: higher tracks are drawn later and cover lower ones – also spotlight and blur only affect what lies below them. Change the layer of the selected element via the context menu, the shortcuts or by dragging its bar up or down in the timeline.',
+					options: {
+						forward: { label: 'One layer forward / back', text: 'Jumps in front of (behind) the next element that is visible at the same time – not simply one track further, so every step changes what you see.' },
+						front: { label: 'To the front / back', text: 'In front of (behind) everything that overlaps it in time.' }
+					},
+					tip: 'An annotation that should stay bright next to a spotlight (e.g. a frame or arrow) has to be in front of the spotlight. Elements on locked tracks cannot be moved; unlock the track first.',
+					keys: [['Ctrl', '↑'], ['Ctrl', '↓'], ['Ctrl', 'Shift', '↑'], ['Ctrl', 'Shift', '↓']]
+				},
+				menu: {
+					title: 'Context menu',
+					text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and offers cut, copy, paste, delete and changing the layer. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
+				},
 				view: {
 					title: 'Timeline zoom and height',
 					text: 'Ctrl + mouse wheel or the slider zooms the timeline (up to 32×); “Show all” fits everything. Drag the bar above the toolbar to give the timeline more or less height; double-click restores it.'
@@ -280,7 +304,7 @@ const help = {
 			items: {
 				edit: {
 					title: 'Move and resize',
-					text: 'Click an element in the preview to select it, drag it to move it and drag its corners to resize it. A click selects the front-most element under the mouse; a click on an empty spot or Esc clears the selection.'
+					text: 'Click an element in the preview to select it, drag it to move it and drag its corners to resize it. A click selects the front-most element under the mouse (covered ones: see below); a click on an empty spot or Esc clears the selection.'
 				},
 				snap: {
 					title: 'Snapping',
@@ -292,6 +316,17 @@ const help = {
 					title: 'Arrow keys',
 					text: 'After clicking into the preview, the arrow keys move the selected element by one canvas pixel, with Shift by ten. A series of key presses is one undo step.',
 					keys: [['←'], ['↑'], ['→'], ['↓'], ['Shift', '←']]
+				},
+				covered: {
+					title: 'Select covered elements',
+					text: 'A click always hits the front-most element. To reach one below it, there are three ways:',
+					options: {
+						menu: { label: 'Right click', text: 'The context menu lists under “Select element” everything under the mouse pointer, front-most first. Pointing at an entry highlights the element in the preview, a click selects it.' },
+						tab: { label: 'Tab', text: 'After clicking into the preview, Tab selects the next element under the playhead from front to back, Shift+Tab the previous one.' },
+						timeline: { label: 'Timeline', text: 'A click on its bar in the timeline.' }
+					},
+					tip: 'Once selected, a covered element stays on top for editing: you can move and resize it in the preview directly, even though it is still drawn behind the others. To bring it to the front for good, change its track (Ctrl+↑).',
+					keys: [['Tab'], ['Shift', 'Tab']]
 				},
 				paused: {
 					title: 'While paused',
@@ -526,7 +561,9 @@ const help = {
 				deselect: { title: 'Deselect', text: 'Clear the selection', keys: [['Esc']] },
 				link: { title: 'Link / unlink', text: 'Selected elements', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
 				track: { title: 'Track', text: 'Forward / backward; with Shift to the front / back', keys: [['Ctrl', '↑'], ['Ctrl', '↓']] },
+				clipboard: { title: 'Copy / cut / paste', text: 'Selected elements; pasted at the playhead', keys: [['Ctrl', 'C'], ['Ctrl', 'X'], ['Ctrl', 'V']] },
 				nudge: { title: 'Nudge', text: 'In the preview: 1 px, with Shift 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
+				cycle: { title: 'Next element', text: 'In the preview: front to back under the playhead; with Shift backwards', keys: [['Tab'], ['Shift', 'Tab']] },
 				free: { title: 'Snapping', text: 'While dragging: the opposite of the “Snap” switch', keys: [['Alt']] },
 				axis: { title: 'One direction', text: 'While moving in the preview', keys: [['Shift']] },
 				zoom: { title: 'Timeline zoom', text: 'In the timeline', keys: [['Ctrl', 'Mouse wheel']] }
