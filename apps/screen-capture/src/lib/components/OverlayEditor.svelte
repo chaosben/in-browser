@@ -185,30 +185,7 @@
 		drag(e, (dx, dy) => patchOverlay(o.id, { [point]: { x: p.x + dx, y: p.y + dy } }, key));
 	}
 
-	// --- Clips (picture-in-picture): move and scale with fixed aspect ratio
-
-	/** Does the clip not cover the whole canvas? Only such clips are clickable in the preview. */
-	const isInset = (c: Clip) => c.rect.x > 0.001 || c.rect.y > 0.001 || c.rect.x + c.rect.w < 0.999 || c.rect.y + c.rect.h < 0.999;
-
-	/** Double-click selects the front-most clip under the pointer – full-frame ones too */
-	function pickClip(e: MouseEvent) {
-		// Only on empty area – annotations and overlaid clips are directly clickable
-		if (e.target !== e.currentTarget) return;
-		const rect = layer.getBoundingClientRect();
-		const x = view.x + ((e.clientX - rect.left) / rect.width) * view.w;
-		const y = view.y + ((e.clientY - rect.top) / rect.height) * view.h;
-		const hit = [...active]
-			.reverse()
-			.find(
-				(item): item is Clip =>
-					item.type !== 'annotation' &&
-					x >= item.rect.x &&
-					x <= item.rect.x + item.rect.w &&
-					y >= item.rect.y &&
-					y <= item.rect.y + item.rect.h
-			);
-		if (hit) editor.select('item', hit.id);
-	}
+	// --- Clips: a click selects the front-most one (full-frame ones too); move and scale with fixed aspect ratio
 
 	function moveClip(e: PointerEvent, c: Clip) {
 		editor.select('item', c.id);
@@ -280,7 +257,6 @@
 	bind:this={layer}
 	class="absolute inset-0 overflow-hidden"
 	onpointerdown={() => (editor.selection = null)}
-	ondblclick={pickClip}
 	role="presentation"
 >
 	{#if selectedZoom}
@@ -315,7 +291,7 @@
 					onpointerdown={(e) => moveOverlay(e, item)}
 					role="presentation"
 				></div>
-			{:else if selected || isInset(item)}
+			{:else}
 				<div
 					class="absolute cursor-move {frame}"
 					style={boxStyle(item.rect)}
