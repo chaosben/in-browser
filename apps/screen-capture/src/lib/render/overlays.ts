@@ -333,6 +333,40 @@ export function moveAnnotation(a: Annotation, dx: number, dy: number): Partial<A
 	}
 }
 
+/** Smallest font size when shrinking a text to fit (share of the canvas height) */
+const MIN_FIT_SIZE = 0.01;
+
+/**
+ * Keeps a text box within the canvas: wider than the canvas → fixed width of the canvas (the text wraps); still
+ * taller → the largest smaller font size that fits; then moved inside. `bounds` is normalized like
+ * `overlayBounds`. Returns only the changed fields (the pointer of a speech bubble stays where it is).
+ */
+export function fitTextToCanvas<T extends TextAnnotation | CalloutAnnotation>(a: T, bounds: (a: T) => Rect): Partial<T> {
+	const patch: Partial<T> = {};
+	let next = a;
+	const set = (fields: Partial<T>) => {
+		Object.assign(patch, fields);
+		next = { ...next, ...fields };
+	};
+	if (bounds(next).w > 1) set({ boxWidth: 1 } as Partial<T>);
+	if (bounds(next).h > 1) {
+		let lo = Math.min(MIN_FIT_SIZE, next.size);
+		let hi = next.size;
+		for (let i = 0; i < 14; i++) {
+			const mid = (lo + hi) / 2;
+			if (bounds({ ...next, size: mid }).h <= 1) lo = mid;
+			else hi = mid;
+		}
+		set({ size: lo } as Partial<T>);
+	}
+	const b = bounds(next);
+	const x = Math.min(Math.max(next.x, 0), Math.max(1 - b.w, 0));
+	const y = Math.min(Math.max(next.y, 0), Math.max(1 - b.h, 0));
+	if (x !== next.x) set({ x } as Partial<T>);
+	if (y !== next.y) set({ y } as Partial<T>);
+	return patch;
+}
+
 let measureCtx: OffscreenCanvasRenderingContext2D | null = null;
 
 /** Bounding box of an annotation, normalized (for selection and handles in the editor). */

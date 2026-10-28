@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { calloutTail, moveAnnotation, wrapText } from './overlays';
+import { calloutTail, fitTextToCanvas, moveAnnotation, wrapText } from './overlays';
 import { createOverlay } from '#lib/project/defaults.js';
+import type { TextAnnotation } from '#lib/project/types.js';
 
 const box = { x: 100, y: 100, w: 200, h: 80 };
 /** Signed area in canvas coordinates (positive = same winding as `roundRect`) */
@@ -63,5 +64,33 @@ describe('wrapText', () => {
 	it('splits words that are too long on their own', () => {
 		expect(texts(wrapText('abcdefg hi', measure, 3))).toEqual(['abc', 'def', 'g', 'hi']);
 		expect(texts(wrapText('abc', measure, 0.5))).toEqual(['a', 'b', 'c']);
+	});
+});
+
+describe('fitTextToCanvas', () => {
+	const text = (fields: Partial<TextAnnotation>) => ({ ...(createOverlay('text', 0, 3) as TextAnnotation), ...fields });
+	/** Fake layout: each character is `size` wide, lines wrap at the fixed width, each line is `size` high */
+	const bounds = (a: TextAnnotation) => {
+		const perLine = a.boxWidth === undefined ? Infinity : Math.max(Math.floor(a.boxWidth / a.size), 1);
+		const lines = a.text.split('\n').reduce((n, p) => n + Math.max(Math.ceil(p.length / perLine), 1), 0);
+		const longest = Math.max(...a.text.split('\n').map((p) => p.length));
+		return { x: a.x, y: a.y, w: a.boxWidth ?? longest * a.size, h: lines * a.size };
+	};
+	it('leaves a fitting text alone', () => {
+		expect(fitTextToCanvas(text({ text: 'Hello', size: 0.05, x: 0.1, y: 0.1 }), bounds)).toEqual({});
+	});
+	it('wraps a text wider than the canvas', () => {
+		const patch = fitTextToCanvas(text({ text: 'x'.repeat(40), size: 0.05, x: 0, y: 0 }), bounds);
+		expect(patch).toEqual({ boxWidth: 1 });
+	});
+	it('shrinks the font until the text is no taller than the canvas', () => {
+		const a = text({ text: Array(40).fill('line').join('\n'), size: 0.05, x: 0, y: 0 });
+		const patch = fitTextToCanvas(a, bounds);
+		expect(patch.size).toBeLessThan(0.05);
+		expect(bounds({ ...a, ...patch }).h).toBeLessThanOrEqual(1);
+		expect(bounds({ ...a, ...patch, size: patch.size! * 1.01 }).h).toBeGreaterThan(1);
+	});
+	it('moves the box inside the canvas', () => {
+		expect(fitTextToCanvas(text({ text: 'Hello', size: 0.1, x: 0.8, y: 0.95 }), bounds)).toEqual({ x: 0.5, y: 0.9 });
 	});
 });

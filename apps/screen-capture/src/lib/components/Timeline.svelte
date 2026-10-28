@@ -2,7 +2,7 @@
 	import ClipVisual from './ClipVisual.svelte';
 	import { FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
-	import type { Clip, Item } from '#lib/project/types.js';
+	import type { Annotation, Clip, Item } from '#lib/project/types.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import {
 		clipDuration,
@@ -20,6 +20,7 @@
 	} from '#lib/timeline/ops.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
+	import { oneLine } from '#lib/util/text.js';
 
 	interface Props {
 		editor: Editor;
@@ -106,6 +107,20 @@
 	/** Timeline time under a mouse position (e.g. for files dragged onto the timeline) */
 	export function timeAtClient(clientX: number) {
 		return timeAt(clientX);
+	}
+
+	/** Caption of an annotation bar: its text on one line, else what identifies it */
+	function annotationLabel(a: Annotation): string {
+		if (a.kind === 'text' || a.kind === 'callout') return oneLine(a.text) || OVERLAY_KINDS[a.kind].label;
+		if (a.kind === 'step') return m.kinds.stepN(a.number);
+		if (a.kind === 'image') return editor.image(a.imageId)?.name ?? OVERLAY_KINDS.image.label;
+		if (a.kind === 'icon') return a.icon.name;
+		return OVERLAY_KINDS[a.kind].label;
+	}
+
+	/** Tooltip: the full text with its lines (texts), else the caption */
+	function annotationTitle(a: Annotation): string {
+		return ((a.kind === 'text' || a.kind === 'callout') && a.text.trim()) || annotationLabel(a);
 	}
 
 	function sourceIndex(clip: Clip) {
@@ -495,6 +510,8 @@
 					{@const state = trackState(timeline, item.track)}
 					{@const dim = state.hidden ? 'opacity-35' : state.locked ? 'opacity-60' : ''}
 					{#if item.type === 'annotation'}
+						{@const label = annotationLabel(item)}
+						{@const kind = OVERLAY_KINDS[item.kind].label}
 						<div
 							class="bg-warning/80 text-warning-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
 								{selected ? ring : ''} {dim}"
@@ -502,20 +519,11 @@
 							onpointerdown={(e) => itemDown(e, item, 'body')}
 							role="button"
 							tabindex="-1"
-							aria-label={OVERLAY_KINDS[item.kind].label}
+							title={annotationTitle(item)}
+							aria-label={label === kind ? kind : m.timeline.itemLabel(kind, label)}
 						>
 							<span class="{OVERLAY_KINDS[item.kind].icon} size-3.5 shrink-0" aria-hidden="true"></span>
-							<span class="truncate"
-								>{item.kind === 'text' || item.kind === 'callout'
-									? item.text
-									: item.kind === 'step'
-										? m.kinds.stepN(item.number)
-										: item.kind === 'image'
-											? (editor.image(item.imageId)?.name ?? OVERLAY_KINDS.image.label)
-											: item.kind === 'icon'
-												? item.icon.name
-												: OVERLAY_KINDS[item.kind].label}</span
-							>
+							<span class="truncate">{label}</span>
 							{@render edges((e, part) => itemDown(e, item, part))}
 						</div>
 					{:else}

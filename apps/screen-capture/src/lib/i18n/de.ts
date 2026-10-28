@@ -201,6 +201,7 @@ const de: Messages = {
 	timeline: {
 		zoom: 'Zoom',
 		zoomLabel: 'Timeline-Zoom',
+		itemLabel: (kind, label) => `${kind}: ${label}`,
 		resize: 'Höhe der Timeline (ziehen oder Pfeiltasten, Doppelklick: Standard)',
 		fitAll: 'Alles zeigen',
 		hint: 'Strg + Mausrad zoomt · Klick wählt verknüpfte Clips (Alt: nur diesen, Strg/Umschalt: hinzufügen) · ziehen zum Verschieben oder auf eine andere Spur · Kanten ziehen zum Trimmen (Umschalt: Rest bleibt stehen)',

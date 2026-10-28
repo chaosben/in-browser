@@ -4,9 +4,18 @@
 	import type { Size } from '#lib/project/canvas.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
-	import { hasShadow, type Annotation, type Clip, type ClipShape, type FontId, type TextAlign, type ZoomSegment } from '#lib/project/types.js';
+	import {
+		hasShadow,
+		type Annotation,
+		type Clip,
+		type ClipShape,
+		type FontId,
+		type TextAlign,
+		type ZoomSegment
+	} from '#lib/project/types.js';
 	import { rememberDuration, rememberStyle } from '#lib/project/styles.js';
 	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
+	import { fitTextToCanvas, overlayBounds } from '#lib/render/overlays.js';
 	import { ANCHORS } from '#lib/media/content.js';
 	import {
 		clipDuration,
@@ -47,6 +56,20 @@
 		if (!o) return;
 		editor.update((t) => updateItem(t, o.id, patch), `insp-${o.id}-${field}`);
 		// The next annotation of this type starts with the same settings
+		rememberStyle(o.kind, patch);
+	}
+
+	/**
+	 * Changes that can enlarge a text box (text, font, automatic width): the box is then kept within the canvas –
+	 * wrapped, if needed with a smaller font. That adjustment belongs to this annotation only, it is not remembered.
+	 */
+	function setTextBox(patch: Partial<Annotation>, field: string) {
+		const o = overlay;
+		if (!o || (o.kind !== 'text' && o.kind !== 'callout')) return;
+		const { width: W, height: H } = editor.project;
+		const fit = fitTextToCanvas({ ...o, ...patch } as typeof o, (a) => overlayBounds(a, W, H));
+		const changes = { ...patch, ...fit } as Partial<Annotation>;
+		editor.update((t) => updateItem(t, o.id, changes), `insp-${o.id}-${field}`);
 		rememberStyle(o.kind, patch);
 	}
 
@@ -208,7 +231,7 @@
 					class="textarea textarea-sm"
 					rows="3"
 					value={o.text}
-					oninput={(e) => setOverlay({ text: e.currentTarget.value }, 'text')}
+					oninput={(e) => setTextBox({ text: e.currentTarget.value }, 'text')}
 					onchange={end}
 				></textarea>
 			</label>
@@ -236,7 +259,7 @@
 						<button
 							class="btn btn-xs btn-ghost ml-auto"
 							onclick={() => {
-								setOverlay({ boxWidth: undefined }, 'boxWidth');
+								setTextBox({ boxWidth: undefined }, 'boxWidth');
 								end();
 							}}
 							title={m.inspector.autoWidthHint}
@@ -255,7 +278,7 @@
 					value={o.font}
 					onfocus={() => FONT_IDS.forEach(loadFont)}
 					onchange={(e) => {
-						setOverlay({ font: e.currentTarget.value as FontId }, 'font');
+						setTextBox({ font: e.currentTarget.value as FontId }, 'font');
 						end();
 					}}
 				>

@@ -199,6 +199,7 @@ const en = {
 	timeline: {
 		zoom: 'Zoom',
 		zoomLabel: 'Timeline zoom',
+		itemLabel: (kind: string, label: string) => `${kind}: ${label}`,
 		resize: 'Timeline height (drag or arrow keys, double-click: default)',
 		fitAll: 'Show all',
 		hint: 'Ctrl + mouse wheel zooms · click selects linked clips (Alt: only this one, Ctrl/Shift: add) · drag to move or to another track · drag edges to trim (Shift: without moving the rest)',
