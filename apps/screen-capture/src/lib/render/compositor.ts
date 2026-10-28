@@ -1,6 +1,6 @@
 import { anchorFactors } from '#lib/media/content.js';
 import type { Anchor, ClipShape, Rect, Timeline } from '#lib/project/types.js';
-import { itemsAt, trackState, viewAt } from '#lib/timeline/ops.js';
+import { fadeAlpha, itemEnd, itemsAt, trackState, viewAt } from '#lib/timeline/ops.js';
 import { drawOverlay, overlayAlpha } from './overlays.js';
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -28,7 +28,7 @@ export interface Scene {
 	frames: Map<string, Frame>;
 	/** Forces a view (e.g. full frame while editing a zoom segment). */
 	view?: Rect;
-	/** Fade annotations in and out (default); the paused preview draws them at full opacity */
+	/** Fade annotations and clips in and out (default); the paused preview draws everything at full opacity */
 	fades?: boolean;
 }
 
@@ -58,7 +58,10 @@ export function renderFrame(ctx: Ctx2D, width: number, height: number, scene: Sc
 		const frame = scene.frames.get(item.id);
 		if (!frame || frame.width <= 0 || frame.height <= 0) continue;
 		const { x, y, w, h } = item.rect;
+		// Fading clips let the tracks below and the background shine through
+		ctx.globalAlpha = scene.fades === false ? 1 : fadeAlpha(scene.t, item.start, itemEnd(item), item.fadeIn, item.fadeOut);
 		drawClip(ctx, frame, x * width, y * height, w * width, h * height, item.shape ?? 'rect');
+		ctx.globalAlpha = 1;
 	}
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 }

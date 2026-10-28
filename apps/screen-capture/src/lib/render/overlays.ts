@@ -1,18 +1,16 @@
 import type { Annotation, CalloutAnnotation, Point, Rect, TextAnnotation } from '#lib/project/types.js';
+import { fadeAlpha } from '#lib/timeline/ops.js';
 import { parseColor } from '#lib/util/color.js';
 import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
 import { iconPicture, imagePicture } from './images.svelte.js';
 
-/** Fade-in/fade-out duration in seconds. */
-export const FADE = 0.2;
 
 const LINE_HEIGHT = 1.25;
 const TEXT_PADDING = 0.4;
 
 export function overlayAlpha(a: Annotation, t: number): number {
-	if (!a.fade) return 1;
-	return Math.max(0, Math.min(1, (t - a.start) / FADE, (a.end - t) / FADE));
+	return fadeAlpha(t, a.start, a.end, a.fadeIn, a.fadeOut);
 }
 
 /**

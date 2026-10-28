@@ -8,6 +8,9 @@ import {
 	bringToFront,
 	clipsAt,
 	duration,
+	clampFade,
+	fadeAlpha,
+	fadeEdges,
 	group,
 	insertFreeze,
 	itemsAt,
@@ -45,7 +48,8 @@ function text(id: string, start: number, end: number, track = 1): Annotation {
 		kind: 'text',
 		start,
 		end,
-		fade: false,
+		fadeIn: 0,
+		fadeOut: 0,
 		track,
 		x: 0,
 		y: 0,
@@ -59,8 +63,8 @@ function text(id: string, start: number, end: number, track = 1): Annotation {
 	};
 }
 
-function zoom(id: string, start: number, end: number, ease = 0.5): ZoomSegment {
-	return { id, start, end, ease, rect: { x: 0.5, y: 0.5, w: 0.5, h: 0.5 } };
+function zoom(id: string, start: number, end: number, easeIn = 0.5, easeOut = easeIn): ZoomSegment {
+	return { id, start, end, easeIn, easeOut, rect: { x: 0.5, y: 0.5, w: 0.5, h: 0.5 } };
 }
 
 const tl = (...items: Item[]): Timeline => ({ items, tracks: [], zoom: [] });
@@ -357,6 +361,30 @@ describe('Zoom', () => {
 		expect(viewAt(t, 5.5).w).toBeCloseTo(0.75);
 		expect(viewAt(t, 6)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
 	});
+	it('viewAt eases in and out separately', () => {
+		const t = { ...tl(clip('a', 0, 0, 20)), zoom: [zoom('a', 2, 6, 2, 0)] };
+		expect(viewAt(t, 3).w).toBeCloseTo(0.75);
+		expect(viewAt(t, 5.9).w).toBe(0.5);
+	});
+});
+
+describe('fadeAlpha', () => {
+	it('rises and falls linearly, each side on its own', () => {
+		expect(fadeAlpha(0.5, 0, 10, 1, 2)).toBeCloseTo(0.5);
+		expect(fadeAlpha(5, 0, 10, 1, 2)).toBe(1);
+		expect(fadeAlpha(9, 0, 10, 1, 2)).toBeCloseTo(0.5);
+		expect(fadeAlpha(9.9, 0, 10, 1, 0)).toBe(1);
+		expect(fadeAlpha(3, 0, 10)).toBe(1);
+	});
+	it('clampFade keeps both fades within the duration', () => {
+		expect(clampFade(3, 1, 2)).toBe(1);
+		expect(clampFade(0.5, 1, 2)).toBe(0.5);
+		expect(clampFade(1, 3, 2)).toBe(0);
+	});
+	it('shortens fades longer than the element proportionally', () => {
+		expect(fadeEdges(0, 2, 3, 1)).toEqual([1.5, 1.5]);
+		expect(fadeAlpha(1.5, 0, 2, 3, 1)).toBe(1);
+	});
 });
 
 describe('nextStepNumber', () => {
@@ -366,7 +394,8 @@ describe('nextStepNumber', () => {
 		kind: 'step',
 		start: 0,
 		end: 1,
-		fade: false,
+		fadeIn: 0,
+		fadeOut: 0,
 		track: 1,
 		x: 0.5,
 		y: 0.5,
@@ -415,6 +444,8 @@ describe('parseProject', () => {
 		expect(arrow).toMatchObject({ shadow: true });
 		expect(arrow.font).toBeUndefined();
 		expect(blur.shadow).toBeUndefined();
+		// The former fade switch becomes 0.2 s at both ends
+		expect(boxed).toMatchObject({ fadeIn: 0.2, fadeOut: 0.2 });
 		// Idempotent: filled items stay the same objects
 		const again = parseProject(p);
 		again.timeline.items.forEach((item, i) => expect(item).toBe(p.timeline.items[i]));
@@ -443,5 +474,40 @@ describe('group', () => {
 		const loose = text('z', 1, 2, 4);
 		const t = group(tl(clip('a', 0, 0, 5), clip('b', 0, 0, 5, 1), loose), ['a', 'b'], 'g');
 		expect(t.items[2]).toBe(loose);
+	});
+});
+
+describe('parseProject fades', () => {
+	it('turns the former fade switch and zoom transition into separate values', () => {
+		const p = parseProject({
+			version: 1,
+			id: 'x',
+			sources: [],
+			timeline: {
+				items: [
+					{ id: 'a', type: 'annotation', kind: 'arrow', start: 0, end: 1, track: 0, fade: false },
+					{ id: 'b', type: 'annotation', kind: 'arrow', start: 0, end: 1, track: 0, fade: true }
+				],
+				zoom: [{ id: 'z', start: 0, end: 2, ease: 0.8, rect: { x: 0, y: 0, w: 0.5, h: 0.5 } }]
+			}
+		});
+		const [off, on] = p.timeline.items as unknown as Record<string, unknown>[];
+		expect(off).toMatchObject({ fadeIn: 0, fadeOut: 0 });
+		expect(on).toMatchObject({ fadeIn: 0.2, fadeOut: 0.2 });
+		expect('fade' in on).toBe(false);
+		expect(p.timeline.zoom[0]).toMatchObject({ easeIn: 0.8, easeOut: 0.8 });
+		expect('ease' in p.timeline.zoom[0]).toBe(false);
+		expect(parseProject(p).timeline.zoom[0]).toBe(p.timeline.zoom[0]);
+	});
+});
+
+describe('split and fades', () => {
+	it('does not fade at the cut', () => {
+		const c = { ...clip('a', 0, 0, 10), fadeIn: 1, fadeOut: 1 };
+		const [left, right] = split(tl(c), 5).items as Clip[];
+		expect(left).toMatchObject({ fadeIn: 1 });
+		expect(left.fadeOut).toBeUndefined();
+		expect(right).toMatchObject({ fadeOut: 1 });
+		expect(right.fadeIn).toBeUndefined();
 	});
 });

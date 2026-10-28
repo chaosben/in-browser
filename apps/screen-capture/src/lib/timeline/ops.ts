@@ -380,15 +380,16 @@ function closeGaps(timeline: Timeline, from: number, to: number): Timeline {
 function splitClip(clip: Clip, t: number): [Clip, Clip] | null {
 	const local = t - clip.start;
 	if (local < MIN_CLIP || clipDuration(clip) - local < MIN_CLIP) return null;
+	// No fade at the cut: the left part keeps only its fade-in, the right part only its fade-out
 	if (clip.type === 'freeze') {
 		return [
-			{ ...clip, duration: local },
-			{ ...clip, id: newId(), start: t, duration: clip.duration - local }
+			{ ...clip, duration: local, fadeOut: undefined },
+			{ ...clip, id: newId(), start: t, duration: clip.duration - local, fadeIn: undefined }
 		];
 	}
 	return [
-		{ ...clip, out: clip.in + local },
-		{ ...clip, id: newId(), start: t, in: clip.in + local }
+		{ ...clip, out: clip.in + local, fadeOut: undefined },
+		{ ...clip, id: newId(), start: t, in: clip.in + local, fadeIn: undefined }
 	];
 }
 
@@ -396,8 +397,8 @@ function splitItem(item: Item, t: number): [Item, Item] | null {
 	if (item.type !== 'annotation') return splitClip(item, t);
 	if (t - item.start < MIN_ITEM || item.end - t < MIN_ITEM) return null;
 	return [
-		{ ...item, end: t },
-		{ ...item, id: newId(), start: t }
+		{ ...item, end: t, fadeOut: 0 },
+		{ ...item, id: newId(), start: t, fadeIn: 0 }
 	];
 }
 
@@ -615,17 +616,36 @@ export function removeZoom(timeline: Timeline, id: string): Timeline {
 
 const easeInOut = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
 
+/**
+ * Where a fade-in ends and a fade-out starts within [start, end] (`fadeIn`/`fadeOut` in seconds, 0: none). If both
+ * together are longer than the element, they are shortened proportionally.
+ */
+export function fadeEdges(start: number, end: number, fadeIn = 0, fadeOut = 0): [number, number] {
+	const fin = Math.max(fadeIn, 0);
+	const fout = Math.max(fadeOut, 0);
+	const k = fin + fout > 0 ? Math.min(1, (end - start) / (fin + fout)) : 1;
+	return [start + fin * k, end - fout * k];
+}
+
+/** Largest allowed duration of one fade so both together never exceed the element's `duration` */
+export function clampFade(value: number, other: number, duration: number): number {
+	return Math.max(0, Math.min(value, duration - Math.max(other, 0)));
+}
+
+/** Opacity/volume factor 0…1 at time `t`: rises linearly during the fade-in, falls during the fade-out */
+export function fadeAlpha(t: number, start: number, end: number, fadeIn = 0, fadeOut = 0): number {
+	const [inEnd, outStart] = fadeEdges(start, end, fadeIn, fadeOut);
+	let p = 1;
+	if (inEnd > start) p = Math.min(p, (t - start) / (inEnd - start));
+	if (outStart < end) p = Math.min(p, (end - t) / (end - outStart));
+	return Math.min(Math.max(p, 0), 1);
+}
+
 /** Visible view at time `t`, with smooth transitions at the segment boundaries. */
 export function viewAt(timeline: Timeline, t: number): Rect {
 	const z = zoomAt(timeline, t);
 	if (!z) return FULL_VIEW;
-	const ease = Math.min(z.ease, (z.end - z.start) / 2);
-	let p = 1;
-	if (ease > 0) {
-		if (t < z.start + ease) p = (t - z.start) / ease;
-		else if (t > z.end - ease) p = (z.end - t) / ease;
-	}
-	const k = easeInOut(Math.min(Math.max(p, 0), 1));
+	const k = easeInOut(fadeAlpha(t, z.start, z.end, z.easeIn, z.easeOut));
 	return {
 		x: z.rect.x * k,
 		y: z.rect.y * k,

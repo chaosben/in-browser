@@ -4,7 +4,7 @@ import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { frameArea } from '#lib/media/content.js';
 import { onPictureLoaded } from '#lib/render/images.svelte.js';
 import { mediaFile } from '#lib/storage/opfs.js';
-import { clipsAt, clipsOf, duration, sourceTime, trackState } from '#lib/timeline/ops.js';
+import { clipsAt, clipsOf, duration, fadeAlpha, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { m } from '#lib/i18n/index.js';
 import { toast } from '#lib/ui/toast.svelte.js';
 import { errorMessage } from '#lib/util/format.js';
@@ -168,7 +168,10 @@ export class Player {
 			if (!video) continue;
 			const target = sourceTime(clip, t);
 			const track = trackState(timeline, clip.track);
-			video.volume = clip.type === 'video' && !track.muted && !track.hidden ? (clip.volume ?? 1) : 0;
+			video.volume =
+				clip.type === 'video' && !track.muted && !track.hidden
+					? (clip.volume ?? 1) * fadeAlpha(t, clip.start, itemEnd(clip), clip.fadeIn, clip.fadeOut)
+					: 0;
 			if (!playing || clip.type === 'freeze') {
 				video.pause();
 				this.#seekVideo(video, target, 0.001);

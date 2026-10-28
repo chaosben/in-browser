@@ -20,7 +20,7 @@ import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { fontsOf, loadFont } from '#lib/render/fonts.svelte.js';
 import { loadPictures, setImageProject } from '#lib/render/images.svelte.js';
 import { clearExports, exportWritable, mediaFile } from '#lib/storage/opfs.js';
-import { clipsAt, clipsOf, duration, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
+import { clipsAt, clipsOf, duration, fadeAlpha, fadeEdges, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { outputSize, videoBitrate, type ExportSettings } from './settings';
 import { m } from '#lib/i18n/index.js';
 
@@ -237,12 +237,16 @@ export async function exportProject(
 				if (to <= from) continue;
 				const sink = await audioSink(clip.sourceId);
 				if (sink) {
+					// Volume over time: linear between the window bounds and the fade edges inside it
+					const end = itemEnd(clip);
+					const gain = (t: number) => (clip.volume ?? 1) * fadeAlpha(t, clip.start, end, clip.fadeIn, clip.fadeOut);
+					const edges = fadeEdges(clip.start, end, clip.fadeIn, clip.fadeOut).filter((t) => t > from && t < to);
 					parts.push({
 						sink,
 						srcStart: sourceTime(clip, from),
 						srcEnd: sourceTime(clip, to),
 						offset: from - t0,
-						gain: clip.volume ?? 1
+						gain: [from, ...edges, to].map((t) => ({ time: t - t0, value: gain(t) }))
 					});
 				}
 			}
@@ -275,8 +279,8 @@ interface AudioPart {
 	srcEnd: number;
 	/** Start within the window in seconds */
 	offset: number;
-	/** Volume 0…1 */
-	gain: number;
+	/** Volume 0…1 over time (seconds within the window), linear in between */
+	gain: { time: number; value: number }[];
 }
 
 /**
@@ -287,7 +291,8 @@ async function mixWindow(parts: AudioPart[], length: number): Promise<AudioBuffe
 	const context = new OfflineAudioContext(CHANNELS, length, SAMPLE_RATE);
 	for (const { sink, srcStart, srcEnd, offset, gain } of parts) {
 		const volume = context.createGain();
-		volume.gain.value = gain;
+		volume.gain.setValueAtTime(gain[0].value, gain[0].time);
+		for (const { time, value } of gain.slice(1)) volume.gain.linearRampToValueAtTime(value, time);
 		volume.connect(context.destination);
 		// Start a little earlier so the buffer that reaches into the range is definitely included.
 		for await (const { buffer, timestamp, duration } of sink.buffers(Math.max(0, srcStart - 0.2), srcEnd)) {

@@ -92,7 +92,7 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 }
 
 // The actual track is assigned by `addItem` (new items go to the front).
-const overlayBase = (start: number, end: number) => ({ id: newId(), type: 'annotation' as const, start, end, fade: true, track: 0, shadow: true });
+const overlayBase = (start: number, end: number) => ({ id: newId(), type: 'annotation' as const, start, end, fadeIn: 0.2, fadeOut: 0.2, track: 0, shadow: true });
 
 /** Rect of `width` × `height` pixels in the canvas center, scaled down to at most `max` of the canvas (never up) */
 export function centeredRect(width: number, height: number, W: number, H: number, max = 0.5): Rect {
@@ -116,7 +116,7 @@ export function createIcon(icon: IconData, start: number, end: number, W: number
 
 /** New zoom segment: 2× on the center of the frame. `w === h` so the aspect ratio is preserved. */
 export function createZoom(start: number, end: number): ZoomSegment {
-	return { id: newId(), start, end, ease: 0.6, rect: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } };
+	return { id: newId(), start, end, easeIn: 0.6, easeOut: 0.6, rect: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } };
 }
 
 /** Source fitted into the canvas keeping its aspect ratio (`cover`: filling, then extends past the edge). */

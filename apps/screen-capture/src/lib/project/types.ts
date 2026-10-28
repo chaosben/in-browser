@@ -59,6 +59,9 @@ export interface VideoClip extends ItemBase {
 	anchor?: Anchor;
 	/** Volume 0…1 (default 1) */
 	volume?: number;
+	/** Fade in/out of picture and sound in seconds (missing or 0: none) */
+	fadeIn?: number;
+	fadeOut?: number;
 }
 
 /** Holds frame `at` of the source for `duration` seconds (without audio). */
@@ -70,6 +73,9 @@ export interface FreezeClip extends ItemBase {
 	rect: Rect;
 	shape?: ClipShape;
 	anchor?: Anchor;
+	/** Fade in/out of the picture in seconds (missing or 0: none) */
+	fadeIn?: number;
+	fadeOut?: number;
 }
 
 export type Clip = VideoClip | FreezeClip;
@@ -92,8 +98,9 @@ interface AnnotationBase extends ItemBase {
 	type: 'annotation';
 	/** Timeline seconds */
 	end: number;
-	/** Fade in and out smoothly */
-	fade: boolean;
+	/** Smooth fade in and out in seconds (0: none) */
+	fadeIn: number;
+	fadeOut: number;
 }
 
 /** Bundled fonts for text annotations (see `render/fonts.svelte.ts`) */
@@ -256,13 +263,14 @@ export function hasShadow(a: Annotation): a is ShadowedAnnotation {
 /** Everything that can be placed on a track */
 export type Item = Clip | Annotation;
 
-/** Zooms to `rect` during [start, end), with `ease` seconds of transition at both ends. */
+/** Zooms to `rect` during [start, end), with `easeIn`/`easeOut` seconds of transition at the start/end. */
 export interface ZoomSegment {
 	id: string;
 	start: number;
 	end: number;
 	rect: Rect;
-	ease: number;
+	easeIn: number;
+	easeOut: number;
 }
 
 /** State of a track (index = track number) */
@@ -328,7 +336,11 @@ export function parseProject(raw: unknown): Project {
 		...p,
 		sources: p.sources.map((s) => (typeof s.hasVideo === 'boolean' ? s : { ...s, hasVideo: true })),
 		images: Array.isArray(p.images) ? p.images : [],
-		timeline: { items: p.timeline.items.map(fillItem), tracks: p.timeline.tracks ?? [], zoom: p.timeline.zoom ?? [] }
+		timeline: {
+			items: p.timeline.items.map(fillItem),
+			tracks: p.timeline.tracks ?? [],
+			zoom: (p.timeline.zoom ?? []).map(fillZoom)
+		}
 	};
 }
 
@@ -341,5 +353,18 @@ function fillItem(item: Item): Item {
 	if ((item.kind === 'text' || item.kind === 'callout') && !raw.align) patch.align = 'left';
 	// Text used to get a shadow only without a background
 	if (hasShadow(item) && typeof raw.shadow !== 'boolean') patch.shadow = item.kind === 'text' ? !item.background : true;
-	return Object.keys(patch).length ? ({ ...item, ...patch } as Annotation) : item;
+	// Formerly one switch for both ends with a fixed 0.2 s
+	if (typeof raw.fadeIn !== 'number') patch.fadeIn = raw.fade === false ? 0 : 0.2;
+	if (typeof raw.fadeOut !== 'number') patch.fadeOut = raw.fade === false ? 0 : 0.2;
+	if (!Object.keys(patch).length && !('fade' in raw)) return item;
+	const { fade: _, ...rest } = { ...raw, ...patch };
+	return rest as unknown as Annotation;
+}
+
+/** Formerly one transition for both ends of a zoom segment */
+function fillZoom(zoom: ZoomSegment): ZoomSegment {
+	const raw = zoom as ZoomSegment & { ease?: number };
+	if (typeof raw.easeIn === 'number' && typeof raw.easeOut === 'number' && !('ease' in raw)) return zoom;
+	const { ease = 0.6, ...rest } = raw;
+	return { ...rest, easeIn: raw.easeIn ?? ease, easeOut: raw.easeOut ?? ease };
 }

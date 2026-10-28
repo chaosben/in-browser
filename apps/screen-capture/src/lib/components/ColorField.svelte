@@ -12,6 +12,7 @@
 
 <script lang="ts">
 	import { m } from '#lib/i18n/index.js';
+	import NumberField from './NumberField.svelte';
 	import { COLORS } from '#lib/project/defaults.js';
 	import { formatColor, parseColor } from '#lib/util/color.js';
 	import { mergeSwatches } from '#lib/util/recent-colors.js';
@@ -52,8 +53,8 @@
 		if (final && !COLORS.includes(hex)) remember(hex);
 	}
 
-	function setAlpha(input: HTMLInputElement, final: boolean) {
-		if (parsed) onchange(formatColor(parsed.hex, Number(input.value) / 100), final);
+	function setAlpha(percent: number, final: boolean) {
+		if (parsed) onchange(formatColor(parsed.hex, percent / 100), final);
 	}
 
 	/** Removes the listeners that close the open popover */
@@ -135,20 +136,15 @@
 				class="bg-base-100 text-base-content border-base-300 rounded-box m-0 w-52 border p-3 shadow"
 				ontoggle={placePopover}
 			>
-				<div class="flex items-center gap-2">
-					<input
-						type="range"
-						class="range range-xs flex-1"
-						min="0"
-						max="100"
-						step="1"
-						value={percent}
-						aria-label={m.inspector.opacity}
-						oninput={(e) => setAlpha(e.currentTarget, false)}
-						onchange={(e) => setAlpha(e.currentTarget, true)}
-					/>
-					<span class="w-9 text-right text-xs tabular-nums">{percent} %</span>
-				</div>
+				<NumberField
+					label={m.inspector.opacity}
+					value={percent}
+					unit="%"
+					min={0}
+					max={100}
+					oninput={(v) => setAlpha(v, false)}
+					oncommit={() => setAlpha(percent, true)}
+				/>
 			</div>
 		{/if}
 	</div>

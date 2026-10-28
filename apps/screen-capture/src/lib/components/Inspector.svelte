@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CanvasSizeField from './CanvasSizeField.svelte';
 	import ColorField from './ColorField.svelte';
+	import NumberField from './NumberField.svelte';
 	import type { Size } from '#lib/project/canvas.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
@@ -18,7 +19,9 @@
 	import { fitTextToCanvas, overlayBounds } from '#lib/render/overlays.js';
 	import { ANCHORS } from '#lib/media/content.js';
 	import {
+		clampFade,
 		clipDuration,
+		fadeEdges,
 		remove,
 		removeZoom,
 		retimeAnnotation,
@@ -91,10 +94,10 @@
 
 	function setTiming(start: number, length: number) {
 		if (overlay) {
-			editor.update((t) => retimeAnnotation(t, overlay.id, start, start + length));
+			editor.update((t) => retimeAnnotation(t, overlay.id, start, start + length), `insp-${overlay.id}-timing`);
 			rememberDuration(overlay.kind, length);
 		}
-		else if (zoom) editor.update((t) => retimeZoom(t, zoom.id, start, start + length));
+		else if (zoom) editor.update((t) => retimeZoom(t, zoom.id, start, start + length), `insp-${zoom.id}-timing`);
 	}
 
 	function removeSelected() {
@@ -135,37 +138,57 @@
 		setOverlay({ [field]: value } as Partial<Annotation>, field);
 		if (final) end();
 	}
-	const num = (e: Event) => Number((e.currentTarget as HTMLInputElement).value);
+	/** Longest fade or transition in seconds */
+	const MAX_FADE = 10;
+
+	interface FadeSide {
+		label: string;
+		value: number;
+		onset: (seconds: number) => void;
+	}
 </script>
 
-{#snippet slider(label: string, value: number, min: number, max: number, step: number, display: string, onset: (v: number) => void)}
-	<label class="flex flex-col gap-1">
-		<span class="flex justify-between text-xs"><span class="opacity-70">{label}</span><span>{display}</span></span>
-		<input type="range" class="range range-xs" {min} {max} {step} {value} oninput={(e) => onset(num(e))} onchange={end} />
-	</label>
+<!-- Size relative to the canvas height, shown and entered in canvas pixels (`min`/`max` as shares of the height) -->
+{#snippet pixels(label: string, value: number, min: number, max: number, onset: (v: number) => void)}
+	{@const H = editor.project.height}
+	<NumberField
+		{label}
+		value={Math.round(value * H)}
+		unit="px"
+		min={Math.max(1, Math.ceil(min * H))}
+		max={Math.max(1, Math.floor(max * H))}
+		oninput={(px) => onset(px / H)}
+		oncommit={end}
+	/>
 {/snippet}
 
-<!-- Size relative to the canvas height, shown and entered in canvas pixels -->
-{#snippet pixels(label: string, value: number, min: number, onset: (v: number) => void)}
-	<label class="flex items-center justify-between gap-2 text-xs">
+<!-- Fade or transition at the start and end, each with its own duration (0: none), in one compact row. Together
+	 they never exceed the element's duration; if it got shorter later, a side only partly takes effect – marked. -->
+{#snippet inOut(label: string, sides: [FadeSide, FadeSide], start: number, stop: number)}
+	{@const duration = stop - start}
+	{@const [inEnd, outStart] = fadeEdges(start, stop, sides[0].value, sides[1].value)}
+	<!-- Label, then both sides sharing the rest of the width -->
+	<div class="grid grid-cols-[auto_1fr_1fr] items-center gap-x-2 text-xs">
 		<span class="opacity-70">{label}</span>
-		<span class="flex items-center gap-1">
-			<input
-				type="number"
-				class="input input-xs w-20 text-right"
-				{min}
-				step="1"
-				value={Math.round(value * editor.project.height)}
-				onchange={(e) => {
-					const px = Math.max(min, Math.round(num(e)) || min);
-					e.currentTarget.value = String(px);
-					onset(px / editor.project.height);
-					end();
-				}}
+		{#each sides as side, i (side.label)}
+			{@const other = sides[1 - i].value}
+			{@const effective = i === 0 ? inEnd - start : stop - outStart}
+			{@const shortened = side.value > 0 && effective < side.value - 0.005}
+			<NumberField
+				label={side.label}
+				layout="inline"
+				value={side.value}
+				unit="s"
+				min={0}
+				max={Math.max(0, Math.min(MAX_FADE, duration - other))}
+				step={0.1}
+				decimals={2}
+				warning={shortened ? m.inspector.fadeShortened(effective.toFixed(2)) : undefined}
+				oninput={(v) => side.onset(clampFade(v, other, duration))}
+				oncommit={end}
 			/>
-			<span class="opacity-70">px</span>
-		</span>
-	</label>
+		{/each}
+	</div>
 {/snippet}
 
 {#snippet checkbox(label: string, checked: boolean, onset: (v: boolean) => void)}
@@ -184,30 +207,26 @@
 {/snippet}
 
 {#snippet timing(start: number, stop: number)}
-	<div class="grid grid-cols-2 gap-2">
-		<label class="flex flex-col gap-1 text-xs">
-			<span class="opacity-70">{m.inspector.start}</span>
-			<input
-				type="number"
-				class="input input-xs"
-				min="0"
-				step="0.1"
-				value={start.toFixed(2)}
-				onchange={(e) => setTiming(num(e), stop - start)}
-			/>
-		</label>
-		<label class="flex flex-col gap-1 text-xs">
-			<span class="opacity-70">{m.inspector.duration}</span>
-			<input
-				type="number"
-				class="input input-xs"
-				min="0.1"
-				step="0.1"
-				value={(stop - start).toFixed(2)}
-				onchange={(e) => setTiming(start, num(e))}
-			/>
-		</label>
-	</div>
+	<NumberField
+		label={m.inspector.start}
+		value={start}
+		unit="s"
+		min={0}
+		step={0.1}
+		decimals={2}
+		oninput={(v) => setTiming(v, stop - start)}
+		oncommit={end}
+	/>
+	<NumberField
+		label={m.inspector.duration}
+		value={stop - start}
+		unit="s"
+		min={0.1}
+		step={0.1}
+		decimals={2}
+		oninput={(v) => setTiming(start, v)}
+		oncommit={end}
+	/>
 {/snippet}
 
 <div class="flex flex-col gap-4 p-3 text-sm">
@@ -235,7 +254,7 @@
 					onchange={end}
 				></textarea>
 			</label>
-			{@render pixels(m.inspector.fontSize, o.size, 4, (v) => setOverlay({ size: v }, 'size'))}
+			{@render pixels(m.inspector.fontSize, o.size, 4 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
 			<div class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.align}</span>
 				<div class="flex items-center gap-2">
@@ -297,21 +316,15 @@
 		{/if}
 
 		{#if o.kind === 'step'}
-			<label class="flex flex-col gap-1 text-xs">
-				<span class="opacity-70">{m.inspector.stepNumber}</span>
-				<input
-					type="number"
-					class="input input-xs"
-					min="1"
-					step="1"
-					value={o.number}
-					onchange={(e) => {
-						setOverlay({ number: Math.max(1, Math.round(num(e)) || 1) }, 'number');
-						end();
-					}}
-				/>
-			</label>
-			{@render pixels(m.inspector.size, o.size, 8, (v) => setOverlay({ size: v }, 'size'))}
+			<NumberField
+				label={m.inspector.stepNumber}
+				value={o.number}
+				min={1}
+				max={999}
+				oninput={(v) => setOverlay({ number: v }, 'number')}
+				oncommit={end}
+			/>
+			{@render pixels(m.inspector.size, o.size, 8 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
 		{/if}
 
 		{#if 'color' in o}
@@ -322,9 +335,7 @@
 		{/if}
 
 		{#if o.kind === 'arrow' || o.kind === 'rect' || o.kind === 'ellipse' || o.kind === 'line'}
-			{@render slider(m.inspector.lineWidth, o.width, 0.002, 0.02, 0.0005, `${(o.width * 1000).toFixed(1)}`, (v) =>
-				setOverlay({ width: v }, 'width')
-			)}
+			{@render pixels(m.inspector.lineWidth, o.width, 0.002, 0.02, (v) => setOverlay({ width: v }, 'width'))}
 		{/if}
 		{#if o.kind === 'line'}
 			{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
@@ -353,14 +364,10 @@
 					</div>
 				</div>
 			{/if}
-			{@render slider(m.inspector.radius, o.radius, 0, 0.1, 0.001, `${(o.radius * 1000).toFixed(0)}`, (v) =>
-				setOverlay({ radius: v }, 'radius')
-			)}
+			{@render pixels(m.inspector.radius, o.radius, 0, 0.1, (v) => setOverlay({ radius: v }, 'radius'))}
 		{/if}
 		{#if o.kind === 'rect'}
-			{@render slider(m.inspector.radius, o.radius, 0, 0.05, 0.001, `${(o.radius * 1000).toFixed(0)}`, (v) =>
-				setOverlay({ radius: v }, 'radius')
-			)}
+			{@render pixels(m.inspector.radius, o.radius, 0, 0.05, (v) => setOverlay({ radius: v }, 'radius'))}
 		{/if}
 		{#if o.kind === 'blur'}
 			<div class="flex flex-col gap-1">
@@ -380,13 +387,19 @@
 					{/each}
 				</div>
 			</div>
-			{@render slider(m.inspector.strength, o.strength, 0.002, 0.05, 0.001, `${(o.strength * 1000).toFixed(0)}`, (v) =>
-				setOverlay({ strength: v }, 'strength')
-			)}
+			{@render pixels(m.inspector.strength, o.strength, 0.002, 0.05, (v) => setOverlay({ strength: v }, 'strength'))}
 		{/if}
 
 		{@render timing(o.start, o.end)}
-		{@render checkbox(m.inspector.fade, o.fade, (v) => setOverlay({ fade: v }, 'fade'))}
+		{@render inOut(
+			m.inspector.fade,
+			[
+				{ label: m.inspector.fadeIn, value: o.fadeIn, onset: (v) => setOverlay({ fadeIn: v }, 'fadeIn') },
+				{ label: m.inspector.fadeOut, value: o.fadeOut, onset: (v) => setOverlay({ fadeOut: v }, 'fadeOut') }
+			],
+			o.start,
+			o.end
+		)}
 		{#if hasShadow(o)}
 			{@render checkbox(m.inspector.shadow, o.shadow, (v) => setOverlay({ shadow: v }, 'shadow'))}
 		{/if}
@@ -396,8 +409,26 @@
 			<span class="{ZOOM_ICON} size-5" aria-hidden="true"></span> {m.inspector.zoomSegment}
 		</h3>
 		<p class="text-xs opacity-70">{m.inspector.zoomHint}</p>
-		{@render slider(m.inspector.zoomLevel, 1 / z.rect.w, 1.1, 6, 0.1, `${(1 / z.rect.w).toFixed(1)}×`, setZoomLevel)}
-		{@render slider(m.inspector.ease, z.ease, 0, 2, 0.05, `${z.ease.toFixed(2)} s`, (v) => setZoom({ ease: v }, 'ease'))}
+		<NumberField
+			label={m.inspector.zoomLevel}
+			value={1 / z.rect.w}
+			unit="×"
+			min={1.1}
+			max={6}
+			step={0.1}
+			decimals={1}
+			oninput={setZoomLevel}
+			oncommit={end}
+		/>
+		{@render inOut(
+			m.inspector.ease,
+			[
+				{ label: m.inspector.zoomIn, value: z.easeIn, onset: (v) => setZoom({ easeIn: v }, 'easeIn') },
+				{ label: m.inspector.zoomOut, value: z.easeOut, onset: (v) => setZoom({ easeOut: v }, 'easeOut') }
+			],
+			z.start,
+			z.end
+		)}
 		{@render timing(z.start, z.end)}
 	{:else if clip}
 		{@const c = clip}
@@ -474,14 +505,20 @@
 		{/if}
 		{#if c.type === 'video' && source?.hasAudio}
 			{@const volume = c.volume ?? 1}
-			<div class="flex items-end gap-2">
+			<div class="flex items-center gap-2">
 				<div class="flex-1">
-					{@render slider(m.inspector.volume, volume, 0, 1, 0.01, `${Math.round(volume * 100)} %`, (v) =>
-						setClip(c, { volume: v }, 'volume')
-					)}
+					<NumberField
+						label={m.inspector.volume}
+						value={Math.round(volume * 100)}
+						unit="%"
+						min={0}
+						max={100}
+						oninput={(v) => setClip(c, { volume: v / 100 }, 'volume')}
+						oncommit={end}
+					/>
 				</div>
 				<button
-					class="btn btn-sm btn-square {volume === 0 ? 'btn-warning' : 'btn-ghost'}"
+					class="btn btn-xs btn-square {volume === 0 ? 'btn-warning' : 'btn-ghost'}"
 					onclick={() => editor.update((t) => updateItem(t, c.id, { volume: volume === 0 ? 1 : 0 }))}
 					title={m.inspector.mute}
 					aria-label={m.inspector.mute}
@@ -494,18 +531,27 @@
 				</button>
 			</div>
 		{/if}
+		<!-- Clips with a picture fade it, clips with sound fade that too -->
+		{@render inOut(
+			m.inspector.fade,
+			[
+				{ label: m.inspector.fadeIn, value: c.fadeIn ?? 0, onset: (v) => setClip(c, { fadeIn: v }, 'fadeIn') },
+				{ label: m.inspector.fadeOut, value: c.fadeOut ?? 0, onset: (v) => setClip(c, { fadeOut: v }, 'fadeOut') }
+			],
+			c.start,
+			c.start + clipDuration(c)
+		)}
 		{#if c.type === 'freeze'}
-			<label class="flex flex-col gap-1 text-xs">
-				<span class="opacity-70">{m.inspector.duration}</span>
-				<input
-					type="number"
-					class="input input-xs"
-					min="0.1"
-					step="0.5"
-					value={c.duration.toFixed(2)}
-					onchange={(e) => editor.update((t) => trim(t, c.id, 'out', num(e), 0))}
-				/>
-			</label>
+			<NumberField
+				label={m.inspector.duration}
+				value={c.duration}
+				unit="s"
+				min={0.1}
+				step={0.1}
+				decimals={2}
+				oninput={(v) => editor.update((t) => trim(t, c.id, 'out', v, 0), `insp-${c.id}-duration`)}
+				oncommit={end}
+			/>
 		{/if}
 	{:else}
 		<h3 class="flex items-center gap-2 font-semibold">

@@ -21,11 +21,11 @@ describe('applyStyle', () => {
 		expect(t.text).toBe(text().text);
 	});
 	it('ignores unknown fields and values of another type', () => {
-		const t = applyStyle(text(), { size: 'big', radius: 0.02, shadow: 1, fade: false });
+		const t = applyStyle(text(), { size: 'big', radius: 0.02, shadow: 1, fadeIn: 0 });
 		expect(t.size).toBe(text().size);
 		expect('radius' in t).toBe(false);
 		expect(t.shadow).toBe(text().shadow);
-		expect(t.fade).toBe(false);
+		expect(t.fadeIn).toBe(0);
 	});
 	it('takes over the duration from the start', () => {
 		expect(applyStyle(text(), { duration: 5 })).toMatchObject({ start: 10, end: 15 });
