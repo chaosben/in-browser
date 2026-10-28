@@ -71,6 +71,8 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				font: 'system',
 				align: 'left',
 				background: '#000000a6',
+				radius: 0.015,
+				padding: 0.02,
 				// Like before: a translucent box has no shadow
 				shadow: false
 			};
@@ -86,6 +88,8 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				font: 'system',
 				align: 'left',
 				background: '#ffffff',
+				radius: 0.012,
+				padding: 0.016,
 				tip: { x: 0.36, y: 0.38 }
 			};
 	}

@@ -59,6 +59,8 @@ function text(id: string, start: number, end: number, track = 1): Annotation {
 		font: 'system',
 		align: 'left',
 		background: null,
+		radius: 0.015,
+		padding: 0.02,
 		shadow: true
 	};
 }
@@ -435,11 +437,14 @@ describe('parseProject', () => {
 			id: 'x',
 			sources: [],
 			timeline: {
-				items: [old('text', { background: '#000000a6' }), old('text', { background: null }), old('arrow'), old('blur')]
+				items: [old('text', { background: '#000000a6', size: 0.1 }), old('text', { background: null }), old('arrow'), old('blur')]
 			}
 		});
 		const [boxed, plain, arrow, blur] = p.timeline.items as unknown as Record<string, unknown>[];
 		expect(boxed).toMatchObject({ font: 'system', align: 'left', shadow: false });
+		// Corners and padding were fixed shares of the font size
+		expect(boxed.radius).toBeCloseTo(0.03);
+		expect(boxed.padding).toBeCloseTo(0.04);
 		expect(plain).toMatchObject({ font: 'system', shadow: true });
 		expect(arrow).toMatchObject({ shadow: true });
 		expect(arrow.font).toBeUndefined();

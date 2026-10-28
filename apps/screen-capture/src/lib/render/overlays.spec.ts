@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calloutTail, fitTextToCanvas, moveAnnotation, wrapText } from './overlays';
+import { calloutTail, fitTextToCanvas, moveAnnotation, textBox, wrapText } from './overlays';
+import type { Ctx2D } from './compositor';
 import { createOverlay } from '#lib/project/defaults.js';
 import type { TextAnnotation } from '#lib/project/types.js';
 
@@ -89,8 +90,46 @@ describe('fitTextToCanvas', () => {
 		expect(patch.size).toBeLessThan(0.05);
 		expect(bounds({ ...a, ...patch }).h).toBeLessThanOrEqual(1);
 		expect(bounds({ ...a, ...patch, size: patch.size! * 1.01 }).h).toBeGreaterThan(1);
+		// Corners and padding shrink along
+		const k = patch.size! / a.size;
+		expect(patch.radius).toBeCloseTo(a.radius * k);
+		expect(patch.padding).toBeCloseTo(a.padding * k);
 	});
 	it('moves the box inside the canvas', () => {
 		expect(fitTextToCanvas(text({ text: 'Hello', size: 0.1, x: 0.8, y: 0.95 }), bounds)).toEqual({ x: 0.5, y: 0.9 });
+	});
+});
+
+describe('textBox', () => {
+	const text = (fields: Partial<TextAnnotation>) => ({
+		...(createOverlay('text', 0, 3) as TextAnnotation),
+		x: 0,
+		y: 0,
+		size: 0.01,
+		padding: 0.005,
+		background: '#000000',
+		...fields
+	});
+	/** Fake layout on a 1000 × 1000 canvas: each character is 10 wide; an "f" reaches 3 left at the start, 4 right at the end */
+	const ctx = {
+		measureText: (s: string) => ({
+			width: s.length * 10,
+			actualBoundingBoxLeft: s.startsWith('f') ? 3 : 0,
+			actualBoundingBoxRight: s.length * 10 + (s.endsWith('f') ? 4 : 0)
+		})
+	} as unknown as Ctx2D;
+	it('without overhang the box fits the advance width', () => {
+		const b = textBox(ctx, text({ text: 'abc' }), 1000, 1000);
+		expect(b).toMatchObject({ w: 40, textX: 5, inner: 30 });
+	});
+	it('widens the box by glyphs reaching past the line', () => {
+		const b = textBox(ctx, text({ text: 'fab\nabf' }), 1000, 1000);
+		expect(b).toMatchObject({ w: 30 + 3 + 4 + 10, textX: 8, inner: 30 });
+	});
+	it('keeps the overhang inside a fixed width', () => {
+		const b = textBox(ctx, text({ text: 'fa fa fa', boxWidth: 0.07 }), 1000, 1000);
+		expect(b.w).toBe(70);
+		for (const line of b.lines) expect(line.text.length * 10).toBeLessThanOrEqual(b.inner);
+		expect(b.textX + b.inner).toBeLessThanOrEqual(b.w - 5);
 	});
 });

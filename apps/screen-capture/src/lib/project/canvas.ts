@@ -65,9 +65,17 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 			case 'step':
 				return { ...a, ...point(a), size: a.size * sy };
 			case 'text':
-				return { ...a, ...point(a), size: a.size * sy, ...boxWidth(a.boxWidth) };
+				return { ...a, ...point(a), size: a.size * sy, radius: a.radius * sy, padding: a.padding * sy, ...boxWidth(a.boxWidth) };
 			case 'callout':
-				return { ...a, ...point(a), size: a.size * sy, ...boxWidth(a.boxWidth), tip: point(a.tip) };
+				return {
+					...a,
+					...point(a),
+					size: a.size * sy,
+					radius: a.radius * sy,
+					padding: a.padding * sy,
+					...boxWidth(a.boxWidth),
+					tip: point(a.tip)
+				};
 		}
 	};
 	const item = (i: Item): Item => (i.type === 'annotation' ? annotation(i) : { ...i, rect: rect(i.rect) });

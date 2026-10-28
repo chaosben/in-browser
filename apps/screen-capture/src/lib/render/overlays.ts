@@ -1,4 +1,4 @@
-import type { Annotation, CalloutAnnotation, Point, Rect, TextAnnotation } from '#lib/project/types.js';
+import { hasShadow, type Annotation, type CalloutAnnotation, type Point, type Rect, type TextAnnotation } from '#lib/project/types.js';
 import { fadeAlpha } from '#lib/timeline/ops.js';
 import { parseColor } from '#lib/util/color.js';
 import type { Ctx2D } from './compositor.js';
@@ -7,7 +7,6 @@ import { iconPicture, imagePicture } from './images.svelte.js';
 
 
 const LINE_HEIGHT = 1.25;
-const TEXT_PADDING = 0.4;
 
 export function overlayAlpha(a: Annotation, t: number): number {
 	return fadeAlpha(t, a.start, a.end, a.fadeIn, a.fadeOut);
@@ -19,6 +18,24 @@ export function overlayAlpha(a: Annotation, t: number): number {
  */
 export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alpha: number) {
 	if (alpha <= 0) return;
+	if (alpha < 1 && hasShadow(a) && a.shadow) {
+		// Shape and shadow fade separately, so the shadow would shine through the translucent shape:
+		// draw opaque into a layer and fade that as a whole
+		const layer = fadeLayer(ctx.canvas.width, ctx.canvas.height);
+		if (layer) {
+			layer.setTransform(1, 0, 0, 1, 0, 0);
+			layer.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+			layer.setTransform(ctx.getTransform());
+			layer.imageSmoothingQuality = ctx.imageSmoothingQuality;
+			drawOverlay(layer, a, W, H, 1);
+			ctx.save();
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.globalAlpha = alpha;
+			ctx.drawImage(layer.canvas, 0, 0);
+			ctx.restore();
+			return;
+		}
+	}
 	ctx.save();
 	ctx.globalAlpha = alpha;
 	const px = (r: Rect) => [r.x * W, r.y * H, r.w * W, r.h * H] as const;
@@ -167,7 +184,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			if (a.background) {
 				ctx.fillStyle = a.background;
 				ctx.beginPath();
-				ctx.roundRect(box.x, box.y, box.w, box.h, box.font * 0.3);
+				ctx.roundRect(box.x, box.y, box.w, box.h, a.radius * H);
 				const tail = a.kind === 'callout' ? calloutTail(box, { x: a.tip.x * W, y: a.tip.y * H }) : null;
 				if (tail) {
 					// Same path and winding as the box: no darker overlap with a translucent background
@@ -182,8 +199,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			}
 			ctx.fillStyle = a.color;
 			ctx.textBaseline = 'top';
-			const pad = a.background ? box.font * TEXT_PADDING : 0;
-			const inner = box.w - 2 * pad;
+			const { pad, inner, textX } = box;
 			box.lines.forEach((line, i) => {
 				const y = box.y + pad + i * box.font * LINE_HEIGHT + box.font * 0.1;
 				const words = line.text.split(' ');
@@ -191,7 +207,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 					// Canvas has no justified text: spread the remaining space over the gaps between the words
 					const widths = words.map((w) => ctx.measureText(w).width);
 					const gap = (inner - widths.reduce((sum, w) => sum + w, 0)) / (words.length - 1);
-					let x = box.x + pad;
+					let x = textX;
 					words.forEach((word, j) => {
 						ctx.fillText(word, x, y);
 						x += widths[j] + gap;
@@ -200,7 +216,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 				}
 				const free = inner - ctx.measureText(line.text).width;
 				const offset = a.align === 'center' ? free / 2 : a.align === 'right' ? free : 0;
-				ctx.fillText(line.text, box.x + pad + offset, y);
+				ctx.fillText(line.text, textX + offset, y);
 			});
 			break;
 		}
@@ -218,6 +234,20 @@ function rounded(picture: CanvasImageSource, w: number, h: number, r: number): C
 	c.clip();
 	c.drawImage(picture, 0, 0, canvas.width, canvas.height);
 	return canvas;
+}
+
+let layerCtx: OffscreenCanvasRenderingContext2D | null = null;
+
+/** Reused offscreen layer in the size of the target canvas */
+function fadeLayer(width: number, height: number) {
+	layerCtx ??= new OffscreenCanvas(width, height).getContext('2d');
+	if (!layerCtx) return null;
+	const canvas = layerCtx.canvas;
+	if (canvas.width !== width || canvas.height !== height) {
+		canvas.width = width;
+		canvas.height = height;
+	}
+	return layerCtx;
 }
 
 function shadow(ctx: Ctx2D, H: number) {
@@ -295,20 +325,46 @@ export function wrapText(text: string, measure: (s: string) => number, maxWidth?
 	return lines;
 }
 
+/** How far the glyphs of the lines reach past their start and advance width (left-aligned) */
+function inkOverhang(ctx: Ctx2D, lines: TextLine[]) {
+	let left = 0;
+	let right = 0;
+	for (const line of lines) {
+		const metrics = ctx.measureText(line.text);
+		left = Math.max(left, metrics.actualBoundingBoxLeft);
+		right = Math.max(right, metrics.actualBoundingBoxRight - metrics.width);
+	}
+	return { left, right };
+}
+
 /** Dimensions of a text box in canvas pixels. Sets `ctx.font` along the way. */
 export function textBox(ctx: Ctx2D, a: TextAnnotation | CalloutAnnotation, W: number, H: number) {
 	const font = a.size * H;
 	ctx.font = fontCss(a.font, font);
-	const pad = a.background ? font * TEXT_PADDING : 0;
+	ctx.textAlign = 'left';
+	const pad = a.background ? a.padding * H : 0;
 	const fixed = a.boxWidth === undefined ? undefined : a.boxWidth * W;
-	const lines = wrapText(a.text || ' ', (s) => ctx.measureText(s).width, fixed === undefined ? undefined : Math.max(fixed - 2 * pad, 1));
-	const width = fixed ?? Math.max(...lines.map((l) => ctx.measureText(l.text).width)) + 2 * pad;
+	const measure = (s: string) => ctx.measureText(s).width;
+	const wrap = (ink: number) => wrapText(a.text || ' ', measure, fixed === undefined ? undefined : Math.max(fixed - 2 * pad - ink, 1));
+	let lines = wrap(0);
+	let ink = inkOverhang(ctx, lines);
+	if (fixed !== undefined && ink.left + ink.right > 0) {
+		// Glyphs reaching past their advance (e.g. swashes in Caveat) must stay inside the fixed width too
+		lines = wrap(ink.left + ink.right);
+		const again = inkOverhang(ctx, lines);
+		ink = { left: Math.max(ink.left, again.left), right: Math.max(ink.right, again.right) };
+	}
+	const width = fixed ?? Math.max(...lines.map((l) => measure(l.text))) + ink.left + ink.right + 2 * pad;
 	return {
 		x: a.x * W,
 		y: a.y * H,
 		w: width,
 		h: lines.length * font * LINE_HEIGHT + 2 * pad,
 		font,
+		pad,
+		/** Start of the text and the width available to a line */
+		textX: a.x * W + pad + ink.left,
+		inner: Math.max(width - 2 * pad - ink.left - ink.right, 0),
 		lines
 	};
 }
@@ -350,12 +406,14 @@ export function fitTextToCanvas<T extends TextAnnotation | CalloutAnnotation>(a:
 	if (bounds(next).h > 1) {
 		let lo = Math.min(MIN_FIT_SIZE, next.size);
 		let hi = next.size;
+		// Corners and padding shrink along, so the box keeps its shape
+		const scaled = (size: number) => ({ size, radius: next.radius * (size / next.size), padding: next.padding * (size / next.size) });
 		for (let i = 0; i < 14; i++) {
 			const mid = (lo + hi) / 2;
-			if (bounds({ ...next, size: mid }).h <= 1) lo = mid;
+			if (bounds({ ...next, ...scaled(mid) }).h <= 1) lo = mid;
 			else hi = mid;
 		}
-		set({ size: lo } as Partial<T>);
+		set(scaled(lo) as Partial<T>);
 	}
 	const b = bounds(next);
 	const x = Math.min(Math.max(next.x, 0), Math.max(1 - b.w, 0));

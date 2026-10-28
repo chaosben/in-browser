@@ -266,6 +266,7 @@ const de: Messages = {
 		recentColors: 'Zuletzt verwendete und Projektfarben',
 		lineWidth: 'Linienstärke',
 		radius: 'Eckenradius',
+		padding: 'Innenabstand',
 		strength: 'Stärke',
 		blurArea: 'Weichzeichnen',
 		blurInside: 'Bereich',

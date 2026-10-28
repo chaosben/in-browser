@@ -305,6 +305,10 @@
 				</select>
 			</label>
 			<div class="flex flex-col gap-1">
+				<span class="text-xs opacity-70">{m.inspector.color}</span>
+				<ColorField value={o.color} projectColors={editor.colors} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
+			</div>
+			<div class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.background}</span>
 				<ColorField
 					value={o.background}
@@ -313,6 +317,11 @@
 					onchange={(v, final) => setColor('background', v, final)}
 				/>
 			</div>
+			{#if o.background}
+				<!-- Up to the canvas height like the font size: scaling the box at a corner scales both along -->
+				{@render pixels(m.inspector.radius, o.radius, 0, 1, (v) => setOverlay({ radius: v }, 'radius'))}
+				{@render pixels(m.inspector.padding, o.padding, 0, 1, (v) => setTextBox({ padding: v }, 'padding'))}
+			{/if}
 		{/if}
 
 		{#if o.kind === 'step'}
@@ -327,7 +336,8 @@
 			{@render pixels(m.inspector.size, o.size, 8 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
 		{/if}
 
-		{#if 'color' in o}
+		<!-- Text and speech bubble show their color next to the background -->
+		{#if 'color' in o && o.kind !== 'text' && o.kind !== 'callout'}
 			<div class="flex flex-col gap-1">
 				<span class="text-xs opacity-70">{m.inspector.color}</span>
 				<ColorField value={o.color} projectColors={editor.colors} onchange={(v, final) => setColor('color', v ?? o.color, final)} />

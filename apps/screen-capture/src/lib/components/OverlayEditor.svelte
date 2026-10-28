@@ -159,7 +159,7 @@
 				const x = sx > 0 ? b.x : b.x + b.w * (1 - k);
 				const y = sy > 0 ? b.y : b.y + b.h * (1 - k);
 				// One patch: within a gesture every update starts from the state before it
-				patchOverlay(o.id, { ...boxWidth, x, y, size }, key);
+				patchOverlay(o.id, { ...boxWidth, x, y, size, radius: o.radius * k, padding: o.padding * k }, key);
 				return rememberStyle(o.kind, { size });
 			}
 			if (o.kind === 'step') {
@@ -175,7 +175,7 @@
 		const key = `width-${o.id}-${e.timeStamp}`;
 		const b = overlayBounds(o, W, H);
 		// At least about two characters wide
-		const min = (2 * o.size * H) / W;
+		const min = (2 * o.size * H + (o.background ? 2 * o.padding * H : 0)) / W;
 		drag(e, (dx) => {
 			const boxWidth = Math.max(b.w + (side === 'e' ? dx : -dx), min);
 			patchOverlay(o.id, side === 'e' ? { boxWidth } : { boxWidth, x: b.x + b.w - boxWidth }, key);

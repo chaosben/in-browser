@@ -264,6 +264,7 @@ const en = {
 		recentColors: 'Recent and project colors',
 		lineWidth: 'Line width',
 		radius: 'Corner radius',
+		padding: 'Padding',
 		strength: 'Strength',
 		blurArea: 'Blur',
 		blurInside: 'Area',

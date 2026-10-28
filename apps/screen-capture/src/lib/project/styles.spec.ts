@@ -21,9 +21,9 @@ describe('applyStyle', () => {
 		expect(t.text).toBe(text().text);
 	});
 	it('ignores unknown fields and values of another type', () => {
-		const t = applyStyle(text(), { size: 'big', radius: 0.02, shadow: 1, fadeIn: 0 });
+		const t = applyStyle(text(), { size: 'big', dashed: true, shadow: 1, fadeIn: 0 });
 		expect(t.size).toBe(text().size);
-		expect('radius' in t).toBe(false);
+		expect('dashed' in t).toBe(false);
 		expect(t.shadow).toBe(text().shadow);
 		expect(t.fadeIn).toBe(0);
 	});

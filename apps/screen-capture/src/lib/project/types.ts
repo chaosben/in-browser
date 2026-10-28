@@ -192,6 +192,10 @@ interface TextBase extends AnnotationBase, Shadowed {
 	align: TextAlign;
 	/** Fixed box width (fraction of the canvas width), the text wraps inside; without it the box fits the longest line */
 	boxWidth?: number;
+	/** Corner radius of the background as a fraction of the canvas height */
+	radius: number;
+	/** Space between the background's edge and the text as a fraction of the canvas height */
+	padding: number;
 }
 
 export interface TextAnnotation extends TextBase {
@@ -351,6 +355,9 @@ function fillItem(item: Item): Item {
 	const patch: Record<string, unknown> = {};
 	if ((item.kind === 'text' || item.kind === 'callout') && !raw.font) patch.font = 'system';
 	if ((item.kind === 'text' || item.kind === 'callout') && !raw.align) patch.align = 'left';
+	// Formerly fixed in relation to the font size
+	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.radius !== 'number') patch.radius = 0.3 * item.size;
+	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.padding !== 'number') patch.padding = 0.4 * item.size;
 	// Text used to get a shadow only without a background
 	if (hasShadow(item) && typeof raw.shadow !== 'boolean') patch.shadow = item.kind === 'text' ? !item.background : true;
 	// Formerly one switch for both ends with a fixed 0.2 s
