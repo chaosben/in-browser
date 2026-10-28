@@ -56,9 +56,9 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 		case 'highlight':
 			return { ...base, kind, rect: { x: 0.35, y: 0.46, w: 0.3, h: 0.08 }, color: '#facc1566' };
 		case 'spotlight':
-			return { ...base, kind, rect: { x: 0.3, y: 0.3, w: 0.4, h: 0.4 }, color: '#00000099' };
+			return { ...base, kind, rect: { x: 0.3, y: 0.3, w: 0.4, h: 0.4 }, color: '#00000099', blur: 0 };
 		case 'blur':
-			return { ...base, kind, rect: { x: 0.4, y: 0.44, w: 0.2, h: 0.12 }, strength: 0.012, area: 'inside' };
+			return { ...base, kind, rect: { x: 0.4, y: 0.44, w: 0.2, h: 0.12 }, strength: 0.012 };
 		case 'text':
 			return {
 				...base,

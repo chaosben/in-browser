@@ -170,6 +170,8 @@ export interface SpotlightAnnotation extends AnnotationBase {
 	rect: Rect;
 	/** Veil outside the area, color including opacity (`#rrggbbaa`) */
 	color: string;
+	/** Blur radius outside the area as a fraction of the canvas height, 0 = none */
+	blur: number;
 }
 
 export interface BlurAnnotation extends AnnotationBase {
@@ -177,8 +179,6 @@ export interface BlurAnnotation extends AnnotationBase {
 	rect: Rect;
 	/** Blur radius as a fraction of the canvas height */
 	strength: number;
-	/** Blur the area itself or everything outside it (focus effect) */
-	area: 'inside' | 'outside';
 }
 
 interface TextBase extends AnnotationBase, Shadowed {
@@ -358,6 +358,7 @@ function fillItem(item: Item): Item {
 	// Formerly fixed in relation to the font size
 	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.radius !== 'number') patch.radius = 0.3 * item.size;
 	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.padding !== 'number') patch.padding = 0.4 * item.size;
+	if (item.kind === 'spotlight' && typeof raw.blur !== 'number') patch.blur = 0;
 	// Text used to get a shadow only without a background
 	if (hasShadow(item) && typeof raw.shadow !== 'boolean') patch.shadow = item.kind === 'text' ? !item.background : true;
 	// Formerly one switch for both ends with a fixed 0.2 s

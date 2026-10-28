@@ -353,17 +353,17 @@ const help = {
 				},
 				spotlight: {
 					title: 'Spotlight',
-					text: 'Darkens everything outside the area, so the eye goes to it. The opacity of the color is the strength (default black at 60 %).',
-					tip: 'Use 40–60 % to direct attention while keeping the surroundings readable; higher values hide the rest almost completely.'
+					text: 'Draws the eye to an area by toning down everything outside it – also clips and annotations on lower tracks. Darkening and blurring work on their own or together.',
+					options: {
+						color: { label: 'Color', text: 'Darkens (or tints) the surroundings. The opacity of the color is the strength (default black at 60 %); 0 % turns darkening off.' },
+						blur: { label: 'Blur', text: 'Blurs the surroundings, in canvas pixels; 0 px (default) turns it off. Higher values make the rest unrecognizable.' }
+					},
+					tip: 'Darkening at 40–60 % is the clearest guide and keeps the rest readable. Blur only (opacity 0 %) when the surroundings should keep their colors, e.g. a busy desktop next to a dialog. Both together when a restless background still draws attention; then a weaker darkening (20–40 %) is enough.'
 				},
 				blur: {
 					title: 'Blur',
-					text: 'Blurs part of the picture – also clips and annotations on lower tracks.',
-					options: {
-						inside: { label: 'Area', text: 'Blurs the marked area, e.g. passwords, e-mail addresses or names.' },
-						outside: { label: 'Surroundings', text: 'Blurs everything except the area – a focus effect.' }
-					},
-					tip: 'For sensitive data, use a high strength and make the area a bit larger than the text, and check the result frame by frame in the export. For a focus effect, a low strength is enough.'
+					text: 'Blurs the marked area, e.g. passwords, e-mail addresses or names – also clips and annotations on lower tracks. To blur everything except an area, use the spotlight.',
+					tip: 'For sensitive data, use a high strength and make the area a bit larger than the text, and check the result frame by frame in the export.'
 				},
 				step: {
 					title: 'Step',

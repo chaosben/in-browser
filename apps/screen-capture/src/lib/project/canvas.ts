@@ -54,8 +54,9 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 				return { ...a, rect: rect(a.rect), width: a.width * sy, radius: a.radius * sy };
 			case 'ellipse':
 				return { ...a, rect: rect(a.rect), width: a.width * sy };
-			case 'highlight':
 			case 'spotlight':
+				return { ...a, rect: rect(a.rect), blur: a.blur * sy };
+			case 'highlight':
 			case 'icon':
 				return { ...a, rect: rect(a.rect) };
 			case 'image':

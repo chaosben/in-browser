@@ -8,6 +8,14 @@ import { iconPicture, imagePicture } from './images.svelte.js';
 
 const LINE_HEIGHT = 1.25;
 
+/** Copies the already drawn image, blurred by `radius` (content pixels), into the current clip */
+function blurCopy(ctx: Ctx2D, radius: number) {
+	const scale = ctx.getTransform().a;
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	ctx.filter = `blur(${Math.max(1, radius * scale)}px)`;
+	ctx.drawImage(ctx.canvas as CanvasImageSource, 0, 0);
+}
+
 export function overlayAlpha(a: Annotation, t: number): number {
 	return fadeAlpha(t, a.start, a.end, a.fadeIn, a.fadeOut);
 }
@@ -43,21 +51,10 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 	switch (a.kind) {
 		case 'blur': {
 			const [x, y, w, h] = px(a.rect);
-			const m = ctx.getTransform();
 			ctx.beginPath();
-			if (a.area === 'outside') {
-				// Everything except the area (cut out as with the spotlight)
-				ctx.rect(-W, -H, 3 * W, 3 * H);
-				ctx.rect(x, y, w, h);
-				ctx.clip('evenodd');
-			} else {
-				ctx.rect(x, y, w, h);
-				ctx.clip();
-			}
-			// Copy the already drawn image, blurred, into the area (without transform)
-			ctx.setTransform(1, 0, 0, 1, 0, 0);
-			ctx.filter = `blur(${Math.max(1, a.strength * H * m.a)}px)`;
-			ctx.drawImage(ctx.canvas as CanvasImageSource, 0, 0);
+			ctx.rect(x, y, w, h);
+			ctx.clip();
+			blurCopy(ctx, a.strength * H);
 			break;
 		}
 		case 'spotlight': {
@@ -65,6 +62,12 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			ctx.beginPath();
 			ctx.rect(-W, -H, 3 * W, 3 * H);
 			ctx.roundRect(x, y, w, h, 0.01 * H);
+			if (a.blur > 0) {
+				ctx.save();
+				ctx.clip('evenodd');
+				blurCopy(ctx, a.blur * H);
+				ctx.restore();
+			}
 			ctx.fillStyle = a.color;
 			ctx.fill('evenodd');
 			break;

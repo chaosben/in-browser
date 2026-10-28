@@ -331,17 +331,17 @@ const help: typeof enHelp = {
 				},
 				spotlight: {
 					title: 'Spotlight',
-					text: 'Dunkelt alles außerhalb des Bereichs ab, damit der Blick dorthin geht. Die Deckkraft der Farbe ist die Stärke (Standard Schwarz mit 60 %).',
-					tip: 'Mit 40–60 % lenkst du die Aufmerksamkeit, und die Umgebung bleibt lesbar; höhere Werte verdecken den Rest fast ganz.'
+					text: 'Lenkt den Blick auf einen Bereich, indem es alles außerhalb zurücknimmt – auch Clips und Markierungen auf tieferen Spuren. Abdunkeln und Weichzeichnen wirken einzeln oder zusammen.',
+					options: {
+						color: { label: 'Farbe', text: 'Dunkelt die Umgebung ab (oder färbt sie ein). Die Deckkraft der Farbe ist die Stärke (Standard Schwarz mit 60 %); 0 % schaltet das Abdunkeln aus.' },
+						blur: { label: 'Weichzeichnen', text: 'Macht die Umgebung unscharf, in Leinwand-Pixeln; 0 px (Standard) schaltet es aus. Hohe Werte machen den Rest unkenntlich.' }
+					},
+					tip: 'Abdunkeln mit 40–60 % führt am klarsten und lässt den Rest lesbar. Nur weichzeichnen (Deckkraft 0 %), wenn die Umgebung ihre Farben behalten soll, etwa ein voller Desktop neben einem Dialog. Beides zusammen, wenn ein unruhiger Hintergrund trotzdem ablenkt; dann reicht schwächeres Abdunkeln (20–40 %).'
 				},
 				blur: {
 					title: 'Weichzeichnen',
-					text: 'Macht einen Teil des Bildes unscharf – auch Clips und Markierungen auf tieferen Spuren.',
-					options: {
-						inside: { label: 'Bereich', text: 'Zeichnet den markierten Bereich weich, etwa Passwörter, E-Mail-Adressen oder Namen.' },
-						outside: { label: 'Umgebung', text: 'Zeichnet alles außer dem Bereich weich – ein Fokus-Effekt.' }
-					},
-					tip: 'Für vertrauliche Daten: hohe Stärke, den Bereich etwas größer als den Text ziehen und das Ergebnis im Export Bild für Bild prüfen. Für einen Fokus-Effekt reicht eine geringe Stärke.'
+					text: 'Macht den markierten Bereich unscharf, etwa Passwörter, E-Mail-Adressen oder Namen – auch Clips und Markierungen auf tieferen Spuren. Soll alles außer einem Bereich unscharf werden, nimm das Spotlight.',
+					tip: 'Für vertrauliche Daten: hohe Stärke, den Bereich etwas größer als den Text ziehen und das Ergebnis im Export Bild für Bild prüfen.'
 				},
 				step: {
 					title: 'Schritt',

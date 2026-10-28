@@ -319,7 +319,7 @@
 		{@const o = overlay}
 		{@render header(OVERLAY_KINDS[o.kind].icon, OVERLAY_KINDS[o.kind].label)}
 
-		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'image' || o.kind === 'blur'}
+		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'image'}
 			<InspectorSection id="content" title={m.inspector.sections.content}>
 				{#if o.kind === 'text' || o.kind === 'callout'}
 					<InspectorField label={m.inspector.text}>
@@ -353,26 +353,6 @@
 							end();
 						})}
 					{/if}
-				{:else if o.kind === 'blur'}
-					<InspectorField label={m.inspector.blurArea} keywords={[m.inspector.blurInside, m.inspector.blurOutside]}>
-						<div class="flex flex-col gap-1">
-							<span class="text-xs opacity-70">{m.inspector.blurArea}</span>
-							<div class="join">
-								{#each [{ value: 'inside', label: m.inspector.blurInside, icon: 'icon-[material-symbols-light--crop-free]' }, { value: 'outside', label: m.inspector.blurOutside, icon: 'icon-[material-symbols-light--filter-center-focus]' }] as option (option.value)}
-									<button
-										class="btn btn-sm join-item flex-1 {o.area === option.value ? 'btn-primary' : ''}"
-										onclick={() => {
-											setOverlay({ area: option.value as 'inside' | 'outside' }, 'area');
-											end();
-										}}
-									>
-										<span class="{option.icon} size-5" aria-hidden="true"></span>
-										{option.label}
-									</button>
-								{/each}
-							</div>
-						</div>
-					</InspectorField>
 				{/if}
 			</InspectorSection>
 		{/if}
@@ -456,6 +436,9 @@
 			{/if}
 			{#if o.kind === 'image'}
 				{@render pixels(m.inspector.radius, o.radius, 0, 0.1, (v) => setOverlay({ radius: v }, 'radius'))}
+			{/if}
+			{#if o.kind === 'spotlight'}
+				{@render pixels(m.inspector.spotlightBlur, o.blur, 0, 0.05, (v) => setOverlay({ blur: v }, 'blur'))}
 			{/if}
 			{#if o.kind === 'blur'}
 				{@render pixels(m.inspector.strength, o.strength, 0.002, 0.05, (v) => setOverlay({ strength: v }, 'strength'))}
