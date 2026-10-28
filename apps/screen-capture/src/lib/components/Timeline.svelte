@@ -24,9 +24,11 @@
 	interface Props {
 		editor: Editor;
 		player: Player;
+		/** Fixed height of the whole timeline (pixels); tracks scroll vertically inside */
+		height: number;
 	}
 
-	let { editor, player }: Props = $props();
+	let { editor, player, height: boxHeight }: Props = $props();
 
 	const PADDING = 16;
 	const RULER = 22;
@@ -34,12 +36,16 @@
 	const ZOOM_H = 22;
 	const LANE_H = 22;
 	const CLIP_H = 48;
+	/** Width of the track headers (`w-24`) */
+	const HEADER_W = 96;
 	/** Snapping to edges and playhead (pixels) */
 	const SNAP_PX = 8;
 	const COLORS = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-info', 'bg-success', 'bg-warning'];
 
 	let scroller: HTMLDivElement;
-	let viewWidth = $state(800);
+	let scrollerWidth = $state(800 + HEADER_W);
+	/** Visible width of the track area (the headers stay in front of it) */
+	const viewWidth = $derived(scrollerWidth - HEADER_W);
 	/** Zoom factor relative to "everything visible" (1 = fits exactly). */
 	let zoom = $state(1);
 	/** The scale stays fixed during a drag, otherwise the view jumps under the mouse pointer. */
@@ -92,8 +98,8 @@
 	const x = (t: number) => PADDING + t * pxPerSec;
 
 	function timeAt(clientX: number) {
-		const rect = scroller.getBoundingClientRect();
-		const t = (clientX - rect.left + scroller.scrollLeft - PADDING) / pxPerSec;
+		// The content rectangle moves with scrolling, so this holds at any scroll position
+		const t = (clientX - content.getBoundingClientRect().left - PADDING) / pxPerSec;
 		return Math.min(Math.max(t, 0), total);
 	}
 
@@ -317,8 +323,8 @@
 	$effect(() => {
 		const px = x(player.time);
 		if (!scroller) return;
-		const { scrollLeft, clientWidth } = scroller;
-		if (px < scrollLeft || px > scrollLeft + clientWidth - 20) scroller.scrollLeft = px - clientWidth / 3;
+		const { scrollLeft } = scroller;
+		if (px < scrollLeft || px > scrollLeft + viewWidth - 20) scroller.scrollLeft = px - viewWidth / 3;
 	});
 
 	const ring = 'ring-base-content ring-2 ring-offset-1 ring-offset-base-200';
@@ -358,7 +364,7 @@
 	</button>
 {/snippet}
 
-<div class="bg-base-200 rounded-box flex flex-col gap-1 p-2" data-timeline>
+<div class="bg-base-200 rounded-box flex flex-col gap-1 p-2" style="height: {boxHeight}px" data-timeline>
 	<div class="flex items-center gap-3 px-1 text-xs">
 		<span class="opacity-70" title={m.timeline.zoom}>
 			<span class="icon-[material-symbols-light--zoom-in] size-5" aria-hidden="true"></span>
@@ -378,84 +384,94 @@
 		<span class="ml-auto opacity-60">{m.timeline.hint}</span>
 	</div>
 
-	<div class="flex">
-		<!-- Track headers stay put when scrolling horizontally -->
-		<div class="relative w-24 shrink-0" style="height: {height}px">
-			<div
-				class="bg-base-300 absolute inset-x-0 flex items-center justify-center rounded-l opacity-80"
-				style="top: {zoomTop}px; height: {ZOOM_H}px"
-				title={m.timeline.zoomTrack}
-			>
-				<span class="{ZOOM_ICON} size-4" aria-hidden="true"></span>
-			</div>
-			{#each rows as row (row.track)}
-				{@const state = trackState(timeline, row.track)}
-				<div
-					class="bg-base-300 absolute inset-x-0 flex items-center gap-0.5 overflow-hidden rounded-l pl-1 text-[10px]"
-					style="top: {row.top}px; height: {row.height - 1}px"
-				>
-					{#if row.track === tracks}
-						<span class="w-full text-center opacity-60" title={m.timeline.newTrack}>+</span>
-					{:else}
-						<span
-							class="w-4 shrink-0 text-center opacity-80"
-							title={`${m.timeline.track(row.track + 1)}${row.track === tracks - 1 && tracks > 1 ? ` (${m.timeline.front})` : ''}`}
-						>
-							{row.track + 1}
-						</span>
-						{@render toggle(row.track, 'hidden', !!state.hidden)}
-						{@render toggle(row.track, 'muted', !!state.muted)}
-						{@render toggle(row.track, 'locked', !!state.locked)}
-					{/if}
+	<!-- One scroll container for both directions: track headers stay at the left, ruler and zoom track at the top -->
+	<div
+		bind:this={scroller}
+		bind:clientWidth={scrollerWidth}
+		class="relative min-h-0 flex-1 overflow-x-scroll overflow-y-auto select-none [scrollbar-gutter:stable] [scrollbar-width:thin]"
+		{@attach wheelZoom}
+	>
+		<div class="flex w-max">
+			<div class="bg-base-200 sticky left-0 z-30 w-24 shrink-0" style="height: {height}px">
+				<div class="bg-base-200 sticky top-0 z-10 h-0">
+					<div class="bg-base-200 absolute inset-x-0 top-0" style="height: {tracksTop}px"></div>
+					<div
+						class="bg-base-300 absolute inset-x-0 flex items-center justify-center rounded-l opacity-80"
+						style="top: {zoomTop}px; height: {ZOOM_H}px"
+						title={m.timeline.zoomTrack}
+					>
+						<span class="{ZOOM_ICON} size-4" aria-hidden="true"></span>
+					</div>
 				</div>
-			{/each}
-		</div>
+				{#each rows as row (row.track)}
+					{@const state = trackState(timeline, row.track)}
+					<div
+						class="bg-base-300 absolute inset-x-0 flex items-center gap-0.5 overflow-hidden rounded-l pl-1 text-[10px]"
+						style="top: {row.top}px; height: {row.height - 1}px"
+					>
+						{#if row.track === tracks}
+							<span class="w-full text-center opacity-60" title={m.timeline.newTrack}>+</span>
+						{:else}
+							<span
+								class="w-4 shrink-0 text-center opacity-80"
+								title={`${m.timeline.track(row.track + 1)}${row.track === tracks - 1 && tracks > 1 ? ` (${m.timeline.front})` : ''}`}
+							>
+								{row.track + 1}
+							</span>
+							{@render toggle(row.track, 'hidden', !!state.hidden)}
+							{@render toggle(row.track, 'muted', !!state.muted)}
+							{@render toggle(row.track, 'locked', !!state.locked)}
+						{/if}
+					</div>
+				{/each}
+			</div>
 
-		<div class="relative min-w-0 flex-1">
-		<!-- Scrollbar always present (overflow-x-scroll): if it only appeared on long timelines, the layout would jump -->
-		<div
-			bind:this={scroller}
-			bind:clientWidth={viewWidth}
-			class="relative overflow-x-scroll overflow-y-hidden select-none [scrollbar-width:thin]"
-			{@attach wheelZoom}
-		>
 			<div bind:this={content} class="relative" style="width: {contentWidth}px; height: {height}px">
 				<!-- Background: clicking sets the playhead and clears the selection -->
 				<div class="absolute inset-0" onpointerdown={(e) => scrub(e, true)} role="presentation"></div>
 
-				<!-- Ruler -->
-				<div
-					class="border-base-content/20 absolute inset-x-0 top-0 cursor-pointer border-b"
-					style="height: {RULER}px"
-					onpointerdown={(e) => scrub(e)}
-					role="presentation"
-				>
-					{#each ticks.list as t (t)}
+				<!-- Ruler and zoom track stay at the top while the tracks scroll vertically -->
+				<div class="sticky top-0 z-10 h-0">
+					<div
+						class="bg-base-200 absolute inset-x-0 top-0"
+						style="height: {tracksTop}px"
+						onpointerdown={(e) => scrub(e, true)}
+						role="presentation"
+					></div>
+					<!-- Ruler -->
+					<div
+						class="border-base-content/20 absolute inset-x-0 top-0 cursor-pointer border-b"
+						style="height: {RULER}px"
+						onpointerdown={(e) => scrub(e)}
+						role="presentation"
+					>
+						{#each ticks.list as t (t)}
+							<div
+								class="border-base-content/30 pointer-events-none absolute top-0 h-full border-l pl-1 text-[10px] opacity-70"
+								style="left: {x(t)}px"
+							>
+								{formatTime(t, ticks.step < 1 ? 1 : 0)}
+							</div>
+						{/each}
+					</div>
+
+					<!-- Zoom track -->
+					{#each timeline.zoom as z (z.id)}
 						<div
-							class="border-base-content/30 pointer-events-none absolute top-0 h-full border-l pl-1 text-[10px] opacity-70"
-							style="left: {x(t)}px"
+							class="bg-info/70 text-info-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
+								{editor.isSelected('zoom', z.id) ? ring : ''}"
+							style="left: {x(z.start)}px; width: {Math.max((z.end - z.start) * pxPerSec, 4)}px; top: {zoomTop}px; height: {ZOOM_H}px"
+							onpointerdown={(e) => zoomDown(e, z.id, 'body')}
+							role="button"
+							tabindex="-1"
+							aria-label={m.timeline.zoomSegment}
 						>
-							{formatTime(t, ticks.step < 1 ? 1 : 0)}
+							<span class="{ZOOM_ICON} size-3.5 shrink-0" aria-hidden="true"></span>
+							<span class="truncate">{(1 / z.rect.w).toFixed(1)}×</span>
+							{@render edges((e, part) => zoomDown(e, z.id, part))}
 						</div>
 					{/each}
 				</div>
-
-				<!-- Zoom track -->
-				{#each timeline.zoom as z (z.id)}
-					<div
-						class="bg-info/70 text-info-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
-							{editor.isSelected('zoom', z.id) ? ring : ''}"
-						style="left: {x(z.start)}px; width: {Math.max((z.end - z.start) * pxPerSec, 4)}px; top: {zoomTop}px; height: {ZOOM_H}px"
-						onpointerdown={(e) => zoomDown(e, z.id, 'body')}
-						role="button"
-						tabindex="-1"
-						aria-label={m.timeline.zoomSegment}
-					>
-						<span class="{ZOOM_ICON} size-3.5 shrink-0" aria-hidden="true"></span>
-						<span class="truncate">{(1 / z.rect.w).toFixed(1)}×</span>
-						{@render edges((e, part) => zoomDown(e, z.id, part))}
-					</div>
-				{/each}
 
 				<!-- Tracks (alternating background), target track while dragging -->
 				{#each rows as row, i (row.track)}
@@ -564,12 +580,11 @@
 					<div class="bg-primary pointer-events-none absolute w-px" style="left: {x(snapAt)}px; top: {tracksTop}px; height: {height - tracksTop}px"></div>
 				{/if}
 
-				<!-- Playhead -->
-				<div class="bg-error pointer-events-none absolute top-0 bottom-0 z-10 w-0.5" style="left: {x(player.time)}px">
-					<div class="bg-error absolute top-0 -left-1.5 h-3 w-3.5 rounded-b-sm"></div>
+				<!-- Playhead (above the pinned ruler) -->
+				<div class="bg-error pointer-events-none absolute top-0 bottom-0 z-20 w-0.5" style="left: {x(player.time)}px">
+					<div class="bg-error sticky top-0 -ml-1.5 h-3 w-3.5 rounded-b-sm"></div>
 				</div>
 			</div>
-		</div>
 		</div>
 	</div>
 </div>

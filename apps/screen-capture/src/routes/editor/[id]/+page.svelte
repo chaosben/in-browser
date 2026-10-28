@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { innerHeight } from 'svelte/reactivity/window';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { BRAND } from '#lib/brand.js';
@@ -25,6 +26,12 @@
 	import { folderSupported, saveToFolder } from '#lib/storage/folder.js';
 	import type { DropPlace, ToolActions } from '#lib/tools/types.js';
 	import { cleanupMedia, loadProject } from '#lib/storage/opfs.js';
+	import {
+		clampTimelineHeight,
+		DEFAULT_TIMELINE_HEIGHT,
+		loadTimelineHeight,
+		storeTimelineHeight
+	} from '#lib/ui/timeline-height.js';
 	import {
 		addItem,
 		addZoom,
@@ -55,6 +62,33 @@
 	let importing = $state<{ name: string; progress: number } | null>(null);
 	let fileInput = $state<HTMLInputElement>();
 	let timeline = $state<ReturnType<typeof Timeline>>();
+	/** Height of the timeline (persisted); the preview gets the rest and never jumps when tracks are added */
+	let timelineHeight = $state(loadTimelineHeight());
+	const shownTimelineHeight = $derived(clampTimelineHeight(timelineHeight, innerHeight.current ?? 900));
+
+	/** Dragging the splitter above the timeline changes its height; stored at the end */
+	function resizeTimeline(e: PointerEvent) {
+		if (e.button !== 0) return;
+		const el = e.currentTarget as HTMLElement;
+		el.setPointerCapture(e.pointerId);
+		const y0 = e.clientY;
+		const h0 = shownTimelineHeight;
+		const onmove = (ev: PointerEvent) => (timelineHeight = clampTimelineHeight(h0 - (ev.clientY - y0), innerHeight.current ?? 900));
+		const onup = () => {
+			el.removeEventListener('pointermove', onmove);
+			el.removeEventListener('pointerup', onup);
+			el.removeEventListener('pointercancel', onup);
+			storeTimelineHeight(timelineHeight);
+		};
+		el.addEventListener('pointermove', onmove);
+		el.addEventListener('pointerup', onup);
+		el.addEventListener('pointercancel', onup);
+	}
+
+	function setTimelineHeight(px: number) {
+		timelineHeight = clampTimelineHeight(px, innerHeight.current ?? 900);
+		storeTimelineHeight(timelineHeight);
+	}
 	let freezeSeconds = $state(3);
 	let draggingFiles = $state(false);
 	/** A tile or media entry is dragged over the preview (highlighted as drop target) */
@@ -513,6 +547,22 @@
 			</aside>
 		</div>
 
+		<!-- Splitter: drag (or arrow keys) to share the height between preview and timeline, double-click resets it -->
+		<button
+			type="button"
+			class="bg-base-300 hover:bg-primary/40 focus-visible:bg-primary/40 h-1.5 w-full shrink-0 cursor-row-resize outline-none"
+			title={m.timeline.resize}
+			aria-label={m.timeline.resize}
+			onpointerdown={resizeTimeline}
+			ondblclick={() => setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)}
+			onkeydown={(e) => {
+				// Ctrl/Cmd + arrows stay with the editor (track order)
+				if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || e.ctrlKey || e.metaKey) return;
+				e.preventDefault();
+				setTimelineHeight(shownTimelineHeight + (e.key === 'ArrowUp' ? 16 : -16));
+			}}
+		></button>
+
 		<section class="flex flex-col gap-2 p-3">
 			<div class="flex flex-wrap items-center gap-2">
 				<button class="btn btn-sm btn-ghost" onclick={() => player?.seek(0)} aria-label={m.editor.toStart}>
@@ -562,7 +612,7 @@
 				</button>
 			</div>
 
-			<Timeline bind:this={timeline} {editor} {player} />
+			<Timeline bind:this={timeline} {editor} {player} height={shownTimelineHeight} />
 		</section>
 
 		{#if draggingFiles}
