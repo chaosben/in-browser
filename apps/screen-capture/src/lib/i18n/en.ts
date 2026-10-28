@@ -246,6 +246,18 @@ const en = {
 	},
 
 	inspector: {
+		sections: {
+			content: 'Content',
+			font: 'Font',
+			appearance: 'Appearance',
+			background: 'Background',
+			audio: 'Audio',
+			time: 'Time',
+			canvas: 'Canvas'
+		},
+		search: 'Search properties',
+		clearSearch: 'Clear search',
+		noMatches: 'No matching property.',
 		text: 'Text',
 		fontSize: 'Font size',
 		align: 'Alignment',
@@ -255,7 +267,7 @@ const en = {
 		alignJustify: 'Justified',
 		autoWidth: 'Auto width',
 		autoWidthHint: 'The box fits the longest line again, without wrapping. Drag a side of the box to set a fixed width.',
-		background: 'Background',
+		background: 'Background color',
 		none: 'None',
 		opacity: 'Opacity',
 		color: 'Color',

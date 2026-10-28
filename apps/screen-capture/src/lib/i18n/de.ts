@@ -248,6 +248,18 @@ const de: Messages = {
 	},
 
 	inspector: {
+		sections: {
+			content: 'Inhalt',
+			font: 'Schrift',
+			appearance: 'Aussehen',
+			background: 'Hintergrund',
+			audio: 'Ton',
+			time: 'Zeit',
+			canvas: 'Leinwand'
+		},
+		search: 'Eigenschaften suchen',
+		clearSearch: 'Suche leeren',
+		noMatches: 'Keine passende Eigenschaft.',
 		text: 'Text',
 		fontSize: 'Schriftgröße',
 		align: 'Ausrichtung',
@@ -257,7 +269,7 @@ const de: Messages = {
 		alignJustify: 'Blocksatz',
 		autoWidth: 'Breite automatisch',
 		autoWidthHint: 'Die Box ist wieder so breit wie die längste Zeile, ohne Umbruch. Eine Seite der Box ziehen legt eine feste Breite fest.',
-		background: 'Hintergrund',
+		background: 'Hintergrundfarbe',
 		none: 'Keiner',
 		opacity: 'Deckkraft',
 		color: 'Farbe',

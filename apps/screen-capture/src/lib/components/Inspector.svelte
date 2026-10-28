@@ -1,6 +1,8 @@
 <script lang="ts">
 	import CanvasSizeField from './CanvasSizeField.svelte';
 	import ColorField from './ColorField.svelte';
+	import InspectorField from './InspectorField.svelte';
+	import InspectorSection from './InspectorSection.svelte';
 	import NumberField from './NumberField.svelte';
 	import type { Size } from '#lib/project/canvas.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
@@ -32,12 +34,16 @@
 	} from '#lib/timeline/ops.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
+	import { InspectorSearch, setInspectorSearch } from '#lib/ui/inspector.svelte.js';
 
 	interface Props {
 		editor: Editor;
 	}
 
 	let { editor }: Props = $props();
+
+	/** Filters the properties of the selected element; kept when the selection changes */
+	const search = setInspectorSearch(new InspectorSearch());
 
 	const overlay = $derived(editor.selectedOverlay);
 	const zoom = $derived(editor.selectedZoom);
@@ -151,15 +157,17 @@
 <!-- Size relative to the canvas height, shown and entered in canvas pixels (`min`/`max` as shares of the height) -->
 {#snippet pixels(label: string, value: number, min: number, max: number, onset: (v: number) => void)}
 	{@const H = editor.project.height}
-	<NumberField
-		{label}
-		value={Math.round(value * H)}
-		unit="px"
-		min={Math.max(1, Math.ceil(min * H))}
-		max={Math.max(1, Math.floor(max * H))}
-		oninput={(px) => onset(px / H)}
-		oncommit={end}
-	/>
+	<InspectorField {label}>
+		<NumberField
+			{label}
+			value={Math.round(value * H)}
+			unit="px"
+			min={Math.max(1, Math.ceil(min * H))}
+			max={Math.max(1, Math.floor(max * H))}
+			oninput={(px) => onset(px / H)}
+			oncommit={end}
+		/>
+	</InspectorField>
 {/snippet}
 
 <!-- Fade or transition at the start and end, each with its own duration (0: none), in one compact row. Together
@@ -167,66 +175,137 @@
 {#snippet inOut(label: string, sides: [FadeSide, FadeSide], start: number, stop: number)}
 	{@const duration = stop - start}
 	{@const [inEnd, outStart] = fadeEdges(start, stop, sides[0].value, sides[1].value)}
-	<!-- Label, then both sides sharing the rest of the width -->
-	<div class="grid grid-cols-[auto_1fr_1fr] items-center gap-x-2 text-xs">
-		<span class="opacity-70">{label}</span>
-		{#each sides as side, i (side.label)}
-			{@const other = sides[1 - i].value}
-			{@const effective = i === 0 ? inEnd - start : stop - outStart}
-			{@const shortened = side.value > 0 && effective < side.value - 0.005}
-			<NumberField
-				label={side.label}
-				layout="inline"
-				value={side.value}
-				unit="s"
-				min={0}
-				max={Math.max(0, Math.min(MAX_FADE, duration - other))}
-				step={0.1}
-				decimals={2}
-				warning={shortened ? m.inspector.fadeShortened(effective.toFixed(2)) : undefined}
-				oninput={(v) => side.onset(clampFade(v, other, duration))}
-				oncommit={end}
-			/>
-		{/each}
-	</div>
+	<InspectorField {label} keywords={sides.map((side) => side.label)}>
+		<!-- Label, then both sides sharing the rest of the width -->
+		<div class="grid grid-cols-[auto_1fr_1fr] items-center gap-x-2 text-xs">
+			<span class="opacity-70">{label}</span>
+			{#each sides as side, i (side.label)}
+				{@const other = sides[1 - i].value}
+				{@const effective = i === 0 ? inEnd - start : stop - outStart}
+				{@const shortened = side.value > 0 && effective < side.value - 0.005}
+				<NumberField
+					label={side.label}
+					layout="inline"
+					value={side.value}
+					unit="s"
+					min={0}
+					max={Math.max(0, Math.min(MAX_FADE, duration - other))}
+					step={0.1}
+					decimals={2}
+					warning={shortened ? m.inspector.fadeShortened(effective.toFixed(2)) : undefined}
+					oninput={(v) => side.onset(clampFade(v, other, duration))}
+					oncommit={end}
+				/>
+			{/each}
+		</div>
+	</InspectorField>
 {/snippet}
 
 {#snippet checkbox(label: string, checked: boolean, onset: (v: boolean) => void)}
-	<label class="label text-xs">
-		<input
-			type="checkbox"
-			class="checkbox checkbox-xs"
-			{checked}
-			onchange={(e) => {
-				onset(e.currentTarget.checked);
-				end();
-			}}
-		/>
-		{label}
-	</label>
+	<InspectorField {label}>
+		<label class="label text-xs">
+			<input
+				type="checkbox"
+				class="checkbox checkbox-xs"
+				{checked}
+				onchange={(e) => {
+					onset(e.currentTarget.checked);
+					end();
+				}}
+			/>
+			{label}
+		</label>
+	</InspectorField>
 {/snippet}
 
 {#snippet timing(start: number, stop: number)}
-	<NumberField
-		label={m.inspector.start}
-		value={start}
-		unit="s"
-		min={0}
-		step={0.1}
-		decimals={2}
-		oninput={(v) => setTiming(v, stop - start)}
-		oncommit={end}
-	/>
-	<NumberField
-		label={m.inspector.duration}
-		value={stop - start}
-		unit="s"
-		min={0.1}
-		step={0.1}
-		decimals={2}
-		oninput={(v) => setTiming(start, v)}
-		oncommit={end}
-	/>
+	<InspectorField label={m.inspector.start}>
+		<NumberField
+			label={m.inspector.start}
+			value={start}
+			unit="s"
+			min={0}
+			step={0.1}
+			decimals={2}
+			oninput={(v) => setTiming(v, stop - start)}
+			oncommit={end}
+		/>
+	</InspectorField>
+	<InspectorField label={m.inspector.duration}>
+		<NumberField
+			label={m.inspector.duration}
+			value={stop - start}
+			unit="s"
+			min={0.1}
+			step={0.1}
+			decimals={2}
+			oninput={(v) => setTiming(start, v)}
+			oncommit={end}
+		/>
+	</InspectorField>
+{/snippet}
+
+{#snippet color(label: string, value: string | null, onchange: (v: string | null, final: boolean) => void, allowNone = false)}
+	<InspectorField {label}>
+		<div class="flex flex-col gap-1">
+			<span class="text-xs opacity-70">{label}</span>
+			<ColorField {value} {allowNone} projectColors={editor.colors} {onchange} />
+		</div>
+	</InspectorField>
+{/snippet}
+
+{#snippet placement(label: string, onplace: (cover: boolean) => void, hint?: string)}
+	<InspectorField {label} keywords={[m.inspector.fit, m.inspector.fill]}>
+		<div class="flex flex-col gap-1">
+			<span class="text-xs opacity-70">{label}</span>
+			<div class="join">
+				<button class="btn btn-sm join-item flex-1" onclick={() => onplace(false)}>
+					<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span> {m.inspector.fit}
+				</button>
+				<button class="btn btn-sm join-item flex-1" onclick={() => onplace(true)}>
+					<span class="icon-[material-symbols-light--fullscreen] size-5" aria-hidden="true"></span> {m.inspector.fill}
+				</button>
+			</div>
+			{#if hint}<p class="text-xs opacity-60">{hint}</p>{/if}
+		</div>
+	</InspectorField>
+{/snippet}
+
+<!-- Type of the selected element, then the search over its properties -->
+{#snippet header(icon: string, title: string)}
+	<h3 class="flex items-center gap-2 font-semibold">
+		<span class="{icon} size-5" aria-hidden="true"></span>
+		{title}
+	</h3>
+	<label class="input input-sm w-full">
+		<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
+		<input
+			type="text"
+			class="grow"
+			placeholder={m.inspector.search}
+			aria-label={m.inspector.search}
+			bind:value={search.query}
+			onkeydown={(e) => {
+				if (e.key === 'Escape' && search.query) {
+					search.query = '';
+					e.stopPropagation();
+				}
+			}}
+		/>
+		{#if search.query}
+			<button
+				class="btn btn-ghost btn-xs btn-circle"
+				onclick={() => (search.query = '')}
+				title={m.inspector.clearSearch}
+				aria-label={m.inspector.clearSearch}
+			>
+				<span class="icon-[material-symbols-light--close] size-4" aria-hidden="true"></span>
+			</button>
+		{/if}
+	</label>
+	{#if search.active && !search.matches.any}
+		<p class="text-xs opacity-70">{m.inspector.noMatches}</p>
+	{/if}
 {/snippet}
 
 <div class="flex flex-col gap-4 p-3 text-sm">
@@ -238,388 +317,403 @@
 		<p class="text-xs opacity-70">{m.inspector.multipleHint}</p>
 	{:else if overlay}
 		{@const o = overlay}
-		<h3 class="flex items-center gap-2 font-semibold">
-			<span class="{OVERLAY_KINDS[o.kind].icon} size-5" aria-hidden="true"></span>
-			{OVERLAY_KINDS[o.kind].label}
-		</h3>
+		{@render header(OVERLAY_KINDS[o.kind].icon, OVERLAY_KINDS[o.kind].label)}
+
+		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'image' || o.kind === 'blur'}
+			<InspectorSection id="content" title={m.inspector.sections.content}>
+				{#if o.kind === 'text' || o.kind === 'callout'}
+					<InspectorField label={m.inspector.text}>
+						<label class="flex flex-col gap-1">
+							<span class="text-xs opacity-70">{m.inspector.text}</span>
+							<textarea
+								class="textarea textarea-sm"
+								rows="3"
+								value={o.text}
+								oninput={(e) => setTextBox({ text: e.currentTarget.value }, 'text')}
+								onchange={end}
+							></textarea>
+						</label>
+					</InspectorField>
+				{:else if o.kind === 'step'}
+					<InspectorField label={m.inspector.stepNumber}>
+						<NumberField
+							label={m.inspector.stepNumber}
+							value={o.number}
+							min={1}
+							max={999}
+							oninput={(v) => setOverlay({ number: v }, 'number')}
+							oncommit={end}
+						/>
+					</InspectorField>
+				{:else if o.kind === 'image'}
+					{@const image = editor.image(o.imageId)}
+					{#if image}
+						{@render placement(m.inspector.placement, (cover) => {
+							setOverlay({ rect: fitRect(image, editor.project.width, editor.project.height, cover) }, 'rect');
+							end();
+						})}
+					{/if}
+				{:else if o.kind === 'blur'}
+					<InspectorField label={m.inspector.blurArea} keywords={[m.inspector.blurInside, m.inspector.blurOutside]}>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs opacity-70">{m.inspector.blurArea}</span>
+							<div class="join">
+								{#each [{ value: 'inside', label: m.inspector.blurInside, icon: 'icon-[material-symbols-light--crop-free]' }, { value: 'outside', label: m.inspector.blurOutside, icon: 'icon-[material-symbols-light--filter-center-focus]' }] as option (option.value)}
+									<button
+										class="btn btn-sm join-item flex-1 {o.area === option.value ? 'btn-primary' : ''}"
+										onclick={() => {
+											setOverlay({ area: option.value as 'inside' | 'outside' }, 'area');
+											end();
+										}}
+									>
+										<span class="{option.icon} size-5" aria-hidden="true"></span>
+										{option.label}
+									</button>
+								{/each}
+							</div>
+						</div>
+					</InspectorField>
+				{/if}
+			</InspectorSection>
+		{/if}
 
 		{#if o.kind === 'text' || o.kind === 'callout'}
-			<label class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.text}</span>
-				<textarea
-					class="textarea textarea-sm"
-					rows="3"
-					value={o.text}
-					oninput={(e) => setTextBox({ text: e.currentTarget.value }, 'text')}
-					onchange={end}
-				></textarea>
-			</label>
-			{@render pixels(m.inspector.fontSize, o.size, 4 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.align}</span>
-				<div class="flex items-center gap-2">
-					<div class="join">
-						{#each ALIGNS as a (a.value)}
-							<button
-								class="btn btn-xs join-item {o.align === a.value ? 'btn-active' : ''}"
-								onclick={() => {
-									setOverlay({ align: a.value }, 'align');
-									end();
-								}}
-								title={a.label}
-								aria-label={a.label}
-								aria-pressed={o.align === a.value}
-							>
-								<span class="{a.icon} size-4" aria-hidden="true"></span>
-							</button>
-						{/each}
-					</div>
-					{#if o.boxWidth !== undefined}
-						<button
-							class="btn btn-xs btn-ghost ml-auto"
-							onclick={() => {
-								setTextBox({ boxWidth: undefined }, 'boxWidth');
-								end();
-							}}
-							title={m.inspector.autoWidthHint}
-						>
-							{m.inspector.autoWidth}
-						</button>
-					{/if}
-				</div>
-			</div>
-			<label class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.font}</span>
-				<!-- Load all fonts once the list opens, so every option shows in its own font -->
-				<select
-					class="select select-sm"
-					style="font-family: {FONTS[o.font].family}"
-					value={o.font}
-					onfocus={() => FONT_IDS.forEach(loadFont)}
-					onchange={(e) => {
-						setTextBox({ font: e.currentTarget.value as FontId }, 'font');
-						end();
-					}}
-				>
-					{#each FONT_IDS as id (id)}<option value={id} style="font-family: {FONTS[id].family}">{FONTS[id].label}</option>{/each}
-				</select>
-			</label>
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.color}</span>
-				<ColorField value={o.color} projectColors={editor.colors} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
-			</div>
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.background}</span>
-				<ColorField
-					value={o.background}
-					allowNone={o.kind === 'text'}
-					projectColors={editor.colors}
-					onchange={(v, final) => setColor('background', v, final)}
-				/>
-			</div>
-			{#if o.background}
-				<!-- Up to the canvas height like the font size: scaling the box at a corner scales both along -->
-				{@render pixels(m.inspector.radius, o.radius, 0, 1, (v) => setOverlay({ radius: v }, 'radius'))}
-				{@render pixels(m.inspector.padding, o.padding, 0, 1, (v) => setTextBox({ padding: v }, 'padding'))}
-			{/if}
-		{/if}
-
-		{#if o.kind === 'step'}
-			<NumberField
-				label={m.inspector.stepNumber}
-				value={o.number}
-				min={1}
-				max={999}
-				oninput={(v) => setOverlay({ number: v }, 'number')}
-				oncommit={end}
-			/>
-			{@render pixels(m.inspector.size, o.size, 8 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
-		{/if}
-
-		<!-- Text and speech bubble show their color next to the background -->
-		{#if 'color' in o && o.kind !== 'text' && o.kind !== 'callout'}
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.color}</span>
-				<ColorField value={o.color} projectColors={editor.colors} onchange={(v, final) => setColor('color', v ?? o.color, final)} />
-			</div>
-		{/if}
-
-		{#if o.kind === 'arrow' || o.kind === 'rect' || o.kind === 'ellipse' || o.kind === 'line'}
-			{@render pixels(m.inspector.lineWidth, o.width, 0.002, 0.02, (v) => setOverlay({ width: v }, 'width'))}
-		{/if}
-		{#if o.kind === 'line'}
-			{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
-		{/if}
-		{#if o.kind === 'image'}
-			{@const image = editor.image(o.imageId)}
-			{#if image}
-				<div class="flex flex-col gap-1">
-					<span class="text-xs opacity-70">{m.inspector.placement}</span>
-					<div class="join">
-						{#each [false, true] as cover (cover)}
-							<button
-								class="btn btn-sm join-item flex-1"
-								onclick={() => {
-									setOverlay({ rect: fitRect(image, editor.project.width, editor.project.height, cover) }, 'rect');
-									end();
-								}}
-							>
-								{#if cover}
-									<span class="icon-[material-symbols-light--fullscreen] size-5" aria-hidden="true"></span> {m.inspector.fill}
-								{:else}
-									<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span> {m.inspector.fit}
-								{/if}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-			{@render pixels(m.inspector.radius, o.radius, 0, 0.1, (v) => setOverlay({ radius: v }, 'radius'))}
-		{/if}
-		{#if o.kind === 'rect'}
-			{@render pixels(m.inspector.radius, o.radius, 0, 0.05, (v) => setOverlay({ radius: v }, 'radius'))}
-		{/if}
-		{#if o.kind === 'blur'}
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.blurArea}</span>
-				<div class="join">
-					{#each [{ value: 'inside', label: m.inspector.blurInside, icon: 'icon-[material-symbols-light--crop-free]' }, { value: 'outside', label: m.inspector.blurOutside, icon: 'icon-[material-symbols-light--filter-center-focus]' }] as option (option.value)}
-						<button
-							class="btn btn-sm join-item flex-1 {o.area === option.value ? 'btn-primary' : ''}"
-							onclick={() => {
-								setOverlay({ area: option.value as 'inside' | 'outside' }, 'area');
+			<InspectorSection id="font" title={m.inspector.sections.font}>
+				<InspectorField label={m.inspector.font}>
+					<label class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.font}</span>
+						<!-- Load all fonts once the list opens, so every option shows in its own font -->
+						<select
+							class="select select-sm"
+							style="font-family: {FONTS[o.font].family}"
+							value={o.font}
+							onfocus={() => FONT_IDS.forEach(loadFont)}
+							onchange={(e) => {
+								setTextBox({ font: e.currentTarget.value as FontId }, 'font');
 								end();
 							}}
 						>
-							<span class="{option.icon} size-5" aria-hidden="true"></span>
-							{option.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-			{@render pixels(m.inspector.strength, o.strength, 0.002, 0.05, (v) => setOverlay({ strength: v }, 'strength'))}
+							{#each FONT_IDS as id (id)}<option value={id} style="font-family: {FONTS[id].family}">{FONTS[id].label}</option>{/each}
+						</select>
+					</label>
+				</InspectorField>
+				{@render pixels(m.inspector.fontSize, o.size, 4 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
+				<InspectorField label={m.inspector.align} keywords={[...ALIGNS.map((a) => a.label), m.inspector.autoWidth]}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.align}</span>
+						<div class="flex items-center gap-2">
+							<div class="join">
+								{#each ALIGNS as a (a.value)}
+									<button
+										class="btn btn-xs join-item {o.align === a.value ? 'btn-active' : ''}"
+										onclick={() => {
+											setOverlay({ align: a.value }, 'align');
+											end();
+										}}
+										title={a.label}
+										aria-label={a.label}
+										aria-pressed={o.align === a.value}
+									>
+										<span class="{a.icon} size-4" aria-hidden="true"></span>
+									</button>
+								{/each}
+							</div>
+							{#if o.boxWidth !== undefined}
+								<button
+									class="btn btn-xs btn-ghost ml-auto"
+									onclick={() => {
+										setTextBox({ boxWidth: undefined }, 'boxWidth');
+										end();
+									}}
+									title={m.inspector.autoWidthHint}
+								>
+									{m.inspector.autoWidth}
+								</button>
+							{/if}
+						</div>
+					</div>
+				</InspectorField>
+				{@render color(m.inspector.color, o.color, (v, final) => setColor('color', v ?? o.color, final))}
+			</InspectorSection>
 		{/if}
 
-		{@render timing(o.start, o.end)}
-		{@render inOut(
-			m.inspector.fade,
-			[
-				{ label: m.inspector.fadeIn, value: o.fadeIn, onset: (v) => setOverlay({ fadeIn: v }, 'fadeIn') },
-				{ label: m.inspector.fadeOut, value: o.fadeOut, onset: (v) => setOverlay({ fadeOut: v }, 'fadeOut') }
-			],
-			o.start,
-			o.end
-		)}
-		{#if hasShadow(o)}
-			{@render checkbox(m.inspector.shadow, o.shadow, (v) => setOverlay({ shadow: v }, 'shadow'))}
+		<InspectorSection id="appearance" title={m.inspector.sections.appearance}>
+			<!-- Text and speech bubble show their color under Font -->
+			{#if 'color' in o && o.kind !== 'text' && o.kind !== 'callout'}
+				{@render color(m.inspector.color, o.color, (v, final) => setColor('color', v ?? o.color, final))}
+			{/if}
+			{#if o.kind === 'arrow' || o.kind === 'rect' || o.kind === 'ellipse' || o.kind === 'line'}
+				{@render pixels(m.inspector.lineWidth, o.width, 0.002, 0.02, (v) => setOverlay({ width: v }, 'width'))}
+			{/if}
+			{#if o.kind === 'line'}
+				{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
+			{/if}
+			{#if o.kind === 'step'}
+				{@render pixels(m.inspector.size, o.size, 8 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
+			{/if}
+			{#if o.kind === 'rect'}
+				{@render pixels(m.inspector.radius, o.radius, 0, 0.05, (v) => setOverlay({ radius: v }, 'radius'))}
+			{/if}
+			{#if o.kind === 'image'}
+				{@render pixels(m.inspector.radius, o.radius, 0, 0.1, (v) => setOverlay({ radius: v }, 'radius'))}
+			{/if}
+			{#if o.kind === 'blur'}
+				{@render pixels(m.inspector.strength, o.strength, 0.002, 0.05, (v) => setOverlay({ strength: v }, 'strength'))}
+			{/if}
+			{#if hasShadow(o)}
+				{@render checkbox(m.inspector.shadow, o.shadow, (v) => setOverlay({ shadow: v }, 'shadow'))}
+			{/if}
+		</InspectorSection>
+
+		{#if o.kind === 'text' || o.kind === 'callout'}
+			<InspectorSection id="background" title={m.inspector.sections.background}>
+				{@render color(m.inspector.background, o.background, (v, final) => setColor('background', v, final), o.kind === 'text')}
+				{#if o.background}
+					<!-- Up to the canvas height like the font size: scaling the box at a corner scales both along -->
+					{@render pixels(m.inspector.radius, o.radius, 0, 1, (v) => setOverlay({ radius: v }, 'radius'))}
+					{@render pixels(m.inspector.padding, o.padding, 0, 1, (v) => setTextBox({ padding: v }, 'padding'))}
+				{/if}
+			</InspectorSection>
 		{/if}
+
+		<InspectorSection id="time" title={m.inspector.sections.time}>
+			{@render timing(o.start, o.end)}
+			{@render inOut(
+				m.inspector.fade,
+				[
+					{ label: m.inspector.fadeIn, value: o.fadeIn, onset: (v) => setOverlay({ fadeIn: v }, 'fadeIn') },
+					{ label: m.inspector.fadeOut, value: o.fadeOut, onset: (v) => setOverlay({ fadeOut: v }, 'fadeOut') }
+				],
+				o.start,
+				o.end
+			)}
+		</InspectorSection>
 	{:else if zoom}
 		{@const z = zoom}
-		<h3 class="flex items-center gap-2 font-semibold">
-			<span class="{ZOOM_ICON} size-5" aria-hidden="true"></span> {m.inspector.zoomSegment}
-		</h3>
-		<p class="text-xs opacity-70">{m.inspector.zoomHint}</p>
-		<NumberField
-			label={m.inspector.zoomLevel}
-			value={1 / z.rect.w}
-			unit="×"
-			min={1.1}
-			max={6}
-			step={0.1}
-			decimals={1}
-			oninput={setZoomLevel}
-			oncommit={end}
-		/>
-		{@render inOut(
-			m.inspector.ease,
-			[
-				{ label: m.inspector.zoomIn, value: z.easeIn, onset: (v) => setZoom({ easeIn: v }, 'easeIn') },
-				{ label: m.inspector.zoomOut, value: z.easeOut, onset: (v) => setZoom({ easeOut: v }, 'easeOut') }
-			],
-			z.start,
-			z.end
-		)}
-		{@render timing(z.start, z.end)}
+		{@render header(ZOOM_ICON, m.inspector.zoomSegment)}
+		<InspectorSection id="content" title={m.inspector.sections.content}>
+			<InspectorField label={m.inspector.zoomLevel}>
+				<NumberField
+					label={m.inspector.zoomLevel}
+					value={1 / z.rect.w}
+					unit="×"
+					min={1.1}
+					max={6}
+					step={0.1}
+					decimals={1}
+					oninput={setZoomLevel}
+					oncommit={end}
+				/>
+				<p class="text-xs opacity-70">{m.inspector.zoomHint}</p>
+			</InspectorField>
+		</InspectorSection>
+		<InspectorSection id="time" title={m.inspector.sections.time}>
+			{@render timing(z.start, z.end)}
+			{@render inOut(
+				m.inspector.ease,
+				[
+					{ label: m.inspector.zoomIn, value: z.easeIn, onset: (v) => setZoom({ easeIn: v }, 'easeIn') },
+					{ label: m.inspector.zoomOut, value: z.easeOut, onset: (v) => setZoom({ easeOut: v }, 'easeOut') }
+				],
+				z.start,
+				z.end
+			)}
+		</InspectorSection>
 	{:else if clip}
 		{@const c = clip}
 		{@const source = editor.source(c.sourceId)}
-		<h3 class="flex items-center gap-2 font-semibold">
-			{#if c.type === 'freeze'}
-				<span class="{FREEZE_ICON} size-5" aria-hidden="true"></span> {m.inspector.freeze}
-			{:else if source && !source.hasVideo}
-				<span class="icon-[material-symbols-light--music-note] size-5" aria-hidden="true"></span> {m.inspector.audioClip}
-			{:else}
-				<span class="icon-[material-symbols-light--movie-outline] size-5" aria-hidden="true"></span> {m.inspector.clip}
+		{#if c.type === 'freeze'}
+			{@render header(FREEZE_ICON, m.inspector.freeze)}
+		{:else if source && !source.hasVideo}
+			{@render header('icon-[material-symbols-light--music-note]', m.inspector.audioClip)}
+		{:else}
+			{@render header('icon-[material-symbols-light--movie-outline]', m.inspector.clip)}
+		{/if}
+		<InspectorSection id="content" title={m.inspector.sections.content}>
+			<InspectorField label={m.inspector.source} keywords={[m.inspector.range, m.inspector.frameAt, m.export.duration]}>
+				<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+					<dt class="opacity-70">{m.inspector.source}</dt>
+					<dd class="truncate">{source?.name ?? '–'}</dd>
+					{#if c.type === 'video'}
+						<dt class="opacity-70">{m.inspector.range}</dt>
+						<dd>{formatTime(c.in, 2)} – {formatTime(c.out, 2)}</dd>
+					{:else}
+						<dt class="opacity-70">{m.inspector.frameAt}</dt>
+						<dd>{formatTime(c.at, 2)}</dd>
+					{/if}
+					<dt class="opacity-70">{m.export.duration}</dt>
+					<dd>{formatTime(clipDuration(c), 2)}</dd>
+				</dl>
+			</InspectorField>
+			{#if source?.hasVideo}
+				{@render placement(m.inspector.placement, (cover) => place(c, cover), m.inspector.placementHint)}
+				{#if source.sizes}
+					<!-- Recorded window was resized: where it sits while it is smaller -->
+					<InspectorField label={m.inspector.windowPosition}>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs opacity-70">{m.inspector.windowPosition}</span>
+							<div class="grid w-fit grid-cols-3 gap-1">
+								{#each ANCHORS as anchor (anchor)}
+									<button
+										class="btn btn-xs btn-square {(c.anchor ?? 'center') === anchor ? 'btn-primary' : ''}"
+										onclick={() => editor.update((t) => updateItem(t, c.id, { anchor }))}
+										title={m.inspector.anchors[anchor]}
+										aria-label={m.inspector.anchors[anchor]}
+									>
+										<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+									</button>
+								{/each}
+							</div>
+							<p class="text-xs opacity-60">{m.inspector.windowPositionHint}</p>
+						</div>
+					</InspectorField>
+				{/if}
 			{/if}
-		</h3>
-		<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-			<dt class="opacity-70">{m.inspector.source}</dt>
-			<dd class="truncate">{source?.name ?? '–'}</dd>
-			{#if c.type === 'video'}
-				<dt class="opacity-70">{m.inspector.range}</dt>
-				<dd>{formatTime(c.in, 2)} – {formatTime(c.out, 2)}</dd>
-			{:else}
-				<dt class="opacity-70">{m.inspector.frameAt}</dt>
-				<dd>{formatTime(c.at, 2)}</dd>
-			{/if}
-			<dt class="opacity-70">{m.export.duration}</dt>
-			<dd>{formatTime(clipDuration(c), 2)}</dd>
-		</dl>
+		</InspectorSection>
 		{#if source?.hasVideo}
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.placement}</span>
-				<div class="join">
-					<button class="btn btn-sm join-item flex-1" onclick={() => place(c, false)}>
-						<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span> {m.inspector.fit}
-					</button>
-					<button class="btn btn-sm join-item flex-1" onclick={() => place(c, true)}>
-						<span class="icon-[material-symbols-light--fullscreen] size-5" aria-hidden="true"></span> {m.inspector.fill}
-					</button>
-				</div>
-				<p class="text-xs opacity-60">{m.inspector.placementHint}</p>
-			</div>
-			<div class="flex flex-col gap-1">
-				<span class="text-xs opacity-70">{m.inspector.shape}</span>
-				<div class="join">
-					{#each SHAPES as shape (shape.value)}
-						<button
-							class="btn btn-sm join-item flex-1 {(c.shape ?? 'rect') === shape.value ? 'btn-primary' : ''}"
-							onclick={() => editor.update((t) => updateItem(t, c.id, { shape: shape.value }))}
-							title={shape.label}
-							aria-label={shape.label}
-						>
-							<span class="{shape.icon} size-5" aria-hidden="true"></span>
-						</button>
-					{/each}
-				</div>
-			</div>
-			{#if source.sizes}
-				<!-- Recorded window was resized: where it sits while it is smaller -->
-				<div class="flex flex-col gap-1">
-					<span class="text-xs opacity-70">{m.inspector.windowPosition}</span>
-					<div class="grid w-fit grid-cols-3 gap-1">
-						{#each ANCHORS as anchor (anchor)}
-							<button
-								class="btn btn-xs btn-square {(c.anchor ?? 'center') === anchor ? 'btn-primary' : ''}"
-								onclick={() => editor.update((t) => updateItem(t, c.id, { anchor }))}
-								title={m.inspector.anchors[anchor]}
-								aria-label={m.inspector.anchors[anchor]}
-							>
-								<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
-							</button>
-						{/each}
+			<InspectorSection id="appearance" title={m.inspector.sections.appearance}>
+				<InspectorField label={m.inspector.shape} keywords={SHAPES.map((shape) => shape.label)}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.shape}</span>
+						<div class="join">
+							{#each SHAPES as shape (shape.value)}
+								<button
+									class="btn btn-sm join-item flex-1 {(c.shape ?? 'rect') === shape.value ? 'btn-primary' : ''}"
+									onclick={() => editor.update((t) => updateItem(t, c.id, { shape: shape.value }))}
+									title={shape.label}
+									aria-label={shape.label}
+								>
+									<span class="{shape.icon} size-5" aria-hidden="true"></span>
+								</button>
+							{/each}
+						</div>
 					</div>
-					<p class="text-xs opacity-60">{m.inspector.windowPositionHint}</p>
-				</div>
-			{/if}
+				</InspectorField>
+			</InspectorSection>
 		{/if}
 		{#if c.type === 'video' && source?.hasAudio}
 			{@const volume = c.volume ?? 1}
-			<div class="flex items-center gap-2">
-				<div class="flex-1">
+			<InspectorSection id="audio" title={m.inspector.sections.audio}>
+				<InspectorField label={m.inspector.volume} keywords={[m.inspector.mute]}>
+					<div class="flex items-center gap-2">
+						<div class="flex-1">
+							<NumberField
+								label={m.inspector.volume}
+								value={Math.round(volume * 100)}
+								unit="%"
+								min={0}
+								max={100}
+								oninput={(v) => setClip(c, { volume: v / 100 }, 'volume')}
+								oncommit={end}
+							/>
+						</div>
+						<button
+							class="btn btn-xs btn-square {volume === 0 ? 'btn-warning' : 'btn-ghost'}"
+							onclick={() => editor.update((t) => updateItem(t, c.id, { volume: volume === 0 ? 1 : 0 }))}
+							title={m.inspector.mute}
+							aria-label={m.inspector.mute}
+							aria-pressed={volume === 0}
+						>
+							<span
+								class="{volume === 0 ? 'icon-[material-symbols-light--volume-off-outline]' : 'icon-[material-symbols-light--volume-up-outline]'} size-5"
+								aria-hidden="true"
+							></span>
+						</button>
+					</div>
+				</InspectorField>
+			</InspectorSection>
+		{/if}
+		<InspectorSection id="time" title={m.inspector.sections.time}>
+			{#if c.type === 'freeze'}
+				<InspectorField label={m.inspector.duration}>
 					<NumberField
-						label={m.inspector.volume}
-						value={Math.round(volume * 100)}
-						unit="%"
-						min={0}
-						max={100}
-						oninput={(v) => setClip(c, { volume: v / 100 }, 'volume')}
+						label={m.inspector.duration}
+						value={c.duration}
+						unit="s"
+						min={0.1}
+						step={0.1}
+						decimals={2}
+						oninput={(v) => editor.update((t) => trim(t, c.id, 'out', v, 0), `insp-${c.id}-duration`)}
 						oncommit={end}
 					/>
+				</InspectorField>
+			{/if}
+			<!-- Clips with a picture fade it, clips with sound fade that too -->
+			{@render inOut(
+				m.inspector.fade,
+				[
+					{ label: m.inspector.fadeIn, value: c.fadeIn ?? 0, onset: (v) => setClip(c, { fadeIn: v }, 'fadeIn') },
+					{ label: m.inspector.fadeOut, value: c.fadeOut ?? 0, onset: (v) => setClip(c, { fadeOut: v }, 'fadeOut') }
+				],
+				c.start,
+				c.start + clipDuration(c)
+			)}
+		</InspectorSection>
+	{:else}
+		{@render header('icon-[material-symbols-light--movie-edit-outline]', m.inspector.project)}
+		<InspectorSection id="canvas" title={m.inspector.sections.canvas}>
+			<InspectorField label={m.inspector.canvas} keywords={[m.inspector.changeCanvas, m.editor.growCanvas]}>
+				<div class="flex flex-col gap-1">
+					<span class="flex items-center justify-between text-xs">
+						<span class="opacity-70">{m.inspector.canvas}</span>
+						<span class="flex items-center gap-1">
+							<span class="tabular-nums">{editor.project.width} × {editor.project.height}</span>
+							<button
+								class="btn btn-ghost btn-xs"
+								onclick={() => (canvasDraft = canvasDraft ? null : { width: editor.project.width, height: editor.project.height })}
+								aria-expanded={!!canvasDraft}
+							>
+								{m.inspector.changeCanvas}
+							</button>
+						</span>
+					</span>
+					{#if canvasDraft}
+						{@const draft = canvasDraft}
+						<CanvasSizeField value={draft} onchange={(s) => (canvasDraft = s)} />
+						<p class="text-xs opacity-60">{m.inspector.changeCanvasHint}</p>
+						<button
+							class="btn btn-sm btn-primary"
+							onclick={() => {
+								editor.resizeCanvas(draft);
+								canvasDraft = null;
+							}}
+						>
+							{m.inspector.applyCanvas}
+						</button>
+					{/if}
+					{#if largerCanvas}
+						{@const size = largerCanvas}
+						<button class="btn btn-sm" onclick={() => editor.resizeCanvas(size)}>
+							<span class="icon-[material-symbols-light--open-in-full] size-5" aria-hidden="true"></span>
+							{m.editor.growCanvas} ({size.width} × {size.height})
+						</button>
+						<p class="text-xs opacity-60">{m.inspector.growCanvasHint}</p>
+					{/if}
 				</div>
-				<button
-					class="btn btn-xs btn-square {volume === 0 ? 'btn-warning' : 'btn-ghost'}"
-					onclick={() => editor.update((t) => updateItem(t, c.id, { volume: volume === 0 ? 1 : 0 }))}
-					title={m.inspector.mute}
-					aria-label={m.inspector.mute}
-					aria-pressed={volume === 0}
-				>
-					<span
-						class="{volume === 0 ? 'icon-[material-symbols-light--volume-off-outline]' : 'icon-[material-symbols-light--volume-up-outline]'} size-5"
-						aria-hidden="true"
-					></span>
-				</button>
+			</InspectorField>
+		</InspectorSection>
+		<InspectorSection id="background" title={m.inspector.sections.background}>
+			<InspectorField label={m.inspector.background}>
+				<div class="flex flex-col gap-1">
+					<span class="text-xs opacity-70">{m.inspector.background}</span>
+					<ColorField value={editor.project.background} opaque projectColors={editor.colors} onchange={(v) => v && editor.setBackground(v)} />
+				</div>
+			</InspectorField>
+		</InspectorSection>
+		{#if !search.active}
+			<div class="flex flex-col gap-2 text-xs opacity-70">
+				<p>{m.inspector.nothing}</p>
+				<p>{m.inspector.nothingHint}</p>
+				<p>
+					<kbd class="kbd kbd-xs">S</kbd> {m.inspector.shortcuts.split} · <kbd class="kbd kbd-xs">F</kbd>
+					{m.inspector.shortcuts.hold} · <kbd class="kbd kbd-xs">{m.keys.del}</kbd>
+					{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
+					{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">G</kbd>
+					{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">Esc</kbd>
+					{m.inspector.shortcuts.deselect}
+				</p>
 			</div>
 		{/if}
-		<!-- Clips with a picture fade it, clips with sound fade that too -->
-		{@render inOut(
-			m.inspector.fade,
-			[
-				{ label: m.inspector.fadeIn, value: c.fadeIn ?? 0, onset: (v) => setClip(c, { fadeIn: v }, 'fadeIn') },
-				{ label: m.inspector.fadeOut, value: c.fadeOut ?? 0, onset: (v) => setClip(c, { fadeOut: v }, 'fadeOut') }
-			],
-			c.start,
-			c.start + clipDuration(c)
-		)}
-		{#if c.type === 'freeze'}
-			<NumberField
-				label={m.inspector.duration}
-				value={c.duration}
-				unit="s"
-				min={0.1}
-				step={0.1}
-				decimals={2}
-				oninput={(v) => editor.update((t) => trim(t, c.id, 'out', v, 0), `insp-${c.id}-duration`)}
-				oncommit={end}
-			/>
-		{/if}
-	{:else}
-		<h3 class="flex items-center gap-2 font-semibold">
-			<span class="icon-[material-symbols-light--movie-edit-outline] size-5" aria-hidden="true"></span> {m.inspector.project}
-		</h3>
-		<div class="flex flex-col gap-1">
-			<span class="flex items-center justify-between text-xs">
-				<span class="opacity-70">{m.inspector.canvas}</span>
-				<span class="flex items-center gap-1">
-					<span class="tabular-nums">{editor.project.width} × {editor.project.height}</span>
-					<button
-						class="btn btn-ghost btn-xs"
-						onclick={() => (canvasDraft = canvasDraft ? null : { width: editor.project.width, height: editor.project.height })}
-						aria-expanded={!!canvasDraft}
-					>
-						{m.inspector.changeCanvas}
-					</button>
-				</span>
-			</span>
-			{#if canvasDraft}
-				{@const draft = canvasDraft}
-				<CanvasSizeField value={draft} onchange={(s) => (canvasDraft = s)} />
-				<p class="text-xs opacity-60">{m.inspector.changeCanvasHint}</p>
-				<button
-					class="btn btn-sm btn-primary"
-					onclick={() => {
-						editor.resizeCanvas(draft);
-						canvasDraft = null;
-					}}
-				>
-					{m.inspector.applyCanvas}
-				</button>
-			{/if}
-			{#if largerCanvas}
-				{@const size = largerCanvas}
-				<button class="btn btn-sm" onclick={() => editor.resizeCanvas(size)}>
-					<span class="icon-[material-symbols-light--open-in-full] size-5" aria-hidden="true"></span>
-					{m.editor.growCanvas} ({size.width} × {size.height})
-				</button>
-				<p class="text-xs opacity-60">{m.inspector.growCanvasHint}</p>
-			{/if}
-		</div>
-		<div class="flex flex-col gap-1">
-			<span class="text-xs opacity-70">{m.inspector.background}</span>
-			<ColorField value={editor.project.background} opaque projectColors={editor.colors} onchange={(v) => v && editor.setBackground(v)} />
-		</div>
-		<div class="flex flex-col gap-2 text-xs opacity-70">
-			<p>{m.inspector.nothing}</p>
-			<p>{m.inspector.nothingHint}</p>
-			<p>
-				<kbd class="kbd kbd-xs">S</kbd> {m.inspector.shortcuts.split} · <kbd class="kbd kbd-xs">F</kbd>
-				{m.inspector.shortcuts.hold} · <kbd class="kbd kbd-xs">{m.keys.del}</kbd>
-				{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
-				{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">G</kbd>
-				{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">Esc</kbd>
-				{m.inspector.shortcuts.deselect}
-			</p>
-		</div>
 	{/if}
 
 	{#if others > 0}
