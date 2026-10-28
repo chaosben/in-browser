@@ -13,11 +13,13 @@ const CACHE = `screen-capture-${version}`;
 // Own subdomain, no base path: simply make manifest paths absolute
 const abs = (path: string) => `/${path}`;
 const SHELL = '/';
+/** Same name as `ICON_CACHE` in `lib/icons/index.ts` */
+const ICON_CACHE = 'screen-capture:icon-sets';
 
 const PRECACHE = [
 	SHELL,
-	// Except the whole icon sets (2–8 MB each, loaded only on demand and only online, see `lib/icons/index.ts`)
-	...immutable.filter((file) => !/\/icons\.[\w-]+\.json$/.test(file.path)).map((file) => abs(file.path)),
+	// Except the whole icon sets and their metadata (2–8 MB each, loaded only on demand, see `lib/icons/index.ts`)
+	...immutable.filter((file) => !/\/(icons|metadata)\.[\w-]+\.json$/.test(file.path)).map((file) => abs(file.path)),
 	// `_headers` & co. are Cloudflare configuration, not served files
 	...assets.filter((file) => !file.path.split('/').pop()!.startsWith('_')).map((file) => abs(file.path))
 ];
@@ -30,7 +32,8 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
 		(async () => {
-			for (const key of await caches.keys()) if (key !== CACHE) await caches.delete(key);
+			// Old versions go; downloaded icon sets stay (they have their own cache, see `lib/icons/index.ts`)
+			for (const key of await caches.keys()) if (key !== CACHE && key !== ICON_CACHE) await caches.delete(key);
 			await self.clients.claim();
 		})()
 	);

@@ -178,18 +178,19 @@ const de: Messages = {
 	},
 
 	icons: {
-		search: 'Icons suchen (englische Namen)',
 		searchSet: (set) => `${set} durchsuchen (englische Namen)`,
-		source: 'Icon-Quelle',
-		curated: 'Auswahl (offline)',
+		source: 'Icon-Set',
+		variant: 'Stil',
+		category: 'Kategorie',
+		all: 'Alle',
 		hint: 'Klick: am Abspielkopf einfügen · Ziehen: auf Vorschau oder Timeline ablegen',
 		insert: (name) => `Icon ${name} einfügen`,
 		categories: { arrows: 'Pfeile', notices: 'Hinweise', status: 'Status', input: 'Maus & Tastatur', objects: 'Objekte', people: 'Personen' },
 		noResults: 'Kein passendes Icon.',
-		limited: (n) => `Die ersten ${n} – für mehr die Suche verfeinern.`,
+		count: (n) => `${n.toLocaleString('de')} Icons`,
 		load: (size) => `Alle Icons laden (ca. ${size.replace('.', ',')})`,
 		loadHint: (count) =>
-			`Lädt rund ${count.toLocaleString('de')} Icons. Braucht eine Internetverbindung; eingefügte Icons funktionieren danach auch offline.`,
+			`Lädt einmalig rund ${count.toLocaleString('de')} Icons – danach bleiben sie im Browser gespeichert und funktionieren auch offline. Dann lässt sich auch nach Stil filtern.`,
 		license: (set, license) => `${set} · ${license}-Lizenz`,
 		offline: 'Zum Laden eines Icon-Sets braucht es eine Internetverbindung.',
 		loadFailed: (error) => `Die Icons konnten nicht geladen werden: ${error}`

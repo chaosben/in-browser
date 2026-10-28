@@ -176,18 +176,19 @@ const en = {
 	},
 
 	icons: {
-		search: 'Search icons (English names)',
 		searchSet: (set: string) => `Search ${set} (English names)`,
-		source: 'Icon source',
-		curated: 'Selection (offline)',
+		source: 'Icon set',
+		variant: 'Style',
+		category: 'Category',
+		all: 'All',
 		hint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline',
 		insert: (name: string) => `Insert icon ${name}`,
 		categories: { arrows: 'Arrows', notices: 'Notices', status: 'Status', input: 'Mouse & keyboard', objects: 'Objects', people: 'People' },
 		noResults: 'No matching icon.',
-		limited: (n: number) => `Showing the first ${n} – refine the search for more.`,
+		count: (n: number) => `${n.toLocaleString('en')} icons`,
 		load: (size: string) => `Load all icons (approx. ${size})`,
 		loadHint: (count: number) =>
-			`Loads about ${count.toLocaleString('en')} icons. Needs an internet connection; icons you insert keep working offline.`,
+			`Loads about ${count.toLocaleString('en')} icons once – afterwards they are kept in the browser and work offline. Then you can filter by style.`,
 		license: (set: string, license: string) => `${set} · ${license} license`,
 		offline: 'Loading an icon set needs an internet connection.',
 		loadFailed: (error: string) => `The icons could not be loaded: ${error}`
