@@ -11,7 +11,7 @@ import montserratLatin from '@fontsource/montserrat/files/montserrat-latin-600-n
 import montserratLatinExt from '@fontsource/montserrat/files/montserrat-latin-ext-600-normal.woff2?url';
 import type { FontId, Item } from '#lib/project/types.js';
 import { m } from '#lib/i18n/index.js';
-import { toast } from '#lib/ui/toast.svelte.js';
+import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { errorMessage } from '#lib/util/format.js';
 
 // Unicode ranges of the Fontsource subsets (identical for all four fonts)

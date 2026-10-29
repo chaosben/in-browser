@@ -7,7 +7,7 @@ export const BRAND = {
 	tool: 'Screen Capture'
 } as const;
 
-/** Link to the editor of a project */
-export function editorUrl(id: string) {
-	return `${resolve('/screen-capture/editor')}?id=${encodeURIComponent(id)}`;
+/** Link to the editor of a project (path of its package) */
+export function editorUrl(path: string) {
+	return `${resolve('/screen-capture/editor')}?path=${encodeURIComponent(path)}`;
 }

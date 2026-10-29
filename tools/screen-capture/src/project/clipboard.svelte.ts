@@ -1,6 +1,6 @@
 // Clipboard for timeline items, shared by all tabs (localStorage) and so across projects. It holds the items and
-// the metadata of the sources/images they use; the media files stay in the source project's folder (all projects
-// share the same OPFS) and are copied into the target project when pasting there.
+// the metadata of the sources/images they use; the media files stay in the source project's package (`projectId`
+// is its path in the shared file system) and are copied into the target project when pasting there.
 import { imageOf, sourceOf } from './library.js';
 import type { ImageAsset, Item, Project, Source } from './types.js';
 

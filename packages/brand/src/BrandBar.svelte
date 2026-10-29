@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { BRAND } from './brand.js';
+	import { brandBar, startRename } from './brand-bar.svelte.js';
 	import { brandMessages } from './i18n/index.svelte.js';
-	import { install, pwa } from './pwa.svelte.js';
 	import ThemeSwitch from './ThemeSwitch.svelte';
+	import { openContextMenu, type MenuEntry } from './ui/context-menu.svelte.js';
 
 	interface Props {
 		/** Tool name; without it (overview) the brand links to its own home page. */
@@ -15,15 +16,42 @@
 	let { tool, home }: Props = $props();
 
 	const t = $derived(brandMessages());
+
+	/** Rename field: whole name selected; Enter keeps, Esc cancels, leaving keeps */
+	function renameField(input: HTMLInputElement) {
+		input.focus();
+		input.select();
+	}
+
+	function commit(input: HTMLInputElement, rename: (name: string) => void, label: string) {
+		if (!brandBar.renaming) return;
+		brandBar.renaming = false;
+		const name = input.value.trim();
+		if (name && name !== label) rename(name);
+	}
 </script>
 
-<!-- Shared header of the in-browser.de apps: brand (and tool) on the left, privacy note and theme on the right -->
-<header class="bg-base-300 text-base-content flex h-9 shrink-0 items-center gap-2 px-3 text-sm">
+{#snippet menuButton(name: string, entries: MenuEntry[])}
+	<button
+		class="btn btn-ghost btn-xs btn-square"
+		onclick={(e) => openContextMenu(e, entries)}
+		title={t.bar.actions(name)}
+		aria-label={t.bar.actions(name)}
+	>
+		<span class="icon-[material-symbols-light--keyboard-arrow-down] size-5" aria-hidden="true"></span>
+	</button>
+{/snippet}
+
+<!--
+	Shared header of the in-browser.de apps. Left: brand / tool / the navigation inside the tool (`setBrandBar`,
+	the current object with its actions); right: the actions of the tool and the theme.
+-->
+<header class="bg-base-300 text-base-content flex h-10 shrink-0 items-center gap-2 px-3 text-sm">
 	<!-- From a tool, load the overview as a fresh page (separate layout and language handling) -->
 	<a
 		href={resolve('/')}
 		data-sveltekit-reload={tool ? '' : undefined}
-		class={['flex items-center gap-1.5 font-semibold', tool && 'opacity-80 hover:opacity-100']}
+		class={['flex shrink-0 items-center gap-1.5 font-semibold', tool && 'opacity-80 hover:opacity-100']}
 		title={tool ? t.brand.allTools : t.brand.home}
 	>
 		<!-- in-browser.de logo: browser window with cursor brackets -->
@@ -32,28 +60,53 @@
 			<path d="M2 8.5h20" stroke="currentColor" stroke-width="1.8" />
 			<path d="M9 12l-2.5 2.5L9 17M15 12l2.5 2.5L15 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
 		</svg>
-		{BRAND.suite}
+		<span class="hidden sm:inline">{BRAND.suite}</span>
 	</a>
 	{#if tool}
 		<span class="opacity-40" aria-hidden="true">/</span>
-		<a href={home} class="font-semibold hover:underline" title={t.brand.toolHome(tool)}>{tool}</a>
+		<a href={home} class="shrink-0 font-semibold hover:underline" title={t.brand.toolHome(tool)}>{tool}</a>
+		{#if brandBar.menu?.length && brandBar.crumbs.length === 0}{@render menuButton(tool, brandBar.menu)}{/if}
 	{/if}
 
-	<div class="ml-auto flex items-center gap-2">
-		<span
-			class="badge badge-ghost badge-sm tooltip tooltip-left hidden gap-1 sm:inline-flex"
-			data-tip={t.brand.localOnlyHint}
-		>
-			<span class="icon-[material-symbols-light--lock-outline] size-4" aria-hidden="true"></span>
-			{t.brand.localOnly}
-		</span>
-		<!-- Only in apps with initPwa() and only when the browser offers installation -->
-		{#if pwa.installable}
-			<button class="btn btn-ghost btn-xs gap-1" onclick={install} title={t.pwa.installHint}>
-				<span class="icon-[material-symbols-light--install-desktop] size-5" aria-hidden="true"></span>
-				<span class="hidden sm:inline">{t.pwa.install}</span>
-			</button>
-		{/if}
+	<nav class="flex min-w-0 flex-1 items-center gap-2">
+		{#each brandBar.crumbs as crumb, i (i)}
+			{@const last = i === brandBar.crumbs.length - 1}
+			<span class="opacity-40" aria-hidden="true">/</span>
+			<span class={['flex min-w-0 items-center gap-1', last ? 'shrink-0' : 'shrink']}>
+				{#if last && crumb.rename && brandBar.renaming}
+					{@const rename = crumb.rename}
+					<input
+						class="input input-xs w-56 font-semibold"
+						value={crumb.label}
+						aria-label={crumb.label}
+						{@attach renameField}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') commit(e.currentTarget, rename, crumb.label);
+							else if (e.key === 'Escape') brandBar.renaming = false;
+						}}
+						onblur={(e) => commit(e.currentTarget, rename, crumb.label)}
+					/>
+				{:else if crumb.href}
+					<a href={crumb.href} class="truncate hover:underline">{crumb.label}</a>
+				{:else if crumb.onclick || (last && crumb.rename)}
+					<button
+						class={['truncate hover:underline', last && 'font-semibold']}
+						title={last && crumb.rename ? t.bar.rename : undefined}
+						onclick={() => (crumb.onclick ? crumb.onclick() : startRename())}
+					>
+						{crumb.label}
+					</button>
+				{:else}
+					<span class={['truncate', last && 'font-semibold']}>{crumb.label}</span>
+				{/if}
+				{#if crumb.menu?.length}{@render menuButton(crumb.label, crumb.menu)}{/if}
+				{#if crumb.status}<span class="shrink-0 text-xs opacity-50">{crumb.status}</span>{/if}
+			</span>
+		{/each}
+	</nav>
+
+	<div class="flex shrink-0 items-center gap-1">
+		{@render brandBar.actions?.()}
 		<ThemeSwitch />
 	</div>
 </header>

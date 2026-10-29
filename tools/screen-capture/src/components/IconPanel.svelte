@@ -16,7 +16,7 @@
 	import type { IconData } from '#lib/project/types.js';
 	import { setDragPayload } from '#lib/tools/drag.js';
 	import type { ToolProps } from '#lib/tools/types.js';
-	import { toast } from '#lib/ui/toast.svelte.js';
+	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { errorMessage } from '#lib/util/format.js';
 
 	let { actions }: ToolProps = $props();

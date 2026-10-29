@@ -5,9 +5,10 @@ and multiple video and audio tracks, and export it as MP4 – entirely in the br
 [in-browser.de](https://in-browser.de) tool family.
 
 - Current desktop browsers (needs WebCodecs, OPFS and screen sharing); works best in Chrome/Edge. In Firefox there
-  is no "save as folder" (File System Access), no installation as an app and no system audio; depending on the
-  system, the export uses Opus/VP9 instead of AAC/H.264.
-- Projects are stored in browser storage (OPFS), optionally as a folder on disk
+  is no sync with a folder on disk (File System Access), no installation as an app and no system audio; depending
+  on the system, the export uses Opus/VP9 instead of AAC/H.264.
+- Projects are packages (`Name.screencapture/` with `project.json` and `media/`) in the shared file system of
+  in-browser.de (`@in-browser/files`), managed and synced with a folder on disk in Files
 - Installable as a PWA and usable offline
 - Media handling (recording, import, decoding, export) is based on [Mediabunny](https://mediabunny.dev)
 

@@ -29,6 +29,8 @@
 	},
 	"dependencies": {
 		"@in-browser/brand": "*",
+		"@in-browser/files": "*",
+		"@in-browser/files-app": "*",
 		"@in-browser/screen-capture": "*"
 	},
 	"devDependencies": {

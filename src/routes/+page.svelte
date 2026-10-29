@@ -46,7 +46,11 @@
 							</ul>
 							<div class="card-actions mt-auto items-center justify-between pt-2">
 								<span class="badge badge-outline badge-sm gap-1" title={m.requiresHint[tool.requires]}>
-									<span class="icon-[material-symbols-light--desktop-windows-outline] size-4" aria-hidden="true"></span>
+									{#if tool.requires === 'desktopBrowser'}
+										<span class="icon-[material-symbols-light--desktop-windows-outline] size-4" aria-hidden="true"></span>
+									{:else}
+										<span class="icon-[material-symbols-light--devices-outline] size-4" aria-hidden="true"></span>
+									{/if}
 									{m.requires[tool.requires]}
 								</span>
 								<span class="btn btn-primary btn-sm" aria-hidden="true">

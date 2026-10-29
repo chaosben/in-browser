@@ -1,17 +1,11 @@
-// PWA state for the installable in-browser.de tools: register the Service Worker, offer installation,
-// announce new versions. Only active in the production build (the dev server has no Service Worker).
+// PWA state for the installable in-browser.de tools: register the Service Worker and announce new versions.
+// Installing is left to the browser (its own offer, e.g. in the address bar). Only active in the production build
+// (the dev server has no Service Worker).
 
 import { dev, version } from '$app/env';
 import { resolve } from '$app/paths';
 
-interface BeforeInstallPromptEvent extends Event {
-	prompt(): Promise<void>;
-	userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
 export const pwa = $state({
-	/** The browser offers installation (and the app is not already running installed). */
-	installable: false,
 	/** A new version is loaded and waiting for “Reload”. */
 	updateReady: false
 });
@@ -29,24 +23,12 @@ function workerVersion(worker: ServiceWorker): Promise<string | null> {
 	});
 }
 
-let installEvent: BeforeInstallPromptEvent | null = null;
 let waiting: ServiceWorker | null = null;
 let started = false;
 
 export function initPwa() {
 	if (started || typeof window === 'undefined') return;
 	started = true;
-
-	window.addEventListener('beforeinstallprompt', (e) => {
-		// Show our own button instead of the browser bar
-		e.preventDefault();
-		installEvent = e as BeforeInstallPromptEvent;
-		pwa.installable = true;
-	});
-	window.addEventListener('appinstalled', () => {
-		installEvent = null;
-		pwa.installable = false;
-	});
 
 	if (dev || !('serviceWorker' in navigator)) return;
 	navigator.serviceWorker
@@ -81,14 +63,6 @@ export function initPwa() {
 		reloading = true;
 		location.reload();
 	});
-}
-
-export async function install() {
-	if (!installEvent) return;
-	await installEvent.prompt();
-	await installEvent.userChoice;
-	installEvent = null;
-	pwa.installable = false;
 }
 
 /** Activates the waiting version; the page reloads afterwards. */

@@ -25,6 +25,7 @@ export interface ToolActions {
 	transferLibrary(scope: LibraryScope, id: string, move: boolean): void;
 	record(): void;
 	importMedia(): void;
+	importFromFiles(): void;
 }
 
 export interface ToolProps {

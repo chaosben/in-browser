@@ -1,0 +1,23 @@
+{
+	"name": "@in-browser/files-app",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Files tool of in-browser.de: file manager of the shared browser file system (included as source code, route /files)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"imports": {
+		"#lib": "./src/index.js",
+		"#lib/*": "./src/*"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@in-browser/files": "*",
+		"client-zip": "2.5.1"
+	}
+}

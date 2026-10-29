@@ -19,20 +19,20 @@ const help: typeof enHelp = {
 				},
 				saving: {
 					title: 'Speichern',
-					text: 'Jede Änderung wird automatisch im Speicher dieses Browsers gesichert – „Gespeichert“ in der Kopfzeile bestätigt es. Nichts wird hochgeladen. „Als Ordner speichern“ (Chrome und Edge) schreibt das Projekt samt allen Medien zusätzlich in einen Ordner auf deiner Festplatte; mit „Projektordner öffnen“ auf der Startseite holst du es zurück.',
-					tip: 'Der Browser-Speicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Sichere wichtige Projekte zusätzlich als Ordner – und nimm den Ordner, um ein Projekt auf einen anderen Rechner zu bringen.'
+					text: 'Jede Änderung wird automatisch gesichert – „Gespeichert“ neben dem Projektnamen in der oberen Leiste bestätigt es. Ein Klick auf den Namen benennt das Projekt um. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner. „Speichern unter …“ im Menü neben dem Projektnamen (Pfeil) legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. „Öffnen …“ auf der Startseite öffnet jedes Projekt. In Files benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter.',
+					tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Wähle in Files (Chrome und Edge) unter „Ordner auf deinem Rechner“ einen Ordner: Deine Projekte werden dann mit ihm abgeglichen, und ein Sync-Tool kann ihn auf deine anderen Rechner bringen. Ein Projekt, das in einem Tab offen ist, lässt sich nicht gleichzeitig in einem zweiten öffnen.'
 				},
 				storage: {
 					title: 'Speicherplatz',
-					text: 'Die Startseite zeigt, wie viel vom Browser-Speicher deine Projekte belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst, wird sein Platz frei.'
+					text: 'Die Startseite zeigt, wie viel vom Browserspeicher die Tools von in-browser belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst (auf der Startseite oder in Files), wird sein Platz frei.'
 				},
 				browser: {
 					title: 'Browser',
-					text: 'Am besten läuft die App in einem aktuellen Chrome oder Edge am Desktop-Rechner. Firefox geht mit Einschränkungen: kein Systemton, kein Speichern als Ordner, keine Installation.'
+					text: 'Am besten läuft die App in einem aktuellen Chrome oder Edge am Desktop-Rechner. Firefox geht mit Einschränkungen: kein Systemton, kein Abgleich mit einem Ordner auf deinem Rechner, keine Installation.'
 				},
 				install: {
 					title: 'Installieren und offline',
-					text: 'Bietet dein Browser es an, fügst du die App mit „Installieren“ in der Kopfzeile wie ein Programm hinzu. Sie startet dann auch ohne Internetverbindung. Eine neue Version kündigt ein Hinweis an – sie wird nie ungefragt übernommen, eine laufende Aufnahme ist also sicher.'
+					text: 'Bietet dein Browser es an (in Chrome und Edge ein Installieren-Symbol in der Adresszeile), fügst du die App wie ein Programm hinzu. Sie startet dann auch ohne Internetverbindung. Eine neue Version kündigt ein Hinweis an – sie wird nie ungefragt übernommen, eine laufende Aufnahme ist also sicher.'
 				},
 				undo: { title: 'Rückgängig', text: 'Bis zu 100 Änderungen kannst du rückgängig machen und wiederholen.', keys: [['Strg', 'Z'], ['Strg', 'Umschalt', 'Z'], ['Strg', 'Y']] }
 			}
@@ -133,7 +133,11 @@ const help: typeof enHelp = {
 			items: {
 				import: {
 					title: 'Importieren',
-					text: '„Medien importieren“ oder Dateien, die du auf den Editor ziehst, landen in der Medienablage – nicht in der Timeline. Videos: MP4, WebM, MOV, MKV. Ton: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Bilder: PNG, JPEG, WebP, GIF, SVG. Videos und Ton werden ohne Qualitätsverlust nach MP4 umverpackt.'
+					text: '„Vom Rechner importieren“ oder Dateien, die du auf den Editor ziehst, landen in der Medienablage – nicht in der Timeline. „Aus Files importieren“ macht dasselbe mit Dateien aus dem gemeinsamen Browserspeicher (mehrere auf einmal mit Strg oder Umschalt); sie werden ins Projekt kopiert, die Originale in Files bleiben also unverändert, und wenn du sie dort löschst, schadet das dem Projekt nicht. Videos: MP4, WebM, MOV, MKV. Ton: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Bilder: PNG, JPEG, WebP, GIF, SVG. Videos und Ton werden ohne Qualitätsverlust nach MP4 umverpackt.'
+				},
+				newProject: {
+					title: 'Neues Projekt aus Dateien',
+					text: 'Auf der Startseite legen „Vom Rechner importieren“, „Aus Files importieren“ oder Dateien, die du auf die Seite ziehst, ein neues Projekt an – nachdem du Ordner und Namen gewählt hast. Videos und Ton werden Clips in der Timeline; Bilder folgen nacheinander nach den Videos, je 3 s, in die Leinwand eingepasst (z. B. für eine Diashow), und liegen zusätzlich in der Medienablage. Das erste Video bestimmt die Leinwandgröße; ohne Video das erste Bild.'
 				},
 				insert: {
 					title: 'Einfügen',
@@ -166,7 +170,7 @@ const help: typeof enHelp = {
 					title: 'Elemente ablegen',
 					text: 'Bewahre eingestellte Elemente auf – einen gestylten Pfeil, eine Sprechblase mit Text, einen zugeschnittenen Clip samt Markierungen –, um sie wieder einzufügen. Wähle sie aus und nimm im Kontextmenü (Rechtsklick) „Zur Bibliothek hinzufügen …“, oder zieh sie aus der Vorschau oder der Timeline auf einen Abschnitt der geöffneten Gruppe „Bibliothek“ links – sobald du Vorschau oder Timeline verlässt, springt das Element zurück und hängt als Bild mit Namen am Zeiger; die Abschnitte der Bibliothek zeigen gestrichelte Rahmen, der unter dem Zeiger leuchtet auf. Lässt du woanders los, ändert sich nichts. Ist die Bibliothek zugeklappt, halte das Element kurz über ihr Symbol links, dann öffnet sie sich. Gib einen Namen und klick auf die Bibliothek, in die es soll – „Dieses Projekt“ oder „Alle Projekte“; Enter nimmt die zuletzt gewählte. Gespeichert werden alle ausgewählten Elemente mit Einstellungen, Text, Zuschnitt, Verknüpfungen und Platz im Bild; Zoom-Abschnitte nicht.',
 					options: {
-						project: { label: 'Dieses Projekt', text: 'Bleibt beim Projekt, auch in einem als Ordner gespeicherten Projekt. Nutzt die Medien des Projekts direkt, deshalb lassen sich dort benutzte Medien nicht aus der Medienablage löschen.' },
+						project: { label: 'Dieses Projekt', text: 'Bleibt beim Projekt, auch in seinen Kopien. Nutzt die Medien des Projekts direkt, deshalb lassen sich dort benutzte Medien nicht aus der Medienablage löschen.' },
 						global: { label: 'Alle Projekte', text: 'In jedem Projekt verfügbar, auch nachdem das Ursprungsprojekt gelöscht ist. Benutzte Medien werden in die Bibliothek kopiert – bei Clips die ganze Mediendatei, nicht nur der zugeschnittene Teil; das belegt Speicherplatz.' }
 					},
 					tip: 'Leg Markierungen, Texte und Logos für alle Projekte ab – sie brauchen kaum Platz. Zugeschnittene Clips besser im Projekt, außer etwa ein Intro, das in jedes Video gehört.'
@@ -565,7 +569,7 @@ const help: typeof enHelp = {
 				},
 				running: {
 					title: 'Während des Exports',
-					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach startet der Download automatisch – „Erneut herunterladen“ holt die Datei noch einmal. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
+					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach startet der Download automatisch – „Erneut herunterladen“ holt die Datei noch einmal, „In Files speichern …“ legt das Video im Browserspeicher ab (standardmäßig neben dem Projekt). Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
 				}
 			}
 		},

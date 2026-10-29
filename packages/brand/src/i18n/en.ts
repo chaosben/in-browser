@@ -2,12 +2,19 @@ import { BRAND } from '../brand.js';
 
 // Texts of the brand components. Defines the structure; de.ts must have the same keys.
 const en = {
+	common: {
+		cancel: 'Cancel'
+	},
+
 	brand: {
 		home: `${BRAND.suite} overview`,
 		allTools: `All tools from ${BRAND.suite}`,
-		toolHome: (tool: string) => `${tool} home`,
-		localOnly: 'Runs locally in your browser',
-		localOnlyHint: 'No uploads – your files stay on your device.'
+		toolHome: (tool: string) => `${tool} home`
+	},
+
+	bar: {
+		actions: (name: string) => `Actions for “${name}”`,
+		rename: 'Click to rename'
 	},
 
 	theme: {
@@ -23,8 +30,6 @@ const en = {
 	},
 
 	pwa: {
-		install: 'Install',
-		installHint: 'Install as an app – launches like a program and also works offline.',
 		updateReady: 'A new version is available.',
 		reload: 'Reload',
 		later: 'Later'

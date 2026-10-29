@@ -13,7 +13,7 @@ const en = {
 		toolsHeading: 'Tools',
 		open: 'Open',
 		openTool: (name: string) => `Open ${name}`,
-		principlesHeading: 'Why in-browser.de?'
+		principlesHeading: 'Why in-browser?'
 	},
 
 	principles: {
@@ -46,11 +46,13 @@ const en = {
 
 	/** Details shown as tooltip of the requirement badge */
 	requiresHint: {
-		desktopBrowser: 'Runs in current desktop browsers – works best in Chrome or Edge'
+		desktopBrowser: 'Runs in current desktop browsers – works best in Chrome or Edge',
+		anyBrowser: 'Runs in current browsers – syncing with a folder needs Chrome or Edge'
 	},
 
 	requires: {
-		desktopBrowser: 'Desktop browser'
+		desktopBrowser: 'Desktop browser',
+		anyBrowser: 'Any current browser'
 	},
 
 	tools: {
@@ -64,6 +66,18 @@ const en = {
 				'Cut, still frames and pan & zoom that stay in sync across all tracks',
 				'Arrows, frames, text, highlighter, spotlight and blur',
 				'Export as MP4 in your choice of resolution and quality'
+			]
+		},
+		files: {
+			name: 'Files',
+			description:
+				'The file manager for everything you create with the in-browser tools – and the bridge to a folder on your computer.',
+			features: [
+				'Folders, rename, copy, move, delete – with drag & drop and right-click',
+				'Upload files and folders, download as file or ZIP',
+				'Preview of images, videos, audio and text',
+				'Opens projects directly in their tool',
+				'Keeps everything in sync with a folder on your computer – the newer version wins'
 			]
 		}
 	},

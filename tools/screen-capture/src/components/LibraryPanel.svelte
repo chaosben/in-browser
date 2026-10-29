@@ -8,15 +8,15 @@
 	import type { Clip, LibraryEntry } from '#lib/project/types.js';
 	import { itemMedia, projectMedia, type ItemMedia, type MediaPlace } from '#lib/media/visuals.js';
 	import { imageState, setLibraryImages } from '#lib/render/images.svelte.js';
-	import { libraryMediaFile } from '#lib/storage/opfs.js';
+	import { libraryMediaFile } from '#lib/storage/store.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { drawItemsPreview } from '#lib/render/item-preview.js';
 	import { hasDragPayload, readDragPayload, setDragPayload } from '#lib/tools/drag.js';
 	import type { ToolProps } from '#lib/tools/types.js';
-	import { ask } from '#lib/ui/confirm.svelte.js';
-	import { openContextMenu } from '#lib/ui/context-menu.svelte.js';
+	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
+	import { openContextMenu } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { libraryUi, type LibraryScope } from '#lib/ui/library.svelte.js';
-	import { toast } from '#lib/ui/toast.svelte.js';
+	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
 
 	let { editor, actions }: ToolProps = $props();

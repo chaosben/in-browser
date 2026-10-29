@@ -1,6 +1,6 @@
 # Third-party licenses
 
-The code in this repository is licensed under the [MIT License](LICENSE). The deployed apps bundle the following
+The code in this repository is licensed under the [MIT License](LICENSE). The deployed site bundles the following
 third-party software. All of it is used unmodified.
 
 | Component | Version | License | Copyright | Source |
@@ -11,6 +11,7 @@ third-party software. All of it is used unmodified.
 | [daisyUI](https://daisyui.com) (CSS) | 5.7 | MIT | © 2020 Pouya Saadeghi | https://github.com/saadeghi/daisyui |
 | [Material Symbols Light](https://fonts.google.com/icons) (icons, via Iconify) | 1.2.97 (Iconify set) | Apache-2.0 | © Google | https://github.com/google/material-design-icons |
 | [Mediabunny](https://mediabunny.dev) (Screen Capture only) | 1.62.1 | MPL-2.0 | © Vanilagy | https://github.com/Vanilagy/mediabunny/tree/v1.62.1 |
+| [client-zip](https://github.com/Touffy/client-zip) (Files only) | 2.5.1 | MIT | © 2020 David Junger | https://github.com/Touffy/client-zip |
 
 ## Mediabunny (MPL-2.0)
 

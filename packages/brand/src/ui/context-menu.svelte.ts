@@ -1,5 +1,5 @@
-// One context menu for the editor; preview and timeline fill it with entries. New functions are new entries, the
-// menu itself stays unchanged.
+// One context menu per page (`ContextMenu.svelte` placed once); the places that open it fill it with entries.
+// New functions are new entries, the menu itself stays unchanged.
 
 export interface MenuAction {
 	label: string;

@@ -41,20 +41,20 @@ const help = {
 				},
 				saving: {
 					title: 'Saving',
-					text: 'Every change is saved automatically in this browser’s storage – “Saved” in the header confirms it. Nothing is uploaded. “Save as folder” (Chrome and Edge) also writes the project with all media to a folder on your disk; “Open project folder” on the start page brings it back.',
-					tip: 'Browser storage is tied to this browser and can be lost when site data is cleared. Save important projects as a folder as well, and use the folder to move a project to another computer.'
+					text: 'Every change is saved automatically – “Saved” next to the project name in the top bar confirms it. Click the name to rename the project. Nothing is uploaded. A project is a file “Name.screencapture” in the browser storage that all in-browser tools share. When you start a project (recording, import, empty project), you choose its folder and name; the dialog starts in the folder you used last. “Save as …” in the menu next to the project name (arrow) makes a copy under a new name or in another folder – you then continue with the copy. “Open …” on the start page opens any project. In Files you rename, move, copy, delete or download projects like other files.',
+					tip: 'Browser storage is tied to this browser and can be lost when site data is cleared. In Files (Chrome and Edge), choose a folder on your computer under “Folder on your computer”: your projects are then kept in sync with it, and a sync tool can bring that folder to your other computers. A project open in one tab cannot be opened in a second one at the same time.'
 				},
 				storage: {
 					title: 'Storage space',
-					text: 'The start page shows how much of the browser’s storage your projects use. Recordings and imported media are the largest part; deleting a project frees its space.'
+					text: 'The start page shows how much of the browser storage the in-browser tools use. Recordings and imported media are the largest part; deleting a project (on the start page or in Files) frees its space.'
 				},
 				browser: {
 					title: 'Browser',
-					text: 'Works best in a current Chrome or Edge on a desktop computer. Firefox works with limits: no system audio, no saving as a folder, no installation.'
+					text: 'Works best in a current Chrome or Edge on a desktop computer. Firefox works with limits: no system audio, no sync with a folder on your computer, no installation.'
 				},
 				install: {
 					title: 'Install and offline',
-					text: 'When your browser offers it, “Install” in the header adds the app like a program. It then also starts without an internet connection. A new version is announced with a hint – it is never applied without asking, so a running recording is safe.'
+					text: 'When your browser offers it (in Chrome and Edge an install icon in the address bar), you can add the app like a program. It then also starts without an internet connection. A new version is announced with a hint – it is never applied without asking, so a running recording is safe.'
 				},
 				undo: { title: 'Undo', text: 'Up to 100 changes can be undone and redone.', keys: [['Ctrl', 'Z'], ['Ctrl', 'Shift', 'Z'], ['Ctrl', 'Y']] }
 			}
@@ -155,7 +155,11 @@ const help = {
 			items: {
 				import: {
 					title: 'Import',
-					text: '“Import media” or dropping files onto the editor puts them into the media bin – not into the timeline. Videos: MP4, WebM, MOV, MKV. Audio: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Images: PNG, JPEG, WebP, GIF, SVG. Videos and audio are repackaged to MP4 without changing their quality.'
+					text: '“Import from computer” or dropping files onto the editor puts them into the media bin – not into the timeline. “Import from Files” does the same with files from the shared browser storage (several at once with Ctrl or Shift); they are copied into the project, so the originals in Files stay as they are and deleting them there does not harm the project. Videos: MP4, WebM, MOV, MKV. Audio: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Images: PNG, JPEG, WebP, GIF, SVG. Videos and audio are repackaged to MP4 without changing their quality.'
+				},
+				newProject: {
+					title: 'New project from files',
+					text: 'On the start page, “Import from computer”, “Import from Files” or dropping files creates a new project – after asking for its folder and name. Videos and audio become clips in the timeline; images follow the videos one after another, 3 s each, fitted into the canvas (e.g. for a slideshow), and are also in the media bin. The first video sets the canvas size; without a video, the first image does.'
 				},
 				insert: {
 					title: 'Insert',
@@ -188,7 +192,7 @@ const help = {
 					title: 'Save elements',
 					text: 'Keep elements you have set up – a styled arrow, a speech bubble with text, a trimmed clip with its annotations – to insert them again. Select them and choose “Add to library …” in the context menu (right click), or drag them from the preview or the timeline onto a section of the open Library group on the left – as soon as you leave the preview or timeline, the element snaps back and hangs at the pointer as a picture with its name; the library sections show dashed frames and the one under the pointer lights up. Released elsewhere, nothing changes. With the library closed, hold the element over its icon on the left for a moment to open it. Give it a name and click the library it goes into – “This project” or “All projects”; Enter takes the one you chose last time. Saved are all selected elements with their settings, text, trimming, links and place in the picture; zoom segments are not.',
 					options: {
-						project: { label: 'This project', text: 'Stays with the project, also in a project saved as a folder. Uses the project’s media directly, so media used there cannot be deleted from the media bin.' },
+						project: { label: 'This project', text: 'Stays with the project, also in its copies. Uses the project’s media directly, so media used there cannot be deleted from the media bin.' },
 						global: { label: 'All projects', text: 'Available in every project, even after the original project is deleted. Media it uses is copied into the library – for clips the whole media file, not only the trimmed part, so it takes storage space.' }
 					},
 					tip: 'Save annotations, texts and logos for all projects – they hardly take any space. Keep trimmed clips in the project, unless it is something like an intro that belongs in every video.'
@@ -587,7 +591,7 @@ const help = {
 				},
 				running: {
 					title: 'During the export',
-					text: 'Keep the tab open; the export runs in this tab. When it is done, the download starts automatically – “Download again” gets the file once more. Hidden tracks are left out, muted tracks have no sound.'
+					text: 'Keep the tab open; the export runs in this tab. When it is done, the download starts automatically – “Download again” gets the file once more, “Save in Files …” keeps the video in the browser storage (next to the project by default). Hidden tracks are left out, muted tracks have no sound.'
 				}
 			}
 		},

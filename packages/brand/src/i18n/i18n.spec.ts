@@ -28,6 +28,6 @@ describe('brand component texts', () => {
 	it('insert names', () => {
 		expect(de.brand.toolHome('Screen Capture')).toBe('Zur Startseite von Screen Capture');
 		expect(en.brand.toolHome('Screen Capture')).toBe('Screen Capture home');
-		expect(de.brand.allTools).toBe('Alle Tools von in-browser.de');
+		expect(de.brand.allTools).toBe('Alle Tools von in-browser');
 	});
 });

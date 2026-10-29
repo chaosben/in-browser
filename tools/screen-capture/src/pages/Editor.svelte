@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { innerHeight } from 'svelte/reactivity/window';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { BRAND } from '#lib/brand.js';
+	import { BRAND, editorUrl } from '#lib/brand.js';
 	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
-	import ContextMenu from '#lib/components/ContextMenu.svelte';
+	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import HelpWindow from '#lib/components/HelpWindow.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
@@ -25,9 +26,22 @@
 	import { setImageProject } from '#lib/render/images.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { hasDragPayload, readDragPayload, type DragPayload } from '#lib/tools/drag.js';
-	import { folderSupported, saveToFolder } from '#lib/storage/folder.js';
 	import type { DropPlace, ToolActions } from '#lib/tools/types.js';
-	import { cleanupMedia, libraryMediaFile, loadProject, mediaFile } from '#lib/storage/opfs.js';
+	import {
+		chooseMediaFromFiles,
+		cleanupMedia,
+		libraryMediaFile,
+		loadProject,
+		mediaFile,
+		PROJECT_EXT,
+		projectFileDate,
+		rememberProject
+	} from '#lib/storage/store.js';
+	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
+	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
+	import { copy, watch } from '@in-browser/files/fs.js';
+	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+	import { basename, join, normalize, parent } from '@in-browser/files/path.js';
 	import {
 		clampTimelineHeight,
 		DEFAULT_TIMELINE_HEIGHT,
@@ -54,7 +68,7 @@
 	import { toolState } from '#lib/tools/state.svelte.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { helpState } from '#lib/ui/help.svelte.js';
-	import { openContextMenu, type MenuEntry } from '#lib/ui/context-menu.svelte.js';
+	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { clipboard } from '#lib/project/clipboard.svelte.js';
 	import { prepareMedia, type ItemsWithMedia } from '#lib/project/transfer.js';
 	import { globalLibrary } from '#lib/project/library.svelte.js';
@@ -62,9 +76,9 @@
 	import { libraryUi, saveSelection, type LibraryScope } from '#lib/ui/library.svelte.js';
 	import LibrarySaveDialog from '#lib/components/LibrarySaveDialog.svelte';
 	import DragGhost from '#lib/components/DragGhost.svelte';
-	import { toast } from '#lib/ui/toast.svelte.js';
+	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
-	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
+	import { errorMessage, formatTime } from '#lib/util/format.js';
 
 	const FRAME = 1 / 30;
 
@@ -107,33 +121,97 @@
 	/** A tile or media entry is dragged over the preview (highlighted as drop target) */
 	let overPreview = $state(false);
 
+	/** Holds the project's lock until the returned function is called; `null` if another tab holds it */
+	function lockProject(path: string): Promise<(() => void) | null> {
+		return new Promise((resolve) => {
+			navigator.locks.request(`screen-capture:project:${path}`, { ifAvailable: true }, (lock) => {
+				if (!lock) return resolve(null);
+				return new Promise<void>((release) => resolve(release));
+			});
+		});
+	}
+
+	// The project of the address (`?path=` of its package): one tab at a time edits it (Web Lock); changes from
+	// elsewhere (sync from another computer) reload it unless there are unsaved changes.
 	$effect(() => {
-		const id = page.url.searchParams.get('id');
-		if (!id) return;
+		const param = page.url.searchParams.get('path');
+		if (!param) return;
+		const path = normalize(param);
 		let ed: Editor | null = null;
 		let pl: Player | null = null;
 		let disposed = false;
+		let release: (() => void) | null = null;
+		let stopWatch: (() => void) | null = null;
+
+		const close = () => {
+			pl?.destroy();
+			pl = null;
+			editor = null;
+			player = null;
+		};
+
+		async function open(): Promise<Editor | null> {
+			const project = await loadProject(path);
+			let next: Editor;
+			const nextPlayer = new Player(() => next.project);
+			next = new Editor(project, (clipsChanged) => (clipsChanged ? nextPlayer.refresh() : nextPlayer.redraw()));
+			next.lastWrite = (await projectFileDate(path)) ?? 0;
+			await nextPlayer.syncSources();
+			if (disposed) {
+				nextPlayer.destroy();
+				return null;
+			}
+			close();
+			ed = editor = next;
+			pl = player = nextPlayer;
+			return next;
+		}
+
+		async function checkExternal() {
+			const date = await projectFileDate(path);
+			if (!ed || date === undefined || date === ed.lastWrite || ed.saving) return;
+			if (ed.dirty) {
+				ed.lastWrite = date;
+				return toast(m.editor.changedElsewhere, 'warning', 8000);
+			}
+			await open();
+			toast(m.editor.reloaded, 'info');
+		}
+
 		(async () => {
 			try {
-				const project = await loadProject(id);
-				pl = new Player(() => ed!.project);
-				ed = new Editor(project, (clipsChanged) => (clipsChanged ? pl?.refresh() : pl?.redraw()));
-				await pl.syncSources();
-				if (disposed) return pl.destroy();
-				editor = ed;
-				player = pl;
+				release = await lockProject(path);
+				if (disposed) return release?.();
+				if (!release) {
+					loadError = m.editor.openElsewhere;
+					return;
+				}
+				const opened = await open();
+				if (!opened) return;
+				rememberProject(path);
 				// Remove leftover files (e.g. aborted recordings) in the background
-				cleanupMedia(project).catch(() => {});
+				cleanupMedia(opened.project).catch(() => {});
+				const manifest = join(path, PACKAGE_MANIFEST);
+				stopWatch = watch((paths) => {
+					if (paths.includes(manifest)) checkExternal().catch((e) => console.error(e));
+				});
 			} catch (e) {
 				loadError = m.editor.loadFailed(errorMessage(e));
 			}
 		})();
+
+		// Closing the tab: save what is still waiting (the 400 ms of the autosave)
+		const flush = () => {
+			if (ed?.dirty) ed.save();
+		};
+		window.addEventListener('pagehide', flush);
 		return () => {
 			disposed = true;
-			ed?.save();
-			pl?.destroy();
-			editor = null;
-			player = null;
+			window.removeEventListener('pagehide', flush);
+			stopWatch?.();
+			const last = ed;
+			close();
+			Promise.resolve(last?.dirty ? last.save() : undefined).finally(() => release?.());
 		};
 	});
 
@@ -142,6 +220,26 @@
 		const { width, height } = editor.project;
 		const scale = Math.min(1, 1920 / width, 1080 / height);
 		return { width: Math.round(width * scale), height: Math.round(height * scale) };
+	});
+
+	// Project name with its actions on the left of the BrandBar, help and export on the right
+	$effect(() => {
+		if (!editor || !player) return;
+		const ed = editor;
+		return setBrandBar({
+			crumbs: [
+				{
+					label: ed.project.name,
+					status: ed.saving ? m.common.saving : m.common.saved,
+					rename: (name) => ed.rename(name),
+					menu: [
+						{ label: m.editor.rename, icon: 'icon-[material-symbols-light--edit-outline]', run: startRename },
+						{ label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', run: saveAs }
+					]
+				}
+			],
+			actions: barActions
+		});
 	});
 
 	// Pictures of image annotations are loaded from this project
@@ -451,6 +549,16 @@
 		insertLibrary,
 		transferLibrary,
 		record: openRecordDialog,
+		importFromFiles: async () => {
+			if (importing || !editor) return;
+			try {
+				const files = await chooseMediaFromFiles(parent(editor.project.id));
+				if (files.length) await importFiles(files);
+			} catch (e) {
+				console.error(e);
+				toast(filesErrorText(e), 'error', 8000);
+			}
+		},
 		importMedia: () => {
 			if (!importing) fileInput?.click();
 		}
@@ -514,14 +622,20 @@
 		}
 	}
 
-	async function saveFolder() {
+	/** Copies the package to a new place/name and continues editing the copy */
+	async function saveAs() {
 		if (!editor) return;
+		const from = editor.project.id;
+		const path = await chooseFile({ mode: 'save', folder: parent(from), accept: [PROJECT_EXT], name: basename(from) });
+		if (!path) return;
 		try {
 			await editor.save();
-			const name = await saveToFolder(editor.project);
-			toast(m.editor.savedToFolder(name), 'success');
+			await copy(from, path);
+			await goto(editorUrl(path));
+			toast(m.editor.savedAs(basename(path)), 'success');
 		} catch (e) {
-			if (!isAbort(e)) toast(errorMessage(e), 'error', 8000);
+			console.error(e);
+			toast(filesErrorText(e), 'error', 8000);
 		}
 	}
 
@@ -663,6 +777,30 @@
 	}
 </script>
 
+{#snippet barActions()}
+	{#if editor && player}
+		<button
+			class="btn btn-sm btn-ghost {helpState.open ? 'btn-active' : ''}"
+			onclick={() => helpState.toggle()}
+			aria-pressed={helpState.open}
+			title={m.help.buttonTitle}
+		>
+			<span class="icon-[material-symbols-light--help-outline] size-5" aria-hidden="true"></span>
+			<span class="hidden md:inline">{m.help.button}</span>
+		</button>
+		<button
+			class="btn btn-sm btn-primary"
+			disabled={player.duration === 0}
+			onclick={() => {
+				player?.pause();
+				dialog = 'export';
+			}}
+		>
+			<span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.editor.export}
+		</button>
+	{/if}
+{/snippet}
+
 <!-- Also when a drag is cancelled (Esc) or ends outside the window -->
 <svelte:window onkeydown={onKey} ondragend={() => (overPreview = false)} />
 <svelte:head><title>{editor?.project.name ?? m.editor.title} · {BRAND.tool}</title></svelte:head>
@@ -684,51 +822,14 @@
 		ondrop={onDrop}
 		role="application"
 	>
-		<nav class="navbar bg-base-200 min-h-0 gap-2 px-3 py-1">
-			<a class="btn btn-ghost btn-sm" href={resolve('/screen-capture')} aria-label={m.editor.backToOverview}>
-				<span class="icon-[material-symbols-light--arrow-back] size-6" aria-hidden="true"></span>
-			</a>
-			<input
-				class="input input-ghost input-sm w-64 font-semibold"
-				value={editor.project.name}
-				onchange={(e) => editor?.rename(e.currentTarget.value)}
-				aria-label={m.editor.projectName}
-			/>
-			<span class="text-xs opacity-50">{editor.saving ? m.common.saving : m.common.saved}</span>
-			<div class="ml-auto flex flex-wrap items-center gap-2">
-				<button
-					class="btn btn-sm btn-ghost {helpState.open ? 'btn-active' : ''}"
-					onclick={() => helpState.toggle()}
-					aria-pressed={helpState.open}
-					title={m.help.buttonTitle}
-				>
-					<span class="icon-[material-symbols-light--help-outline] size-5" aria-hidden="true"></span> {m.help.button}
-				</button>
-				{#if folderSupported()}
-					<button class="btn btn-sm btn-ghost" onclick={saveFolder}>
-						<span class="icon-[material-symbols-light--save-outline] size-5" aria-hidden="true"></span> {m.editor.saveFolder}
-					</button>
-				{/if}
-				<button
-					class="btn btn-sm btn-primary"
-					disabled={player.duration === 0}
-					onclick={() => {
-						player?.pause();
-						dialog = 'export';
-					}}
-				>
-					<span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.editor.export}
-				</button>
-			</div>
-			<input
-				bind:this={fileInput}
-				type="file"
-				accept={`${MEDIA_ACCEPT},${IMAGE_ACCEPT}`}
-				multiple
-				hidden
-				onchange={(e) => importFiles(e.currentTarget.files)}
-			/>
-		</nav>
+		<input
+			bind:this={fileInput}
+			type="file"
+			accept={`${MEDIA_ACCEPT},${IMAGE_ACCEPT}`}
+			multiple
+			hidden
+			onchange={(e) => importFiles(e.currentTarget.files)}
+		/>
 
 		{#if importing}
 			<div class="bg-base-200 flex items-center gap-3 px-4 pb-2 text-sm">
@@ -849,7 +950,6 @@
 		</section>
 
 		<HelpWindow />
-		<ContextMenu />
 		<LibrarySaveDialog onsave={saveToLibrary} />
 		<DragGhost {editor} />
 

@@ -1,32 +1,34 @@
-// The global library: entries usable in all projects, stored in the OPFS together with copies of the media files
-// they use. Other tabs hear about changes and reload.
+// The global library: entries usable in all projects, stored in the shared file system (`/.apps/screen-capture/`,
+// synced like everything else) together with copies of the media files they use. Changes from other tabs or the
+// sync reload it.
+import { watch } from '@in-browser/files/fs.js';
 import {
 	deleteLibraryMedia,
+	LIBRARY_FILE,
 	libraryMediaWritable,
 	loadLibrary,
 	mediaFile,
 	saveLibrary
-} from '#lib/storage/opfs.js';
+} from '#lib/storage/store.js';
 import { m } from '#lib/i18n/index.js';
 import { unusedFiles } from './library.js';
 import { copyMedia, type ItemsWithMedia } from './transfer.js';
 import { newId, type LibraryEntry } from './types.js';
 
-const CHANNEL = 'screen-capture:library';
-
 class GlobalLibrary {
 	entries = $state.raw<LibraryEntry[]>([]);
-	#channel: BroadcastChannel | null = null;
+	#watching = false;
 	#loading: Promise<void> | null = null;
 
-	/** Loads once (and again when another tab changed it) */
+	/** Loads once (and again when the file changes) */
 	load() {
-		if (!this.#channel && typeof BroadcastChannel !== 'undefined') {
-			this.#channel = new BroadcastChannel(CHANNEL);
-			this.#channel.onmessage = () => {
+		if (!this.#watching) {
+			this.#watching = true;
+			watch((paths) => {
+				if (!paths.includes(LIBRARY_FILE)) return;
 				this.#loading = null;
-				this.load();
-			};
+				this.load()?.catch((e) => console.error(e));
+			});
 		}
 		this.#loading ??= loadLibrary().then(
 			(entries) => {
@@ -43,7 +45,6 @@ class GlobalLibrary {
 	async #commit(entries: LibraryEntry[]) {
 		this.entries = entries;
 		await saveLibrary(entries);
-		this.#channel?.postMessage('changed');
 	}
 
 	/** Adds a copy of `data` from project `projectId`; media files the library lacks are copied into it */

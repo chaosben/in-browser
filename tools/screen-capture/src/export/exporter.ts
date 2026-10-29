@@ -19,7 +19,7 @@ import type { Project, VideoClip } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { fontsOf, loadFont } from '#lib/render/fonts.svelte.js';
 import { loadPictures, setImageProject } from '#lib/render/images.svelte.js';
-import { clearExports, exportWritable, mediaFile } from '#lib/storage/opfs.js';
+import { clearExports, exportWritable, mediaFile } from '#lib/storage/store.js';
 import { clipsAt, clipsOf, duration, fadeAlpha, fadeEdges, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { outputSize, videoBitrate, type ExportSettings } from './settings';
 import { m } from '#lib/i18n/index.js';

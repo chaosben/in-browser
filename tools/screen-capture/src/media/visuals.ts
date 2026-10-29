@@ -1,7 +1,7 @@
 import { AudioBufferSink, CanvasSink } from 'mediabunny';
 import type { Item, Source } from '#lib/project/types.js';
 import { sourceCrop, visibleRect } from './content.js';
-import { mediaFile, writeMediaText } from '#lib/storage/opfs.js';
+import { mediaFile, writeMediaText } from '#lib/storage/store.js';
 import { openInput } from './media.js';
 
 // Thumbnails and audio waveform for the timeline. Computed in the background and cached

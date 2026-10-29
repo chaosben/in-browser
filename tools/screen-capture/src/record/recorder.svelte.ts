@@ -14,7 +14,7 @@ import { openDevice } from './devices.svelte.js';
 import { pickEncoder, pickScreenEncoder } from './encoder.js';
 import { CAMERA_FPS, recordBitrate, screenQuality, type RecordLevel, type RecordSettings } from './settings.js';
 import { newId, type Source, type SourceSize } from '#lib/project/types.js';
-import { deleteMediaFile, mediaWritable } from '#lib/storage/opfs.js';
+import { deleteMediaFile, mediaWritable } from '#lib/storage/store.js';
 import { m } from '#lib/i18n/index.js';
 
 export interface RecordOptions {

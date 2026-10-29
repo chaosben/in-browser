@@ -6,9 +6,12 @@
 	import { setLocale } from '@in-browser/brand/i18n/index.svelte.js';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
+	import FileDialog from '@in-browser/files/FileDialog.svelte';
+	import { startSync } from '@in-browser/files/sync/sync.svelte.js';
 	import { BRAND } from '#lib/brand.js';
-	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
-	import Toasts from '#lib/components/Toasts.svelte';
+	import ConfirmDialog from '@in-browser/brand/ConfirmDialog.svelte';
+	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
+	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import { locale, m } from '#lib/i18n/index.js';
 
 	let { children }: { children: Snippet } = $props();
@@ -16,6 +19,8 @@
 	// Pass the language on to the brand components and the document
 	setLocale(locale);
 	initPwa();
+	// Keeps the shared file system in sync with the folder on disk while the tool is open (if connected in Files)
+	startSync();
 </script>
 
 <svelte:head>
@@ -40,4 +45,6 @@
 </div>
 <Toasts />
 <ConfirmDialog />
+<ContextMenu />
+<FileDialog />
 <UpdateBanner />

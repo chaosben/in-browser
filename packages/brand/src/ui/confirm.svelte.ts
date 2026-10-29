@@ -1,5 +1,5 @@
-// Confirmation questions as our own modal instead of the browser's `confirm()`; shown by `ConfirmDialog.svelte`
-// in the root layout.
+// Confirmation questions as our own modal instead of the browser's `confirm()`; shown by `ConfirmDialog.svelte`,
+// which each tool places once in its layout.
 
 export interface Question {
 	title: string;

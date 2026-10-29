@@ -1,4 +1,4 @@
-import { deleteMediaFile, saveProject } from '#lib/storage/opfs.js';
+import { deleteMediaFile, projectFileDate, saveProject } from '#lib/storage/store.js';
 import { addItem, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
 import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
@@ -431,12 +431,22 @@ export class Editor {
 		this.#saveTimer = setTimeout(() => this.save(), 400);
 	}
 
+	/** Changes wait for saving or are being saved */
+	get dirty() {
+		return this.#saveTimer !== undefined || this.saving;
+	}
+
+	/** Date of `project.json` after our own last save: a different one means it was changed elsewhere (sync) */
+	lastWrite = 0;
+
 	async save() {
 		clearTimeout(this.#saveTimer);
+		this.#saveTimer = undefined;
 		this.saving = true;
 		try {
 			this.project = { ...this.project, updatedAt: Date.now() };
 			await saveProject(this.project);
+			this.lastWrite = (await projectFileDate(this.project.id)) ?? 0;
 		} finally {
 			this.saving = false;
 		}

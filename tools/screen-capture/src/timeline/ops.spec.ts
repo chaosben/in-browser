@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseProject, type Annotation, type Clip, type Item, type Timeline, type ZoomSegment } from '#lib/project/types.js';
+import { FORMAT, migrate, parseProject, VERSION, type Annotation, type Clip, type Item, type Timeline, type ZoomSegment } from '#lib/project/types.js';
 import {
 	addItem,
 	addZoom,
@@ -457,10 +457,22 @@ describe('parseProject', () => {
 		const again = parseProject(p);
 		again.timeline.items.forEach((item, i) => expect(item).toBe(p.timeline.items[i]));
 	});
-	it('rejects unknown data and other versions', () => {
+	it('migrates version 1 to the current format', () => {
+		const p = parseProject({ version: 1, id: 'x', sources: [], timeline: { items: [] } });
+		expect(p).toMatchObject({ format: FORMAT, version: VERSION });
+		expect(migrate({ version: 1 })).toEqual({ version: 2, format: 'screen-capture' });
+	});
+	it('accepts the current version as is', () => {
+		const p = parseProject({ format: 'screen-capture', version: 2, id: 'x', sources: [], timeline: { items: [] } });
+		expect(p.version).toBe(2);
+	});
+	it('rejects unknown data, other tools and newer versions', () => {
 		expect(() => parseProject({ foo: 1 })).toThrow();
-		expect(() => parseProject({ version: 3, sources: [], timeline: { clips: [] } })).toThrow();
+		expect(() => parseProject({ version: 3, format: 'screen-capture', sources: [], timeline: { items: [] } })).toThrow(/newer/);
+		// Version 2 without the format name: not a Screen Capture project
 		expect(() => parseProject({ version: 2, sources: [], timeline: { items: [] } })).toThrow();
+		expect(() => parseProject({ version: 2, format: 'other-tool', sources: [], timeline: { items: [] } })).toThrow();
+		expect(() => parseProject({ version: 0, sources: [], timeline: { items: [] } })).toThrow();
 	});
 });
 

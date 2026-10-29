@@ -2,11 +2,13 @@
 // `Project.images`; on the timeline they are `image` annotations.
 
 import { newId, type ImageAsset } from '#lib/project/types.js';
-import { mediaWritable } from '#lib/storage/opfs.js';
+import { mediaWritable } from '#lib/storage/store.js';
 import { m } from '#lib/i18n/index.js';
 
 export const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg';
 const IMAGE_TYPES = /^image\/(png|jpeg|webp|gif|svg\+xml)$|\.(png|jpe?g|webp|gif|svg)$/i;
+/** The same as extensions (for the file dialog of the shared file system) */
+export const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];
 
 export const isImageFile = (f: File) => IMAGE_TYPES.test(f.type) || IMAGE_TYPES.test(f.name);
 

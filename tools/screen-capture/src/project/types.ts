@@ -319,8 +319,13 @@ export interface Timeline {
 	zoom: ZoomSegment[];
 }
 
+/** Format of `project.json` in a `.screencapture` package */
+export const FORMAT = 'screen-capture';
+export const VERSION = 2;
+
 export interface Project {
-	version: 1;
+	format: typeof FORMAT;
+	version: typeof VERSION;
 	id: string;
 	name: string;
 	createdAt: number;
@@ -366,14 +371,34 @@ export function newId(): string {
 	return crypto.randomUUID().slice(0, 8);
 }
 
-/** Validates a saved project. Other format versions are not accepted (yet). */
+type Raw = Record<string, unknown> & { version: number };
+
+/** Steps from each older format version to the next; every change of the format adds one (with a test). */
+const MIGRATIONS: Record<number, (p: Raw) => Raw> = {
+	// Version 2: projects became packages in the shared file system; `format` names the tool
+	1: (p) => ({ ...p, format: FORMAT, version: 2 })
+};
+
+/** Brings a saved project to the current format version; newer or unknown formats are rejected. */
+export function migrate(raw: unknown): Raw {
+	let p = raw as Raw;
+	if (!p || typeof p !== 'object' || typeof p.version !== 'number') throw new Error(m.errors.unknownFormat);
+	if (p.version > VERSION) throw new Error(m.errors.newerVersion);
+	while (p.version < VERSION) {
+		const step = MIGRATIONS[p.version];
+		if (!step) throw new Error(m.errors.unknownFormat);
+		p = step(p);
+	}
+	if (p.format !== FORMAT) throw new Error(m.errors.unknownFormat);
+	return p;
+}
+
+/** Validates a saved project (after `migrate`) and fills in fields added later. */
 export function parseProject(raw: unknown): Project {
-	const p = raw as Project & { version: number };
-	if (!p || typeof p !== 'object' || !Array.isArray(p.sources) || !p.timeline || !Array.isArray(p.timeline.items)) {
+	const p = migrate(raw) as unknown as Project;
+	if (!Array.isArray(p.sources) || !p.timeline || !Array.isArray(p.timeline.items)) {
 		throw new Error(m.errors.unknownFormat);
 	}
-	if (p.version > 1) throw new Error(m.errors.newerVersion);
-	if (p.version !== 1) throw new Error(m.errors.unknownFormat);
 	// Fill in fields added later (idempotent)
 	return {
 		...p,

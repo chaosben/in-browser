@@ -3,7 +3,7 @@
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import { itemIcon, itemLabel } from '#lib/project/labels.js';
 	import type { Annotation, CalloutAnnotation, Clip, Item, Rect, TextAnnotation } from '#lib/project/types.js';
-	import type { MenuEntry } from '#lib/ui/context-menu.svelte.js';
+	import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { endLibraryDrag, saveSelection, trackLibraryDrag, type LibraryScope } from '#lib/ui/library.svelte.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
 	import { m } from '#lib/i18n/index.js';

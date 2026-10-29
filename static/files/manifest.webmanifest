@@ -1,0 +1,17 @@
+{
+	"id": "/files",
+	"name": "Files – in-browser",
+	"short_name": "Files",
+	"description": "Manage the files of your in-browser tools and keep them in sync with a folder on your computer.",
+	"start_url": "/files",
+	"scope": "/files",
+	"display": "standalone",
+	"launch_handler": { "client_mode": "focus-existing" },
+	"categories": ["productivity", "utilities"],
+	"background_color": "#1d232a",
+	"theme_color": "#1d232a",
+	"icons": [
+		{ "src": "/files/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/files/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+	]
+}

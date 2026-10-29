@@ -13,6 +13,9 @@
 	<button class="btn btn-sm" onclick={() => actions.importMedia()}>
 		<span class="icon-[material-symbols-light--upload-file] size-5" aria-hidden="true"></span> {m.editor.importMedia}
 	</button>
+	<button class="btn btn-sm" onclick={() => actions.importFromFiles()}>
+		<span class="icon-[material-symbols-light--folder-open-outline] size-5" aria-hidden="true"></span> {m.editor.importFromFiles}
+	</button>
 	<p class="text-xs opacity-60">{m.tools.dropHint}</p>
 </div>
 <MediaBin

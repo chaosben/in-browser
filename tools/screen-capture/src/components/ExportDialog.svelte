@@ -11,6 +11,11 @@
 		videoBitrate,
 		type QualityPreset
 	} from '#lib/export/settings.js';
+	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
+	import { writable } from '@in-browser/files/fs.js';
+	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+	import { parent } from '@in-browser/files/path.js';
 	import type { Project } from '#lib/project/types.js';
 	import { duration } from '#lib/timeline/ops.js';
 	import { m } from '#lib/i18n/index.js';
@@ -29,7 +34,7 @@
 	let finalizing = $state(false);
 	let error = $state<string | null>(null);
 	let unsupported = $state<string | null>(null);
-	let result = $state<{ url: string; name: string; size: number; seconds: number } | null>(null);
+	let result = $state<{ file: File; url: string; name: string; size: number; seconds: number } | null>(null);
 	let controller: AbortController | null = null;
 	let dialog: HTMLDialogElement;
 
@@ -77,6 +82,7 @@
 			);
 			if (result) URL.revokeObjectURL(result.url);
 			result = {
+				file,
 				url: URL.createObjectURL(file),
 				name: file.name,
 				size: file.size,
@@ -89,6 +95,20 @@
 			if (!(e instanceof ExportCanceledError)) error = errorMessage(e);
 		} finally {
 			controller = null;
+		}
+	}
+
+	/** Keeps the video in the shared file system (next to the project by default) */
+	async function saveToFiles() {
+		if (!result) return;
+		const path = await chooseFile({ mode: 'save', folder: parent(project.id), accept: ['.mp4'], name: result.name });
+		if (!path) return;
+		try {
+			await result.file.stream().pipeTo(await writable(path));
+			toast(m.export.savedToFiles(path), 'success');
+		} catch (e) {
+			console.error(e);
+			toast(filesErrorText(e), 'error', 8000);
 		}
 	}
 
@@ -199,6 +219,7 @@
 			</div>
 			<div class="modal-action">
 				<button class="btn btn-ghost" onclick={() => (phase = 'settings')}>{m.export.otherSettings}</button>
+				<button class="btn" onclick={saveToFiles}><span class="icon-[material-symbols-light--save-outline] size-5" aria-hidden="true"></span> {m.export.saveToFiles}</button>
 				<button class="btn" onclick={download}><span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.export.downloadAgain}</button>
 				<button class="btn btn-primary" onclick={close}>{m.common.done}</button>
 			</div>

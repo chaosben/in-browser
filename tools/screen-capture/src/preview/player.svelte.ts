@@ -3,10 +3,10 @@ import type { Clip, Project, Rect } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { frameArea } from '#lib/media/content.js';
 import { onPictureLoaded } from '#lib/render/images.svelte.js';
-import { mediaFile } from '#lib/storage/opfs.js';
+import { mediaFile } from '#lib/storage/store.js';
 import { clipsAt, clipsOf, duration, fadeAlpha, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { m } from '#lib/i18n/index.js';
-import { toast } from '#lib/ui/toast.svelte.js';
+import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { errorMessage } from '#lib/util/format.js';
 
 /** How long before a clip starts its video is already seeked to its start point. */

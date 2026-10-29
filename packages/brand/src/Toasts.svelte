@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { toasts } from '#lib/ui/toast.svelte.js';
+	import { toasts } from './ui/toast.svelte.js';
 
 	const alertClass = {
 		info: 'alert-info',

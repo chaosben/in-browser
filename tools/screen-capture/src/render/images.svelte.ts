@@ -3,9 +3,9 @@
 // are sharp at any size.
 
 import type { Annotation, IconData, ImageAsset, Item } from '#lib/project/types.js';
-import { libraryMediaFile, mediaFile } from '#lib/storage/opfs.js';
+import { libraryMediaFile, mediaFile } from '#lib/storage/store.js';
 import { parseColor } from '#lib/util/color.js';
-import { toast } from '#lib/ui/toast.svelte.js';
+import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { m } from '#lib/i18n/index.js';
 
 /** Counts loaded pictures (for things measured outside the canvas loop) */

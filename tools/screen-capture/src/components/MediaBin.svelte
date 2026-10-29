@@ -3,9 +3,9 @@
 	import { thumbnails } from '#lib/media/visuals.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import type { ImageAsset, Source } from '#lib/project/types.js';
-	import { mediaFile } from '#lib/storage/opfs.js';
+	import { mediaFile } from '#lib/storage/store.js';
 	import { setDragPayload } from '#lib/tools/drag.js';
-	import { ask } from '#lib/ui/confirm.svelte.js';
+	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
 

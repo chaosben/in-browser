@@ -1,5 +1,5 @@
-// Copying media files between projects and the global library (all in the same OPFS)
-import { mediaFile, mediaWritable } from '#lib/storage/opfs.js';
+// Copying media files between projects and the global library (all in the shared file system)
+import { mediaFile, mediaWritable } from '#lib/storage/store.js';
 import { imageOf, sourceOf } from './library.js';
 import type { ImageAsset, Item, Project, Source } from './types.js';
 
@@ -11,7 +11,7 @@ export interface ItemsWithMedia {
 }
 
 type Read = (file: string) => Promise<File>;
-type Write = (file: string) => Promise<FileSystemWritableFileStream>;
+type Write = (file: string) => Promise<WritableStream<FileSystemWriteChunkType>>;
 
 async function copy(read: Read, write: Write, file: string) {
 	await (await read(file)).stream().pipeTo(await write(file));

@@ -13,7 +13,7 @@ const de: Messages = {
 		toolsHeading: 'Tools',
 		open: 'Öffnen',
 		openTool: (name) => `${name} öffnen`,
-		principlesHeading: 'Warum in-browser.de?'
+		principlesHeading: 'Warum in-browser?'
 	},
 
 	principles: {
@@ -45,11 +45,13 @@ const de: Messages = {
 	},
 
 	requiresHint: {
-		desktopBrowser: 'Läuft in aktuellen Desktop-Browsern – am besten in Chrome oder Edge'
+		desktopBrowser: 'Läuft in aktuellen Desktop-Browsern – am besten in Chrome oder Edge',
+		anyBrowser: 'Läuft in aktuellen Browsern – der Abgleich mit einem Ordner braucht Chrome oder Edge'
 	},
 
 	requires: {
-		desktopBrowser: 'Desktop-Browser'
+		desktopBrowser: 'Desktop-Browser',
+		anyBrowser: 'Jeder aktuelle Browser'
 	},
 
 	tools: {
@@ -63,6 +65,18 @@ const de: Messages = {
 				'Schneiden, Standbilder und Pan & Zoom – synchron über alle Spuren',
 				'Pfeile, Rahmen, Text, Textmarker, Spotlight und Weichzeichner',
 				'Export als MP4 in wählbarer Auflösung und Qualität'
+			]
+		},
+		files: {
+			name: 'Files',
+			description:
+				'Der Dateimanager für alles, was du mit den Tools von in-browser erstellst – und die Brücke zu einem Ordner auf deinem Rechner.',
+			features: [
+				'Ordner, Umbenennen, Kopieren, Verschieben, Löschen – mit Drag & Drop und Rechtsklick',
+				'Dateien und Ordner hochladen, als Datei oder ZIP herunterladen',
+				'Vorschau für Bilder, Videos, Ton und Text',
+				'Öffnet Projekte direkt in ihrem Tool',
+				'Gleicht alles mit einem Ordner auf deinem Rechner ab – die neuere Fassung gewinnt'
 			]
 		}
 	},

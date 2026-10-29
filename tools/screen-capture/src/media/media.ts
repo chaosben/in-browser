@@ -10,7 +10,7 @@ import {
 	type AudioCodec
 } from 'mediabunny';
 import { newId, type Source } from '#lib/project/types.js';
-import { deleteMediaFile, mediaFile, mediaWritable } from '#lib/storage/opfs.js';
+import { deleteMediaFile, mediaFile, mediaWritable } from '#lib/storage/store.js';
 import { m } from '#lib/i18n/index.js';
 
 export function openInput(blob: Blob) {
@@ -32,6 +32,8 @@ export async function pickAudioCodec(preferred: readonly AudioCodec[] = ['aac', 
 export const MEDIA_ACCEPT =
 	'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.mkv,audio/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac';
 const MEDIA_TYPES = /^(video|audio)\/|\.(mp4|webm|mov|mkv|mp3|wav|m4a|aac|ogg|oga|opus|flac)$/i;
+/** The same as extensions (for the file dialog of the shared file system) */
+export const MEDIA_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.oga', '.opus', '.flac'];
 
 export const isMediaFile = (f: File) => MEDIA_TYPES.test(f.type) || MEDIA_TYPES.test(f.name);
 

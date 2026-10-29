@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { contextMenu, type MenuAction, type MenuEntry } from '#lib/ui/context-menu.svelte.js';
+	import { contextMenu, type MenuAction, type MenuEntry } from './ui/context-menu.svelte.js';
 
 	let menu: HTMLElement;
 	let hovered: MenuAction | undefined;

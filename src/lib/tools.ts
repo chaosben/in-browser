@@ -16,5 +16,11 @@ export const TOOLS: readonly Tool[] = [
 		url: '/screen-capture',
 		icon: '/screen-capture/favicon.svg',
 		requires: 'desktopBrowser'
+	},
+	{
+		id: 'files',
+		url: '/files',
+		icon: '/files/favicon.svg',
+		requires: 'anyBrowser'
 	}
 ];

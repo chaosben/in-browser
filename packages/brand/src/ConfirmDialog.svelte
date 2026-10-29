@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { m } from '#lib/i18n/index.js';
-	import { answer, confirmState } from '#lib/ui/confirm.svelte.js';
+	import { brandMessages } from './i18n/index.svelte.js';
+	import { answer, confirmState } from './ui/confirm.svelte.js';
 
 	let dialog = $state<HTMLDialogElement>();
 	let cancelButton = $state<HTMLButtonElement>();
@@ -27,7 +27,7 @@
 			<h3 class="text-lg font-bold">{question.title}</h3>
 			<p class="py-3">{question.message}</p>
 			<div class="modal-action">
-				<button bind:this={cancelButton} class="btn btn-ghost" onclick={() => answer(false)}>{m.common.cancel}</button>
+				<button bind:this={cancelButton} class="btn btn-ghost" onclick={() => answer(false)}>{brandMessages().common.cancel}</button>
 				<button class="btn {question.danger ? 'btn-error' : 'btn-primary'}" onclick={() => answer(true)}>{question.confirm}</button>
 			</div>
 		</div>

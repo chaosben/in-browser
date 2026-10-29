@@ -1,3 +1,5 @@
+// Short messages at the bottom right; shown by `Toasts.svelte`, which each tool places once in its layout.
+
 export interface Toast {
 	id: number;
 	kind: 'info' | 'success' | 'warning' | 'error';
