@@ -1,0 +1,33 @@
+{
+	"id": "/screen-capture",
+	"name": "Screen Capture – in-browser.de",
+	"short_name": "Screen Capture",
+	"description": "Record your screen, edit it and export it as MP4 – entirely in the browser.",
+	"start_url": "/screen-capture",
+	"scope": "/screen-capture",
+	"display": "standalone",
+	"launch_handler": {
+		"client_mode": "focus-existing"
+	},
+	"categories": [
+		"productivity",
+		"utilities",
+		"multimedia"
+	],
+	"background_color": "#1d232a",
+	"theme_color": "#1d232a",
+	"icons": [
+		{
+			"src": "/screen-capture/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/screen-capture/icon-maskable.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}

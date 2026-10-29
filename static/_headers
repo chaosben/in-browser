@@ -1,0 +1,27 @@
+# Header rules for Cloudflare Workers Static Assets (copied to build/).
+# Rules apply in this order; a tool section first unsets (`! Header`) what it sets differently.
+
+# File names contain a hash – cache permanently
+/_app/immutable/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Overview (and the defaults of every path)
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), display-capture=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Screen Capture: screen, microphone and camera; media and workers from blob:
+/screen-capture*
+  ! Permissions-Policy
+  ! Content-Security-Policy
+  Permissions-Policy: display-capture=(self), microphone=(self), camera=(self), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Always revalidate the Service Worker and the manifests so new versions get through
+/service-worker.js
+  Cache-Control: no-cache
+
+/*/manifest.webmanifest
+  Cache-Control: no-cache

@@ -1,19 +1,35 @@
 {
-	"name": "in-browser-monorepo",
+	"name": "in-browser",
 	"private": true,
 	"license": "MIT",
 	"type": "module",
 	"workspaces": [
 		"packages/*",
-		"apps/*"
+		"tools/*"
 	],
 	"engines": {
 		"node": ">=24"
 	},
 	"scripts": {
-		"check": "npm run check --workspaces --if-present",
-		"test": "npm test --workspaces --if-present",
-		"build": "npm run build --workspaces --if-present"
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p src/service-worker/tsconfig.json --noEmit",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test": "vitest --run",
+		"test:watch": "vitest",
+		"deploy": "npm run build && wrangler deploy",
+		"deploy:check": "npm run build && wrangler deploy --dry-run",
+		"preview:cf": "npm run build && wrangler dev"
+	},
+	"imports": {
+		"#lib": "./src/lib/index.js",
+		"#lib/*": "./src/lib/*"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@in-browser/screen-capture": "*"
 	},
 	"devDependencies": {
 		"@iconify-json/material-symbols-light": "^1.2.97",

@@ -1,17 +1,17 @@
 # in-browser.de
 
-Tools that run entirely in the browser – no uploads, no backend, no tracking. This monorepo (npm workspaces) holds
-the overview site and the tools.
+Tools that run entirely in the browser – no uploads, no backend, no tracking. This repository is one SvelteKit app
+that serves the overview site and every tool on a single origin, so the tools can share browser storage.
 
 | Folder | Content | Address |
 | --- | --- | --- |
-| `apps/in-browser` | Overview site | https://in-browser.de |
-| `apps/screen-capture` | Screen Capture: record, edit and export screen videos | https://screen-capture.in-browser.de |
+| `src/` | The app: overview page, thin routes per tool, Service Worker | https://in-browser.de |
+| `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.de/screen-capture |
 | `packages/brand` | `@in-browser/brand`: header, theme, language logic, PWA | – |
-| `packages/vite` | `@in-browser/vite`: shared Vite/SvelteKit/Vitest setup | – |
 
-Shared code lives in `packages/` only and is consumed as source – nothing is copied between apps. Each app is its own
-Cloudflare Worker (static assets only) and is deployed separately.
+Each tool is its own npm workspace package with its logic, components and texts; the app only has a few route
+files per tool (`src/routes/<tool>/`). Tools never import from each other – shared code lives in `packages/` and is
+consumed as source.
 
 Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest. The UI is available in
 English and German (following the browser language).
@@ -19,24 +19,27 @@ English and German (following the browser language).
 ## Development
 
 ```sh
-npm install                           # once in the root (Node 26, see .node-version)
-npm run dev -w apps/screen-capture    # start an app (http://localhost:5173)
-npm run check                         # type check all apps
-npm test                              # unit tests of all workspaces
-npm run build                         # static builds into apps/*/build/
+npm install         # once (Node 26, see .node-version)
+npm run dev         # overview and all tools (http://localhost:5173)
+npm run check       # type check
+npm test            # unit tests of the app, packages and tools
+npm run build       # static build into build/
 ```
 
 ## Deployment
 
+The whole site is one Cloudflare Worker (`in-browser`, static assets only, custom domain `in-browser.de`).
+
 ```sh
-npx wrangler login                              # once, opens the browser
-npx wrangler whoami                             # right account?
-npm run deploy:check -w apps/<app>              # build + dry run, nothing is uploaded
-npm run preview:cf -w apps/<app>                # local preview with real asset behaviour (http://localhost:8787)
-npm run deploy -w apps/<app>                    # build + upload
+npx wrangler login      # once, opens the browser
+npx wrangler whoami     # right account?
+npm run deploy:check    # build + dry run, nothing is uploaded
+npm run preview:cf      # local preview with real asset behaviour (http://localhost:8787)
+npm run deploy          # build + upload
 ```
 
-The footer of each deployed app shows the commit it was built from.
+Header rules (CSP, Permissions-Policy per tool, caching) are in `static/_headers`. The footer of each tool shows the
+commit it was built from.
 
 ## How this was built
 

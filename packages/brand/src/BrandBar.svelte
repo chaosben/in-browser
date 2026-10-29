@@ -8,17 +8,21 @@
 	interface Props {
 		/** Tool name; without it (overview) the brand links to its own home page. */
 		tool?: string;
+		/** Start page of the tool (e.g. `/screen-capture`), linked from the tool name */
+		home?: string;
 	}
 
-	let { tool }: Props = $props();
+	let { tool, home }: Props = $props();
 
 	const t = $derived(brandMessages());
 </script>
 
 <!-- Shared header of the in-browser.de apps: brand (and tool) on the left, privacy note and theme on the right -->
 <header class="bg-base-300 text-base-content flex h-9 shrink-0 items-center gap-2 px-3 text-sm">
+	<!-- From a tool, load the overview as a fresh page (separate layout and language handling) -->
 	<a
-		href={tool ? BRAND.suiteUrl : resolve('/')}
+		href={resolve('/')}
+		data-sveltekit-reload={tool ? '' : undefined}
 		class={['flex items-center gap-1.5 font-semibold', tool && 'opacity-80 hover:opacity-100']}
 		title={tool ? t.brand.allTools : t.brand.home}
 	>
@@ -32,7 +36,7 @@
 	</a>
 	{#if tool}
 		<span class="opacity-40" aria-hidden="true">/</span>
-		<a href={resolve('/')} class="font-semibold hover:underline" title={t.brand.toolHome(tool)}>{tool}</a>
+		<a href={home} class="font-semibold hover:underline" title={t.brand.toolHome(tool)}>{tool}</a>
 	{/if}
 
 	<div class="ml-auto flex items-center gap-2">

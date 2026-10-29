@@ -1,0 +1,32 @@
+{
+	"name": "@in-browser/screen-capture",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Screen Capture tool of in-browser.de (included as source code, routes under /screen-capture)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"imports": {
+		"#lib": "./src/index.js",
+		"#lib/*": "./src/*"
+	},
+	"scripts": {
+		"icons": "node scripts/icons.mjs"
+	},
+	"dependencies": {
+		"@fontsource/caveat": "5.3.0",
+		"@fontsource/inter": "5.3.0",
+		"@fontsource/jetbrains-mono": "5.3.0",
+		"@fontsource/montserrat": "5.3.0",
+		"@iconify-json/material-symbols": "1.2.96",
+		"@iconify-json/ph": "1.2.2",
+		"@iconify-json/tabler": "1.2.42",
+		"@in-browser/brand": "*",
+		"mediabunny": "1.62.1"
+	}
+}

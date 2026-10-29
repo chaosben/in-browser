@@ -1,0 +1,13 @@
+import { resolve } from '$app/paths';
+import { BRAND as SUITE } from '@in-browser/brand/brand.js';
+
+// Central brand: the tool belongs to the in-browser.de family (served under /screen-capture).
+export const BRAND = {
+	...SUITE,
+	tool: 'Screen Capture'
+} as const;
+
+/** Link to the editor of a project */
+export function editorUrl(id: string) {
+	return `${resolve('/screen-capture/editor')}?id=${encodeURIComponent(id)}`;
+}

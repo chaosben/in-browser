@@ -1,0 +1,8 @@
+{
+	"extends": "$app/tsconfig",
+	"compilerOptions": {
+		"strict": true
+	},
+	"include": ["src", "vite.config.ts", "packages/*/src", "tools/*/src"],
+	"exclude": ["src/service-worker"]
+}
