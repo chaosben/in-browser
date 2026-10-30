@@ -79,6 +79,18 @@ const en = {
 				'Opens projects directly in their tool',
 				'Keeps everything in sync with a folder on your computer – the newer version wins'
 			]
+		},
+		textEditor: {
+			name: 'Text Editor',
+			description:
+				'Edit notes, Markdown, JSON, YAML, CSV and code – with tabs, syntax highlighting and a live Markdown preview.',
+			features: [
+				'Several files side by side in tabs, unsaved changes survive closing the browser',
+				'Syntax highlighting for Markdown, JSON, YAML, HTML, CSS, JavaScript, Python, shell and more',
+				'Find and replace, multiple cursors, word wrap',
+				'Keeps the encoding and line endings – UTF-8, UTF-16 and Windows-1252, with or without BOM',
+				'Opens text files from Files with a double-click and notices when they change elsewhere'
+			]
 		}
 	},
 

@@ -78,6 +78,18 @@ const de: Messages = {
 				'Öffnet Projekte direkt in ihrem Tool',
 				'Gleicht alles mit einem Ordner auf deinem Rechner ab – die neuere Fassung gewinnt'
 			]
+		},
+		textEditor: {
+			name: 'Text Editor',
+			description:
+				'Notizen, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Tabs, Syntax-Hervorhebung und Live-Vorschau für Markdown.',
+			features: [
+				'Mehrere Dateien nebeneinander in Tabs, ungespeicherte Änderungen überstehen das Schließen des Browsers',
+				'Syntax-Hervorhebung für Markdown, JSON, YAML, HTML, CSS, JavaScript, Python, Shell und mehr',
+				'Suchen und Ersetzen, mehrere Cursor, Zeilenumbruch',
+				'Behält Kodierung und Zeilenenden – UTF-8, UTF-16 und Windows-1252, mit oder ohne BOM',
+				'Öffnet Textdateien aus Files per Doppelklick und merkt, wenn sie woanders geändert werden'
+			]
 		}
 	},
 

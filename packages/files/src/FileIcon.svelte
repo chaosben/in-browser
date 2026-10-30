@@ -3,6 +3,7 @@
 	import { previewKind } from './kinds.js';
 
 	// The one icon of a file, folder or package – in Files, the file dialog and every tool, so they look the same.
+	// Packages show their tool's icon; plain files keep the icon of their kind even if a tool opens them.
 
 	interface Props {
 		name: string;
@@ -12,7 +13,7 @@
 
 	let { name, kind, size = 'size-5' }: Props = $props();
 
-	const format = $derived(formatsOf(name, kind)[0]);
+	const format = $derived(formatsOf(name, kind).find((f) => f.kind === 'package'));
 	const fileKind = $derived(kind === 'directory' ? null : previewKind(name));
 </script>
 

@@ -1,7 +1,7 @@
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { openUrl } from '@in-browser/files/formats.js';
-import { copy, list, mkdir, move, remove } from '@in-browser/files/fs.js';
+import { copy, list, mkdir, move, remove, write } from '@in-browser/files/fs.js';
 import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 import { basename, join, nameProblem, parent, uniqueName } from '@in-browser/files/path.js';
 import { m } from '#lib/i18n/index.js';
@@ -24,6 +24,19 @@ export async function newFolder(manager: Manager) {
 	try {
 		const path = join(manager.folder, uniqueName(m.list.newFolderName, await takenNames(manager.folder)));
 		await mkdir(path);
+		await manager.refresh();
+		manager.select(path);
+		manager.renaming = path;
+	} catch (e) {
+		fail(e);
+	}
+}
+
+/** Creates an empty text file and starts renaming it */
+export async function newTextFile(manager: Manager) {
+	try {
+		const path = join(manager.folder, uniqueName(m.list.newTextFileName, await takenNames(manager.folder)));
+		await write(path, '');
 		await manager.refresh();
 		manager.select(path);
 		manager.renaming = path;

@@ -4,12 +4,19 @@ import { extname } from './path.js';
 
 export type PreviewKind = 'image' | 'video' | 'audio' | 'text' | null;
 
-const PREVIEW: Record<Exclude<PreviewKind, null>, string[]> = {
+/** Plain text files: previewed as text in Files, opened by the Text Editor */
+export const TEXT_EXTENSIONS: readonly string[] = [
+	'.txt', '.md', '.markdown', '.json', '.csv', '.tsv', '.log', '.xml', '.yml', '.yaml', '.ini', '.cfg', '.conf',
+	'.properties', '.toml', '.html', '.htm', '.css', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx',
+	'.svelte', '.py', '.sh', '.bash', '.zsh'
+];
+
+const PREVIEW: Record<Exclude<PreviewKind, null>, readonly string[]> = {
 	// SVG only ever as <img>: scripts in it do not run there
 	image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.ico', '.svg'],
 	video: ['.mp4', '.webm', '.mov', '.m4v', '.mkv', '.ogv'],
 	audio: ['.mp3', '.wav', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.flac'],
-	text: ['.txt', '.md', '.json', '.csv', '.tsv', '.log', '.xml', '.yml', '.yaml', '.ini', '.toml', '.html', '.css', '.js', '.ts', '.svelte', '.py', '.sh']
+	text: TEXT_EXTENSIONS
 };
 
 /** How a file can be previewed in Files; `null`: no preview */

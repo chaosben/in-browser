@@ -31,11 +31,23 @@ class ContextMenuState {
 
 export const contextMenu = new ContextMenuState();
 
+function show(x: number, y: number, entries: MenuEntry[]) {
+	contextMenu.x = x;
+	contextMenu.y = y;
+	contextMenu.entries = entries.filter((entry, i, all) => !('separator' in entry) || (i > 0 && i < all.length - 1));
+}
+
 /** Opens the menu at the mouse position instead of the browser's; nothing happens without entries */
 export function openContextMenu(e: MouseEvent, entries: MenuEntry[]) {
 	e.preventDefault();
 	e.stopPropagation();
-	contextMenu.x = e.clientX;
-	contextMenu.y = e.clientY;
-	contextMenu.entries = entries.filter((entry, i, all) => !('separator' in entry) || (i > 0 && i < all.length - 1));
+	show(e.clientX, e.clientY, entries);
+}
+
+/** Opens the menu below a button (also when it was pressed with the keyboard); it stays inside the window */
+export function openMenuBelow(e: MouseEvent, entries: MenuEntry[]) {
+	e.preventDefault();
+	e.stopPropagation();
+	const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	show(rect.left, rect.bottom + 2, entries);
 }

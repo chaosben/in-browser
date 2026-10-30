@@ -20,6 +20,7 @@ const en = {
 	toolbar: {
 		up: 'Up one folder',
 		newFolder: 'New folder',
+		newTextFile: 'New text file',
 		upload: 'Upload',
 		uploadFiles: 'Upload files',
 		uploadFolder: 'Upload folder',
@@ -60,6 +61,7 @@ const en = {
 		items: (n: number) => (n === 1 ? '1 item' : `${n} items`),
 		selected: (n: number) => `${n} selected`,
 		newFolderName: 'New folder',
+		newTextFileName: 'New text file.txt',
 		dropHere: (folder: string) => `Drop to upload into “${folder}”`,
 		hint: 'Double-click opens, right-click shows all actions. Drag items onto a folder to move them, hold Ctrl to copy.'
 	},

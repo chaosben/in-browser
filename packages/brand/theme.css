@@ -51,6 +51,13 @@
 	--color-series-4: oklch(64% 0.12 200);
 	--color-series-5: oklch(58% 0.17 260);
 	--color-series-6: oklch(60% 0.18 320);
+	--color-code-keyword: oklch(50% 0.2 300);
+	--color-code-string: oklch(50% 0.14 145);
+	--color-code-number: oklch(56% 0.17 45);
+	--color-code-comment: oklch(58% 0.02 260);
+	--color-code-type: oklch(52% 0.11 200);
+	--color-code-function: oklch(50% 0.17 250);
+	--color-code-property: oklch(52% 0.17 20);
 
 	--radius-selector: 0.25rem;
 	--radius-field: 0.25rem;
@@ -108,6 +115,13 @@
 	--color-series-4: oklch(74% 0.1 200);
 	--color-series-5: oklch(70% 0.14 260);
 	--color-series-6: oklch(72% 0.15 320);
+	--color-code-keyword: oklch(76% 0.14 300);
+	--color-code-string: oklch(78% 0.13 145);
+	--color-code-number: oklch(80% 0.13 60);
+	--color-code-comment: oklch(64% 0.02 260);
+	--color-code-type: oklch(78% 0.1 200);
+	--color-code-function: oklch(76% 0.12 250);
+	--color-code-property: oklch(76% 0.13 20);
 
 	--radius-selector: 0.25rem;
 	--radius-field: 0.25rem;
@@ -151,6 +165,14 @@
 	--color-series-4: var(--color-series-4);
 	--color-series-5: var(--color-series-5);
 	--color-series-6: var(--color-series-6);
+	/* Syntax highlighting in code and text editors */
+	--color-code-keyword: var(--color-code-keyword);
+	--color-code-string: var(--color-code-string);
+	--color-code-number: var(--color-code-number);
+	--color-code-comment: var(--color-code-comment);
+	--color-code-type: var(--color-code-type);
+	--color-code-function: var(--color-code-function);
+	--color-code-property: var(--color-code-property);
 }
 
 /* Generate the classes of the brand components */

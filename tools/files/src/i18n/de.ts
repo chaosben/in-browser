@@ -20,6 +20,7 @@ const de: Messages = {
 	toolbar: {
 		up: 'Einen Ordner nach oben',
 		newFolder: 'Neuer Ordner',
+		newTextFile: 'Neue Textdatei',
 		upload: 'Hochladen',
 		uploadFiles: 'Dateien hochladen',
 		uploadFolder: 'Ordner hochladen',
@@ -60,6 +61,7 @@ const de: Messages = {
 		items: (n) => (n === 1 ? '1 Element' : `${n} Elemente`),
 		selected: (n) => `${n} ausgewählt`,
 		newFolderName: 'Neuer Ordner',
+		newTextFileName: 'Neue Textdatei.txt',
 		dropHere: (folder) => `Loslassen, um nach „${folder}“ hochzuladen`,
 		hint: 'Doppelklick öffnet, Rechtsklick zeigt alle Aktionen. Zieh Elemente auf einen Ordner, um sie zu verschieben; mit Strg kopierst du sie.'
 	},

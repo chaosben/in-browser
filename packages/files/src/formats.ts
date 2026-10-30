@@ -1,3 +1,4 @@
+import { TEXT_EXTENSIONS } from './kinds.js';
 import { extname } from './path.js';
 
 // Which tool opens which files. A **package** is a folder `Name.<ext>/` with `project.json` (`{ format, version, … }`)
@@ -30,7 +31,17 @@ export const FORMATS: readonly Format[] = [
 		toolName: 'Screen Capture',
 		open: '/screen-capture/editor',
 		icon: '/screen-capture/favicon.svg'
-	}
+	},
+	...TEXT_EXTENSIONS.map(
+		(ext): Format => ({
+			ext,
+			kind: 'file',
+			tool: 'text-editor',
+			toolName: 'Text Editor',
+			open: '/text-editor',
+			icon: '/text-editor/favicon.svg'
+		})
+	)
 ];
 
 /** Formats (and so tools) that open an entry of that name and kind; several mean "Open with …" */

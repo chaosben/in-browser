@@ -554,6 +554,10 @@ const help = {
 		export: {
 			title: 'Export',
 			items: {
+				start: {
+					title: 'Starting the export',
+					text: '“Export” sits right next to the project name at the top (on narrow windows in the menu at the project name). It opens the export settings; the video is only rendered when you start it there. While the project is empty, it is grayed out.'
+				},
 				resolution: {
 					title: 'Resolution',
 					text: '“Original” is the canvas size. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',

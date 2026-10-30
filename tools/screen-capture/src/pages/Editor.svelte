@@ -222,10 +222,11 @@
 		return { width: Math.round(width * scale), height: Math.round(height * scale) };
 	});
 
-	// Project name with its actions on the left of the BrandBar, help and export on the right
+	// Project name with all its actions on the left of the BrandBar, export right after it, help on the right
 	$effect(() => {
 		if (!editor || !player) return;
 		const ed = editor;
+		const empty = player.duration === 0;
 		return setBrandBar({
 			crumbs: [
 				{
@@ -234,13 +235,21 @@
 					rename: (name) => ed.rename(name),
 					menu: [
 						{ label: m.editor.rename, icon: 'icon-[material-symbols-light--edit-outline]', run: startRename },
-						{ label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', run: saveAs }
+						{ label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', run: saveAs },
+						{ separator: true },
+						{ label: m.editor.export, icon: 'icon-[material-symbols-light--ios-share]', disabled: empty, run: openExport }
 					]
 				}
 			],
+			primary: barPrimary,
 			actions: barActions
 		});
 	});
+
+	function openExport() {
+		player?.pause();
+		dialog = 'export';
+	}
 
 	// Pictures of image annotations are loaded from this project
 	$effect(() => {
@@ -811,14 +820,12 @@
 			<span class="icon-[material-symbols-light--help-outline] size-5" aria-hidden="true"></span>
 			<span class="hidden md:inline">{m.help.button}</span>
 		</button>
-		<button
-			class="btn btn-sm btn-primary"
-			disabled={player.duration === 0}
-			onclick={() => {
-				player?.pause();
-				dialog = 'export';
-			}}
-		>
+	{/if}
+{/snippet}
+
+{#snippet barPrimary()}
+	{#if player}
+		<button class="btn btn-sm btn-primary" disabled={player.duration === 0} onclick={openExport}>
 			<span class="icon-[material-symbols-light--ios-share] size-5" aria-hidden="true"></span> {m.editor.export}
 		</button>
 	{/if}

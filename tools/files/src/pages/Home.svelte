@@ -5,7 +5,7 @@
 	import { page } from '$app/state';
 	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
-	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { supported, watch } from '@in-browser/files/fs.js';
@@ -14,6 +14,7 @@
 	import {
 		duplicate,
 		newFolder,
+		newTextFile,
 		paste,
 		removeItems,
 		rename,
@@ -49,12 +50,14 @@
 	/** The open folder as an entry (for its menu: download, properties) */
 	const current = $derived(toItem({ name: crumbs.at(-1)?.name ?? t.root, path: manager.folder, kind: 'directory' }));
 
-	// Folder path with the actions of the open folder on the left of the BrandBar; search, view, upload on the right
+	// Folder path with all actions of the open folder on the left of the BrandBar, upload and new folder right after it;
+	// search and view on the right
 	$effect(() => {
 		const folder = current;
 		const canPaste = !!clipboard.current;
 		const menu: MenuEntry[] = [
 			{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
+			{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
 			{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
 			{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() },
 			{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', disabled: !canPaste, run: () => paste(manager) },
@@ -69,6 +72,7 @@
 				i < crumbs.length - 1 ? { label: level.name, onclick: () => navigate(level.path) } : { label: level.name, menu }
 			),
 			menu,
+			primary: barPrimary,
 			actions: barActions
 		});
 	});
@@ -190,6 +194,7 @@
 				]
 			: [
 					{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
+					{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
 					{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
 					{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() },
 					{ separator: true },
@@ -259,16 +264,25 @@
 			<span class="icon-[material-symbols-light--grid-view-outline] size-5" aria-hidden="true"></span>
 		</button>
 	</div>
-	<div class="dropdown dropdown-end">
-		<div tabindex="0" role="button" class="btn btn-primary btn-sm">
-			<span class="icon-[material-symbols-light--upload] size-5" aria-hidden="true"></span>
-			<span class="hidden md:inline">{m.toolbar.upload}</span>
-		</div>
-		<ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box border-base-300 z-20 w-52 border p-1 shadow">
-			<li><button onclick={() => fileInput?.click()}>{m.toolbar.uploadFiles}</button></li>
-			<li><button onclick={() => folderInput?.click()}>{m.toolbar.uploadFolder}</button></li>
-		</ul>
-	</div>
+{/snippet}
+
+{#snippet barPrimary()}
+	<button
+		class="btn btn-primary btn-sm"
+		onclick={(e) =>
+			openMenuBelow(e, [
+				{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
+				{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() }
+			])}
+	>
+		<span class="icon-[material-symbols-light--upload] size-5" aria-hidden="true"></span>
+		{m.toolbar.upload}
+		<span class="icon-[material-symbols-light--keyboard-arrow-down] size-4" aria-hidden="true"></span>
+	</button>
+	<button class="btn btn-ghost btn-sm" onclick={() => newFolder(manager)}>
+		<span class="icon-[material-symbols-light--create-new-folder-outline] size-5" aria-hidden="true"></span>
+		{m.toolbar.newFolder}
+	</button>
 {/snippet}
 
 <svelte:window onkeydown={onKey} />

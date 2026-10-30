@@ -4,7 +4,7 @@
 	import { brandBar, startRename } from './brand-bar.svelte.js';
 	import { brandMessages } from './i18n/index.svelte.js';
 	import ThemeSwitch from './ThemeSwitch.svelte';
-	import { openContextMenu, type MenuEntry } from './ui/context-menu.svelte.js';
+	import { openMenuBelow, type MenuEntry } from './ui/context-menu.svelte.js';
 
 	interface Props {
 		/** Tool name; without it (overview) the brand links to its own home page. */
@@ -34,7 +34,7 @@
 {#snippet menuButton(name: string, entries: MenuEntry[])}
 	<button
 		class="btn btn-ghost btn-xs btn-square"
-		onclick={(e) => openContextMenu(e, entries)}
+		onclick={(e) => openMenuBelow(e, entries)}
 		title={t.bar.actions(name)}
 		aria-label={t.bar.actions(name)}
 	>
@@ -44,7 +44,8 @@
 
 <!--
 	Shared header of the in-browser.de apps. Left: brand / tool / the navigation inside the tool (`setBrandBar`,
-	the current object with its actions); right: the actions of the tool and the theme.
+	the current object with the menu of all its actions), then its main actions as buttons (from `md`); right: the
+	less important actions of the tool and the theme.
 -->
 <header class="bg-base-300 text-base-content flex h-10 shrink-0 items-center gap-2 px-3 text-sm">
 	<!-- From a tool, load the overview as a fresh page (separate layout and language handling) -->
@@ -103,6 +104,12 @@
 				{#if crumb.status}<span class="shrink-0 text-xs opacity-50">{crumb.status}</span>{/if}
 			</span>
 		{/each}
+		{#if brandBar.primary}
+			<div class="hidden shrink-0 items-center gap-1 md:flex">
+				<span class="bg-base-content/20 mx-1 h-5 w-px" aria-hidden="true"></span>
+				{@render brandBar.primary()}
+			</div>
+		{/if}
 	</nav>
 
 	<div class="flex shrink-0 items-center gap-1">

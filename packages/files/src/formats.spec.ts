@@ -10,6 +10,15 @@ describe('formats', () => {
 		expect(isPackage('Demo', 'directory')).toBe(false);
 		expect(formatsOf('notes.unknown', 'file')).toEqual([]);
 	});
+	it('opens plain text files in the Text Editor', () => {
+		expect(formatsOf('notes.md', 'file').map((f) => f.tool)).toEqual(['text-editor']);
+		expect(formatsOf('Config.YAML', 'file').map((f) => f.tool)).toEqual(['text-editor']);
+		// Text files are files, never packages
+		expect(formatsOf('notes.md', 'directory')).toEqual([]);
+		expect(isPackage('notes.md', 'directory')).toBe(false);
+		const [format] = formatsOf('a b.txt', 'file');
+		expect(openUrl(format, '/Notes/a b.txt')).toBe('/text-editor?path=%2FNotes%2Fa%20b.txt');
+	});
 	it('builds the open address with the encoded path', () => {
 		const [format] = formatsOf('Demo.screencapture', 'directory');
 		expect(openUrl(format, '/Screen Capture/Demo.screencapture')).toBe(

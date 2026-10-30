@@ -33,11 +33,11 @@
 			.sort((a, b) => Number(isFolder(b)) - Number(isFolder(a)) || a.name.localeCompare(b.name))
 	);
 
-	/** Name as saved: with the extension of the format if the user left it out */
+	/** Name as saved: with the (first) extension of the format if the user gave none of the accepted ones */
 	const fullName = $derived.by(() => {
 		const ext = options?.accept[0] ?? '';
 		const trimmed = name.trim();
-		return ext && extname(trimmed) !== ext ? trimmed + ext : trimmed;
+		return ext && !options?.accept.includes(extname(trimmed)) ? trimmed + ext : trimmed;
 	});
 	const nameIssue = $derived(options?.mode === 'save' && name.trim() ? nameProblem(fullName) : null);
 	/** Entry with the chosen name when saving */

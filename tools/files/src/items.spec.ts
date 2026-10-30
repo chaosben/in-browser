@@ -8,7 +8,8 @@ describe('toItem', () => {
 	it('treats packages as files', () => {
 		expect(toItem({ name: 'Demo.screencapture', path: '/Demo.screencapture', kind: 'directory' }).folder).toBe(false);
 		expect(folder('Docs').folder).toBe(true);
-		expect(file('a.txt').formats).toEqual([]);
+		expect(file('a.zip').formats).toEqual([]);
+		expect(file('a.txt').formats.map((f) => f.tool)).toEqual(['text-editor']);
 	});
 });
 

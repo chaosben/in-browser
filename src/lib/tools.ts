@@ -22,5 +22,11 @@ export const TOOLS: readonly Tool[] = [
 		url: '/files',
 		icon: '/files/favicon.svg',
 		requires: 'anyBrowser'
+	},
+	{
+		id: 'textEditor',
+		url: '/text-editor',
+		icon: '/text-editor/favicon.svg',
+		requires: 'anyBrowser'
 	}
 ];

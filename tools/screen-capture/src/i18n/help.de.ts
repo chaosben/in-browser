@@ -532,6 +532,10 @@ const help: typeof enHelp = {
 		export: {
 			title: 'Export',
 			items: {
+				start: {
+					title: 'Export starten',
+					text: '„Exportieren“ steht oben direkt neben dem Projektnamen (in schmalen Fenstern im Menü am Projektnamen). Es öffnet die Einstellungen für den Export; das Video wird erst berechnet, wenn du es dort startest. Solange das Projekt leer ist, ist es ausgegraut.'
+				},
 				resolution: {
 					title: 'Auflösung',
 					text: '„Original“ ist die Leinwandgröße. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',

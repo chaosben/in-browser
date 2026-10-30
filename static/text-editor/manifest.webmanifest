@@ -1,0 +1,17 @@
+{
+	"id": "/text-editor",
+	"name": "Text Editor – in-browser",
+	"short_name": "Text Editor",
+	"description": "Edit text, Markdown, JSON, YAML and code with tabs and syntax highlighting – entirely in the browser.",
+	"start_url": "/text-editor",
+	"scope": "/text-editor",
+	"display": "standalone",
+	"launch_handler": { "client_mode": "focus-existing" },
+	"categories": ["productivity", "utilities", "developer"],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{ "src": "/text-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/text-editor/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+	]
+}

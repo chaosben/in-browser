@@ -31,7 +31,8 @@
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
 		"@in-browser/files-app": "*",
-		"@in-browser/screen-capture": "*"
+		"@in-browser/screen-capture": "*",
+		"@in-browser/text-editor": "*"
 	},
 	"devDependencies": {
 		"@iconify-json/material-symbols-light": "^1.2.97",
