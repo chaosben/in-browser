@@ -13,6 +13,8 @@ export interface FileDialogOptions {
 	title?: string;
 	/** Open: several files can be chosen (Ctrl/Shift-click) */
 	multiple?: boolean;
+	/** Save: an existing file (or package) of an accepted format may be replaced */
+	overwrite?: boolean;
 }
 
 interface Open extends FileDialogOptions {

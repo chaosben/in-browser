@@ -41,7 +41,7 @@ const help = {
 				},
 				saving: {
 					title: 'Saving',
-					text: 'Every change is saved automatically – “Saved” next to the project name in the top bar confirms it. Click the name to rename the project. Nothing is uploaded. A project is a file “Name.screencapture” in the browser storage that all in-browser tools share. When you start a project (recording, import, empty project), you choose its folder and name; the dialog starts in the folder you used last. “Save as …” in the menu next to the project name (arrow) makes a copy under a new name or in another folder – you then continue with the copy. “Open …” on the start page opens any project. In Files you rename, move, copy, delete or download projects like other files.',
+					text: 'Every change is saved automatically – “Saved” next to the project name in the top bar confirms it. Click the name to rename the project. Nothing is uploaded. A project is a file “Name.screencapture” in the browser storage that all in-browser tools share. When you start a project (recording, import, empty project), you choose its folder and name; the dialog starts in the folder you used last. “Save as …” in the menu next to the project name (arrow) makes a copy under a new name or in another folder – you then continue with the copy. Pick an existing project and click “Replace” to overwrite it (not while it is open in another tab). “Open …” on the start page opens any project. In Files you rename, move, copy, delete or download projects like other files.',
 					tip: 'Browser storage is tied to this browser and can be lost when site data is cleared. In Files (Chrome and Edge), choose a folder on your computer under “Folder on your computer”: your projects are then kept in sync with it, and a sync tool can bring that folder to your other computers. A project open in one tab cannot be opened in a second one at the same time.'
 				},
 				storage: {
@@ -591,7 +591,7 @@ const help = {
 				},
 				running: {
 					title: 'During the export',
-					text: 'Keep the tab open; the export runs in this tab. When it is done, the download starts automatically – “Download again” gets the file once more, “Save in Files …” keeps the video in the browser storage (next to the project by default). Hidden tracks are left out, muted tracks have no sound.'
+					text: 'Keep the tab open; the export runs in this tab. When it is done, the download starts automatically – “Download again” gets the file once more, “Save in Files …” keeps the video in the browser storage (next to the project by default); pick an existing video and click “Replace” to overwrite it. Hidden tracks are left out, muted tracks have no sound.'
 				}
 			}
 		},

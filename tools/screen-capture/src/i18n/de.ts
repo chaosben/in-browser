@@ -154,6 +154,7 @@ const de: Messages = {
 		saveAs: 'Speichern unter …',
 		savedAs: (name) => `Als „${name}“ gespeichert – du bearbeitest jetzt die Kopie`,
 		openElsewhere: 'Dieses Projekt ist schon in einem anderen Tab oder Fenster geöffnet. Schließ es dort, um es hier zu bearbeiten.',
+		targetOpenElsewhere: (name) => `„${name}“ ist in einem anderen Tab oder Fenster geöffnet und kann nicht ersetzt werden. Schließ es dort zuerst.`,
 		reloaded: 'Das Projekt wurde woanders geändert (z. B. durch den Abgleich) und neu geladen.',
 		changedElsewhere: 'Das Projekt wurde auch woanders geändert. Deine nächste Änderung überschreibt diese Fassung.',
 		export: 'Exportieren',

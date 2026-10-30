@@ -154,6 +154,7 @@ const en = {
 		saveAs: 'Save as …',
 		savedAs: (name: string) => `Saved as “${name}” – you are now editing the copy`,
 		openElsewhere: 'This project is already open in another tab or window. Close it there to edit it here.',
+		targetOpenElsewhere: (name: string) => `“${name}” is open in another tab or window and can't be replaced. Close it there first.`,
 		reloaded: 'The project was changed elsewhere (e.g. by the sync) and has been reloaded.',
 		changedElsewhere: 'The project was also changed elsewhere. Your next change overwrites that version.',
 		export: 'Export',

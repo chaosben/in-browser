@@ -101,7 +101,13 @@
 	/** Keeps the video in the shared file system (next to the project by default) */
 	async function saveToFiles() {
 		if (!result) return;
-		const path = await chooseFile({ mode: 'save', folder: parent(project.id), accept: ['.mp4'], name: result.name });
+		const path = await chooseFile({
+			mode: 'save',
+			folder: parent(project.id),
+			accept: ['.mp4'],
+			name: result.name,
+			overwrite: true
+		});
 		if (!path) return;
 		try {
 			await result.file.stream().pipeTo(await writable(path));
@@ -196,7 +202,7 @@
 
 			<div class="modal-action">
 				<button class="btn btn-ghost" onclick={close}>{m.common.close}</button>
-				<button class="btn btn-primary" onclick={run} disabled={!!unsupported || total === 0}><span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.export.export}</button>
+				<button class="btn btn-primary" onclick={run} disabled={!!unsupported || total === 0}><span class="icon-[material-symbols-light--ios-share] size-5" aria-hidden="true"></span> {m.export.export}</button>
 			</div>
 		{:else if phase === 'running'}
 			<div class="flex flex-col gap-3 py-6">

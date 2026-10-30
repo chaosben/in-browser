@@ -22,7 +22,9 @@ const de: FilesMessages = {
 		create: 'Anlegen',
 		name: 'Name',
 		empty: 'Hier ist noch nichts.',
-		exists: (name) => `„${name}“ gibt es hier schon. Wähle einen anderen Namen.`
+		exists: (name) => `„${name}“ gibt es hier schon. Wähle einen anderen Namen.`,
+		replace: 'Ersetzen',
+		replaces: (name) => `„${name}“ gibt es hier schon und wird ersetzt.`
 	},
 
 	errors: {

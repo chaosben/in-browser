@@ -37,9 +37,16 @@
 		return ext && extname(trimmed) !== ext ? trimmed + ext : trimmed;
 	});
 	const nameIssue = $derived(options?.mode === 'save' && name.trim() ? nameProblem(fullName) : null);
-	const taken = $derived(
-		options?.mode === 'save' && (entries ?? []).some((e) => nameKey(e.name) === nameKey(fullName))
+	/** Entry with the chosen name when saving */
+	const existing = $derived(
+		options?.mode === 'save' ? (entries ?? []).find((e) => nameKey(e.name) === nameKey(fullName)) : undefined
 	);
+	/** It may be replaced (`overwrite`, a file or package of an accepted format – never a plain folder) */
+	const replacing = $derived(!!existing && !!options?.overwrite && accepts(existing) && !isFolder(existing));
+	const taken = $derived(!!existing && !replacing);
+	/** Saving: the entry matching the typed name is marked, so changing the name clears the mark */
+	const isSelected = (entry: Entry) =>
+		options?.mode === 'save' ? existing?.path === entry.path : selected.includes(entry.path);
 	const canConfirm = $derived(
 		options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0
 	);
@@ -82,13 +89,13 @@
 
 	function confirm() {
 		if (!canConfirm) return;
-		closeFileDialog(options?.mode === 'save' ? [join(folder, fullName)] : selected);
+		// Replacing keeps the existing spelling (a name differing only in case would collide)
+		closeFileDialog(options?.mode === 'save' ? [join(folder, replacing && existing ? existing.name : fullName)] : selected);
 	}
 
 	/** Click on a file: alone; with `multiple` Ctrl/Cmd toggles, Shift selects the range from the last click */
 	function pick(e: MouseEvent, entry: Entry) {
 		if (options?.mode === 'save') {
-			selected = [entry.path];
 			name = entry.name;
 			return;
 		}
@@ -186,8 +193,8 @@
 						<li>
 							<button
 								role="option"
-								aria-selected={selected.includes(entry.path)}
-								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', selected.includes(entry.path) ? 'bg-selection text-selection-content' : 'hover:bg-base-200']}
+								aria-selected={isSelected(entry)}
+								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', isSelected(entry) ? 'bg-selection text-selection-content' : 'hover:bg-base-200']}
 								onclick={(e) => (isFolder(entry) ? load(entry.path) : pick(e, entry))}
 								ondblclick={() => open(entry)}
 							>
@@ -217,14 +224,22 @@
 						<p class="text-error text-sm">{t.names[nameIssue]}</p>
 					{:else if taken}
 						<p class="text-error text-sm">{t.dialog.exists(fullName)}</p>
+					{:else if replacing && existing}
+						<p class="text-warning text-sm">{t.dialog.replaces(existing.name)}</p>
 					{/if}
 				{/if}
 				{#if error}<p class="text-error text-sm">{error}</p>{/if}
 
 				<div class="modal-action mt-0">
 					<button class="btn btn-ghost" onclick={() => closeFileDialog(null)}>{t.dialog.cancel}</button>
-					<button class="btn btn-primary" disabled={!canConfirm} onclick={confirm}>
-						{options.mode === 'save' ? t.dialog.save : selected.length > 1 ? t.dialog.openCount(selected.length) : t.dialog.open}
+					<button class={['btn', replacing && !nameIssue ? 'btn-warning' : 'btn-primary']} disabled={!canConfirm} onclick={confirm}>
+						{options.mode === 'save'
+							? replacing && !nameIssue
+								? t.dialog.replace
+								: t.dialog.save
+							: selected.length > 1
+								? t.dialog.openCount(selected.length)
+								: t.dialog.open}
 					</button>
 				</div>
 			</div>

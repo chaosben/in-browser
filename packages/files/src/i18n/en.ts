@@ -22,7 +22,9 @@ const en = {
 		create: 'Create',
 		name: 'Name',
 		empty: 'Nothing here yet.',
-		exists: (name: string) => `“${name}” already exists here. Choose another name.`
+		exists: (name: string) => `“${name}” already exists here. Choose another name.`,
+		replace: 'Replace',
+		replaces: (name: string) => `“${name}” already exists here and will be replaced.`
 	},
 
 	errors: {

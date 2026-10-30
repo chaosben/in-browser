@@ -39,7 +39,7 @@
 	} from '#lib/storage/store.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
-	import { copy, watch } from '@in-browser/files/fs.js';
+	import { copy, exists, FilesError, remove as removePath, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, join, normalize, parent } from '@in-browser/files/path.js';
 	import {
@@ -622,20 +622,43 @@
 		}
 	}
 
-	/** Copies the package to a new place/name and continues editing the copy */
+	/**
+	 * Copies the package to a new place/name and continues editing the copy. An existing project there is replaced,
+	 * unless another tab has it open.
+	 */
 	async function saveAs() {
 		if (!editor) return;
 		const from = editor.project.id;
-		const path = await chooseFile({ mode: 'save', folder: parent(from), accept: [PROJECT_EXT], name: basename(from) });
+		const path = await chooseFile({
+			mode: 'save',
+			folder: parent(from),
+			accept: [PROJECT_EXT],
+			name: basename(from),
+			overwrite: true
+		});
 		if (!path) return;
+		let release: (() => void) | null = null;
 		try {
 			await editor.save();
+			if (path === from) return toast(m.editor.savedAs(basename(path)), 'success');
+			if (await exists(path)) {
+				// Replacing a folder the project lies in would delete the project itself
+				if (from.startsWith(path + '/')) throw new FilesError('intoItself', from);
+				release = await lockProject(path);
+				if (!release) return toast(m.editor.targetOpenElsewhere(basename(path)), 'error', 8000);
+				await removePath(path);
+			}
 			await copy(from, path);
+			// The editor of the copy takes the lock itself
+			release?.();
+			release = null;
 			await goto(editorUrl(path));
 			toast(m.editor.savedAs(basename(path)), 'success');
 		} catch (e) {
 			console.error(e);
 			toast(filesErrorText(e), 'error', 8000);
+		} finally {
+			release?.();
 		}
 	}
 
@@ -796,7 +819,7 @@
 				dialog = 'export';
 			}}
 		>
-			<span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.editor.export}
+			<span class="icon-[material-symbols-light--ios-share] size-5" aria-hidden="true"></span> {m.editor.export}
 		</button>
 	{/if}
 {/snippet}

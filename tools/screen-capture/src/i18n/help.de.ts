@@ -19,7 +19,7 @@ const help: typeof enHelp = {
 				},
 				saving: {
 					title: 'Speichern',
-					text: 'Jede Änderung wird automatisch gesichert – „Gespeichert“ neben dem Projektnamen in der oberen Leiste bestätigt es. Ein Klick auf den Namen benennt das Projekt um. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner. „Speichern unter …“ im Menü neben dem Projektnamen (Pfeil) legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. „Öffnen …“ auf der Startseite öffnet jedes Projekt. In Files benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter.',
+					text: 'Jede Änderung wird automatisch gesichert – „Gespeichert“ neben dem Projektnamen in der oberen Leiste bestätigt es. Ein Klick auf den Namen benennt das Projekt um. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner. „Speichern unter …“ im Menü neben dem Projektnamen (Pfeil) legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. Wähle ein bestehendes Projekt und klicke „Ersetzen“, um es zu überschreiben (nicht, solange es in einem anderen Tab offen ist). „Öffnen …“ auf der Startseite öffnet jedes Projekt. In Files benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter.',
 					tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Wähle in Files (Chrome und Edge) unter „Ordner auf deinem Rechner“ einen Ordner: Deine Projekte werden dann mit ihm abgeglichen, und ein Sync-Tool kann ihn auf deine anderen Rechner bringen. Ein Projekt, das in einem Tab offen ist, lässt sich nicht gleichzeitig in einem zweiten öffnen.'
 				},
 				storage: {
@@ -569,7 +569,7 @@ const help: typeof enHelp = {
 				},
 				running: {
 					title: 'Während des Exports',
-					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach startet der Download automatisch – „Erneut herunterladen“ holt die Datei noch einmal, „In Files speichern …“ legt das Video im Browserspeicher ab (standardmäßig neben dem Projekt). Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
+					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach startet der Download automatisch – „Erneut herunterladen“ holt die Datei noch einmal, „In Files speichern …“ legt das Video im Browserspeicher ab (standardmäßig neben dem Projekt); wähle ein bestehendes Video und klicke „Ersetzen“, um es zu überschreiben. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
 				}
 			}
 		},
