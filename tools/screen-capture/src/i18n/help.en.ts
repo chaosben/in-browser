@@ -361,7 +361,7 @@ const help = {
 						tab: { label: 'Tab', text: 'After clicking into the preview, Tab selects the next element under the playhead from front to back, Shift+Tab the previous one.' },
 						timeline: { label: 'Timeline', text: 'A click on its bar in the timeline.' }
 					},
-					tip: 'Once selected, a covered element stays on top for editing: you can move and resize it in the preview directly, even though it is still drawn behind the others. To bring it to the front for good, change its track (Ctrl+↑).',
+					tip: 'Once selected, a covered element stays on top for editing: you can move and resize it in the preview directly, even though it is still drawn behind the others. A simple click (without dragging) on an element in front of it still selects that one. To bring it to the front for good, change its track (Ctrl+↑).',
 					keys: [['Tab'], ['Shift', 'Tab']]
 				},
 				paused: {

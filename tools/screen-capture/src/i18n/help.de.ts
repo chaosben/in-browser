@@ -339,7 +339,7 @@ const help: typeof enHelp = {
 						tab: { label: 'Tab', text: 'Hast du in die Vorschau geklickt, wählt Tab das nächste Element unter dem Abspielkopf von vorne nach hinten, Umschalt+Tab das vorige.' },
 						timeline: { label: 'Timeline', text: 'Ein Klick auf seinen Balken in der Timeline.' }
 					},
-					tip: 'Einmal ausgewählt, bleibt ein verdecktes Element zum Bearbeiten obenauf: Du kannst es direkt in der Vorschau verschieben und skalieren, obwohl es weiter hinter den anderen gezeichnet wird. Soll es dauerhaft nach vorne, ändere seine Spur (Strg+↑).',
+					tip: 'Einmal ausgewählt, bleibt ein verdecktes Element zum Bearbeiten obenauf: Du kannst es direkt in der Vorschau verschieben und skalieren, obwohl es weiter hinter den anderen gezeichnet wird. Ein einfacher Klick (ohne Ziehen) auf ein Element davor wählt trotzdem dieses aus. Soll es dauerhaft nach vorne, ändere seine Spur (Strg+↑).',
 					keys: [['Tab'], ['Umschalt', 'Tab']]
 				},
 				paused: {

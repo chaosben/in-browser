@@ -39,6 +39,8 @@
 	const MIN_SIZE = 0.01;
 	/** Snap distance in screen pixels */
 	const SNAP_PX = 6;
+	/** Movement in screen pixels below which a press with a click alternative counts as a click */
+	const CLICK_PX = 3;
 
 	let layer: HTMLDivElement;
 	/** Lines snapped to during a drag */
@@ -117,9 +119,15 @@
 
 	/**
 	 * Mouse drag; `onmove` receives the offset in content coordinates. With `libraryKey` (the gesture's undo key)
-	 * the selection can be dropped onto the library: there the move is undone and the save dialog opens.
+	 * the selection can be dropped onto the library: there the move is undone and the save dialog opens. With
+	 * `onclick` the drag only starts after `CLICK_PX`; released before, `onclick` runs instead.
 	 */
-	function drag(e: PointerEvent, onmove: (dx: number, dy: number, step: DragStep) => void, libraryKey?: string) {
+	function drag(
+		e: PointerEvent,
+		onmove: (dx: number, dy: number, step: DragStep) => void,
+		libraryKey?: string,
+		onclick?: () => void
+	) {
 		if (e.button !== 0) return;
 		e.stopPropagation();
 		e.preventDefault();
@@ -133,7 +141,10 @@
 		const { w, h } = view;
 		const tol = { x: (SNAP_PX / rect.width) * w, y: (SNAP_PX / rect.height) * h };
 		let target: LibraryScope | null = null;
+		let moved = !onclick;
 		const move = (ev: PointerEvent) => {
+			if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < CLICK_PX) return;
+			moved = true;
 			guides = null;
 			if (libraryKey) {
 				// Outside the preview area the elements hang at the pointer, on their way to the library
@@ -153,6 +164,7 @@
 			el.removeEventListener('pointercancel', up);
 			editor.endGesture();
 			endLibraryDrag();
+			if (!moved) return onclick?.();
 			if (target) saveSelection(editor, target);
 		};
 		el.addEventListener('pointermove', move);
@@ -188,16 +200,27 @@
 		rememberStyle(o.kind, { size });
 	}
 
+	/**
+	 * Pressed on a selected item with an unselected one in front: a click (no drag) selects the front one, since the
+	 * selected item's area lies on top. `undefined` otherwise – then the pressed item is selected right away.
+	 */
+	function clickInFront(e: PointerEvent, id: string): (() => void) | undefined {
+		if (!editor.isSelected('item', id)) return void editor.select('item', id);
+		const front = itemsUnder(e)[0];
+		if (!front || front.id === id || editor.isSelected('item', front.id)) return void editor.select('item', id);
+		return () => editor.select('item', front.id);
+	}
+
 	function moveOverlay(e: PointerEvent, o: Annotation) {
 		if (e.button !== 0) return;
-		editor.select('item', o.id);
+		const onclick = clickInFront(e, o.id);
 		const key = `move-${o.id}-${e.timeStamp}`;
 		const b = bounds(o);
 		const targets = targetsFor(o.id);
 		drag(e, (dx, dy, step) => {
 			const d = moveBy(b, dx, dy, step, targets);
 			patchOverlay(o.id, moveAnnotation(o, d.dx, d.dy), key);
-		}, key);
+		}, key, onclick);
 	}
 
 	/** Move a corner of a rect, the opposite corner stays fixed. */
@@ -321,14 +344,14 @@
 
 	function moveClip(e: PointerEvent, c: Clip) {
 		if (e.button !== 0) return;
-		editor.select('item', c.id);
+		const onclick = clickInFront(e, c.id);
 		const key = `clip-move-${c.id}-${e.timeStamp}`;
 		const r = c.rect;
 		const targets = targetsFor(c.id);
 		drag(e, (dx, dy, step) => {
 			const d = moveBy(r, dx, dy, step, targets);
 			editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + d.dx, y: r.y + d.dy } }), key);
-		}, key);
+		}, key, onclick);
 	}
 
 	function resizeClip(e: PointerEvent, c: Clip, corner: Corner) {
