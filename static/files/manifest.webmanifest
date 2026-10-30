@@ -8,8 +8,8 @@
 	"display": "standalone",
 	"launch_handler": { "client_mode": "focus-existing" },
 	"categories": ["productivity", "utilities"],
-	"background_color": "#1d232a",
-	"theme_color": "#1d232a",
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
 	"icons": [
 		{ "src": "/files/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
 		{ "src": "/files/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

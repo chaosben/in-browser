@@ -17,7 +17,7 @@
 			aria-label={group.label}
 			class="btn btn-ghost btn-square tooltip tooltip-right {active ? 'btn-active text-primary' : ''} {group.id === 'library' &&
 			libraryUi.dragging
-				? 'ring-primary ring-2'
+				? 'ring-selection ring-2'
 				: ''}"
 			data-tool-group={group.id}
 			data-tip={group.label}

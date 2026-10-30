@@ -1,10 +1,156 @@
 /* Shared styling of all in-browser.de apps. Include in layout.css after `@import 'tailwindcss';` */
 @plugin '@iconify/tailwind4';
+/* Only our own themes below. Without data-theme the page follows the system; the switch sets data-theme explicitly. */
 @plugin 'daisyui' {
-	/* Without data-theme the page follows the system; the switch sets data-theme explicitly. */
-	themes:
-		light --default,
-		dark --prefersdark;
+	themes: false;
+}
+
+/* Light: daisyUI "corporate" plus our role colors */
+@plugin 'daisyui/theme' {
+	name: 'light';
+	default: true;
+	prefersdark: false;
+	color-scheme: light;
+
+	--color-base-100: oklch(100% 0 0);
+	--color-base-200: oklch(93% 0 0);
+	--color-base-300: oklch(86% 0 0);
+	--color-base-content: oklch(22.389% 0.031 278.072);
+	--color-primary: oklch(58% 0.158 241.966);
+	--color-primary-content: oklch(100% 0 0);
+	--color-secondary: oklch(55% 0.046 257.417);
+	--color-secondary-content: oklch(100% 0 0);
+	--color-accent: oklch(60% 0.118 184.704);
+	--color-accent-content: oklch(100% 0 0);
+	--color-neutral: oklch(0% 0 0);
+	--color-neutral-content: oklch(100% 0 0);
+	--color-info: oklch(60% 0.126 221.723);
+	--color-info-content: oklch(100% 0 0);
+	--color-success: oklch(62% 0.194 149.214);
+	--color-success-content: oklch(100% 0 0);
+	--color-warning: oklch(85% 0.199 91.936);
+	--color-warning-content: oklch(0% 0 0);
+	--color-error: oklch(70% 0.191 22.216);
+	--color-error-content: oklch(0% 0 0);
+
+	--color-guide: oklch(55% 0.24 268);
+	--color-guide-content: oklch(100% 0 0);
+	--color-selection: oklch(55% 0.22 315);
+	--color-selection-content: oklch(100% 0 0);
+	--color-annotation: oklch(70% 0.18 50);
+	--color-annotation-content: oklch(20% 0.05 50);
+	--color-zoom: oklch(66% 0.12 185);
+	--color-zoom-content: oklch(100% 0 0);
+	--color-playhead: oklch(60% 0.23 25);
+	--color-folder: oklch(80% 0.15 85);
+	--color-hint: oklch(78% 0.16 85);
+	--color-waveform: oklch(58% 0.158 241.966);
+	--color-series-1: oklch(64% 0.17 25);
+	--color-series-2: oklch(76% 0.15 85);
+	--color-series-3: oklch(64% 0.16 150);
+	--color-series-4: oklch(64% 0.12 200);
+	--color-series-5: oklch(58% 0.17 260);
+	--color-series-6: oklch(60% 0.18 320);
+
+	--radius-selector: 0.25rem;
+	--radius-field: 0.25rem;
+	--radius-box: 0.25rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}
+
+/* Dark: derived from "corporate" (same hues, cool grey base, lighter accents with dark content) */
+@plugin 'daisyui/theme' {
+	name: 'dark';
+	default: false;
+	prefersdark: true;
+	color-scheme: dark;
+
+	--color-base-100: oklch(24% 0.012 260);
+	--color-base-200: oklch(20.5% 0.012 260);
+	--color-base-300: oklch(17% 0.012 260);
+	--color-base-content: oklch(90% 0.012 270);
+	--color-primary: oklch(68% 0.14 242);
+	--color-primary-content: oklch(18% 0.04 242);
+	--color-secondary: oklch(70% 0.04 257);
+	--color-secondary-content: oklch(18% 0.02 257);
+	--color-accent: oklch(72% 0.11 185);
+	--color-accent-content: oklch(18% 0.03 185);
+	--color-neutral: oklch(14% 0.01 260);
+	--color-neutral-content: oklch(92% 0.005 260);
+	--color-info: oklch(70% 0.12 222);
+	--color-info-content: oklch(18% 0.03 222);
+	--color-success: oklch(70% 0.17 149);
+	--color-success-content: oklch(18% 0.04 149);
+	--color-warning: oklch(85% 0.17 92);
+	--color-warning-content: oklch(20% 0.04 92);
+	--color-error: oklch(70% 0.18 22);
+	--color-error-content: oklch(18% 0.04 22);
+
+	--color-guide: oklch(68% 0.19 268);
+	--color-guide-content: oklch(16% 0.05 268);
+	--color-selection: oklch(70% 0.18 315);
+	--color-selection-content: oklch(16% 0.05 315);
+	--color-annotation: oklch(76% 0.15 50);
+	--color-annotation-content: oklch(18% 0.05 50);
+	--color-zoom: oklch(76% 0.11 185);
+	--color-zoom-content: oklch(18% 0.04 185);
+	--color-playhead: oklch(68% 0.21 25);
+	--color-folder: oklch(83% 0.14 85);
+	--color-hint: oklch(83% 0.15 85);
+	--color-waveform: oklch(68% 0.14 242);
+	--color-series-1: oklch(72% 0.15 25);
+	--color-series-2: oklch(82% 0.13 85);
+	--color-series-3: oklch(72% 0.14 150);
+	--color-series-4: oklch(74% 0.1 200);
+	--color-series-5: oklch(70% 0.14 260);
+	--color-series-6: oklch(72% 0.15 320);
+
+	--radius-selector: 0.25rem;
+	--radius-field: 0.25rem;
+	--radius-box: 0.25rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}
+
+/*
+ * Role colors: the same thing gets the same color in every tool. Use them instead of status colors
+ * (info/success/warning/error are for status messages only). A new role needs a value in both themes and a line here.
+ */
+@theme inline {
+	/* Alignment and snap lines, gap measures */
+	--color-guide: var(--color-guide);
+	--color-guide-content: var(--color-guide-content);
+	/* Selection, hover frames, highlighted elements, selected rows, drop targets */
+	--color-selection: var(--color-selection);
+	--color-selection-content: var(--color-selection-content);
+	/* Annotations (arrows, texts, shapes …) */
+	--color-annotation: var(--color-annotation);
+	--color-annotation-content: var(--color-annotation-content);
+	/* Zoom segments and zoom frames */
+	--color-zoom: var(--color-zoom);
+	--color-zoom-content: var(--color-zoom-content);
+	/* Playback position */
+	--color-playhead: var(--color-playhead);
+	/* Folder icons */
+	--color-folder: var(--color-folder);
+	/* Tips in help texts */
+	--color-hint: var(--color-hint);
+	/* Audio waveforms (read in canvas code via getComputedStyle) */
+	--color-waveform: var(--color-waveform);
+	/* Colors that only need to be distinguishable (sources, tracks, charts) */
+	--color-series-1: var(--color-series-1);
+	--color-series-2: var(--color-series-2);
+	--color-series-3: var(--color-series-3);
+	--color-series-4: var(--color-series-4);
+	--color-series-5: var(--color-series-5);
+	--color-series-6: var(--color-series-6);
 }
 
 /* Generate the classes of the brand components */

@@ -14,8 +14,8 @@
 		"utilities",
 		"multimedia"
 	],
-	"background_color": "#1d232a",
-	"theme_color": "#1d232a",
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
 	"icons": [
 		{
 			"src": "/screen-capture/favicon.svg",

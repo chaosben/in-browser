@@ -94,7 +94,7 @@ function drawWaveforms(
 	canvas.height = Math.min(height, clips.length * Math.round(height / 2));
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = getComputedStyle(canvas).getPropertyValue('--color-primary') || '#6366f1';
+	ctx.fillStyle = getComputedStyle(canvas).getPropertyValue('--color-waveform') || '#0284c7';
 	const row = canvas.height / clips.length;
 	clips.forEach((clip, r) => {
 		const p = media?.peaks.get(clip.id);

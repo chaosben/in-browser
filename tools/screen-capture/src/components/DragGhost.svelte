@@ -35,7 +35,7 @@
 	{@const g = libraryUi.ghost}
 	<div
 		class="bg-base-100 text-base-content rounded-box pointer-events-none fixed z-50 flex max-w-56 flex-col gap-1 border-2 p-1.5 shadow-xl transition-opacity {g.target
-			? 'border-primary opacity-100'
+			? 'border-selection opacity-100'
 			: 'border-base-300 opacity-75'}"
 		style="left: {libraryUi.ghostAt.x + 14}px; top: {libraryUi.ghostAt.y + 14}px"
 		aria-hidden="true"

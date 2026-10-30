@@ -846,7 +846,7 @@
 				<!-- Preview with editing layer -->
 				<div class="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4 [container-type:size]">
 					<div
-						class="relative shadow-lg {overPreview ? 'ring-primary ring-4' : ''}"
+						class="relative shadow-lg {overPreview ? 'ring-selection ring-4' : ''}"
 						data-preview
 						style="width: min(100cqw, calc(100cqh * {previewSize.width / previewSize.height})); aspect-ratio: {previewSize.width} / {previewSize.height}"
 					>
@@ -955,7 +955,7 @@
 
 		{#if draggingFiles}
 			<div
-				class="border-primary bg-base-300/80 pointer-events-none absolute inset-2 z-40 grid place-items-center rounded-box border-4 border-dashed"
+				class="border-selection bg-base-300/80 pointer-events-none absolute inset-2 z-40 grid place-items-center rounded-box border-4 border-dashed"
 			>
 				<div class="flex flex-col items-center gap-2 text-lg font-semibold">
 					<span class="icon-[material-symbols-light--upload-file] size-12" aria-hidden="true"></span>

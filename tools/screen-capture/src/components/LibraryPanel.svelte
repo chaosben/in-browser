@@ -204,7 +204,7 @@
 		{@const active = libraryUi.dropTarget === section.scope || tileOver === section.scope}
 		<section
 			class="rounded-box flex flex-col gap-2 border-2 border-dashed p-2 transition-colors {active
-				? 'border-primary bg-primary/10'
+				? 'border-selection bg-selection/10'
 				: libraryUi.dragging
 					? 'border-base-content/30'
 					: 'border-transparent'}"
@@ -242,7 +242,7 @@
 			<div class={view === 'grid' ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-1'}>
 				{#each section.entries as entry (entry.id)}
 					<div
-						class="bg-base-100 rounded-box hover:outline-primary/60 flex cursor-grab hover:outline-1 {view === 'grid'
+						class="bg-base-100 rounded-box hover:outline-selection/60 flex cursor-grab hover:outline-1 {view === 'grid'
 							? 'flex-col gap-1 p-1.5'
 							: 'items-center gap-2 p-1'}"
 						draggable={renaming !== entry.id}

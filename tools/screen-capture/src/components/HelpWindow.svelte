@@ -108,7 +108,7 @@
 	{/if}
 	{#if item.tip}
 		<span class="bg-base-200 rounded-field mt-1 flex gap-2 p-2 text-sm">
-			<span class="icon-[material-symbols-light--lightbulb-outline] text-warning size-5 shrink-0" aria-hidden="true"></span>
+			<span class="icon-[material-symbols-light--lightbulb-outline] text-hint size-5 shrink-0" aria-hidden="true"></span>
 			<span><span class="font-semibold">{m.help.tipLabel}:</span> {item.tip}</span>
 		</span>
 	{/if}

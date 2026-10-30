@@ -9,7 +9,7 @@
 {#if item.formats[0]}
 	<img src={item.formats[0].icon} alt="" class="{size} shrink-0" />
 {:else if item.folder}
-	<span class="icon-[material-symbols-light--folder-outline] text-warning {size} shrink-0" aria-hidden="true"></span>
+	<span class="icon-[material-symbols-light--folder-outline] text-folder {size} shrink-0" aria-hidden="true"></span>
 {:else if kind === 'image'}
 	<span class="icon-[material-symbols-light--image-outline] {size} shrink-0" aria-hidden="true"></span>
 {:else if kind === 'video'}

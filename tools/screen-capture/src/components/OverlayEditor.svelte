@@ -308,7 +308,7 @@
 	}
 
 	/** Same label for the marked and the selected zoom area */
-	const zoomLabelClass = 'bg-info text-info-content absolute top-1 left-1 flex items-center gap-0.5 rounded px-1 text-xs';
+	const zoomLabelClass = 'bg-zoom text-zoom-content absolute top-1 left-1 flex items-center gap-0.5 rounded px-1 text-xs';
 
 	function moveClip(e: PointerEvent, c: Clip) {
 		if (e.button !== 0) return;
@@ -525,7 +525,7 @@
 		{@const r = selectedZoom.rect}
 		<!-- Dim outside the zoom view -->
 		<div
-			class="border-info absolute cursor-move border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+			class="border-zoom absolute cursor-move border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
 			style={boxStyle(r)}
 			onpointerdown={moveZoom}
 			role="presentation"
@@ -544,7 +544,7 @@
 		<!-- The selected items last, so they are on top: a covered item, once selected, can be moved directly -->
 		{#each [...active.filter((i) => !editor.isSelected('item', i.id)), ...active.filter((i) => editor.isSelected('item', i.id))] as item (item.id)}
 			{@const selected = editor.isSelected('item', item.id)}
-			{@const frame = selected ? 'border-primary border-2 border-dashed' : 'hover:outline-primary/60 hover:outline-1'}
+			{@const frame = selected ? 'border-selection border-2 border-dashed' : 'hover:outline-selection/60 hover:outline-1'}
 			{#if item.type === 'annotation'}
 				<div
 					class="absolute cursor-move {frame}"
@@ -565,7 +565,7 @@
 		{@const lit = highlighted && active.find((item) => item.id === highlighted)}
 		{#if lit}
 			<!-- Element pointed at in the context menu -->
-			<div class="bg-primary/20 outline-primary pointer-events-none absolute outline-2 outline-dashed" style={boxStyle(hitBox(lit))}></div>
+			<div class="bg-selection/20 outline-selection pointer-events-none absolute outline-2 outline-dashed" style={boxStyle(hitBox(lit))}></div>
 		{/if}
 
 		{#if pausedZoom}
@@ -573,7 +573,7 @@
 			<!-- Marks what the zoom will show. Label and edge select the segment; the area inside stays free for the
 				 items below (the zoom often covers almost the whole frame). After the items, so label/edge are on top. -->
 			<div
-				class="border-info pointer-events-none absolute border-2 border-dashed shadow-[0_0_0_9999px_rgba(0,0,0,0.25)] has-[[data-zoom-pick]:hover]:border-solid"
+				class="border-zoom pointer-events-none absolute border-2 border-dashed shadow-[0_0_0_9999px_rgba(0,0,0,0.25)] has-[[data-zoom-pick]:hover]:border-solid"
 				style={boxStyle(z.rect)}
 			>
 				{#each ['-top-1 inset-x-0 h-2', '-bottom-1 inset-x-0 h-2', '-left-1 inset-y-0 w-2', '-right-1 inset-y-0 w-2'] as edge (edge)}
@@ -677,26 +677,26 @@
 		{@const length = Math.round((gap.to - gap.from) * (gap.axis === 'x' ? W : H))}
 		{#if gap.axis === 'x'}
 			<div
-				class="border-primary pointer-events-none absolute flex h-2 -translate-y-1/2 justify-center border-x"
+				class="border-guide pointer-events-none absolute flex h-2 -translate-y-1/2 justify-center border-x"
 				style="left: {px(gap.from)}; width: {pw(gap.to - gap.from)}; top: {py(gap.at)}"
 			>
-				<div class="bg-primary absolute inset-x-0 top-1/2 h-px"></div>
-				<span class="bg-primary text-primary-content absolute top-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
+				<div class="bg-guide absolute inset-x-0 top-1/2 h-px"></div>
+				<span class="bg-guide text-guide-content absolute top-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
 			</div>
 		{:else}
 			<div
-				class="border-primary pointer-events-none absolute flex w-2 -translate-x-1/2 items-center border-y"
+				class="border-guide pointer-events-none absolute flex w-2 -translate-x-1/2 items-center border-y"
 				style="top: {py(gap.from)}; height: {ph(gap.to - gap.from)}; left: {px(gap.at)}"
 			>
-				<div class="bg-primary absolute inset-y-0 left-1/2 w-px"></div>
-				<span class="bg-primary text-primary-content absolute left-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
+				<div class="bg-guide absolute inset-y-0 left-1/2 w-px"></div>
+				<span class="bg-guide text-guide-content absolute left-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
 			</div>
 		{/if}
 	{/each}
 	{#if guides?.x != null}
-		<div class="bg-primary pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x)}"></div>
+		<div class="bg-guide pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x)}"></div>
 	{/if}
 	{#if guides?.y != null}
-		<div class="bg-primary pointer-events-none absolute inset-x-0 h-px" style="top: {py(guides.y)}"></div>
+		<div class="bg-guide pointer-events-none absolute inset-x-0 h-px" style="top: {py(guides.y)}"></div>
 	{/if}
 </div>

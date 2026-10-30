@@ -45,7 +45,7 @@
 	const HEADER_W = 96;
 	/** Snapping to edges and playhead (pixels) */
 	const SNAP_PX = 8;
-	const COLORS = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-info', 'bg-success', 'bg-warning'];
+	const COLORS = ['bg-series-1', 'bg-series-2', 'bg-series-3', 'bg-series-4', 'bg-series-5', 'bg-series-6'];
 
 	let scroller: HTMLDivElement;
 	let scrollerWidth = $state(800 + HEADER_W);
@@ -512,7 +512,7 @@
 					<!-- Zoom track -->
 					{#each timeline.zoom as z (z.id)}
 						<div
-							class="bg-info/70 text-info-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
+							class="bg-zoom/70 text-zoom-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
 								{editor.isSelected('zoom', z.id) ? ring : ''}"
 							style="left: {x(z.start)}px; width: {Math.max((z.end - z.start) * pxPerSec, 4)}px; top: {zoomTop}px; height: {ZOOM_H}px"
 							onpointerdown={(e) => zoomDown(e, z.id, 'body')}
@@ -538,7 +538,7 @@
 				{#if trackDrop}
 					{@const row = rowOf(trackDrop.track)}
 					<div
-						class="border-primary bg-primary/15 pointer-events-none absolute inset-x-0 border-y-2 border-dashed"
+						class="border-selection bg-selection/15 pointer-events-none absolute inset-x-0 border-y-2 border-dashed"
 						style="top: {row.top}px; height: {row.height}px"
 					></div>
 				{/if}
@@ -553,7 +553,7 @@
 						{@const label = annotationLabel(item, editor)}
 						{@const kind = OVERLAY_KINDS[item.kind].label}
 						<div
-							class="bg-warning/80 text-warning-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
+							class="bg-annotation/80 text-annotation-content absolute flex items-center gap-1 overflow-hidden rounded px-2 text-[10px] font-semibold
 								{selected ? ring : ''} {dim}"
 							style="left: {x(item.start)}px; width: {Math.max(width, 4)}px; top: {row.top + 1}px; height: {row.height - 2}px"
 							onpointerdown={(e) => itemDown(e, item, 'body')}
@@ -627,12 +627,12 @@
 				{/each}
 
 				{#if snapAt !== null}
-					<div class="bg-primary pointer-events-none absolute w-px" style="left: {x(snapAt)}px; top: {tracksTop}px; height: {height - tracksTop}px"></div>
+					<div class="bg-guide pointer-events-none absolute w-px" style="left: {x(snapAt)}px; top: {tracksTop}px; height: {height - tracksTop}px"></div>
 				{/if}
 
 				<!-- Playhead (above the pinned ruler) -->
-				<div class="bg-error pointer-events-none absolute top-0 bottom-0 z-20 w-0.5" style="left: {x(player.time)}px">
-					<div class="bg-error sticky top-0 -ml-1.5 h-3 w-3.5 rounded-b-sm"></div>
+				<div class="bg-playhead pointer-events-none absolute top-0 bottom-0 z-20 w-0.5" style="left: {x(player.time)}px">
+					<div class="bg-playhead sticky top-0 -ml-1.5 h-3 w-3.5 rounded-b-sm"></div>
 				</div>
 			</div>
 		</div>

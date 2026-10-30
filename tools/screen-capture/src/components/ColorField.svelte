@@ -118,14 +118,14 @@
 	const checker =
 		'background-image: repeating-conic-gradient(#9ca3af 0 25%, #f3f4f6 0 50%); background-size: 8px 8px';
 	const swatchClass = 'relative size-5 shrink-0 overflow-hidden rounded border';
-	const selected = 'border-base-content ring-primary ring-2';
+	const selected = 'border-base-content ring-selection ring-2';
 </script>
 
 <!-- Always opaque, so colors stay recognizable at a low opacity (the opacity button shows it). Preset places
 	 (`index`) take a color dropped on them. -->
 {#snippet swatch(color: string, index?: number)}
 	<button
-		class="{swatchClass} {parsed?.hex === color ? selected : 'border-base-content/30'} {index !== undefined && dropIndex === index ? 'ring-primary ring-2 ring-offset-1' : ''}"
+		class="{swatchClass} {parsed?.hex === color ? selected : 'border-base-content/30'} {index !== undefined && dropIndex === index ? 'ring-selection ring-2 ring-offset-1' : ''}"
 		style="background: {color}"
 		draggable="true"
 		onclick={() => apply(color, true)}

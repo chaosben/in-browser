@@ -187,7 +187,7 @@
 							<button
 								role="option"
 								aria-selected={selected.includes(entry.path)}
-								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', selected.includes(entry.path) ? 'bg-primary text-primary-content' : 'hover:bg-base-200']}
+								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', selected.includes(entry.path) ? 'bg-selection text-selection-content' : 'hover:bg-base-200']}
 								onclick={(e) => (isFolder(entry) ? load(entry.path) : pick(e, entry))}
 								ondblclick={() => open(entry)}
 							>

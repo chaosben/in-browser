@@ -65,8 +65,8 @@
 	<div
 		class={[
 			'rounded-field flex items-center gap-0.5 pr-2 text-sm',
-			path === current ? 'bg-primary/20 font-semibold' : 'hover:bg-base-300',
-			target && 'outline-primary outline-2'
+			path === current ? 'bg-selection/20 font-semibold' : 'hover:bg-base-300',
+			target && 'outline-selection outline-2'
 		]}
 		ondragover={dragOver}
 		ondragleave={() => (target = false)}
@@ -87,7 +87,7 @@
 			{#if path === '/'}
 				<span class="icon-[material-symbols-light--hard-drive-outline] size-5 shrink-0" aria-hidden="true"></span>
 			{:else}
-				<span class="icon-[material-symbols-light--folder-outline] text-warning size-5 shrink-0" aria-hidden="true"></span>
+				<span class="icon-[material-symbols-light--folder-outline] text-folder size-5 shrink-0" aria-hidden="true"></span>
 			{/if}
 			<span class="truncate">{label}</span>
 		</button>

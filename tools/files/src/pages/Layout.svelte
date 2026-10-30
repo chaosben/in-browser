@@ -29,8 +29,8 @@
 	<meta property="og:site_name" content={BRAND.suite} />
 	<meta property="og:title" content="{BRAND.tool} · {BRAND.suite}" />
 	<meta property="og:description" content={m.brand.description} />
-	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1d232a" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content={BRAND.themeColor.light} />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content={BRAND.themeColor.dark} />
 	<link rel="icon" href={asset('files/favicon.svg')} type="image/svg+xml" />
 	<link rel="manifest" href={asset('files/manifest.webmanifest')} />
 </svelte:head>

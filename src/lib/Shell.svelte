@@ -16,8 +16,8 @@
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content={BRAND.suite} />
 	<meta property="og:url" content="{BRAND.suiteUrl}/" />
-	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1d232a" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content={BRAND.themeColor.light} />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content={BRAND.themeColor.dark} />
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 	{#key lang.current}
 		<title>{BRAND.suite} – {m.brand.claim}</title>

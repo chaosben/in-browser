@@ -139,8 +139,8 @@
 			class={[
 				'rounded-field cursor-default select-none',
 				manager.view === 'grid' ? 'flex flex-col items-center gap-1 p-2 text-center' : 'mx-1 flex items-center gap-3 px-2 py-1',
-				selected ? 'bg-primary/20' : 'hover:bg-base-200',
-				target === item.path && 'outline-primary outline-2',
+				selected ? 'bg-selection/20' : 'hover:bg-base-200',
+				target === item.path && 'outline-selection outline-2',
 				manager.focus === item.path && 'ring-base-content/30 ring-1',
 				cut.has(item.path) && 'opacity-50'
 			]}

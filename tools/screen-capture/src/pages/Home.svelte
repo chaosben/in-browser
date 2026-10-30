@@ -252,7 +252,7 @@
 
 {#if draggingFiles}
 	<div
-		class="border-primary bg-base-300/80 rounded-box pointer-events-none fixed inset-4 z-40 grid place-items-center border-4 border-dashed"
+		class="border-selection bg-base-300/80 rounded-box pointer-events-none fixed inset-4 z-40 grid place-items-center border-4 border-dashed"
 	>
 		<div class="flex flex-col items-center gap-2 text-lg font-semibold">
 			<span class="icon-[material-symbols-light--upload-file] size-12" aria-hidden="true"></span>
