@@ -4,10 +4,16 @@
 
 import type { Point, Rect } from '#lib/project/types.js';
 
+/** A line to snap to and where it comes from: `box` indexes `SnapTargets.boxes`, `null` is the canvas */
+export interface SnapLine {
+	at: number;
+	box: number | null;
+}
+
 /** Vertical (`xs`) and horizontal (`ys`) lines to snap to, and the other items (for equal spacing) */
 export interface SnapTargets {
-	xs: number[];
-	ys: number[];
+	xs: SnapLine[];
+	ys: SnapLine[];
 	boxes: Rect[];
 }
 
@@ -27,29 +33,30 @@ export interface Gap {
 
 /** Lines snapped to and equal gaps, shown as guides while dragging */
 export interface Guides {
-	x: number | null;
-	y: number | null;
+	x: SnapLine | null;
+	y: SnapLine | null;
 	gaps: Gap[];
 }
 
-/** Canvas edges and center plus edges and centers of `boxes` */
+/** Canvas edges and center plus edges and centers of `boxes`; the canvas first, so it wins a tie */
 export function snapTargets(boxes: Rect[]): SnapTargets {
-	const xs = [0, 0.5, 1];
-	const ys = [0, 0.5, 1];
-	for (const b of boxes) {
-		xs.push(b.x, b.x + b.w / 2, b.x + b.w);
-		ys.push(b.y, b.y + b.h / 2, b.y + b.h);
-	}
+	const canvas = (at: number): SnapLine => ({ at, box: null });
+	const xs = [0, 0.5, 1].map(canvas);
+	const ys = [0, 0.5, 1].map(canvas);
+	boxes.forEach((b, box) => {
+		xs.push(...[b.x, b.x + b.w / 2, b.x + b.w].map((at) => ({ at, box })));
+		ys.push(...[b.y, b.y + b.h / 2, b.y + b.h].map((at) => ({ at, box })));
+	});
 	return { xs, ys, boxes };
 }
 
 /** Closest line to any of the candidates within `tol`: offset to add and the line (`null`: none in reach) */
-function nearest(candidates: number[], lines: number[], tol: number) {
+function nearest(candidates: number[], lines: SnapLine[], tol: number) {
 	let offset = 0;
-	let line: number | null = null;
+	let line: SnapLine | null = null;
 	for (const c of candidates) {
 		for (const l of lines) {
-			const d = l - c;
+			const d = l.at - c;
 			if (Math.abs(d) <= tol && (line === null || Math.abs(d) < Math.abs(offset))) {
 				offset = d;
 				line = l;
@@ -136,7 +143,7 @@ export function snapMove(box: Rect, targets: SnapTargets, tol: Tolerance) {
 }
 
 /** A single dragged edge (e.g. the side of a text box) snaps to `lines` */
-export function snapLine(v: number, lines: number[], tol: number) {
+export function snapLine(v: number, lines: SnapLine[], tol: number) {
 	const { offset, line } = nearest([v], lines, tol);
 	return { value: v + offset, line };
 }

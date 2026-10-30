@@ -18,6 +18,7 @@
 		snapPoint,
 		snapTargets,
 		type Guides,
+		type SnapLine,
 		type SnapTargets,
 		type Tolerance
 	} from '#lib/preview/snap.js';
@@ -42,6 +43,8 @@
 	let layer: HTMLDivElement;
 	/** Lines snapped to during a drag */
 	let guides = $state<Guides | null>(null);
+	/** Items the lines of the running drag come from (same order as `SnapTargets.boxes`) */
+	let snapSources = $state.raw<{ items: Item[]; boxes: Rect[] }>({ items: [], boxes: [] });
 
 	const timeline = $derived(editor.project.timeline);
 	const selectedZoom = $derived(editor.selectedZoom);
@@ -92,12 +95,18 @@
 
 	/** Lines to snap to: canvas and the other visible items under the playhead (locked ones too) */
 	function targetsFor(exclude?: string) {
-		const boxes = itemsAt(timeline, player.time)
+		const items = itemsAt(timeline, player.time)
 			.filter((item) => item.id !== exclude && !trackState(timeline, item.track).hidden)
-			.filter((item) => item.type === 'annotation' || !!editor.source(item.sourceId)?.hasVideo)
-			.map((item) => (item.type === 'annotation' ? bounds(item) : item.rect));
+			.filter((item) => item.type === 'annotation' || !!editor.source(item.sourceId)?.hasVideo);
+		const boxes = items.map((item) => (item.type === 'annotation' ? bounds(item) : item.rect));
+		snapSources = { items, boxes };
 		return snapTargets(boxes);
 	}
+
+	/** Other items the guides snap to (each once) */
+	const snappedTo = $derived(
+		[...new Set([guides?.x?.box, guides?.y?.box])].filter((box): box is number => box != null && box < snapSources.boxes.length)
+	);
 
 	interface DragStep {
 		/** Snap distance per axis; `null`: snapping off (switch, or reversed with Alt) */
@@ -499,6 +508,19 @@
 	};
 </script>
 
+<!-- What a guide snaps to: the canvas (frame icon) or another item (its type icon) -->
+{#snippet guideBadge(line: SnapLine, style: string)}
+	{@const item = line.box === null ? null : snapSources.items[line.box]}
+	<span
+		class="bg-guide text-guide-content pointer-events-none absolute flex rounded p-0.5"
+		{style}
+		role="img"
+		aria-label={item ? m.preview.snapItem(itemLabel(item, editor)) : m.preview.snapCanvas}
+	>
+		<span class="{item ? itemIcon(item, editor) : 'icon-[material-symbols-light--crop-free]'} size-3.5" aria-hidden="true"></span>
+	</span>
+{/snippet}
+
 {#snippet zoomLabel(r: Rect)}
 	<span class="{ZOOM_ICON} size-3.5" aria-hidden="true"></span>
 	{m.preview.zoom((1 / r.w).toFixed(1))}
@@ -693,10 +715,15 @@
 			</div>
 		{/if}
 	{/each}
-	{#if guides?.x != null}
-		<div class="bg-guide pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x)}"></div>
+	{#each snappedTo as box (box)}
+		<div class="outline-guide pointer-events-none absolute outline-1" style={boxStyle(snapSources.boxes[box])}></div>
+	{/each}
+	{#if guides?.x}
+		<div class="bg-guide pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x.at)}"></div>
+		{@render guideBadge(guides.x, `left: ${px(guides.x.at)}; top: 4px; transform: translateX(-50%)`)}
 	{/if}
-	{#if guides?.y != null}
-		<div class="bg-guide pointer-events-none absolute inset-x-0 h-px" style="top: {py(guides.y)}"></div>
+	{#if guides?.y}
+		<div class="bg-guide pointer-events-none absolute inset-x-0 h-px" style="top: {py(guides.y.at)}"></div>
+		{@render guideBadge(guides.y, `top: ${py(guides.y.at)}; left: 4px; transform: translateY(-50%)`)}
 	{/if}
 </div>

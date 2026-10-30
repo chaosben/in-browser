@@ -411,7 +411,10 @@ const en = {
 	preview: {
 		zoom: (level: string) => `${level}× zoom`,
 		selectZoom: 'Select zoom segment',
-		gap: (px: number) => `${px} px`
+		gap: (px: number) => `${px} px`,
+		/** What a guide line snaps to */
+		snapCanvas: 'Snaps to the canvas',
+		snapItem: (name: string) => `Snaps to ${name}`
 	},
 
 	library: {

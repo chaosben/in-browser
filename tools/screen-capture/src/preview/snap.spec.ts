@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { snapAspect, snapMove, snapPoint, snapSpacing, snapTargets } from './snap';
+import { snapAspect, snapMove, snapPoint, snapSpacing, snapTargets, type SnapLine } from './snap';
 
 const tol = { x: 0.01, y: 0.01 };
 
 describe('snapTargets', () => {
 	it('has the canvas edges and center plus edges and centers of the items', () => {
 		const t = snapTargets([{ x: 0.2, y: 0.1, w: 0.2, h: 0.4 }]);
-		const round = (vs: number[]) => vs.map((v) => Math.round(v * 1000) / 1000);
+		const round = (ls: SnapLine[]) => ls.map((l) => Math.round(l.at * 1000) / 1000);
 		expect(round(t.xs)).toEqual([0, 0.5, 1, 0.2, 0.3, 0.4]);
 		expect(round(t.ys)).toEqual([0, 0.5, 1, 0.1, 0.3, 0.5]);
+		expect(t.xs.map((l) => l.box)).toEqual([null, null, null, 0, 0, 0]);
 	});
 });
 
@@ -17,12 +18,22 @@ describe('snapMove', () => {
 	it('centers a box on the canvas center', () => {
 		const s = snapMove({ x: 0.371, y: 0.2, w: 0.25, h: 0.1 }, targets, tol);
 		expect(s.dx).toBeCloseTo(0.004);
-		expect(s.guides).toMatchObject({ x: 0.5, y: null });
+		expect(s.guides).toMatchObject({ x: { at: 0.5, box: null }, y: null });
 	});
 	it('snaps an edge to the edge of another item, the closest line wins', () => {
 		const s = snapMove({ x: 0.1, y: 0.795, w: 0.2, h: 0.1 }, targets, tol);
 		expect(s.dy).toBeCloseTo(0.005);
-		expect(s.guides.y).toBeCloseTo(0.8);
+		expect(s.guides.y?.at).toBeCloseTo(0.8);
+		expect(s.guides.y?.box).toBe(0);
+	});
+	it('tells an item center close to the canvas center from it; on a tie the canvas wins', () => {
+		// Only the centers are in reach: the item's at 0.51, the canvas center 0.015 away
+		const near = snapTargets([{ x: 0.3, y: 0, w: 0.42, h: 0.1 }]);
+		const s = snapMove({ x: 0.415, y: 0.3, w: 0.2, h: 0.1 }, near, tol);
+		expect(s.guides.x?.box).toBe(0);
+		expect(s.guides.x?.at).toBeCloseTo(0.51);
+		const same = snapTargets([{ x: 0.3, y: 0, w: 0.4, h: 0.1 }]);
+		expect(snapMove({ x: 0.405, y: 0.3, w: 0.2, h: 0.1 }, same, tol).guides.x).toEqual({ at: 0.5, box: null });
 	});
 	it('leaves a box alone without lines in reach', () => {
 		expect(snapMove({ x: 0.13, y: 0.13, w: 0.1, h: 0.1 }, targets, tol)).toEqual({ dx: 0, dy: 0, guides: { x: null, y: null, gaps: [] } });
@@ -33,7 +44,7 @@ describe('snapPoint', () => {
 	it('snaps each axis on its own', () => {
 		const s = snapPoint({ x: 0.505, y: 0.3 }, snapTargets([]), tol);
 		expect(s.point).toEqual({ x: 0.5, y: 0.3 });
-		expect(s.guides).toEqual({ x: 0.5, y: null, gaps: [] });
+		expect(s.guides).toEqual({ x: { at: 0.5, box: null }, y: null, gaps: [] });
 	});
 });
 
@@ -44,7 +55,7 @@ describe('snapAspect', () => {
 		expect(s.rect.x).toBe(0.1);
 		expect(s.rect.w).toBeCloseTo(0.4);
 		expect(s.rect.h / s.rect.w).toBeCloseTo(0.2 / 0.395);
-		expect(s.guides).toMatchObject({ x: 0.5, y: null });
+		expect(s.guides).toMatchObject({ x: { at: 0.5, box: null }, y: null });
 	});
 	it('keeps the opposite corner when dragged at the top left', () => {
 		const s = snapAspect({ x: 0.003, y: 0.3, w: 0.497, h: 0.4 }, -1, -1, snapTargets([]), tol, 0.01);

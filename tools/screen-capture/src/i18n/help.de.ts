@@ -322,7 +322,7 @@ const help: typeof enHelp = {
 				},
 				snap: {
 					title: 'Einrasten',
-					text: 'Elemente rasten an Rändern und Mitte der Leinwand ein, an Kanten und Mitten anderer Elemente und an gleichen Abständen zwischen ihnen – Linien und Abstandsmaße zeigen, woran. Mit dem Schalter „Einrasten“ über der Timeline schaltest du das für Vorschau und Timeline an oder aus; hältst du beim Ziehen Alt gedrückt, gilt das Gegenteil.',
+					text: 'Elemente rasten an Rändern und Mitte der Leinwand ein, an Kanten und Mitten anderer Elemente und an gleichen Abständen zwischen ihnen – Linien und Abstandsmaße zeigen, woran. Das Icon an einer Linie verrät, woher sie kommt: ein Rahmen für die Leinwand, sonst der Typ des Elements, das zusätzlich umrandet ist. Mit dem Schalter „Einrasten“ über der Timeline schaltest du das für Vorschau und Timeline an oder aus; hältst du beim Ziehen Alt gedrückt, gilt das Gegenteil.',
 					keys: [['Alt']]
 				},
 				axis: { title: 'Eine Richtung', text: 'Halte beim Verschieben Umschalt gedrückt, um nur waagrecht oder senkrecht zu verschieben.', keys: [['Umschalt']] },

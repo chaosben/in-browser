@@ -344,7 +344,7 @@ const help = {
 				},
 				snap: {
 					title: 'Snapping',
-					text: 'Elements snap to the canvas edges and center, to the edges and centers of other elements and to equal spacing between them – lines and distances show what they snapped to. The “Snap” switch above the timeline turns it on or off for preview and timeline; holding Alt while dragging does the opposite.',
+					text: 'Elements snap to the canvas edges and center, to the edges and centers of other elements and to equal spacing between them – lines and distances show what they snapped to. The icon on a line tells where it comes from: a frame for the canvas, otherwise the type of the element, which is outlined as well. The “Snap” switch above the timeline turns it on or off for preview and timeline; holding Alt while dragging does the opposite.',
 					keys: [['Alt']]
 				},
 				axis: { title: 'One direction', text: 'Hold Shift while moving to move only horizontally or vertically.', keys: [['Shift']] },

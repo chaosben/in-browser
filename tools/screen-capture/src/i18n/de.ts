@@ -423,7 +423,9 @@ const de: Messages = {
 	preview: {
 		zoom: (level) => `${level}× Zoom`,
 		selectZoom: 'Zoom-Abschnitt auswählen',
-		gap: (px: number) => `${px} px`
+		gap: (px: number) => `${px} px`,
+		snapCanvas: 'Rastet an der Leinwand ein',
+		snapItem: (name) => `Rastet an ${name} ein`
 	},
 
 	library: {
