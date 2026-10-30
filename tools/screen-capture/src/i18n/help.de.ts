@@ -261,8 +261,8 @@ const help: typeof enHelp = {
 					text: 'Zieh ein Element, um es zeitlich zu verschieben; es stoppt am Nachbarn auf derselben Spur und rastet an Kanten und Abspielkopf ein („Einrasten“ über der Timeline, Alt bewirkt das Gegenteil). Zieh an den Enden eines Clips, um ihn zu trimmen.'
 				},
 				ripple: {
-					title: 'Löschen und trimmen: was nachrückt',
-					text: 'Wird Zeit entfernt, rückt alles Spätere auf allen Spuren nach – aber nur dort, wo zu dieser Zeit sonst nichts mehr liegt. Liegt dort noch ein Bild-im-Bild-Clip oder eine Markierung, bleibt die Zeit erhalten.',
+					title: 'Löschen und trimmen: was sich verschiebt',
+					text: 'Wird Zeit entfernt, rückt alles Spätere auf allen Spuren nach – aber nur dort, wo zu dieser Zeit sonst nichts mehr liegt. Liegt dort noch ein Bild-im-Bild-Clip oder eine Markierung, bleibt die Zeit erhalten. Verlängerst du einen Clip, füllt er zuerst freien Platz auf seiner Spur; nur was darüber hinausgeht, schiebt alles Spätere auf allen Spuren.',
 					options: {
 						noGap: { label: 'Normal', text: 'Die Lücke schließt sich, so weit es geht.' },
 						gap: { label: 'Mit Umschalt', text: 'Beim Löschen bleibt eine Lücke; beim Trimmen bleibt der Rest stehen.' },

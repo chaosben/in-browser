@@ -283,8 +283,8 @@ const help = {
 					text: 'Drag an element to move it in time; it stops at its neighbors on the same track and snaps to edges and the playhead (“Snap” above the timeline, Alt does the opposite). Drag the ends of a clip to trim it.'
 				},
 				ripple: {
-					title: 'Delete and trim: what moves up',
-					text: 'When time is removed, everything later on all tracks moves up – but only where nothing else remains at that time. A picture-in-picture clip or an annotation still lying there keeps the time.',
+					title: 'Delete and trim: what moves',
+					text: 'When time is removed, everything later on all tracks moves up – but only where nothing else remains at that time. A picture-in-picture clip or an annotation still lying there keeps the time. When you lengthen a clip, it first fills free space on its track; only what goes beyond pushes everything later on all tracks.',
 					options: {
 						noGap: { label: 'Normal', text: 'The gap closes as far as possible.' },
 						gap: { label: 'With Shift', text: 'A gap remains when deleting; when trimming, the rest stays where it is.' },

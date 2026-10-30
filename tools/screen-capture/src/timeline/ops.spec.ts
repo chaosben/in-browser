@@ -253,6 +253,29 @@ describe('trim', () => {
 		const t2 = tl(clip('a', 0, 0, 2), clip('b', 2, 3, 7));
 		expect(layout(trim(t2, 'b', 'in', 1, 10))).toMatchObject({ a: [0, 0, 2], b: [0, 2, 8] });
 	});
+	it('lengthening fills free room on its track first: music beside a video pushes nothing', () => {
+		// Music on track 1 inside video a, video b right after a
+		const u = tl(clip('a', 0, 0, 4), clip('b', 4, 0, 4), clip('m', 0, 0, 2, 1), text('x', 5, 6, 2));
+		expect(layout(trim(u, 'm', 'out', 3, 20))).toMatchObject({ a: [0, 0, 4], b: [0, 4, 8], m: [1, 0, 3], x: [2, 5, 6] });
+		expect(layout(trim(u, 'm', 'out', 6, 20))).toMatchObject({ a: [0, 0, 4], b: [0, 4, 8], m: [1, 0, 6], x: [2, 5, 6] });
+	});
+	it('lengthening beyond the gap pushes only the excess, on all tracks', () => {
+		const u = tl(clip('a', 0, 0, 2), clip('b', 3, 0, 4), clip('c', 3, 0, 1, 1), text('x', 5, 6, 2));
+		expect(layout(trim(u, 'a', 'out', 4, 10))).toMatchObject({ a: [0, 0, 4], b: [0, 4, 8], c: [1, 4, 5], x: [2, 6, 7] });
+	});
+	it('extend in point fills the gap before the clip first', () => {
+		const u = tl(clip('a', 0, 0, 2), clip('b', 4, 3, 7), text('x', 9, 10));
+		expect(layout(trim(u, 'b', 'in', 2, 10))).toMatchObject({ a: [0, 0, 2], b: [0, 3, 8], x: [1, 9, 10] });
+		// Gap of 2 s, 3 s more material: the clip reaches back to a, the remaining second moves it and the rest
+		const r = trim(u, 'b', 'in', 0, 10);
+		expect(layout(r)).toMatchObject({ a: [0, 0, 2], b: [0, 2, 9], x: [1, 10, 11] });
+	});
+	it('a freeze clip grows into free room', () => {
+		const f: Clip = { id: 'f', type: 'freeze', sourceId: 's', start: 0, track: 0, at: 1, duration: 2, rect: RECT };
+		const u = tl(f, clip('b', 3, 0, 2));
+		expect(layout(trim(u, 'f', 'out', 2.5, 10))).toMatchObject({ f: [0, 0, 2.5], b: [0, 3, 5] });
+		expect(layout(trim(u, 'f', 'out', 4, 10))).toMatchObject({ f: [0, 0, 4], b: [0, 4, 6] });
+	});
 });
 
 describe('rippleInsert', () => {

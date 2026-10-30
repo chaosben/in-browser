@@ -487,8 +487,9 @@ export function remove(
 /**
  * Trims a clip. Video clips: `edge` sets the in or out point (seconds in the source), clamped to
  * [0, sourceDuration]. Freeze clips: `out` sets the duration. With `ripple` everything later on all
- * tracks moves along (gained time is inserted, lost time closed where there is no clip); without
- * `ripple` the rest stays put and the clip stops at its neighbors at most.
+ * tracks moves along: gained time first fills free room on the clip's track, only the rest is inserted;
+ * lost time is closed where nothing remains (mirror images). Without `ripple` the rest stays put and the
+ * clip stops at its neighbors at most.
  */
 export function trim(
 	timeline: Timeline,
@@ -507,13 +508,13 @@ export function trim(
 		if (edge === 'in') return timeline;
 		let length = Math.max(value, MIN_CLIP);
 		if (!ripple) length = Math.min(length, hi - clip.start);
-		return resize(timeline, clip, { duration: length }, end, ripple);
+		return resize(timeline, clip, { duration: length }, end, ripple, hi);
 	}
 
 	if (edge === 'out') {
 		let out = Math.max(Math.min(value, sourceDuration), clip.in + MIN_CLIP);
 		if (!ripple) out = Math.min(out, clip.in + hi - clip.start);
-		return resize(timeline, clip, { out }, end, ripple);
+		return resize(timeline, clip, { out }, end, ripple, hi);
 	}
 
 	// In point: without ripple the clip end stays put, the start moves (at most up to the neighbor).
@@ -526,23 +527,29 @@ export function trim(
 	const delta = clip.in - inPoint;
 	if (Math.abs(delta) < EPS) return timeline;
 	if (delta > 0) {
-		// More material at the front: insert time at the clip start, the clip itself stays there
-		const inserted = rippleInsert(timeline, clip.start, delta);
-		return updateItem(inserted, clip.id, { in: inPoint, start: clip.start });
+		// More material at the front: first into the gap before the clip, the rest is inserted at the clip start
+		const used = Math.min(delta, Math.max(0, clip.start - lo));
+		const inserted = delta - used > EPS ? rippleInsert(timeline, clip.start, delta - used) : timeline;
+		return updateItem(inserted, clip.id, { in: inPoint, start: clip.start - used });
 	}
 	// Less material at the front: start moves later, the resulting gap is closed
 	const moved = updateItem(timeline, clip.id, { in: inPoint, start: clip.start - delta });
 	return closeGaps(moved, clip.start, clip.start - delta);
 }
 
-/** Changes the length of a clip at its end (`end` = previous end). */
-function resize(timeline: Timeline, clip: Clip, patch: Partial<Clip>, end: number, ripple: boolean): Timeline {
+/**
+ * Changes the length of a clip at its end (`end` = previous end, `hi` = start of the next clip on its track). Growing
+ * first fills the room up to `hi`; only the rest is inserted there.
+ */
+function resize(timeline: Timeline, clip: Clip, patch: Partial<Clip>, end: number, ripple: boolean, hi: number): Timeline {
 	const next = { ...clip, ...patch } as Clip;
 	const delta = clipDuration(next) - clipDuration(clip);
 	if (Math.abs(delta) < EPS) return timeline;
 	const updated = updateItem(timeline, clip.id, patch);
 	if (!ripple) return updated;
-	return delta > 0 ? rippleInsert(updated, end, delta) : closeGaps(updated, end + delta, end);
+	if (delta < 0) return closeGaps(updated, end + delta, end);
+	const excess = delta - Math.max(0, hi - end);
+	return excess > EPS ? rippleInsert(updated, hi, excess) : updated;
 }
 
 /**
