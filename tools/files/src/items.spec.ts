@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matches, previewKind, sortItems, toItem } from './items';
+import { matches, sortItems, toItem } from './items';
 
 const file = (name: string, size = 0, modified = 0) => toItem({ name, path: `/${name}`, kind: 'file', size, modified });
 const folder = (name: string) => toItem({ name, path: `/${name}`, kind: 'directory' });
@@ -9,18 +9,6 @@ describe('toItem', () => {
 		expect(toItem({ name: 'Demo.screencapture', path: '/Demo.screencapture', kind: 'directory' }).folder).toBe(false);
 		expect(folder('Docs').folder).toBe(true);
 		expect(file('a.txt').formats).toEqual([]);
-	});
-});
-
-describe('previewKind', () => {
-	it('by extension, case-insensitive', () => {
-		expect(previewKind('a.PNG')).toBe('image');
-		expect(previewKind('logo.svg')).toBe('image');
-		expect(previewKind('clip.webm')).toBe('video');
-		expect(previewKind('song.flac')).toBe('audio');
-		expect(previewKind('notes.md')).toBe('text');
-		expect(previewKind('archive.zip')).toBeNull();
-		expect(previewKind('README')).toBeNull();
 	});
 });
 

@@ -569,7 +569,7 @@ const help: typeof enHelp = {
 				},
 				running: {
 					title: 'Während des Exports',
-					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach startet der Download automatisch – „Erneut herunterladen“ holt die Datei noch einmal, „In Files speichern …“ legt das Video im Browserspeicher ab (standardmäßig neben dem Projekt); wähle ein bestehendes Video und klicke „Ersetzen“, um es zu überschreiben. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
+					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Files speichern …“ legt das Video im Browserspeicher ab (standardmäßig neben dem Projekt); wähle ein bestehendes Video und klicke „Ersetzen“, um es zu überschreiben. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zum fertigen Video, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
 				}
 			}
 		},

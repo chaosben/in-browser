@@ -5,7 +5,7 @@
 	import { acceptsDrag, copyKey, droppedPaths, startDrag } from '#lib/dnd.js';
 	import type { Item, SortKey } from '#lib/items.js';
 	import { clipboard, type Manager } from '#lib/manager.svelte.js';
-	import ItemIcon from './ItemIcon.svelte';
+	import FileIcon from '@in-browser/files/FileIcon.svelte';
 
 	interface Props {
 		manager: Manager;
@@ -153,11 +153,11 @@
 			ondrop={(e) => drop(e, item)}
 		>
 			{#if manager.view === 'grid'}
-				<ItemIcon {item} size="size-12" />
+				<FileIcon name={item.name} kind={item.kind} size="size-12" />
 				{@render name(item, 'line-clamp-2 w-full text-sm break-words')}
 			{:else}
 				<span class="flex min-w-0 flex-1 items-center gap-2">
-					<ItemIcon {item} />
+					<FileIcon name={item.name} kind={item.kind} />
 					{@render name(item, 'flex-1 truncate')}
 				</span>
 				<span class="hidden w-44 truncate text-sm opacity-70 lg:block">{kindOf(item)}</span>

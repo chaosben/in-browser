@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { list } from '@in-browser/files/fs.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename } from '@in-browser/files/path.js';
@@ -87,7 +88,7 @@
 			{#if path === '/'}
 				<span class="icon-[material-symbols-light--hard-drive-outline] size-5 shrink-0" aria-hidden="true"></span>
 			{:else}
-				<span class="icon-[material-symbols-light--folder-outline] text-folder size-5 shrink-0" aria-hidden="true"></span>
+				<FileIcon name={label} kind="directory" />
 			{/if}
 			<span class="truncate">{label}</span>
 		</button>

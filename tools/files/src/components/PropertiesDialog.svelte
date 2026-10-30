@@ -4,7 +4,7 @@
 	import { extname, parent } from '@in-browser/files/path.js';
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
 	import type { Item } from '#lib/items.js';
-	import ItemIcon from './ItemIcon.svelte';
+	import FileIcon from '@in-browser/files/FileIcon.svelte';
 
 	let { item, onclose }: { item: Item; onclose: () => void } = $props();
 
@@ -56,7 +56,7 @@
 >
 	<div class="modal-box flex flex-col gap-4">
 		<h3 class="flex items-center gap-2 text-lg font-bold">
-			<ItemIcon {item} size="size-8" />
+			<FileIcon name={item.name} kind={item.kind} size="size-8" />
 			<span class="min-w-0 truncate" title={item.name}>{item.name}</span>
 		</h3>
 		<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">

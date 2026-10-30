@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { closeFileDialog, fileDialogState } from './dialog.svelte.js';
+	import FileIcon from './FileIcon.svelte';
 	import { formatsOf } from './formats.js';
 	import { list, mkdir, type Entry } from './fs.js';
 	import { filesErrorText, filesMessages } from './i18n/index.svelte.js';
@@ -13,6 +14,8 @@
 	let folder = $state('/');
 	let entries = $state<Entry[] | null>(null);
 	let selected = $state<string[]>([]);
+	/** Folder marked by a click (like in Files: a click marks, double-click or Enter opens) */
+	let markedFolder = $state<string | null>(null);
 	/** Start of Shift ranges */
 	let anchor: string | null = null;
 	let name = $state('');
@@ -46,14 +49,16 @@
 	const taken = $derived(!!existing && !replacing);
 	/** Saving: the entry matching the typed name is marked, so changing the name clears the mark */
 	const isSelected = (entry: Entry) =>
-		options?.mode === 'save' ? existing?.path === entry.path : selected.includes(entry.path);
+		markedFolder === entry.path ||
+		(options?.mode === 'save' ? existing?.path === entry.path : selected.includes(entry.path));
 	const canConfirm = $derived(
-		options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0
+		!!markedFolder || (options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0)
 	);
 
 	async function load(path: string) {
 		error = null;
 		selected = [];
+		markedFolder = null;
 		anchor = null;
 		entries = null;
 		try {
@@ -89,12 +94,20 @@
 
 	function confirm() {
 		if (!canConfirm) return;
+		// With a folder marked the button opens it, like in system dialogs
+		if (markedFolder) return load(markedFolder);
 		// Replacing keeps the existing spelling (a name differing only in case would collide)
 		closeFileDialog(options?.mode === 'save' ? [join(folder, replacing && existing ? existing.name : fullName)] : selected);
 	}
 
 	/** Click on a file: alone; with `multiple` Ctrl/Cmd toggles, Shift selects the range from the last click */
 	function pick(e: MouseEvent, entry: Entry) {
+		if (isFolder(entry)) {
+			selected = [];
+			markedFolder = entry.path;
+			return;
+		}
+		markedFolder = null;
 		if (options?.mode === 'save') {
 			name = entry.name;
 			return;
@@ -189,22 +202,20 @@
 						<li class="p-6 text-center text-sm opacity-60">{t.dialog.empty}</li>
 					{/if}
 					{#each shown as entry (entry.path)}
-						{@const format = formatsOf(entry.name, entry.kind)[0]}
 						<li>
 							<button
 								role="option"
 								aria-selected={isSelected(entry)}
-								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', isSelected(entry) ? 'bg-selection text-selection-content' : 'hover:bg-base-200']}
-								onclick={(e) => (isFolder(entry) ? load(entry.path) : pick(e, entry))}
+								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', isSelected(entry) ? 'bg-selection/20' : 'hover:bg-base-200']}
+								onclick={(e) => pick(e, entry)}
 								ondblclick={() => open(entry)}
+								onkeydown={(e) => {
+									if (e.key !== 'Enter') return;
+									e.preventDefault();
+									open(entry);
+								}}
 							>
-								{#if format}
-									<img src={format.icon} alt="" class="size-5" />
-								{:else if isFolder(entry)}
-									<span class="icon-[material-symbols-light--folder-outline] size-5" aria-hidden="true"></span>
-								{:else}
-									<span class="icon-[material-symbols-light--draft-outline] size-5" aria-hidden="true"></span>
-								{/if}
+								<FileIcon name={entry.name} kind={entry.kind} />
 								<span class="min-w-0 flex-1 truncate">{entry.name}</span>
 							</button>
 						</li>
@@ -217,6 +228,7 @@
 						<input
 							class={['input w-full', (nameIssue || taken) && 'input-error']}
 							bind:value={name}
+							oninput={() => (markedFolder = null)}
 							onkeydown={(e) => e.key === 'Enter' && confirm()}
 						/>
 					</label>
@@ -232,14 +244,20 @@
 
 				<div class="modal-action mt-0">
 					<button class="btn btn-ghost" onclick={() => closeFileDialog(null)}>{t.dialog.cancel}</button>
-					<button class={['btn', replacing && !nameIssue ? 'btn-warning' : 'btn-primary']} disabled={!canConfirm} onclick={confirm}>
-						{options.mode === 'save'
-							? replacing && !nameIssue
-								? t.dialog.replace
-								: t.dialog.save
-							: selected.length > 1
-								? t.dialog.openCount(selected.length)
-								: t.dialog.open}
+					<button
+						class={['btn', replacing && !nameIssue && !markedFolder ? 'btn-warning' : 'btn-primary']}
+						disabled={!canConfirm}
+						onclick={confirm}
+					>
+						{markedFolder
+							? t.dialog.open
+							: options.mode === 'save'
+								? replacing && !nameIssue
+									? t.dialog.replace
+									: t.dialog.save
+								: selected.length > 1
+									? t.dialog.openCount(selected.length)
+									: t.dialog.open}
 					</button>
 				</div>
 			</div>

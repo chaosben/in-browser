@@ -89,7 +89,6 @@
 				seconds: (performance.now() - started) / 1000
 			};
 			phase = 'done';
-			download();
 		} catch (e) {
 			phase = 'settings';
 			if (!(e instanceof ExportCanceledError)) error = errorMessage(e);
@@ -200,9 +199,15 @@
 			{#if unsupported}<div role="alert" class="alert alert-warning mt-3">{unsupported}</div>{/if}
 			{#if error}<div role="alert" class="alert alert-error mt-3">{error}</div>{/if}
 
-			<div class="modal-action">
-				<button class="btn btn-ghost" onclick={close}>{m.common.close}</button>
-				<button class="btn btn-primary" onclick={run} disabled={!!unsupported || total === 0}><span class="icon-[material-symbols-light--ios-share] size-5" aria-hidden="true"></span> {m.export.export}</button>
+			<div class={['modal-action', result && 'justify-between']}>
+				<!-- The finished video stays until a new export succeeds or the dialog closes -->
+				{#if result}
+					<button class="btn btn-ghost" onclick={() => (phase = 'done')}><span class="icon-[material-symbols-light--arrow-back] size-5" aria-hidden="true"></span> {m.export.backToResult}</button>
+				{/if}
+				<div class="flex gap-2">
+					<button class="btn btn-ghost" onclick={close}>{m.common.close}</button>
+					<button class="btn btn-primary" onclick={run} disabled={!!unsupported || total === 0}><span class="icon-[material-symbols-light--ios-share] size-5" aria-hidden="true"></span> {m.export.export}</button>
+				</div>
 			</div>
 		{:else if phase === 'running'}
 			<div class="flex flex-col gap-3 py-6">
@@ -222,12 +227,15 @@
 				<p class="text-sm">
 					<strong>{result.name}</strong> · {formatBytes(result.size)} · {m.export.renderedIn(formatTime(result.seconds, 0))}
 				</p>
+				<!-- What to do with the video: the two actions in full width -->
+				<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<button class="btn btn-primary" onclick={download}><span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.export.download}</button>
+					<button class="btn" onclick={saveToFiles}><span class="icon-[material-symbols-light--save-outline] size-5" aria-hidden="true"></span> {m.export.saveToFiles}</button>
+				</div>
 			</div>
-			<div class="modal-action">
-				<button class="btn btn-ghost" onclick={() => (phase = 'settings')}>{m.export.otherSettings}</button>
-				<button class="btn" onclick={saveToFiles}><span class="icon-[material-symbols-light--save-outline] size-5" aria-hidden="true"></span> {m.export.saveToFiles}</button>
-				<button class="btn" onclick={download}><span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.export.downloadAgain}</button>
-				<button class="btn btn-primary" onclick={close}>{m.common.done}</button>
+			<div class="modal-action justify-between">
+				<button class="btn btn-ghost" onclick={() => (phase = 'settings')}><span class="icon-[material-symbols-light--tune] size-5" aria-hidden="true"></span> {m.export.otherSettings}</button>
+				<button class="btn" onclick={close}>{m.common.done}</button>
 			</div>
 		{/if}
 	</div>

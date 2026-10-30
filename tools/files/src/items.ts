@@ -2,6 +2,8 @@ import type { Entry } from '@in-browser/files/fs.js';
 import { formatsOf, type Format } from '@in-browser/files/formats.js';
 import { extname } from '@in-browser/files/path.js';
 
+export { previewKind, type PreviewKind } from '@in-browser/files/kinds.js';
+
 // What Files shows per entry: plain folder, package of a tool (shown like a file), or file with a preview kind.
 
 export interface Item extends Entry {
@@ -14,23 +16,6 @@ export interface Item extends Entry {
 export function toItem(entry: Entry): Item {
 	const formats = formatsOf(entry.name, entry.kind);
 	return { ...entry, folder: entry.kind === 'directory' && formats.length === 0, formats };
-}
-
-export type PreviewKind = 'image' | 'video' | 'audio' | 'text' | null;
-
-const PREVIEW: Record<Exclude<PreviewKind, null>, string[]> = {
-	// SVG only ever as <img>: scripts in it do not run there
-	image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.ico', '.svg'],
-	video: ['.mp4', '.webm', '.mov', '.m4v', '.mkv', '.ogv'],
-	audio: ['.mp3', '.wav', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.flac'],
-	text: ['.txt', '.md', '.json', '.csv', '.tsv', '.log', '.xml', '.yml', '.yaml', '.ini', '.toml', '.html', '.css', '.js', '.ts', '.svelte', '.py', '.sh']
-};
-
-/** How a file can be previewed in Files; `null`: no preview */
-export function previewKind(name: string): PreviewKind {
-	const ext = extname(name);
-	for (const [kind, exts] of Object.entries(PREVIEW)) if (exts.includes(ext)) return kind as PreviewKind;
-	return null;
 }
 
 export type SortKey = 'name' | 'kind' | 'size' | 'modified';

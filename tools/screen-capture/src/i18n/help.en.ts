@@ -591,7 +591,7 @@ const help = {
 				},
 				running: {
 					title: 'During the export',
-					text: 'Keep the tab open; the export runs in this tab. When it is done, the download starts automatically – “Download again” gets the file once more, “Save in Files …” keeps the video in the browser storage (next to the project by default); pick an existing video and click “Replace” to overwrite it. Hidden tracks are left out, muted tracks have no sound.'
+					text: 'Keep the tab open; the export runs in this tab. When it is done, you choose: “Download” saves the file through the browser, “Save in Files …” keeps the video in the browser storage (next to the project by default); pick an existing video and click “Replace” to overwrite it. After “Other settings”, “Back to result” returns to the finished video as long as the dialog is open. Hidden tracks are left out, muted tracks have no sound.'
 				}
 			}
 		},
