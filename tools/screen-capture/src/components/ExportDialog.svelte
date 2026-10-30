@@ -2,7 +2,13 @@
 	import { checkEncodable, ExportCanceledError, exportProject } from '#lib/export/exporter.js';
 	import {
 		estimateBytes,
+		fitToProject,
 		formatBytes,
+		FORMATS,
+		GIF_FRAME_RATES,
+		GIF_WIDTHS,
+		gifIsLarge,
+		gifSize,
 		loadSettings,
 		outputSize,
 		QUALITY_LABELS,
@@ -28,7 +34,9 @@
 
 	let { project, onclose }: Props = $props();
 
-	let settings = $state(loadSettings());
+	// The dialog is opened for one project
+	// svelte-ignore state_referenced_locally
+	let settings = $state(fitToProject(loadSettings(), project.width, project.height));
 	let phase = $state<'settings' | 'running' | 'done'>('settings');
 	let progress = $state(0);
 	let finalizing = $state(false);
@@ -39,10 +47,14 @@
 	let dialog: HTMLDialogElement;
 
 	const total = $derived(duration(project.timeline));
-	const size = $derived(outputSize(settings, project.width, project.height));
+	const isGif = $derived(settings.format === 'gif');
+	const size = $derived(
+		isGif ? gifSize(settings, project.width, project.height) : outputSize(settings, project.width, project.height)
+	);
 	const bitrate = $derived(videoBitrate(settings, size.width, size.height));
 	const estimate = $derived(estimateBytes(settings, size.width, size.height, total));
 	const resolutions = $derived(RESOLUTIONS.filter((h) => h < project.height));
+	const gifWidths = $derived(GIF_WIDTHS.filter((w) => w < project.width));
 	const hasAudio = $derived(project.sources.some((s) => s.hasAudio));
 
 	$effect(() => {
@@ -97,13 +109,13 @@
 		}
 	}
 
-	/** Keeps the video in the shared file system (next to the project by default) */
+	/** Keeps the file in the shared file system (next to the project by default) */
 	async function saveToFiles() {
 		if (!result) return;
 		const path = await chooseFile({
 			mode: 'save',
 			folder: parent(project.id),
-			accept: ['.mp4'],
+			accept: [`.${result.name.split('.').pop()}`],
 			name: result.name,
 			overwrite: true
 		});
@@ -137,70 +149,112 @@
 
 		{#if phase === 'settings'}
 			<fieldset class="fieldset mt-2 grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3">
-				<span class="label">{m.export.resolution}</span>
-				<select class="select select-sm" bind:value={settings.height}>
-					<option value={0}>{m.export.original(project.width, project.height)}</option>
-					{#each resolutions as h (h)}
-						<option value={h}>{h}p</option>
-					{/each}
-				</select>
-
-				<span class="label">{m.export.quality}</span>
+				<span class="label">{m.export.format}</span>
 				<div class="join">
-					{#each Object.entries(QUALITY_LABELS) as [value, label] (value)}
+					{#each FORMATS as format (format)}
 						<input
 							class="join-item btn btn-sm"
 							type="radio"
-							name="quality"
-							aria-label={label}
-							value={value}
-							checked={settings.quality === value}
-							onchange={() => (settings.quality = value as QualityPreset)}
+							name="format"
+							aria-label={m.export.formats[format]}
+							value={format}
+							bind:group={settings.format}
 						/>
 					{/each}
 				</div>
 
-				{#if settings.quality === 'custom'}
-					<span class="label">{m.export.bitrate}</span>
-					<label class="input input-sm w-40">
-						<input type="number" min="0.2" max="100" step="0.1" bind:value={settings.customMbps} />
-						<span class="label">Mbit/s</span>
+				{#if isGif}
+					<span class="label">{m.export.width}</span>
+					<select class="select select-sm" bind:value={settings.gifWidth}>
+						<option value={0}>{m.export.original(project.width, project.height)}</option>
+						{#each gifWidths as w (w)}
+							<option value={w}>{w} px</option>
+						{/each}
+					</select>
+
+					<span class="label">{m.export.frameRate}</span>
+					<select class="select select-sm" bind:value={settings.gifFps}>
+						{#each GIF_FRAME_RATES as fps (fps)}
+							<option value={fps}>{fps} fps</option>
+						{/each}
+					</select>
+
+					<span></span>
+					<label class="label">
+						<input type="checkbox" class="checkbox checkbox-sm" bind:checked={settings.gifLoop} />
+						{m.export.loop}
 					</label>
+				{:else}
+					<span class="label">{m.export.resolution}</span>
+					<select class="select select-sm" bind:value={settings.height}>
+						<option value={0}>{m.export.original(project.width, project.height)}</option>
+						{#each resolutions as h (h)}
+							<option value={h}>{h}p</option>
+						{/each}
+					</select>
+
+					<span class="label">{m.export.quality}</span>
+					<div class="join">
+						{#each Object.entries(QUALITY_LABELS) as [value, label] (value)}
+							<input
+								class="join-item btn btn-sm"
+								type="radio"
+								name="quality"
+								aria-label={label}
+								value={value}
+								checked={settings.quality === value}
+								onchange={() => (settings.quality = value as QualityPreset)}
+							/>
+						{/each}
+					</div>
+
+					{#if settings.quality === 'custom'}
+						<span class="label">{m.export.bitrate}</span>
+						<label class="input input-sm w-40">
+							<input type="number" min="0.2" max="100" step="0.1" bind:value={settings.customMbps} />
+							<span class="label">Mbit/s</span>
+						</label>
+					{/if}
+
+					<span class="label">{m.export.frameRate}</span>
+					<select class="select select-sm" bind:value={settings.fps}>
+						{#each [15, 24, 30, 60] as fps (fps)}
+							<option value={fps}>{fps} fps</option>
+						{/each}
+					</select>
+
+					<span class="label">{m.export.audio}</span>
+					<select class="select select-sm" bind:value={settings.audioKbps} disabled={!hasAudio}>
+						<option value={0}>{m.export.noAudio}</option>
+						<option value={96}>96 kbit/s</option>
+						<option value={128}>128 kbit/s</option>
+						<option value={192}>192 kbit/s</option>
+						<option value={256}>256 kbit/s</option>
+					</select>
 				{/if}
-
-				<span class="label">{m.export.frameRate}</span>
-				<select class="select select-sm" bind:value={settings.fps}>
-					{#each [15, 24, 30, 60] as fps (fps)}
-						<option value={fps}>{fps} fps</option>
-					{/each}
-				</select>
-
-				<span class="label">{m.export.audio}</span>
-				<select class="select select-sm" bind:value={settings.audioKbps} disabled={!hasAudio}>
-					<option value={0}>{m.export.noAudio}</option>
-					<option value={96}>96 kbit/s</option>
-					<option value={128}>128 kbit/s</option>
-					<option value={192}>192 kbit/s</option>
-					<option value={256}>256 kbit/s</option>
-				</select>
 			</fieldset>
 
 			<div class="bg-base-200 rounded-box mt-4 grid grid-cols-2 gap-1 p-3 text-sm">
 				<span class="opacity-70">{m.export.output}</span>
-				<span>{size.width}×{size.height}, MP4</span>
+				<span>{size.width}×{size.height}, {m.export.formats[settings.format]}</span>
 				<span class="opacity-70">{m.export.duration}</span>
 				<span>{formatTime(total)}</span>
-				<span class="opacity-70">{m.export.videoBitrate}</span>
-				<span>{(bitrate / 1_000_000).toFixed(1)} Mbit/s</span>
-				<span class="opacity-70">{m.export.estimatedSize}</span>
-				<span class="font-semibold">≈ {formatBytes(estimate)}</span>
+				{#if isGif}
+					<span class="col-span-2 mt-1 opacity-70">{m.export.gifNote}</span>
+				{:else}
+					<span class="opacity-70">{m.export.videoBitrate}</span>
+					<span>{(bitrate / 1_000_000).toFixed(1)} Mbit/s</span>
+					<span class="opacity-70">{m.export.estimatedSize}</span>
+					<span class="font-semibold">≈ {formatBytes(estimate)}</span>
+				{/if}
 			</div>
 
+			{#if isGif && gifIsLarge(size.width, size.height, total)}<div role="alert" class="alert alert-warning mt-3">{m.export.gifLarge}</div>{/if}
 			{#if unsupported}<div role="alert" class="alert alert-warning mt-3">{unsupported}</div>{/if}
 			{#if error}<div role="alert" class="alert alert-error mt-3">{error}</div>{/if}
 
 			<div class={['modal-action', result && 'justify-between']}>
-				<!-- The finished video stays until a new export succeeds or the dialog closes -->
+				<!-- The finished file stays until a new export succeeds or the dialog closes -->
 				{#if result}
 					<button class="btn btn-ghost" onclick={() => (phase = 'done')}><span class="icon-[material-symbols-light--arrow-back] size-5" aria-hidden="true"></span> {m.export.backToResult}</button>
 				{/if}
@@ -213,7 +267,7 @@
 			<div class="flex flex-col gap-3 py-6">
 				<progress class="progress progress-primary w-full" value={progress} max="1"></progress>
 				<div class="flex justify-between text-sm">
-					<span>{finalizing ? m.export.finalizing : m.export.rendering}</span>
+					<span>{finalizing ? m.export.finalizing : isGif ? m.export.renderingGif : m.export.rendering}</span>
 					<span class="tabular-nums">{Math.round(progress * 100)} %</span>
 				</div>
 				<p class="text-xs opacity-60">{m.export.keepTabOpen}</p>
@@ -227,7 +281,7 @@
 				<p class="text-sm">
 					<strong>{result.name}</strong> · {formatBytes(result.size)} · {m.export.renderedIn(formatTime(result.seconds, 0))}
 				</p>
-				<!-- What to do with the video: the two actions in full width -->
+				<!-- What to do with the file: the two actions in full width -->
 				<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
 					<button class="btn btn-primary" onclick={download}><span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span> {m.export.download}</button>
 					<button class="btn" onclick={saveToFiles}><span class="icon-[material-symbols-light--save-outline] size-5" aria-hidden="true"></span> {m.export.saveToFiles}</button>

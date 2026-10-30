@@ -556,16 +556,26 @@ const help = {
 			items: {
 				start: {
 					title: 'Starting the export',
-					text: '“Export” sits right next to the project name at the top (on narrow windows in the menu at the project name). It opens the export settings; the video is only rendered when you start it there. While the project is empty, it is grayed out.'
+					text: '“Export” sits right next to the project name at the top (on narrow windows in the menu at the project name). It opens the export settings; the file is only rendered when you start it there. While the project is empty, it is grayed out.'
+				},
+				format: {
+					title: 'Format',
+					text: 'At the top of the export settings. The settings below change with the format.',
+					options: {
+						mp4: { label: 'MP4 (default)', text: 'Video with sound that plays almost everywhere: browsers, phones, video platforms, presentation programs.' },
+						webm: { label: 'WebM', text: 'Open video format with sound (VP9 or AV1, Opus). Often a bit smaller at the same quality; plays in every browser, but not in every other program.' },
+						gif: { label: 'GIF', text: 'Animated picture without sound that plays everywhere right away and endlessly – also where videos don’t play automatically. Only 256 colors per frame and large files for longer clips.' }
+					},
+					tip: 'Take MP4 for everything with sound or longer than half a minute. GIF suits short, silent demos for READMEs, tickets, wikis and chats. WebM if the video is meant for the web and should be as small as possible.'
 				},
 				resolution: {
 					title: 'Resolution',
-					text: '“Original” is the canvas size. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',
+					text: 'MP4 and WebM. “Original” is the canvas size. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',
 					tip: 'Keep “Original” unless the file has to be smaller: 1080p is enough for almost every website, 720p for e-mail and chat.'
 				},
 				quality: {
 					title: 'Quality',
-					text: 'The data rate of the video. The numbers are for 1080p at 30 fps; smaller resolutions need proportionally less.',
+					text: 'MP4 and WebM. The data rate of the video. The numbers are for 1080p at 30 fps; smaller resolutions need proportionally less.',
 					options: {
 						low: { label: 'Low', text: 'About 2.5 Mbit/s – small files, visible loss with movement and fine text.' },
 						medium: { label: 'Medium', text: 'About 4.4 Mbit/s – fine for slides and calm screen work.' },
@@ -577,25 +587,43 @@ const help = {
 				},
 				frameRate: {
 					title: 'Frame rate',
-					text: '15, 24, 30 or 60 pictures per second. 60 fps needs about 1.5 times the data.',
+					text: 'MP4 and WebM: 15, 24, 30 or 60 pictures per second. 60 fps needs about 1.5 times the data.',
 					tip: 'Use the frame rate you recorded with (usually 30). 15 is enough for pure slide shows; 24 gives a film look.'
 				},
 				audio: {
 					title: 'Audio',
-					text: 'Data rate of the sound, or “No audio”.',
+					text: 'MP4 and WebM. Data rate of the sound, or “No audio”.',
 					tip: '128 kbit/s is enough for speech, 192 (default) is safe for everything, 256 for music.'
 				},
 				estimate: {
 					title: 'Estimated size',
-					text: 'Calculated from the data rates and the duration. The real file is often smaller, especially with calm screen content.'
+					text: 'Calculated from the data rates and the duration. The real file is often smaller, especially with calm screen content. For GIF there is no estimate, because its size depends almost entirely on the content.'
+				},
+				gifWidth: {
+					title: 'GIF: width',
+					text: 'Width of the GIF in pixels (800 px by default); the height follows the canvas. Here too, nothing is enlarged.',
+					tip: 'Keep 800 px for READMEs and tickets; take 1024 or 1280 px only if small text must stay readable – every step makes the file noticeably larger.'
+				},
+				gifFrameRate: {
+					title: 'GIF: frame rate',
+					text: '10, 15 (default), 20 or 25 pictures per second. Pictures that don’t change are merged, so still images cost almost nothing; more pictures per second only cost where something moves.',
+					tip: '10 is enough for clicks and typing, 15 looks smooth for mouse movements, 20–25 only for scrolling and animations.'
+				},
+				gifLoop: {
+					title: 'GIF: repeat endlessly',
+					text: 'On (default): the GIF starts over at the end. Off: it plays once and stops on the last picture.'
+				},
+				gifLimits: {
+					title: 'GIF: limits',
+					text: 'A GIF has no sound and only 256 colors per picture. Screen content (text, flat areas) looks clean; camera pictures, color gradients, blur and fades get grainy and large. For long or large GIFs (over 30 seconds or larger than 1280×720) the export settings show a warning.'
 				},
 				compatibility: {
 					title: 'Compatibility',
-					text: 'The result is an MP4 with H.264 video and AAC audio, which plays almost everywhere. If your browser cannot encode H.264 at that size, it uses VP9 or AV1 – those don’t play on every device. If even that fails, a hint asks for a smaller resolution.'
+					text: 'MP4 contains H.264 video and AAC audio, which plays almost everywhere. If your browser cannot encode H.264 at that size, it uses VP9 or AV1 – those don’t play on every device. WebM contains VP9 (otherwise AV1 or VP8) and Opus audio. If the browser can’t encode the video at all, a hint asks for a smaller resolution. GIF works in every browser.'
 				},
 				running: {
 					title: 'During the export',
-					text: 'Keep the tab open; the export runs in this tab. When it is done, you choose: “Download” saves the file through the browser, “Save in Files …” keeps the video in the browser storage (next to the project by default); pick an existing video and click “Replace” to overwrite it. After “Other settings”, “Back to result” returns to the finished video as long as the dialog is open. Hidden tracks are left out, muted tracks have no sound.'
+					text: 'Keep the tab open; the export runs in this tab. When it is done, you choose: “Download” saves the file through the browser, “Save in Files …” keeps the file in the browser storage (next to the project by default); pick an existing file and click “Replace” to overwrite it. After “Other settings”, “Back to result” returns to the finished file as long as the dialog is open. Hidden tracks are left out, muted tracks have no sound.'
 				}
 			}
 		},

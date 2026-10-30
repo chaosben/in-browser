@@ -1,8 +1,11 @@
+import type { AudioCodec, VideoCodec } from 'mediabunny';
 import { m } from '#lib/i18n/index.js';
 
+export type ExportFormat = 'mp4' | 'webm' | 'gif';
 export type QualityPreset = 'low' | 'medium' | 'high' | 'very-high' | 'custom';
 
 export interface ExportSettings {
+	format: ExportFormat;
 	/** Target height in pixels, `0` = original project resolution. */
 	height: number;
 	fps: 15 | 24 | 30 | 60;
@@ -11,17 +14,38 @@ export interface ExportSettings {
 	customMbps: number;
 	/** Audio bitrate in kbit/s, `0` = no audio. */
 	audioKbps: 0 | 96 | 128 | 192 | 256;
+	/** GIF only: maximum width in pixels, `0` = original project resolution. */
+	gifWidth: number;
+	gifFps: 10 | 15 | 20 | 25;
+	gifLoop: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExportSettings = {
+	format: 'mp4',
 	height: 0,
 	fps: 30,
 	quality: 'high',
 	customMbps: 8,
-	audioKbps: 192
+	audioKbps: 192,
+	gifWidth: 800,
+	gifFps: 15,
+	gifLoop: true
 };
 
+export const FORMATS: readonly ExportFormat[] = ['mp4', 'webm', 'gif'];
 export const RESOLUTIONS = [2160, 1440, 1080, 720, 480] as const;
+export const GIF_WIDTHS = [1280, 1024, 800, 640, 480] as const;
+export const GIF_FRAME_RATES = [10, 15, 20, 25] as const;
+
+/** Codecs per container, in order of preference */
+export const VIDEO_CODECS: Record<Exclude<ExportFormat, 'gif'>, VideoCodec[]> = {
+	mp4: ['avc', 'vp9', 'av1'],
+	webm: ['vp9', 'av1', 'vp8']
+};
+export const AUDIO_CODECS: Record<Exclude<ExportFormat, 'gif'>, AudioCodec[]> = {
+	mp4: ['aac', 'opus'],
+	webm: ['opus', 'vorbis']
+};
 
 export const QUALITY_LABELS: Record<QualityPreset, string> = m.export.qualities;
 
@@ -44,6 +68,34 @@ export function outputSize(
 	const width = (projectWidth / projectHeight) * height;
 	const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 	return { width: even(width), height: even(height) };
+}
+
+/** Sizes the project doesn't offer (not smaller than the original) become "original". */
+export function fitToProject(settings: ExportSettings, projectWidth: number, projectHeight: number): ExportSettings {
+	return {
+		...settings,
+		height: settings.height < projectHeight ? settings.height : 0,
+		gifWidth: settings.gifWidth < projectWidth ? settings.gifWidth : 0
+	};
+}
+
+/** GIF output size: limited width, same aspect ratio, never upscaled. */
+export function gifSize(settings: Pick<ExportSettings, 'gifWidth'>, projectWidth: number, projectHeight: number) {
+	const width = settings.gifWidth > 0 ? Math.min(settings.gifWidth, projectWidth) : projectWidth;
+	return { width, height: Math.max(1, Math.round((projectHeight / projectWidth) * width)) };
+}
+
+/** GIFs grow quickly: long or large ones are better exported as video. */
+export function gifIsLarge(width: number, height: number, seconds: number): boolean {
+	return seconds > 30 || width * height > 1280 * 720;
+}
+
+/**
+ * Display time of frame `k` in 1/100 s (the unit of GIF). Rounded cumulatively, so frame rates
+ * that don't divide 100 (e.g. 15 fps) keep the right speed overall.
+ */
+export function frameDelay(k: number, fps: number): number {
+	return Math.round(((k + 1) * 100) / fps) - Math.round((k * 100) / fps);
 }
 
 export function videoBitrate(settings: ExportSettings, width: number, height: number): number {

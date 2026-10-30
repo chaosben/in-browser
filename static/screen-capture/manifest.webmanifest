@@ -2,7 +2,7 @@
 	"id": "/screen-capture",
 	"name": "Screen Capture – in-browser",
 	"short_name": "Screen Capture",
-	"description": "Record your screen, edit it and export it as MP4 – entirely in the browser.",
+	"description": "Record your screen, edit it and export it as MP4, WebM or GIF – entirely in the browser.",
 	"start_url": "/screen-capture",
 	"scope": "/screen-capture",
 	"display": "standalone",

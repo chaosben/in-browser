@@ -58,13 +58,13 @@ const de: Messages = {
 		screenCapture: {
 			name: 'Screen Capture',
 			description:
-				'Bildschirm aufnehmen, auf mehreren Spuren bearbeiten und als MP4 exportieren – wie ein kleines Camtasia im Browser.',
+				'Bildschirm aufnehmen, auf mehreren Spuren bearbeiten und als MP4, WebM oder GIF exportieren – wie ein kleines Camtasia im Browser.',
 			features: [
 				'Bildschirm, Webcam und Mikrofon gleichzeitig aufnehmen – als verknüpfte, getrennte Spuren',
 				'Bearbeiten auf mehreren Spuren: Bild im Bild, Musik und Sprecher mit eigener Lautstärke',
 				'Schneiden, Standbilder und Pan & Zoom – synchron über alle Spuren',
 				'Pfeile, Rahmen, Text, Textmarker, Spotlight und Weichzeichner',
-				'Export als MP4 in wählbarer Auflösung und Qualität'
+				'Export als MP4 oder WebM in wählbarer Auflösung und Qualität oder als GIF'
 			]
 		},
 		files: {

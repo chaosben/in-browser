@@ -534,16 +534,26 @@ const help: typeof enHelp = {
 			items: {
 				start: {
 					title: 'Export starten',
-					text: '„Exportieren“ steht oben direkt neben dem Projektnamen (in schmalen Fenstern im Menü am Projektnamen). Es öffnet die Einstellungen für den Export; das Video wird erst berechnet, wenn du es dort startest. Solange das Projekt leer ist, ist es ausgegraut.'
+					text: '„Exportieren“ steht oben direkt neben dem Projektnamen (in schmalen Fenstern im Menü am Projektnamen). Es öffnet die Einstellungen für den Export; die Datei wird erst berechnet, wenn du den Export dort startest. Solange das Projekt leer ist, ist es ausgegraut.'
+				},
+				format: {
+					title: 'Format',
+					text: 'Ganz oben in den Export-Einstellungen. Die Einstellungen darunter wechseln mit dem Format.',
+					options: {
+						mp4: { label: 'MP4 (Standard)', text: 'Video mit Ton, das fast überall läuft: Browser, Smartphones, Videoplattformen, Präsentationsprogramme.' },
+						webm: { label: 'WebM', text: 'Offenes Videoformat mit Ton (VP9 oder AV1, Opus). Bei gleicher Qualität oft etwas kleiner; läuft in jedem Browser, aber nicht in jedem anderen Programm.' },
+						gif: { label: 'GIF', text: 'Bewegtes Bild ohne Ton, das überall sofort und endlos abspielt – auch dort, wo Videos nicht von selbst starten. Nur 256 Farben pro Bild und große Dateien bei längeren Ausschnitten.' }
+					},
+					tip: 'Nimm MP4 für alles mit Ton oder länger als eine halbe Minute. GIF passt für kurze, stumme Demos in READMEs, Tickets, Wikis und Chats. WebM, wenn das Video fürs Web gedacht ist und möglichst klein sein soll.'
 				},
 				resolution: {
 					title: 'Auflösung',
-					text: '„Original“ ist die Leinwandgröße. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',
+					text: 'MP4 und WebM. „Original“ ist die Leinwandgröße. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',
 					tip: 'Bleib bei „Original“, außer die Datei soll kleiner werden: 1080p reicht für fast jede Website, 720p für E-Mail und Chat.'
 				},
 				quality: {
 					title: 'Qualität',
-					text: 'Die Datenrate des Videos. Die Werte gelten für 1080p bei 30 fps; kleinere Auflösungen brauchen entsprechend weniger.',
+					text: 'MP4 und WebM. Die Datenrate des Videos. Die Werte gelten für 1080p bei 30 fps; kleinere Auflösungen brauchen entsprechend weniger.',
 					options: {
 						low: { label: 'Niedrig', text: 'Etwa 2,5 Mbit/s – kleine Dateien, sichtbarer Verlust bei Bewegung und feiner Schrift.' },
 						medium: { label: 'Mittel', text: 'Etwa 4,4 Mbit/s – gut für Folien und ruhige Bildschirmarbeit.' },
@@ -555,25 +565,43 @@ const help: typeof enHelp = {
 				},
 				frameRate: {
 					title: 'Bildrate',
-					text: '15, 24, 30 oder 60 Bilder pro Sekunde. 60 fps brauchen etwa 1,5-mal so viele Daten.',
+					text: 'MP4 und WebM: 15, 24, 30 oder 60 Bilder pro Sekunde. 60 fps brauchen etwa 1,5-mal so viele Daten.',
 					tip: 'Nimm die Bildrate, mit der du aufgenommen hast (meist 30). 15 genügt für reine Folienvideos; 24 wirkt wie Kino.'
 				},
 				audio: {
 					title: 'Ton',
-					text: 'Datenrate des Tons oder „Ohne Ton“.',
+					text: 'MP4 und WebM. Datenrate des Tons oder „Ohne Ton“.',
 					tip: '128 kbit/s reichen für Sprache, 192 (Standard) ist für alles sicher, 256 für Musik.'
 				},
 				estimate: {
 					title: 'Geschätzte Größe',
-					text: 'Berechnet aus den Datenraten und der Dauer. Die echte Datei ist oft kleiner, vor allem bei ruhigen Bildschirminhalten.'
+					text: 'Berechnet aus den Datenraten und der Dauer. Die echte Datei ist oft kleiner, vor allem bei ruhigen Bildschirminhalten. Für GIF gibt es keine Schätzung, weil seine Größe fast nur vom Inhalt abhängt.'
+				},
+				gifWidth: {
+					title: 'GIF: Breite',
+					text: 'Breite des GIFs in Pixeln (standardmäßig 800 px); die Höhe folgt der Leinwand. Auch hier wird nichts vergrößert.',
+					tip: 'Bleib bei 800 px für READMEs und Tickets; nimm 1024 oder 1280 px nur, wenn kleine Schrift lesbar bleiben muss – jede Stufe macht die Datei spürbar größer.'
+				},
+				gifFrameRate: {
+					title: 'GIF: Bildrate',
+					text: '10, 15 (Standard), 20 oder 25 Bilder pro Sekunde. Bilder, die sich nicht ändern, werden zusammengefasst, Standbilder kosten also fast nichts; mehr Bilder pro Sekunde kosten nur dort, wo sich etwas bewegt.',
+					tip: '10 reicht für Klicks und Tippen, 15 wirkt bei Mausbewegungen flüssig, 20–25 nur für Scrollen und Animationen.'
+				},
+				gifLoop: {
+					title: 'GIF: Endlos wiederholen',
+					text: 'An (Standard): Das GIF beginnt am Ende von vorn. Aus: Es läuft einmal und bleibt auf dem letzten Bild stehen.'
+				},
+				gifLimits: {
+					title: 'GIF: Grenzen',
+					text: 'Ein GIF hat keinen Ton und nur 256 Farben pro Bild. Bildschirminhalte (Schrift, Flächen) sehen sauber aus; Kamerabilder, Farbverläufe, Unschärfe und Überblendungen werden körnig und groß. Bei langen oder großen GIFs (über 30 Sekunden oder größer als 1280×720) zeigen die Export-Einstellungen eine Warnung.'
 				},
 				compatibility: {
 					title: 'Kompatibilität',
-					text: 'Heraus kommt eine MP4 mit H.264-Video und AAC-Ton, die fast überall läuft. Kann dein Browser H.264 in dieser Größe nicht kodieren, nimmt er VP9 oder AV1 – das spielt nicht jedes Gerät ab. Klappt auch das nicht, bittet ein Hinweis um eine kleinere Auflösung.'
+					text: 'MP4 enthält H.264-Video und AAC-Ton, das läuft fast überall. Kann dein Browser H.264 in dieser Größe nicht kodieren, nimmt er VP9 oder AV1 – das spielt nicht jedes Gerät ab. WebM enthält VP9 (sonst AV1 oder VP8) und Opus-Ton. Kann der Browser das Video gar nicht kodieren, bittet ein Hinweis um eine kleinere Auflösung. GIF klappt in jedem Browser.'
 				},
 				running: {
 					title: 'Während des Exports',
-					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Files speichern …“ legt das Video im Browserspeicher ab (standardmäßig neben dem Projekt); wähle ein bestehendes Video und klicke „Ersetzen“, um es zu überschreiben. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zum fertigen Video, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
+					text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Files speichern …“ legt die Datei im Browserspeicher ab (standardmäßig neben dem Projekt); wähle eine bestehende Datei und klicke „Ersetzen“, um sie zu überschreiben. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zur fertigen Datei, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
 				}
 			}
 		},

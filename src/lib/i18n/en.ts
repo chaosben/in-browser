@@ -59,13 +59,13 @@ const en = {
 		screenCapture: {
 			name: 'Screen Capture',
 			description:
-				'Record your screen, edit it on multiple tracks and export it as MP4 – like a small Camtasia in your browser.',
+				'Record your screen, edit it on multiple tracks and export it as MP4, WebM or GIF – like a small Camtasia in your browser.',
 			features: [
 				'Record screen, webcam and microphone at once – as linked, separate tracks',
 				'Multi-track editing: picture in picture, music and voice-over with their own volume',
 				'Cut, still frames and pan & zoom that stay in sync across all tracks',
 				'Arrows, frames, text, highlighter, spotlight and blur',
-				'Export as MP4 in your choice of resolution and quality'
+				'Export as MP4 or WebM in your choice of resolution and quality, or as GIF'
 			]
 		},
 		files: {

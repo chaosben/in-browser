@@ -19,6 +19,8 @@ function commit() {
 // unknown paths get the shell 404.html (see wrangler.jsonc).
 export default defineConfig(({ command }) => ({
 	define: { __COMMIT__: JSON.stringify(command === 'build' ? commit() : 'dev') },
+	// Workers of tools and packages (`new URL(…, import.meta.url)`) are requested as files via /@fs/
+	server: { fs: { allow: ['tools', 'packages'] } },
 	plugins: [
 		tailwindcss(),
 		sveltekit({

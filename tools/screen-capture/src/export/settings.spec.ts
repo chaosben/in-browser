@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, estimateBytes, outputSize, videoBitrate } from './settings';
+import {
+	DEFAULT_SETTINGS,
+	estimateBytes,
+	fitToProject,
+	frameDelay,
+	gifIsLarge,
+	gifSize,
+	outputSize,
+	videoBitrate
+} from './settings';
 
 describe('outputSize', () => {
 	it('keeps the original at height 0', () => {
@@ -29,5 +38,46 @@ describe('videoBitrate / estimateBytes', () => {
 	it('estimates the file size', () => {
 		const s = { ...DEFAULT_SETTINGS, quality: 'custom' as const, customMbps: 8, audioKbps: 0 as const };
 		expect(estimateBytes(s, 1920, 1080, 10)).toBe(10_000_000);
+	});
+});
+
+describe('gifSize', () => {
+	it('limits the width and keeps the aspect ratio', () => {
+		expect(gifSize({ gifWidth: 800 }, 1920, 1080)).toEqual({ width: 800, height: 450 });
+	});
+	it('keeps the original at width 0 and never scales up', () => {
+		expect(gifSize({ gifWidth: 0 }, 1366, 768)).toEqual({ width: 1366, height: 768 });
+		expect(gifSize({ gifWidth: 1280 }, 640, 360)).toEqual({ width: 640, height: 360 });
+	});
+});
+
+describe('gifIsLarge', () => {
+	it('warns for long or large GIFs', () => {
+		expect(gifIsLarge(800, 450, 10)).toBe(false);
+		expect(gifIsLarge(800, 450, 31)).toBe(true);
+		expect(gifIsLarge(1920, 1080, 5)).toBe(true);
+	});
+});
+
+describe('frameDelay', () => {
+	it('is exact where 100 is divisible by the frame rate', () => {
+		expect([0, 1, 2].map((k) => frameDelay(k, 10))).toEqual([10, 10, 10]);
+		expect([0, 1, 2].map((k) => frameDelay(k, 25))).toEqual([4, 4, 4]);
+	});
+	it('keeps the overall speed at 15 fps', () => {
+		const delays = Array.from({ length: 15 }, (_, k) => frameDelay(k, 15));
+		expect(delays.reduce((a, b) => a + b)).toBe(100);
+		expect(new Set(delays)).toEqual(new Set([6, 7]));
+	});
+});
+
+describe('fitToProject', () => {
+	it('turns sizes not smaller than the project into the original', () => {
+		const fitted = fitToProject({ ...DEFAULT_SETTINGS, height: 1080, gifWidth: 800 }, 640, 360);
+		expect(fitted).toMatchObject({ height: 0, gifWidth: 0 });
+	});
+	it('keeps smaller sizes', () => {
+		const fitted = fitToProject({ ...DEFAULT_SETTINGS, height: 720, gifWidth: 800 }, 1920, 1080);
+		expect(fitted).toMatchObject({ height: 720, gifWidth: 800 });
 	});
 });

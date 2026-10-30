@@ -22,11 +22,11 @@ const de: Messages = {
 		partOf: 'Teil von',
 		suiteClaim: 'Werkzeuge, die komplett im Browser laufen',
 		description:
-			'Bildschirm aufnehmen, mit Markierungen, Text, Standbildern und Zoom bearbeiten und als MP4 exportieren – kostenlos und komplett im Browser.'
+			'Bildschirm aufnehmen, mit Markierungen, Text, Standbildern und Zoom bearbeiten und als MP4, WebM oder GIF exportieren – kostenlos und komplett im Browser.'
 	},
 
 	home: {
-		tagline: 'Bildschirm aufnehmen, schneiden und als MP4 exportieren – komplett im Browser, nichts verlässt deinen Rechner.',
+		tagline: 'Bildschirm aufnehmen, schneiden und als MP4, WebM oder GIF exportieren – komplett im Browser, nichts verlässt deinen Rechner.',
 		unsupported: (missing) =>
 			`Dieser Browser unterstützt nicht alles, was die App braucht (${missing}). Bitte verwende einen aktuellen Desktop-Browser (empfohlen: Chrome oder Edge).`,
 		screenCapture: 'Bildschirmaufnahme',
@@ -110,8 +110,11 @@ const de: Messages = {
 	},
 
 	export: {
-		title: 'Video exportieren',
+		title: 'Exportieren',
+		format: 'Format',
+		formats: { mp4: 'MP4', webm: 'WebM', gif: 'GIF' },
 		resolution: 'Auflösung',
+		width: 'Breite',
 		original: (w, h) => `Original (${w}×${h})`,
 		quality: 'Qualität',
 		qualities: { low: 'Niedrig', medium: 'Mittel', high: 'Hoch', 'very-high': 'Sehr hoch', custom: 'Benutzerdefiniert' },
@@ -119,15 +122,19 @@ const de: Messages = {
 		frameRate: 'Bildrate',
 		audio: 'Ton',
 		noAudio: 'Ohne Ton',
+		loop: 'Endlos wiederholen',
+		gifNote: 'GIF hat keinen Ton und 256 Farben pro Bild. Die Größe hängt vom Inhalt ab: Bildschirminhalte und Standbilder bleiben klein, Kamerabilder und Überblendungen werden groß.',
+		gifLarge: 'Lange oder große GIFs werden sehr groß. Wähle für mehr als einen kurzen Ausschnitt MP4 oder WebM.',
 		output: 'Ausgabe',
 		duration: 'Dauer',
 		videoBitrate: 'Video-Bitrate',
 		estimatedSize: 'Geschätzte Größe',
 		export: 'Exportieren',
 		rendering: 'Video wird gerendert …',
+		renderingGif: 'GIF wird erstellt …',
 		finalizing: 'Datei wird abgeschlossen …',
 		keepTabOpen: 'Lass diesen Tab bitte geöffnet.',
-		finished: 'Export fertig. Lade das Video herunter oder speichere es in Files.',
+		finished: 'Export fertig. Lade die Datei herunter oder speichere sie in Files.',
 		renderedIn: (time) => `gerendert in ${time}`,
 		otherSettings: 'Andere Einstellungen',
 		backToResult: 'Zurück zum Ergebnis',
@@ -140,7 +147,8 @@ const de: Messages = {
 		emptyTimeline: 'Die Timeline ist leer.',
 		noCanvas: 'Canvas nicht verfügbar.',
 		missingSource: 'Quelle fehlt im Projekt.',
-		noVideoTrack: 'Quelle ohne Videospur.'
+		noVideoTrack: 'Quelle ohne Videospur.',
+		gifFailed: 'Das GIF konnte nicht erstellt werden.'
 	},
 
 	editor: {

@@ -9,6 +9,7 @@ import {
 	Output,
 	Quality,
 	StreamTarget,
+	WebMOutputFormat,
 	type Input,
 	type InputVideoTrack,
 	type WrappedCanvas
@@ -21,7 +22,16 @@ import { fontsOf, loadFont } from '#lib/render/fonts.svelte.js';
 import { loadPictures, setImageProject } from '#lib/render/images.svelte.js';
 import { clearExports, exportWritable, mediaFile } from '#lib/storage/store.js';
 import { clipsAt, clipsOf, duration, fadeAlpha, fadeEdges, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
-import { outputSize, videoBitrate, type ExportSettings } from './settings';
+import type { GifReply, GifRequest } from './gif';
+import {
+	AUDIO_CODECS,
+	frameDelay,
+	gifSize,
+	outputSize,
+	VIDEO_CODECS,
+	videoBitrate,
+	type ExportSettings
+} from './settings';
 import { m } from '#lib/i18n/index.js';
 
 const SAMPLE_RATE = 48_000;
@@ -43,9 +53,10 @@ export class ExportCanceledError extends Error {
 
 /** Checks up front whether the browser can encode these settings. Returns an error message or null. */
 export async function checkEncodable(project: Project, settings: ExportSettings): Promise<string | null> {
+	if (settings.format === 'gif') return null;
 	const { width, height } = outputSize(settings, project.width, project.height);
 	const quality = new Quality({ bitrate: videoBitrate(settings, width, height) });
-	const codec = await getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width, height, quality });
+	const codec = await getFirstEncodableVideoCodec(VIDEO_CODECS[settings.format], { width, height, quality });
 	if (!codec) return m.export.cannotEncode(width, height);
 	if (!(await canEncodeVideo(codec, { width, height, quality, frameRate: settings.fps }))) {
 		return m.export.frameRateUnsupported(width, height);
@@ -54,8 +65,8 @@ export async function checkEncodable(project: Project, settings: ExportSettings)
 }
 
 /**
- * Renders the timeline frame-accurately into an MP4 file (in the OPFS) and returns it.
- * Video and audio run in parallel so the muxer can interleave them.
+ * Renders the timeline frame-accurately into a video (MP4/WebM) or GIF file in the OPFS and
+ * returns it.
  */
 export async function exportProject(
 	project: Project,
@@ -65,27 +76,9 @@ export async function exportProject(
 ): Promise<File> {
 	const total = duration(project.timeline);
 	if (total <= 0) throw new Error(m.export.emptyTimeline);
-	const { width, height } = outputSize(settings, project.width, project.height);
-	const bitrate = videoBitrate(settings, width, height);
-	const videoCodec = await getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], {
-		width,
-		height,
-		quality: new Quality({ bitrate })
-	});
-	if (!videoCodec) throw new Error(m.export.cannotEncode(width, height));
-
-	const source = (sourceId: string) => project.sources.find((s) => s.id === sourceId);
-	const audible = (track: number) => {
-		const state = trackState(project.timeline, track);
-		return !state.muted && !state.hidden;
+	const checkAbort = () => {
+		if (signal.aborted) throw new ExportCanceledError();
 	};
-	// Freeze clips are silent
-	const audioClips = clipsOf(project.timeline).filter(
-		(c): c is VideoClip =>
-			c.type === 'video' && !!source(c.sourceId)?.hasAudio && audible(c.track) && (c.volume ?? 1) > 0
-	);
-	const withAudio = settings.audioKbps > 0 && audioClips.length > 0;
-	const audioCodec = withAudio ? await pickAudioCodec() : null;
 
 	// Canvas text only uses fonts that are already loaded
 	await Promise.all(fontsOf(project.timeline.items).map(loadFont));
@@ -93,16 +86,172 @@ export async function exportProject(
 	setImageProject(project.id, project.images);
 	await loadPictures(project.timeline.items);
 
-	const fileName = `${project.name.replace(/[^\p{L}\p{N} _-]+/gu, '').trim() || 'video'}.mp4`;
+	const media = openMedia(project);
+	try {
+		return settings.format === 'gif'
+			? await exportGif(project, settings, media, onProgress, checkAbort)
+			: await exportVideo(project, settings, media, total, onProgress, checkAbort);
+	} finally {
+		media.dispose();
+	}
+}
+
+const sourceOf = (project: Project, sourceId: string) => project.sources.find((s) => s.id === sourceId);
+
+const fileName = (project: Project, extension: string) =>
+	`${project.name.replace(/[^\p{L}\p{N} _-]+/gu, '').trim() || 'video'}.${extension}`;
+
+/** Input files and video tracks per source, shared by the video and audio loops */
+interface Media {
+	input(sourceId: string): Promise<Input>;
+	videoTrack(sourceId: string): Promise<InputVideoTrack>;
+	dispose(): void;
+}
+
+function openMedia(project: Project): Media {
+	const inputs = new Map<string, Input>();
+	const tracks = new Map<string, InputVideoTrack>();
+	const input = async (sourceId: string) => {
+		let input = inputs.get(sourceId);
+		if (!input) {
+			const source = sourceOf(project, sourceId);
+			if (!source) throw new Error(m.export.missingSource);
+			input = openInput(await mediaFile(project.id, source.file));
+			inputs.set(sourceId, input);
+		}
+		return input;
+	};
+	return {
+		input,
+		async videoTrack(sourceId) {
+			let track = tracks.get(sourceId);
+			if (!track) {
+				track = (await (await input(sourceId)).getPrimaryVideoTrack()) ?? undefined;
+				if (!track) throw new Error(m.export.noVideoTrack);
+				tracks.set(sourceId, track);
+			}
+			return track;
+		},
+		dispose: () => inputs.forEach((input) => input.dispose())
+	};
+}
+
+/**
+ * Draws every frame of the timeline into `ctx` and hands it over to `onFrame` (frame index,
+ * time). The same for every format.
+ */
+async function renderFrames(
+	project: Project,
+	media: Media,
+	ctx: OffscreenCanvasRenderingContext2D,
+	fps: number,
+	checkAbort: () => void,
+	onFrame: (k: number, t: number) => Promise<void>
+) {
+	const { width, height } = ctx.canvas;
+	const totalFrames = frameCount(project, fps);
+	const toFrame = (wrapped: WrappedCanvas | null): Frame | null =>
+		wrapped && { image: wrapped.canvas, width: wrapped.canvas.width, height: wrapped.canvas.height };
+	// One decoder per visible clip: video clips deliver their frames in order, freeze clips once
+	interface Stream {
+		frames?: AsyncGenerator<WrappedCanvas | null>;
+		current: Frame | null;
+	}
+	const streams = new Map<string, Stream>();
+	const timeline = project.timeline;
+	try {
+		for (let k = 0; k < totalFrames; k++) {
+			checkAbort();
+			const t = k / fps;
+			// Only clips with a picture on visible tracks
+			const active = clipsAt(timeline, t).filter(
+				(c) => sourceOf(project, c.sourceId)?.hasVideo && !trackState(timeline, c.track).hidden
+			);
+			for (const [id, stream] of streams) {
+				if (active.some((c) => c.id === id)) continue;
+				await stream.frames?.return(undefined);
+				streams.delete(id);
+			}
+			const frames = new Map<string, Frame>();
+			for (const clip of active) {
+				const src = sourceOf(project, clip.sourceId);
+				let stream = streams.get(clip.id);
+				if (!stream) {
+					// Resized window recordings: only the area of the largest window
+					const crop = src?.crop ? sourceCrop(src) : undefined;
+					const sink = new CanvasSink(await media.videoTrack(clip.sourceId), { poolSize: 2, crop });
+					if (clip.type === 'freeze') {
+						stream = { current: toFrame(await sink.getCanvas(clip.at)) };
+					} else {
+						// Global frame indices from now on whose time falls within this clip
+						const last = Math.min(Math.ceil(itemEnd(clip) * fps - 1e-6), totalFrames);
+						const timestamps = Array.from({ length: Math.max(last - k, 1) }, (_, j) =>
+							sourceTime(clip, (k + j) / fps)
+						);
+						stream = { frames: sink.canvasesAtTimestamps(timestamps), current: null };
+					}
+					streams.set(clip.id, stream);
+				}
+				if (stream.frames) {
+					const next = await stream.frames.next();
+					if (!next.done) stream.current = toFrame(next.value) ?? stream.current;
+				}
+				const visible = src && visibleAt(src, sourceTime(clip, t));
+				if (stream.current) frames.set(clip.id, visible ? { ...stream.current, visible, anchor: clip.anchor } : stream.current);
+			}
+			renderFrame(ctx, width, height, { t, timeline, background: project.background, frames });
+			await onFrame(k, t);
+		}
+	} finally {
+		for (const stream of streams.values()) await stream.frames?.return(undefined);
+	}
+}
+
+const frameCount = (project: Project, fps: number) => Math.max(1, Math.round(duration(project.timeline) * fps));
+
+/** MP4 or WebM; video and audio run in parallel so the muxer can interleave them. */
+async function exportVideo(
+	project: Project,
+	settings: ExportSettings,
+	media: Media,
+	total: number,
+	onProgress: (p: ExportProgress) => void,
+	checkAbort: () => void
+): Promise<File> {
+	const format = settings.format === 'webm' ? 'webm' : 'mp4';
+	const { width, height } = outputSize(settings, project.width, project.height);
+	const bitrate = videoBitrate(settings, width, height);
+	const videoCodec = await getFirstEncodableVideoCodec(VIDEO_CODECS[format], {
+		width,
+		height,
+		quality: new Quality({ bitrate })
+	});
+	if (!videoCodec) throw new Error(m.export.cannotEncode(width, height));
+
+	const audible = (track: number) => {
+		const state = trackState(project.timeline, track);
+		return !state.muted && !state.hidden;
+	};
+	// Freeze clips are silent
+	const audioClips = clipsOf(project.timeline).filter(
+		(c): c is VideoClip =>
+			c.type === 'video' &&
+			!!sourceOf(project, c.sourceId)?.hasAudio &&
+			audible(c.track) &&
+			(c.volume ?? 1) > 0
+	);
+	const withAudio = settings.audioKbps > 0 && audioClips.length > 0;
+	const audioCodec = withAudio ? await pickAudioCodec(AUDIO_CODECS[format]) : null;
+
 	await clearExports();
-	const { writable, getFile } = await exportWritable(fileName);
+	const { writable, getFile } = await exportWritable(fileName(project, format));
 
 	const canvas = new OffscreenCanvas(width, height);
 	const ctx = canvas.getContext('2d', { alpha: false });
 	if (!ctx) throw new Error(m.export.noCanvas);
 
 	const output = new Output({
-		format: new Mp4OutputFormat({ fastStart: false }),
+		format: format === 'webm' ? new WebMOutputFormat() : new Mp4OutputFormat({ fastStart: false }),
 		target: new StreamTarget(writable, { chunked: true })
 	});
 	const videoSource = new CanvasSource(canvas, {
@@ -119,20 +268,7 @@ export async function exportProject(
 		: null;
 	if (audioSource) output.addAudioTrack(audioSource);
 
-	// One input file per source, shared by the video and audio loops
-	const inputs = new Map<string, Input>();
-	const getInput = async (sourceId: string) => {
-		let input = inputs.get(sourceId);
-		if (!input) {
-			const source = project.sources.find((s) => s.id === sourceId);
-			if (!source) throw new Error(m.export.missingSource);
-			input = openInput(await mediaFile(project.id, source.file));
-			inputs.set(sourceId, input);
-		}
-		return input;
-	};
-
-	const totalFrames = Math.max(1, Math.round(total * settings.fps));
+	const totalFrames = frameCount(project, settings.fps);
 	const totalSamples = Math.round(total * SAMPLE_RATE);
 	let framesDone = 0;
 	let samplesDone = 0;
@@ -141,76 +277,13 @@ export async function exportProject(
 		const progress = audioSource ? (v + samplesDone / totalSamples) / 2 : v;
 		onProgress({ progress: Math.min(progress, 1), phase: 'video' });
 	};
-	const checkAbort = () => {
-		if (signal.aborted) throw new ExportCanceledError();
-	};
-
-	const tracks = new Map<string, InputVideoTrack>();
-	const videoTrack = async (sourceId: string) => {
-		let track = tracks.get(sourceId);
-		if (!track) {
-			track = (await (await getInput(sourceId)).getPrimaryVideoTrack()) ?? undefined;
-			if (!track) throw new Error(m.export.noVideoTrack);
-			tracks.set(sourceId, track);
-		}
-		return track;
-	};
-	const toFrame = (wrapped: WrappedCanvas | null): Frame | null =>
-		wrapped && { image: wrapped.canvas, width: wrapped.canvas.width, height: wrapped.canvas.height };
 
 	async function renderVideo() {
-		// One decoder per visible clip: video clips deliver their frames in order, freeze clips once
-		interface Stream {
-			frames?: AsyncGenerator<WrappedCanvas | null>;
-			current: Frame | null;
-		}
-		const streams = new Map<string, Stream>();
-		const timeline = project.timeline;
-		for (let k = 0; k < totalFrames; k++) {
-			checkAbort();
-			const t = k / settings.fps;
-			// Only clips with a picture on visible tracks
-			const active = clipsAt(timeline, t).filter(
-				(c) => source(c.sourceId)?.hasVideo && !trackState(timeline, c.track).hidden
-			);
-			for (const [id, stream] of streams) {
-				if (active.some((c) => c.id === id)) continue;
-				await stream.frames?.return(undefined);
-				streams.delete(id);
-			}
-			const frames = new Map<string, Frame>();
-			for (const clip of active) {
-				const src = source(clip.sourceId);
-				let stream = streams.get(clip.id);
-				if (!stream) {
-					// Resized window recordings: only the area of the largest window
-					const crop = src?.crop ? sourceCrop(src) : undefined;
-					const sink = new CanvasSink(await videoTrack(clip.sourceId), { poolSize: 2, crop });
-					if (clip.type === 'freeze') {
-						stream = { current: toFrame(await sink.getCanvas(clip.at)) };
-					} else {
-						// Global frame indices from now on whose time falls within this clip
-						const last = Math.min(Math.ceil(itemEnd(clip) * settings.fps - 1e-6), totalFrames);
-						const timestamps = Array.from({ length: Math.max(last - k, 1) }, (_, j) =>
-							sourceTime(clip, (k + j) / settings.fps)
-						);
-						stream = { frames: sink.canvasesAtTimestamps(timestamps), current: null };
-					}
-					streams.set(clip.id, stream);
-				}
-				if (stream.frames) {
-					const next = await stream.frames.next();
-					if (!next.done) stream.current = toFrame(next.value) ?? stream.current;
-				}
-				const visible = src && visibleAt(src, sourceTime(clip, t));
-				if (stream.current) frames.set(clip.id, visible ? { ...stream.current, visible, anchor: clip.anchor } : stream.current);
-			}
-			renderFrame(ctx!, width, height, { t, timeline, background: project.background, frames });
+		await renderFrames(project, media, ctx!, settings.fps, checkAbort, async (_, t) => {
 			await videoSource.add(t, 1 / settings.fps);
 			framesDone++;
 			if (framesDone % 10 === 0) report();
-		}
-		for (const stream of streams.values()) await stream.frames?.return(undefined);
+		});
 		videoSource.close();
 	}
 
@@ -219,7 +292,7 @@ export async function exportProject(
 		const sinks = new Map<string, AudioBufferSink | null>();
 		const audioSink = async (sourceId: string) => {
 			if (!sinks.has(sourceId)) {
-				const track = await (await getInput(sourceId)).getPrimaryAudioTrack();
+				const track = await (await media.input(sourceId)).getPrimaryAudioTrack();
 				sinks.set(sourceId, track && (await track.canDecode()) ? new AudioBufferSink(track) : null);
 			}
 			return sinks.get(sourceId) ?? null;
@@ -266,10 +339,95 @@ export async function exportProject(
 	} catch (e) {
 		await output.cancel().catch(() => {});
 		throw e;
-	} finally {
-		inputs.forEach((input) => input.dispose());
 	}
 	return getFile();
+}
+
+/** GIF without audio; the frames are encoded in a worker so the page stays responsive. */
+async function exportGif(
+	project: Project,
+	settings: ExportSettings,
+	media: Media,
+	onProgress: (p: ExportProgress) => void,
+	checkAbort: () => void
+): Promise<File> {
+	const { width, height } = gifSize(settings, project.width, project.height);
+	const fps = settings.gifFps;
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+	if (!ctx) throw new Error(m.export.noCanvas);
+
+	await clearExports();
+	const { writable, getFile } = await exportWritable(fileName(project, 'gif'));
+	const encoder = gifWorker();
+	// The bytes are written in order; at most two frames wait in the worker
+	let writing = Promise.resolve();
+	const pending: Promise<void>[] = [];
+	const queue = (request: GifRequest, transfer: Transferable[] = []) => {
+		const done = encoder.send(request, transfer).then((bytes) => {
+			if (bytes) writing = writing.then(() => writable.write(bytes));
+			return writing;
+		});
+		// Awaited below; on cancel the rest is dropped
+		done.catch(() => {});
+		pending.push(done);
+	};
+
+	const totalFrames = frameCount(project, fps);
+	try {
+		queue({ type: 'start', width, height, loop: settings.gifLoop });
+		await renderFrames(project, media, ctx, fps, checkAbort, async (k) => {
+			const { data } = ctx.getImageData(0, 0, width, height);
+			queue({ type: 'frame', rgba: data.buffer, delay: frameDelay(k, fps) }, [data.buffer]);
+			while (pending.length > 2) await pending.shift();
+			if (k % 10 === 0) onProgress({ progress: Math.min(k / totalFrames, 1), phase: 'video' });
+		});
+		onProgress({ progress: 1, phase: 'finalizing' });
+		queue({ type: 'finish' });
+		for (const done of pending) await done;
+		checkAbort();
+		await writable.close();
+	} catch (e) {
+		await writable.abort().catch(() => {});
+		throw e;
+	} finally {
+		encoder.terminate();
+	}
+	return getFile();
+}
+
+/** The GIF worker (`gif.worker.ts`); it answers the requests in order. */
+function gifWorker() {
+	const worker = new Worker(new URL('./gif.worker.ts', import.meta.url), { type: 'module' });
+	const waiting: { resolve: (bytes: Uint8Array<ArrayBuffer> | null) => void; reject: (e: Error) => void }[] = [];
+	let failed: Error | null = null;
+	const fail = (error: Error) => {
+		failed ??= error;
+		waiting.splice(0).forEach((w) => w.reject(error));
+	};
+	worker.onmessage = (event: MessageEvent<GifReply>) => {
+		const reply = event.data;
+		const next = waiting.shift();
+		if (reply.type === 'error') next?.reject(new Error(reply.message));
+		else next?.resolve(reply.bytes);
+	};
+	worker.onerror = (event) => {
+		event.preventDefault();
+		console.error(event);
+		fail(new Error(m.export.gifFailed));
+	};
+	return {
+		send: (request: GifRequest, transfer: Transferable[]) =>
+			new Promise<Uint8Array<ArrayBuffer> | null>((resolve, reject) => {
+				if (failed) return reject(failed);
+				waiting.push({ resolve, reject });
+				worker.postMessage(request, transfer);
+			}),
+		terminate() {
+			worker.terminate();
+			fail(new ExportCanceledError());
+		}
+	};
 }
 
 interface AudioPart {

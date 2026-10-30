@@ -23,11 +23,11 @@ const en = {
 		partOf: 'Part of',
 		suiteClaim: 'tools that run entirely in your browser',
 		description:
-			'Record your screen, edit it with annotations, text, still frames and zoom, and export it as MP4 – free and entirely in the browser.'
+			'Record your screen, edit it with annotations, text, still frames and zoom, and export it as MP4, WebM or GIF – free and entirely in the browser.'
 	},
 
 	home: {
-		tagline: 'Record your screen, edit it and export it as MP4 – entirely in the browser, nothing leaves your computer.',
+		tagline: 'Record your screen, edit it and export it as MP4, WebM or GIF – entirely in the browser, nothing leaves your computer.',
 		unsupported: (missing: string) =>
 			`This browser does not support everything the app needs (${missing}). Please use a current desktop browser (recommended: Chrome or Edge).`,
 		screenCapture: 'Screen capture',
@@ -110,8 +110,11 @@ const en = {
 	},
 
 	export: {
-		title: 'Export video',
+		title: 'Export',
+		format: 'Format',
+		formats: { mp4: 'MP4', webm: 'WebM', gif: 'GIF' },
 		resolution: 'Resolution',
+		width: 'Width',
 		original: (w: number, h: number) => `Original (${w}×${h})`,
 		quality: 'Quality',
 		qualities: { low: 'Low', medium: 'Medium', high: 'High', 'very-high': 'Very high', custom: 'Custom' },
@@ -119,15 +122,19 @@ const en = {
 		frameRate: 'Frame rate',
 		audio: 'Audio',
 		noAudio: 'No audio',
+		loop: 'Repeat endlessly',
+		gifNote: 'GIF has no audio and 256 colors per frame. Its size depends on the content: screen content and still images stay small, camera footage and fades get large.',
+		gifLarge: 'Long or large GIFs get very big. For more than a short clip, choose MP4 or WebM.',
 		output: 'Output',
 		duration: 'Duration',
 		videoBitrate: 'Video bitrate',
 		estimatedSize: 'Estimated size',
 		export: 'Export',
 		rendering: 'Rendering video …',
+		renderingGif: 'Creating GIF …',
 		finalizing: 'Finishing file …',
 		keepTabOpen: 'Please keep this tab open.',
-		finished: 'Export finished. Download the video or save it in Files.',
+		finished: 'Export finished. Download the file or save it in Files.',
 		renderedIn: (time: string) => `rendered in ${time}`,
 		otherSettings: 'Other settings',
 		backToResult: 'Back to result',
@@ -140,7 +147,8 @@ const en = {
 		emptyTimeline: 'The timeline is empty.',
 		noCanvas: 'Canvas not available.',
 		missingSource: 'Source missing from the project.',
-		noVideoTrack: 'Source has no video track.'
+		noVideoTrack: 'Source has no video track.',
+		gifFailed: 'The GIF could not be created.'
 	},
 
 	editor: {
