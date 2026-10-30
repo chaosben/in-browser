@@ -424,6 +424,8 @@ const en = {
 		globalHint: 'Into “All projects”, clips copy their whole media file, not just the trimmed part – this takes storage space.',
 		added: (name: string) => `“${name}” added to the library`,
 		insert: 'Insert',
+		/** Preview of an entry of only audio */
+		audioOnly: 'Audio only',
 		rename: 'Rename',
 		copyToGlobal: 'Copy to all projects',
 		copyToProject: 'Copy to this project',

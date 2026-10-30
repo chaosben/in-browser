@@ -137,30 +137,23 @@ async function loadPeaks(place: MediaPlace, source: Source): Promise<Peaks | nul
 	return { rate: PEAKS_PER_SECOND, data };
 }
 
-/** Pictures and waveforms for previews of items (library, dragging): what each clip shows */
+/** Pictures for previews of items (library, dragging): what each clip shows */
 export interface ItemMedia {
 	/** Thumbnail at the start of a clip with a picture, by item id */
 	frames: Map<string, ImageBitmap>;
-	/** Waveform of a clip without a picture, by item id */
-	peaks: Map<string, Peaks>;
 }
 
-/** Loads thumbnails and waveforms for the clips among `items` (`sources`: their sources) */
+/** Loads thumbnails for the clips with a picture among `items` (`sources`: their sources) */
 export async function itemMedia(items: readonly Item[], sources: readonly Source[], place: MediaPlace): Promise<ItemMedia> {
-	const result: ItemMedia = { frames: new Map(), peaks: new Map() };
+	const result: ItemMedia = { frames: new Map() };
 	await Promise.all(
 		items.map(async (item) => {
 			if (item.type === 'annotation') return;
 			const source = sources.find((s) => s.id === item.sourceId);
-			if (!source) return;
-			if (source.hasVideo) {
-				const thumbs = await thumbnailsIn(place, source);
-				const t = item.type === 'freeze' ? item.at : item.in;
-				if (thumbs) result.frames.set(item.id, thumbs.images[frameIndex(thumbs.interval, thumbs.images.length, t)]);
-			} else if (item.type === 'video') {
-				const p = await peaksIn(place, source);
-				if (p) result.peaks.set(item.id, p);
-			}
+			if (!source?.hasVideo) return;
+			const thumbs = await thumbnailsIn(place, source);
+			const t = item.type === 'freeze' ? item.at : item.in;
+			if (thumbs) result.frames.set(item.id, thumbs.images[frameIndex(thumbs.interval, thumbs.images.length, t)]);
 		})
 	);
 	return result;

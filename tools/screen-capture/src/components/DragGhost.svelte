@@ -6,17 +6,18 @@
 	import { itemMedia, projectMedia, type ItemMedia } from '#lib/media/visuals.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { imageState } from '#lib/render/images.svelte.js';
-	import { drawItemsPreview } from '#lib/render/item-preview.js';
+	import { drawItemsPreview, previewBounds } from '#lib/render/item-preview.js';
 	import { libraryUi } from '#lib/ui/library.svelte.js';
 
 	let { editor }: { editor: Editor } = $props();
 
-	/** The dragged elements on their own; drawn again once fonts, images, thumbnails or waveforms have loaded */
+	const hasPicture = (clip: Clip) => editor.source(clip.sourceId)?.hasVideo !== false;
+
+	/** The dragged elements on their own; drawn again once fonts, images or thumbnails have loaded */
 	function preview(canvas: HTMLCanvasElement, items: Item[]) {
 		void fontState.version;
 		void imageState.version;
 		const project = untrack(() => editor.project);
-		const hasPicture = (clip: Clip) => editor.source(clip.sourceId)?.hasVideo !== false;
 		let media: ItemMedia | undefined;
 		let cancelled = false;
 		const draw = () => drawItemsPreview(canvas, items, project.width, project.height, 192, 128, media, hasPicture);
@@ -41,7 +42,11 @@
 		aria-hidden="true"
 	>
 		<div class="bg-base-200 grid h-16 place-items-center rounded p-1">
-			<canvas class="max-h-full max-w-full" {@attach (c) => preview(c, g.items)}></canvas>
+			{#if previewBounds(g.items, editor.project.width, editor.project.height, hasPicture)}
+				<canvas class="max-h-full max-w-full" {@attach (c) => preview(c, g.items)}></canvas>
+			{:else}
+				<span class="icon-[material-symbols-light--graphic-eq] size-10 opacity-70" aria-hidden="true"></span>
+			{/if}
 		</div>
 		<span class="truncate px-0.5 text-xs font-semibold">{g.label}</span>
 		{#if !g.target}

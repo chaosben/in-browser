@@ -5,12 +5,12 @@
 	import { matchesQuery } from '#lib/ui/inspector-search.js';
 	import { entryDuration } from '#lib/project/library.js';
 	import { globalLibrary } from '#lib/project/library.svelte.js';
-	import type { Clip, LibraryEntry } from '#lib/project/types.js';
+	import type { Clip, LibraryEntry, Source } from '#lib/project/types.js';
 	import { itemMedia, projectMedia, type ItemMedia, type MediaPlace } from '#lib/media/visuals.js';
 	import { imageState, setLibraryImages } from '#lib/render/images.svelte.js';
 	import { libraryMediaFile } from '#lib/storage/store.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
-	import { drawItemsPreview } from '#lib/render/item-preview.js';
+	import { drawItemsPreview, previewBounds } from '#lib/render/item-preview.js';
 	import { hasDragPayload, readDragPayload, setDragPayload } from '#lib/tools/drag.js';
 	import type { ToolProps } from '#lib/tools/types.js';
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
@@ -140,18 +140,29 @@
 		]);
 	}
 
+	// Unchanged while the timeline changes (e.g. during a drag), so the tiles don't check again
+	const projectSources = $derived(editor.project.sources);
+	const canvasWidth = $derived(editor.project.width);
+	const canvasHeight = $derived(editor.project.height);
+	const sourcesOf = (scope: LibraryScope, entry: LibraryEntry) => (scope === 'project' ? projectSources : entry.sources);
+	const pictureIn = (sources: readonly Source[]) => (clip: Clip) => sources.find((s) => s.id === clip.sourceId)?.hasVideo !== false;
+
+	/** Does the entry have anything to show? An entry of only audio gets an icon instead */
+	const hasPreview = (scope: LibraryScope, entry: LibraryEntry) =>
+		!!previewBounds(entry.items, canvasWidth, canvasHeight, pictureIn(sourcesOf(scope, entry)));
+
 	/**
 	 * Picture of the entry's elements on their own, fitted into `width` × `height` pixels. Drawn again when fonts,
-	 * images or icons have loaded, and once the clips' thumbnails and waveforms are there.
+	 * images or icons have loaded, and once the clips' thumbnails are there.
 	 */
 	function thumbnail(canvas: HTMLCanvasElement, scope: LibraryScope, entry: LibraryEntry, width: number, height: number) {
 		void fontState.version;
 		void imageState.version;
 		// Not on every project change: the project's size and media are read without subscribing
 		const project = untrack(() => editor.project);
-		const sources = scope === 'project' ? project.sources : entry.sources;
+		const sources = untrack(() => sourcesOf(scope, entry));
 		const place = scope === 'project' ? projectMedia(project.id) : GLOBAL_MEDIA;
-		const hasPicture = (clip: Clip) => sources.find((s) => s.id === clip.sourceId)?.hasVideo !== false;
+		const hasPicture = pictureIn(sources);
 		let media: ItemMedia | undefined;
 		let cancelled = false;
 		const draw = () => drawItemsPreview(canvas, entry.items, project.width, project.height, width, height, media, hasPicture);
@@ -265,7 +276,13 @@
 							title={m.library.insert}
 							aria-label={m.library.insert}
 						>
-							{#if view === 'grid'}
+							{#if !hasPreview(section.scope, entry)}
+								<span
+									class="icon-[material-symbols-light--graphic-eq] opacity-70 {view === 'grid' ? 'size-12' : 'size-6'}"
+									title={m.library.audioOnly}
+									aria-hidden="true"
+								></span>
+							{:else if view === 'grid'}
 								<canvas class="max-h-full max-w-full" {@attach (c) => thumbnail(c, section.scope, entry, 320, 176)}></canvas>
 							{:else}
 								<canvas class="max-h-full max-w-full" {@attach (c) => thumbnail(c, section.scope, entry, 112, 64)}></canvas>

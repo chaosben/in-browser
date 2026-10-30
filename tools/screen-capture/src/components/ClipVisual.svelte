@@ -17,7 +17,13 @@
 	// Very wide clips (strong zoom) are drawn squashed to save memory.
 	const MAX_WIDTH = 8192;
 
-	function draw(canvas: HTMLCanvasElement, clip: Clip, width: number, height: number) {
+	// Only what the picture depends on: moving the clip (start, track, position in the frame) must not redraw it
+	const freeze = $derived(clip.type === 'freeze');
+	const from = $derived(clip.type === 'freeze' ? clip.at : clip.in);
+	const length = $derived(clipDuration(clip));
+	const volume = $derived(clip.type === 'video' ? (clip.volume ?? 1) : 1);
+
+	function draw(canvas: HTMLCanvasElement, freeze: boolean, from: number, length: number, volume: number, width: number, height: number) {
 		const dpr = window.devicePixelRatio || 1;
 		const w = Math.max(1, Math.min(Math.round(width * dpr), MAX_WIDTH));
 		const h = Math.max(1, Math.round(height * dpr));
@@ -26,8 +32,7 @@
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 		let cancelled = false;
-		const length = clipDuration(clip);
-		const timeAt = (x: number) => (clip.type === 'freeze' ? clip.at : clip.in + (x / w) * length);
+		const timeAt = (x: number) => (freeze ? from : from + (x / w) * length);
 
 		// Thumbnails and waveform arrive independently; redraw everything on each arrival
 		// so the waveform is never covered by thumbnails loaded later.
@@ -48,7 +53,6 @@
 				// Dark band at the bottom with light bars on it – readable on light and dark images alike.
 				// Audio-only clips use the full height. The height follows the clip's volume.
 				const band = source.hasVideo ? Math.round(h * 0.35) : h;
-				const volume = clip.type === 'video' ? (clip.volume ?? 1) : 1;
 				ctx!.fillStyle = source.hasVideo ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.3)';
 				ctx!.fillRect(0, h - band, w, band);
 				ctx!.fillStyle = 'rgba(255, 255, 255, 0.9)';
@@ -70,7 +74,7 @@
 			paint();
 		});
 		// Stills are silent – no waveform
-		if (clip.type === 'video') {
+		if (!freeze) {
 			peaks(projectId, source).then((p) => {
 				wave = p;
 				paint();
@@ -82,5 +86,5 @@
 
 <canvas
 	class="pointer-events-none absolute inset-0 h-full w-full"
-	{@attach (canvas) => draw(canvas, clip, width, height)}
+	{@attach (canvas) => draw(canvas, freeze, from, length, volume, width, height)}
 ></canvas>

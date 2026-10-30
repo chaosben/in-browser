@@ -39,6 +39,8 @@ export class Player {
 	/** `performance.now()` at timeline time 0 (during playback) */
 	#clockOrigin = 0;
 	#raf = 0;
+	/** Frame request of `requestRedraw` */
+	#redrawRaf = 0;
 
 	constructor(private project: () => Project) {}
 
@@ -292,12 +294,22 @@ export class Player {
 		});
 	}
 
+	/** Redraws once in the next frame (e.g. on every pointer move of a drag); playback draws anyway */
+	requestRedraw() {
+		if (this.playing || this.#redrawRaf) return;
+		this.#redrawRaf = requestAnimationFrame(() => {
+			this.#redrawRaf = 0;
+			this.redraw();
+		});
+	}
+
 	#redrawLater = () => this.redraw();
 	#unsubscribePictures: (() => void) | undefined;
 
 	destroy() {
 		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
 		this.#unsubscribePictures?.();
+		cancelAnimationFrame(this.#redrawRaf);
 		this.pause();
 		for (const { video } of this.#assigned.values()) unload(video);
 		for (const videos of this.#pool.values()) videos.forEach(unload);

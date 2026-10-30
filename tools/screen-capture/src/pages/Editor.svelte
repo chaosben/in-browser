@@ -154,7 +154,7 @@
 			const project = await loadProject(path);
 			let next: Editor;
 			const nextPlayer = new Player(() => next.project);
-			next = new Editor(project, (clipsChanged) => (clipsChanged ? nextPlayer.refresh() : nextPlayer.redraw()));
+			next = new Editor(project, (clipsChanged) => (clipsChanged ? nextPlayer.refresh() : nextPlayer.requestRedraw()));
 			next.lastWrite = (await projectFileDate(path)) ?? 0;
 			await nextPlayer.syncSources();
 			if (disposed) {

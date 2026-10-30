@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORMAT, migrate, parseProject, VERSION, type Annotation, type Clip, type Item, type Timeline, type ZoomSegment } from '#lib/project/types.js';
+import { FORMAT, migrate, parseProject, VERSION, type Annotation, type Clip, type Item, type Timeline, type VideoClip, type ZoomSegment } from '#lib/project/types.js';
 import {
 	addItem,
 	addZoom,
@@ -7,6 +7,7 @@ import {
 	bringForward,
 	bringToFront,
 	clipsAt,
+	clipsChanged,
 	duration,
 	clampFade,
 	drawProgress,
@@ -100,6 +101,22 @@ describe('basics', () => {
 	it('holds the last frame at the end', () => {
 		const t = tl(clip('a', 0, 0, 4));
 		expect(clipsAt(t, 4).map((c) => c.id)).toEqual(['a']);
+	});
+});
+
+describe('clipsChanged', () => {
+	const a = clip('a', 0, 0, 4) as VideoClip;
+	const t = tl(a, clip('b', 4, 0, 2), text('t', 0, 3));
+	it('ignores the position in the frame and annotations', () => {
+		expect(clipsChanged(tl(a, t.items[1], t.items[2]), t)).toBe(false);
+		expect(clipsChanged(tl({ ...a, rect: { x: 0.1, y: 0, w: 0.5, h: 0.5 } }, t.items[1], t.items[2]), t)).toBe(false);
+		expect(clipsChanged(tl(a, t.items[1], text('t', 1, 5)), t)).toBe(false);
+	});
+	it('notices changes in time, volume, added and removed clips', () => {
+		expect(clipsChanged(tl({ ...a, start: 1 }, t.items[1], t.items[2]), t)).toBe(true);
+		expect(clipsChanged(tl({ ...a, volume: 0.5 }, t.items[1], t.items[2]), t)).toBe(true);
+		expect(clipsChanged(tl(a, t.items[2]), t)).toBe(true);
+		expect(clipsChanged(tl(...t.items, clip('c', 6, 0, 1)), t)).toBe(true);
 	});
 });
 

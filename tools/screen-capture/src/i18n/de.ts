@@ -436,6 +436,7 @@ const de: Messages = {
 		globalHint: 'In „Alle Projekte“ kopieren Clips ihre ganze Mediendatei, nicht nur den zugeschnittenen Teil – das belegt Speicherplatz.',
 		added: (name) => `„${name}“ zur Bibliothek hinzugefügt`,
 		insert: 'Einfügen',
+		audioOnly: 'Nur Ton',
 		rename: 'Umbenennen',
 		copyToGlobal: 'In alle Projekte kopieren',
 		copyToProject: 'In dieses Projekt kopieren',

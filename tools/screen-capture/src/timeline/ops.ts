@@ -42,6 +42,17 @@ export function clipsOf(timeline: Timeline): Clip[] {
 	return timeline.items.filter(isClip);
 }
 
+/** Have clips changed in time? Position/size in the frame (`rect`) alone doesn't count – redrawing is enough. */
+export function clipsChanged(a: Timeline, b: Timeline): boolean {
+	if (a.items === b.items) return false;
+	const before = clipsOf(b);
+	const after = clipsOf(a);
+	if (after.length !== before.length) return true;
+	// Unchanged clips stay reference-equal: only compare the others
+	const timing = ({ rect: _rect, ...rest }: Clip) => JSON.stringify(rest);
+	return after.some((clip, i) => clip !== before[i] && timing(clip) !== timing(before[i]));
+}
+
 export function findItem(timeline: Timeline, id: string): Item | undefined {
 	return timeline.items.find((item) => item.id === id);
 }

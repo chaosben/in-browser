@@ -1,5 +1,5 @@
 import { deleteMediaFile, projectFileDate, saveProject } from '#lib/storage/store.js';
-import { addItem, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
+import { addItem, clipsChanged, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
 import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
@@ -456,12 +456,3 @@ export class Editor {
 const usesSource = (t: Timeline, sourceId: string) => clipsOf(t).some((c) => c.sourceId === sourceId);
 const usesImage = (t: Timeline, imageId: string) =>
 	t.items.some((item) => item.type === 'annotation' && item.kind === 'image' && item.imageId === imageId);
-
-/** Have clips changed in time? Position/size in the frame (`rect`) alone doesn't count – redrawing is enough. */
-function clipsChanged(a: Timeline, b: Timeline) {
-	const key = (t: Timeline) =>
-		clipsOf(t)
-			.map(({ rect: _rect, ...timing }) => JSON.stringify(timing))
-			.join();
-	return a.items !== b.items && key(a) !== key(b);
-}
