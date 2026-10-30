@@ -1,4 +1,4 @@
-// Directory of all in-browser.de tools. A new tool needs an entry here and texts under
+// Directory of all in-browser tools. A new tool needs an entry here and texts under
 // `tools.<id>` in de.ts/en.ts; the card icon is the tool's favicon (static/<tool>/favicon.svg).
 
 import type { Messages } from './i18n/index.svelte.js';

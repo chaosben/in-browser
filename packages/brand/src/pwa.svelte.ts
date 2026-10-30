@@ -1,4 +1,4 @@
-// PWA state for the installable in-browser.de tools: register the Service Worker and announce new versions.
+// PWA state for the installable in-browser tools: register the Service Worker and announce new versions.
 // Installing is left to the browser (its own offer, e.g. in the address bar). Only active in the production build
 // (the dev server has no Service Worker).
 

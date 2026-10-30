@@ -2,4 +2,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://in-browser.de/sitemap.xml
+Sitemap: https://in-browser.org/sitemap.xml

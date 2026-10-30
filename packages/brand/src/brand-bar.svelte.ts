@@ -1,7 +1,7 @@
 import type { Snippet } from 'svelte';
 import type { MenuEntry } from './ui/context-menu.svelte.js';
 
-// Places in the BrandBar a page of a tool fills: on the left after "in-browser.de / Tool" the navigation inside the
+// Places in the BrandBar a page of a tool fills: on the left after "in-browser / Tool" the navigation inside the
 // tool (where am I, with the actions of the current object) and right after it the main actions as buttons; on the
 // right the less important actions of the tool.
 

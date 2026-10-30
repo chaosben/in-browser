@@ -1,7 +1,7 @@
 import de from './de.js';
 import en from './en.js';
 
-// Shared language logic of all in-browser.de apps: the language follows the browser settings
+// Shared language logic of all in-browser apps: the language follows the browser settings
 // (`navigator.languages`) – there is no language picker. English leads: text structure (`en.ts`),
 // prerendering and fallback for unsupported languages.
 // `lang.current` is the active language; apps set it via `setLocale()` and keep their own texts

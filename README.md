@@ -1,13 +1,16 @@
-# in-browser.de
+# in-browser
 
 Tools that run entirely in the browser – no uploads, no backend, no tracking. This repository is one SvelteKit app
 that serves the overview site and every tool on a single origin, so the tools can share browser storage.
 
 | Folder | Content | Address |
 | --- | --- | --- |
-| `src/` | The app: overview page, thin routes per tool, Service Worker | https://in-browser.de |
-| `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.de/screen-capture |
+| `src/` | The app: overview page, thin routes per tool, Service Worker | https://in-browser.org |
+| `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.org/screen-capture |
+| `tools/files` | `@in-browser/files-app`: file manager of the shared browser storage, sync with a folder on disk | https://in-browser.org/files |
+| `tools/text-editor` | `@in-browser/text-editor`: text, Markdown and code editor with tabs | https://in-browser.org/text-editor |
 | `packages/brand` | `@in-browser/brand`: header, theme, language logic, PWA | – |
+| `packages/files` | `@in-browser/files`: shared file system (OPFS), file dialog, sync | – |
 
 Each tool is its own npm workspace package with its logic, components and texts; the app only has a few route
 files per tool (`src/routes/<tool>/`). Tools never import from each other – shared code lives in `packages/` and is
@@ -28,7 +31,7 @@ npm run build       # static build into build/
 
 ## Deployment
 
-The whole site is one Cloudflare Worker (`in-browser`, static assets only, custom domain `in-browser.de`).
+The whole site is one Cloudflare Worker (`in-browser`, static assets only, custom domain `in-browser.org`).
 
 ```sh
 npx wrangler login      # once, opens the browser
@@ -43,7 +46,7 @@ commit it was built from.
 
 ## How this was built
 
-in-browser.de is a co-work of Benjamin and Claude as an AI pair programmer: ideas, decisions
+in-browser is a co-work of Benjamin and Claude as an AI pair programmer: ideas, decisions
 and testing by Benjamin, much of the implementation written together with Claude.
 
 ## License

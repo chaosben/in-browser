@@ -3,7 +3,7 @@
 	"private": true,
 	"license": "MIT",
 	"type": "module",
-	"description": "Screen Capture tool of in-browser.de (included as source code, routes under /screen-capture)",
+	"description": "Screen Capture tool of in-browser (included as source code, routes under /screen-capture)",
 	"exports": {
 		"./*.svelte": {
 			"svelte": "./src/*.svelte",

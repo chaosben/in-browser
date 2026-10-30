@@ -3,7 +3,7 @@
 	"private": true,
 	"license": "MIT",
 	"type": "module",
-	"description": "Text Editor tool of in-browser.de (included as source code, route /text-editor)",
+	"description": "Text Editor tool of in-browser (included as source code, route /text-editor)",
 	"exports": {
 		"./*.svelte": {
 			"svelte": "./src/*.svelte",

@@ -3,7 +3,7 @@
 	"private": true,
 	"license": "MIT",
 	"type": "module",
-	"description": "Shared file system of in-browser.de in the browser storage (OPFS), file dialog, sync with a folder on disk (included as source code)",
+	"description": "Shared file system of in-browser in the browser storage (OPFS), file dialog, sync with a folder on disk (included as source code)",
 	"exports": {
 		"./*.svelte": {
 			"svelte": "./src/*.svelte",

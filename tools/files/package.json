@@ -3,7 +3,7 @@
 	"private": true,
 	"license": "MIT",
 	"type": "module",
-	"description": "Files tool of in-browser.de: file manager of the shared browser file system (included as source code, route /files)",
+	"description": "Files tool of in-browser: file manager of the shared browser file system (included as source code, route /files)",
 	"exports": {
 		"./*.svelte": {
 			"svelte": "./src/*.svelte",

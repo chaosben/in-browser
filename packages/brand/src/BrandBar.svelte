@@ -43,7 +43,7 @@
 {/snippet}
 
 <!--
-	Shared header of the in-browser.de apps. Left: brand / tool / the navigation inside the tool (`setBrandBar`,
+	Shared header of the in-browser apps. Left: brand / tool / the navigation inside the tool (`setBrandBar`,
 	the current object with the menu of all its actions), then its main actions as buttons (from `md`); right: the
 	less important actions of the tool and the theme.
 -->
@@ -55,7 +55,7 @@
 		class={['flex shrink-0 items-center gap-1.5 font-semibold', tool && 'opacity-80 hover:opacity-100']}
 		title={tool ? t.brand.allTools : t.brand.home}
 	>
-		<!-- in-browser.de logo: browser window with cursor brackets -->
+		<!-- in-browser logo: browser window with cursor brackets -->
 		<svg viewBox="0 0 24 24" class="size-5" aria-hidden="true">
 			<rect x="2" y="4" width="20" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" />
 			<path d="M2 8.5h20" stroke="currentColor" stroke-width="1.8" />

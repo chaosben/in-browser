@@ -3,7 +3,7 @@
 	"private": true,
 	"license": "MIT",
 	"type": "module",
-	"description": "Shared brand components of in-browser.de (included as source code)",
+	"description": "Shared brand components of in-browser (included as source code)",
 	"exports": {
 		"./theme.css": "./theme.css",
 		"./*.svelte": {
