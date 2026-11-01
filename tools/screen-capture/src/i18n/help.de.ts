@@ -215,7 +215,7 @@ const help: typeof enHelp = {
 				},
 				enlarge: {
 					title: 'Leinwand vergrößern?',
-					text: 'Fügst du Material ein, das größer als die Leinwand ist, wird es verkleinert gezeigt, und du wirst gefragt, ob die Leinwand mitwachsen soll.',
+					text: 'Fügst du Material ein, das größer als die Leinwand ist, wird es verkleinert gezeigt, und du wirst gefragt, ob die Leinwand mitwachsen soll. Kleineres Material wird in 100 % mittig eingefügt, nie vergrößert.',
 					options: {
 						grow: { label: 'Leinwand vergrößern', text: 'Das neue Material erscheint 1:1 und scharf; der bisherige Inhalt behält seine Größe und rückt in die Mitte. Der Export wird größer.' },
 						keep: { label: 'Größe beibehalten', text: 'Die Ausgabegröße bleibt; das neue Material bleibt verkleinert.' }
@@ -353,7 +353,7 @@ const help: typeof enHelp = {
 			items: {
 				placement: {
 					title: 'Position im Bild',
-					text: 'Ein Clip kann beliebig groß irgendwo auf der Leinwand stehen (Bild im Bild). Die Knöpfe setzen ihn auf eine von zwei Standard-Platzierungen.',
+					text: 'Ein Clip kann beliebig groß irgendwo auf der Leinwand stehen (Bild im Bild). Neue Clips erscheinen in Originalgröße (größere verkleinert eingepasst). Die Knöpfe setzen ihn auf eine von zwei Standard-Platzierungen.',
 					options: {
 						fit: { label: 'Einpassen', text: 'Das ganze Bild ist zu sehen; freie Fläche zeigt die Hintergrundfarbe.' },
 						fill: { label: 'Füllen', text: 'Die Leinwand ist ganz bedeckt; Ränder des Bildes können abgeschnitten werden.' }
@@ -548,7 +548,7 @@ const help: typeof enHelp = {
 				},
 				resolution: {
 					title: 'Auflösung',
-					text: 'MP4 und WebM. „Original“ ist die Leinwandgröße. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',
+					text: 'MP4 und WebM. „Original“ ist die Leinwandgröße; 75 %, 50 % und 25 % verkleinern sie im gleichen Verhältnis, danach folgen feste Höhen. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',
 					tip: 'Bleib bei „Original“, außer die Datei soll kleiner werden: 1080p reicht für fast jede Website, 720p für E-Mail und Chat.'
 				},
 				quality: {
@@ -579,7 +579,7 @@ const help: typeof enHelp = {
 				},
 				gifWidth: {
 					title: 'GIF: Breite',
-					text: 'Breite des GIFs in Pixeln (standardmäßig 800 px); die Höhe folgt der Leinwand. Auch hier wird nichts vergrößert.',
+					text: 'Breite des GIFs in Pixeln (standardmäßig 800 px); die Höhe folgt der Leinwand. Alternativ 75 %, 50 % oder 25 % der Leinwandbreite. Auch hier wird nichts vergrößert.',
 					tip: 'Bleib bei 800 px für READMEs und Tickets; nimm 1024 oder 1280 px nur, wenn kleine Schrift lesbar bleiben muss – jede Stufe macht die Datei spürbar größer.'
 				},
 				gifFrameRate: {

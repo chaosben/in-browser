@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clampCanvasSize, growTo, refitDefaults, resizeCanvas, shrunkSources } from './canvas';
-import { cameraRect, fitRect } from './defaults';
+import { cameraRect, placeRect } from './defaults';
 import type { Annotation, Clip, Source, Timeline } from './types';
 
 const from = { width: 1000, height: 500 };
@@ -78,7 +78,7 @@ describe('growTo', () => {
 describe('refitDefaults', () => {
 	it('a larger source in its default placement fills the new canvas', () => {
 		const s = source(2000, 1000);
-		const t = refitDefaults(resizeCanvas(timeline(clip(fitRect(s, from.width, from.height))), from, to), [s], from, to);
+		const t = refitDefaults(resizeCanvas(timeline(clip(placeRect(s, from.width, from.height))), from, to), [s], from, to);
 		expect((t.items[0] as Clip).rect).toEqual({ x: 0, y: 0, w: 1, h: 1 });
 	});
 	it('smaller sources and moved clips keep their pixel size', () => {
@@ -105,8 +105,8 @@ describe('shrunkSources', () => {
 		const small = { ...source(800, 400), id: 'small' };
 		const cam = { ...source(1920, 1080), id: 'cam' };
 		const t = timeline(
-			{ ...clip(fitRect(big, from.width, from.height)), id: 'a', sourceId: 'big' },
-			{ ...clip(fitRect(small, from.width, from.height)), id: 'b', sourceId: 'small' },
+			{ ...clip(placeRect(big, from.width, from.height)), id: 'a', sourceId: 'big' },
+			{ ...clip(placeRect(small, from.width, from.height)), id: 'b', sourceId: 'small' },
 			{ ...clip({ x: 0.7, y: 0.7, w: 0.25, h: 0.25 }), id: 'c', sourceId: 'cam' }
 		);
 		expect(shrunkSources(t, [big, small, cam], from).map((s) => s.id)).toEqual(['big']);

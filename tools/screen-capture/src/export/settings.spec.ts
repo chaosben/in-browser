@@ -12,14 +12,18 @@ import {
 
 describe('outputSize', () => {
 	it('keeps the original at height 0', () => {
-		expect(outputSize({ height: 0 }, 2560, 1440)).toEqual({ width: 2560, height: 1440 });
+		expect(outputSize({ height: 0, scale: 100 }, 2560, 1440)).toEqual({ width: 2560, height: 1440 });
 	});
 	it('scales down and rounds to even values', () => {
-		expect(outputSize({ height: 720 }, 2560, 1440)).toEqual({ width: 1280, height: 720 });
-		expect(outputSize({ height: 480 }, 1366, 768)).toEqual({ width: 854, height: 480 });
+		expect(outputSize({ height: 720, scale: 100 }, 2560, 1440)).toEqual({ width: 1280, height: 720 });
+		expect(outputSize({ height: 480, scale: 100 }, 1366, 768)).toEqual({ width: 854, height: 480 });
 	});
 	it('never scales up', () => {
-		expect(outputSize({ height: 2160 }, 1280, 720)).toEqual({ width: 1280, height: 720 });
+		expect(outputSize({ height: 2160, scale: 100 }, 1280, 720)).toEqual({ width: 1280, height: 720 });
+	});
+	it('scales by percent of the project, before a fixed height', () => {
+		expect(outputSize({ height: 0, scale: 50 }, 2560, 1440)).toEqual({ width: 1280, height: 720 });
+		expect(outputSize({ height: 1080, scale: 25 }, 1366, 768)).toEqual({ width: 342, height: 192 });
 	});
 });
 
@@ -43,11 +47,14 @@ describe('videoBitrate / estimateBytes', () => {
 
 describe('gifSize', () => {
 	it('limits the width and keeps the aspect ratio', () => {
-		expect(gifSize({ gifWidth: 800 }, 1920, 1080)).toEqual({ width: 800, height: 450 });
+		expect(gifSize({ gifWidth: 800, gifScale: 100 }, 1920, 1080)).toEqual({ width: 800, height: 450 });
 	});
 	it('keeps the original at width 0 and never scales up', () => {
-		expect(gifSize({ gifWidth: 0 }, 1366, 768)).toEqual({ width: 1366, height: 768 });
-		expect(gifSize({ gifWidth: 1280 }, 640, 360)).toEqual({ width: 640, height: 360 });
+		expect(gifSize({ gifWidth: 0, gifScale: 100 }, 1366, 768)).toEqual({ width: 1366, height: 768 });
+		expect(gifSize({ gifWidth: 1280, gifScale: 100 }, 640, 360)).toEqual({ width: 640, height: 360 });
+	});
+	it('scales by percent of the project, before a fixed width', () => {
+		expect(gifSize({ gifWidth: 800, gifScale: 50 }, 1920, 1080)).toEqual({ width: 960, height: 540 });
 	});
 });
 

@@ -237,7 +237,7 @@ const help = {
 				},
 				enlarge: {
 					title: 'Enlarge canvas?',
-					text: 'If you insert material larger than the canvas, it is shown scaled down, and you are asked whether the canvas should grow.',
+					text: 'If you insert material larger than the canvas, it is shown scaled down, and you are asked whether the canvas should grow. Smaller material is inserted at 100 % in the center, never enlarged.',
 					options: {
 						grow: { label: 'Enlarge canvas', text: 'The new material is shown 1:1 and sharp; the existing content keeps its size and moves to the center. The export gets larger.' },
 						keep: { label: 'Keep size', text: 'The output size stays; the new material stays scaled down.' }
@@ -375,7 +375,7 @@ const help = {
 			items: {
 				placement: {
 					title: 'Position in the picture',
-					text: 'A clip can be any size anywhere on the canvas (picture in picture). The buttons set it to one of two standard placements.',
+					text: 'A clip can be any size anywhere on the canvas (picture in picture). New clips appear at their original size (larger ones scaled down to fit). The buttons set it to one of two standard placements.',
 					options: {
 						fit: { label: 'Fit', text: 'The whole picture is visible; free space shows the background color.' },
 						fill: { label: 'Fill', text: 'The canvas is covered completely; edges of the picture may be cut off.' }
@@ -570,7 +570,7 @@ const help = {
 				},
 				resolution: {
 					title: 'Resolution',
-					text: 'MP4 and WebM. “Original” is the canvas size. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',
+					text: 'MP4 and WebM. “Original” is the canvas size; 75 %, 50 % and 25 % shrink it proportionally, followed by fixed heights. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',
 					tip: 'Keep “Original” unless the file has to be smaller: 1080p is enough for almost every website, 720p for e-mail and chat.'
 				},
 				quality: {
@@ -601,7 +601,7 @@ const help = {
 				},
 				gifWidth: {
 					title: 'GIF: width',
-					text: 'Width of the GIF in pixels (800 px by default); the height follows the canvas. Here too, nothing is enlarged.',
+					text: 'Width of the GIF in pixels (800 px by default); the height follows the canvas. Alternatively 75 %, 50 % or 25 % of the canvas width. Here too, nothing is enlarged.',
 					tip: 'Keep 800 px for READMEs and tickets; take 1024 or 1280 px only if small text must stay readable – every step makes the file noticeably larger.'
 				},
 				gifFrameRate: {

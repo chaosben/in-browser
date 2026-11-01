@@ -13,6 +13,7 @@
 		outputSize,
 		QUALITY_LABELS,
 		RESOLUTIONS,
+		SCALES,
 		storeSettings,
 		videoBitrate,
 		type QualityPreset
@@ -56,6 +57,23 @@
 	const resolutions = $derived(RESOLUTIONS.filter((h) => h < project.height));
 	const gifWidths = $derived(GIF_WIDTHS.filter((w) => w < project.width));
 	const hasAudio = $derived(project.sources.some((s) => s.hasAudio));
+
+	// Percent and fixed size in one select: '50%' = percent of the canvas, '720' = fixed size, '0' = original
+	const sizeKey = (scale: number, fixed: number) => (scale < 100 ? `${scale}%` : String(fixed));
+	const parseSizeKey = (key: string) =>
+		key.endsWith('%') ? { scale: parseInt(key), fixed: 0 } : { scale: 100, fixed: Number(key) };
+
+	function setResolution(key: string) {
+		const { scale, fixed } = parseSizeKey(key);
+		settings.scale = scale;
+		settings.height = fixed;
+	}
+
+	function setGifWidth(key: string) {
+		const { scale, fixed } = parseSizeKey(key);
+		settings.gifScale = scale;
+		settings.gifWidth = fixed;
+	}
 
 	$effect(() => {
 		dialog.showModal();
@@ -165,10 +183,14 @@
 
 				{#if isGif}
 					<span class="label">{m.export.width}</span>
-					<select class="select select-sm" bind:value={settings.gifWidth}>
-						<option value={0}>{m.export.original(project.width, project.height)}</option>
+					<select class="select select-sm" bind:value={() => sizeKey(settings.gifScale, settings.gifWidth), setGifWidth}>
+						<option value="0">{m.export.original(project.width, project.height)}</option>
+						{#each SCALES as scale (scale)}
+							{@const s = gifSize({ gifWidth: 0, gifScale: scale }, project.width, project.height)}
+							<option value="{scale}%">{m.export.scale(scale, s.width, s.height)}</option>
+						{/each}
 						{#each gifWidths as w (w)}
-							<option value={w}>{w} px</option>
+							<option value={String(w)}>{w} px</option>
 						{/each}
 					</select>
 
@@ -186,10 +208,14 @@
 					</label>
 				{:else}
 					<span class="label">{m.export.resolution}</span>
-					<select class="select select-sm" bind:value={settings.height}>
-						<option value={0}>{m.export.original(project.width, project.height)}</option>
+					<select class="select select-sm" bind:value={() => sizeKey(settings.scale, settings.height), setResolution}>
+						<option value="0">{m.export.original(project.width, project.height)}</option>
+						{#each SCALES as scale (scale)}
+							{@const s = outputSize({ height: 0, scale }, project.width, project.height)}
+							<option value="{scale}%">{m.export.scale(scale, s.width, s.height)}</option>
+						{/each}
 						{#each resolutions as h (h)}
-							<option value={h}>{h}p</option>
+							<option value={String(h)}>{h}p</option>
 						{/each}
 					</select>
 

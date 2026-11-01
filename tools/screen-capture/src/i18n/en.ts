@@ -116,6 +116,7 @@ const en = {
 		resolution: 'Resolution',
 		width: 'Width',
 		original: (w: number, h: number) => `Original (${w}×${h})`,
+		scale: (percent: number, w: number, h: number) => `${percent} % (${w}×${h})`,
 		quality: 'Quality',
 		qualities: { low: 'Low', medium: 'Medium', high: 'High', 'very-high': 'Very high', custom: 'Custom' },
 		bitrate: 'Bitrate',

@@ -134,6 +134,15 @@ export function fitRect(source: Pick<Source, 'width' | 'height'>, width: number,
 	return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
 }
 
+/** Default placement of new clips: 1:1 and centered, larger sources fitted (never enlarged). */
+export function placeRect(source: Pick<Source, 'width' | 'height'>, width: number, height: number): Rect {
+	if (!source.width || !source.height) return fitRect(source, width, height);
+	const scale = Math.min(1, width / source.width, height / source.height);
+	const w = (source.width * scale) / width;
+	const h = (source.height * scale) / height;
+	return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+}
+
 /** Webcam overlay bottom right: 25 % of the canvas width, margin 3 % of the canvas height */
 export function cameraRect(source: Pick<Source, 'width' | 'height'>, width: number, height: number): Rect {
 	if (!source.width || !source.height) return fitRect(source, width, height);
@@ -143,7 +152,7 @@ export function cameraRect(source: Pick<Source, 'width' | 'height'>, width: numb
 	return { x: 1 - w - (margin * height) / width, y: 1 - h - margin, w, h };
 }
 
-/** Clip spanning the whole source, fitted. Start and track are assigned by `appendClip` or `addItem`. */
+/** Clip spanning the whole source, in its default placement (`placeRect`). Start and track are assigned by `appendClip` or `addItem`. */
 export function createClip(source: Source, width: number, height: number, start = 0): VideoClip {
 	return {
 		id: newId(),
@@ -153,7 +162,7 @@ export function createClip(source: Source, width: number, height: number, start 
 		track: 0,
 		in: 0,
 		out: source.duration,
-		rect: fitRect(source, width, height)
+		rect: placeRect(source, width, height)
 	};
 }
 

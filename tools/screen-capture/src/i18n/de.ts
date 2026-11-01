@@ -116,6 +116,7 @@ const de: Messages = {
 		resolution: 'Auflösung',
 		width: 'Breite',
 		original: (w, h) => `Original (${w}×${h})`,
+		scale: (percent, w, h) => `${percent} % (${w}×${h})`,
 		quality: 'Qualität',
 		qualities: { low: 'Niedrig', medium: 'Mittel', high: 'Hoch', 'very-high': 'Sehr hoch', custom: 'Benutzerdefiniert' },
 		bitrate: 'Bitrate',

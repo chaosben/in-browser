@@ -2,7 +2,7 @@
 // so a new canvas size means converting everything. Existing content keeps its size in pixels and stays
 // centered; new space around it stays empty, on a smaller canvas it reaches over the edge.
 
-import { cameraRect, fitRect } from './defaults.js';
+import { cameraRect, placeRect } from './defaults.js';
 import type { Annotation, Item, Point, Rect, Source, Timeline, ZoomSegment } from './types.js';
 
 export interface Size {
@@ -108,7 +108,7 @@ export function shrunkSources(timeline: Timeline, sources: Source[], canvas: Siz
 		(s) =>
 			s.hasVideo &&
 			(s.width > canvas.width || s.height > canvas.height) &&
-			timeline.items.some((i) => i.type !== 'annotation' && i.sourceId === s.id && near(i.rect, fitRect(s, canvas.width, canvas.height)))
+			timeline.items.some((i) => i.type !== 'annotation' && i.sourceId === s.id && near(i.rect, placeRect(s, canvas.width, canvas.height)))
 	);
 }
 
@@ -125,7 +125,7 @@ export function refitDefaults(timeline: Timeline, sources: Source[], from: Size,
 		// Default placement in the old canvas, converted like everything else
 		const was = (rect: Rect) => near(item.rect, (resizeCanvas(timeline1({ ...item, rect }), from, to).items[0] as typeof item).rect);
 		const larger = source.width > from.width || source.height > from.height;
-		if (larger && was(fitRect(source, from.width, from.height))) return { ...item, rect: fitRect(source, to.width, to.height) };
+		if (larger && was(placeRect(source, from.width, from.height))) return { ...item, rect: placeRect(source, to.width, to.height) };
 		if (was(cameraRect(source, from.width, from.height))) return { ...item, rect: cameraRect(source, to.width, to.height) };
 		return item;
 	});

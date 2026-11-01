@@ -8,6 +8,8 @@ export interface ExportSettings {
 	format: ExportFormat;
 	/** Target height in pixels, `0` = original project resolution. */
 	height: number;
+	/** Percent of the project resolution, `100` = not scaled. Takes precedence over `height`. */
+	scale: number;
 	fps: 15 | 24 | 30 | 60;
 	quality: QualityPreset;
 	/** Only with `quality: 'custom'`, in Mbit/s. */
@@ -16,6 +18,8 @@ export interface ExportSettings {
 	audioKbps: 0 | 96 | 128 | 192 | 256;
 	/** GIF only: maximum width in pixels, `0` = original project resolution. */
 	gifWidth: number;
+	/** GIF only: percent of the project resolution, `100` = not scaled. Takes precedence over `gifWidth`. */
+	gifScale: number;
 	gifFps: 10 | 15 | 20 | 25;
 	gifLoop: boolean;
 }
@@ -23,16 +27,19 @@ export interface ExportSettings {
 export const DEFAULT_SETTINGS: ExportSettings = {
 	format: 'mp4',
 	height: 0,
+	scale: 100,
 	fps: 30,
 	quality: 'high',
 	customMbps: 8,
 	audioKbps: 192,
 	gifWidth: 800,
+	gifScale: 100,
 	gifFps: 15,
 	gifLoop: true
 };
 
 export const FORMATS: readonly ExportFormat[] = ['mp4', 'webm', 'gif'];
+export const SCALES = [75, 50, 25] as const;
 export const RESOLUTIONS = [2160, 1440, 1080, 720, 480] as const;
 export const GIF_WIDTHS = [1280, 1024, 800, 640, 480] as const;
 export const GIF_FRAME_RATES = [10, 15, 20, 25] as const;
@@ -60,11 +67,16 @@ const BITS_PER_PIXEL: Record<Exclude<QualityPreset, 'custom'>, number> = {
 
 /** Output size: never upscale, even pixel counts (required for H.264). */
 export function outputSize(
-	settings: Pick<ExportSettings, 'height'>,
+	settings: Pick<ExportSettings, 'height' | 'scale'>,
 	projectWidth: number,
 	projectHeight: number
 ) {
-	const height = settings.height > 0 ? Math.min(settings.height, projectHeight) : projectHeight;
+	const height =
+		settings.scale < 100
+			? (projectHeight * settings.scale) / 100
+			: settings.height > 0
+				? Math.min(settings.height, projectHeight)
+				: projectHeight;
 	const width = (projectWidth / projectHeight) * height;
 	const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 	return { width: even(width), height: even(height) };
@@ -80,8 +92,17 @@ export function fitToProject(settings: ExportSettings, projectWidth: number, pro
 }
 
 /** GIF output size: limited width, same aspect ratio, never upscaled. */
-export function gifSize(settings: Pick<ExportSettings, 'gifWidth'>, projectWidth: number, projectHeight: number) {
-	const width = settings.gifWidth > 0 ? Math.min(settings.gifWidth, projectWidth) : projectWidth;
+export function gifSize(
+	settings: Pick<ExportSettings, 'gifWidth' | 'gifScale'>,
+	projectWidth: number,
+	projectHeight: number
+) {
+	const width =
+		settings.gifScale < 100
+			? Math.max(1, Math.round((projectWidth * settings.gifScale) / 100))
+			: settings.gifWidth > 0
+				? Math.min(settings.gifWidth, projectWidth)
+				: projectWidth;
 	return { width, height: Math.max(1, Math.round((projectHeight / projectWidth) * width)) };
 }
 

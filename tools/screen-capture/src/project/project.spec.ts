@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { emptyTimeline } from '#lib/timeline/ops.js';
-import { canvasSize, IMAGE_SECONDS, placeImages } from './project';
-import type { ImageAnnotation, ImageAsset, Source } from './types';
+import { fitRect, placeRect } from './defaults';
+import { canvasSize, IMAGE_SECONDS, placeImages, placeRecording } from './project';
+import type { ImageAnnotation, ImageAsset, Source, VideoClip } from './types';
 
 const image = (id: string, width: number, height: number): ImageAsset => ({ id, file: `${id}.png`, name: id, width, height });
 const video = { id: 'v', hasVideo: true, width: 1280, height: 720 } as Source;
@@ -33,5 +34,25 @@ describe('placeImages', () => {
 		expect(items[1].rect.h).toBeCloseTo(1);
 		expect(items[1].rect.x).toBeGreaterThan(0);
 		expect(new Set(items.map((i) => i.track)).size).toBe(1);
+	});
+});
+
+describe('placeRect', () => {
+	it('keeps smaller sources at 100 %, centered', () => {
+		expect(placeRect({ width: 960, height: 540 }, 1920, 1080)).toEqual({ x: 0.25, y: 0.25, w: 0.5, h: 0.5 });
+	});
+	it('fits larger sources into the canvas', () => {
+		expect(placeRect({ width: 3840, height: 1600 }, 1920, 1080)).toEqual(fitRect({ width: 3840, height: 1600 }, 1920, 1080));
+	});
+	it('audio-only sources cover the canvas', () => {
+		expect(placeRect({ width: 0, height: 0 }, 1920, 1080)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+	});
+});
+
+describe('placeRecording', () => {
+	it('a smaller screen recording is not enlarged', () => {
+		const screen = { ...video, duration: 5 } as Source;
+		const clip = placeRecording(emptyTimeline(), { screen }, 2560, 1440).items[0] as VideoClip;
+		expect(clip.rect).toEqual({ x: 0.25, y: 0.25, w: 0.5, h: 0.5 });
 	});
 });
