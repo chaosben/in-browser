@@ -1,10 +1,11 @@
 import { deleteMediaFile, projectFileDate, saveProject } from '#lib/storage/store.js';
-import { addItem, clipsChanged, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup } from '#lib/timeline/ops.js';
+import { addItem, clipsChanged, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup, updateItem } from '#lib/timeline/ops.js';
 import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
+import { cleanCrop, croppedRect, fullRect } from './crop.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, recordingSources, type Recording } from './project.js';
-import { newId, type ImageAsset, type Item, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
+import { newId, type ImageAsset, type Item, type Rect, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
 import { entriesUse } from './library.js';
 import { m } from '#lib/i18n/index.js';
 import { parseColor } from '#lib/util/color.js';
@@ -22,10 +23,21 @@ interface Snapshot extends Size {
  */
 export class Editor {
 	project: Project = $state.raw()!;
-	selection = $state<Selection>(null);
+	#selection = $state<Selection>(null);
 	saving = $state(false);
 	/** Open question whether to grow the canvas for new material that is shown shrunk */
 	canvasOffer = $state.raw<{ size: Size; sourceIds: string[] } | null>(null);
+	/** Clip in crop mode; ends when the selection no longer contains it */
+	#cropping = $state<string | null>(null);
+
+	get selection(): Selection {
+		return this.#selection;
+	}
+
+	set selection(selection: Selection) {
+		this.#selection = selection;
+		if (this.#cropping && !(selection?.kind === 'items' && selection.ids.includes(this.#cropping))) this.#cropping = null;
+	}
 
 	#undo = $state.raw<Snapshot[]>([]);
 	#redo = $state.raw<Snapshot[]>([]);
@@ -75,6 +87,29 @@ export class Editor {
 	get selectedClip() {
 		const item = this.selectedItem;
 		return item && isClip(item) ? item : null;
+	}
+
+	/** Selected clip with a picture in crop mode */
+	get croppingClip() {
+		const clip = this.selectedClip;
+		return clip && clip.id === this.#cropping && this.source(clip.sourceId)?.hasVideo ? clip : null;
+	}
+
+	startCrop(id: string) {
+		this.#cropping = id;
+	}
+
+	endCrop() {
+		this.#cropping = null;
+	}
+
+	/** Crops a clip; its content stays in place, only the visible part changes (`crop.ts`) */
+	setCrop(id: string, crop: Rect, mergeKey?: string) {
+		this.update((t) => {
+			const item = findItem(t, id);
+			if (!item || !isClip(item)) return t;
+			return updateItem(t, id, { crop: cleanCrop(crop), rect: croppedRect(fullRect(item.rect, item.crop), crop) });
+		}, mergeKey);
 	}
 
 	get selectedOverlay() {

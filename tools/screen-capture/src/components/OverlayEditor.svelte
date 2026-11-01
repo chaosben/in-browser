@@ -10,6 +10,7 @@
 	import { rememberStyle } from '#lib/project/styles.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
+	import { FULL, dragCrop, fullRect, type CropHandle } from '#lib/project/crop.js';
 	import { ZOOM_ICON } from '#lib/project/defaults.js';
 	import {
 		snapAspect,
@@ -52,6 +53,7 @@
 	const selectedZoom = $derived(editor.selectedZoom);
 	const selectedOverlay = $derived(editor.selectedOverlay);
 	const selectedClip = $derived(editor.selectedClip);
+	const croppingClip = $derived(editor.croppingClip);
 	// When paused (and while editing a zoom segment) the preview shows the full frame, so everything stays editable;
 	// the zoom is seen during playback and in the export.
 	const full = $derived(!!selectedZoom || !player.playing);
@@ -365,6 +367,41 @@
 		});
 	}
 
+	/** Crop mode: an edge or corner crops the clip; the content stays in place, the moved edges snap */
+	function cropClip(e: PointerEvent, c: Clip, handle: CropHandle) {
+		const source = editor.source(c.sourceId);
+		if (!source) return;
+		const key = `clip-crop-${c.id}-${e.timeStamp}`;
+		const crop = c.crop ?? FULL;
+		const whole = fullRect(c.rect, crop);
+		const r = c.rect;
+		const ex = handle.includes('w') ? r.x : handle.includes('e') ? r.x + r.w : null;
+		const ey = handle.includes('n') ? r.y : handle.includes('s') ? r.y + r.h : null;
+		const targets = targetsFor(c.id);
+		drag(e, (dx, dy, { tol }) => {
+			if (tol) {
+				const sx = ex === null ? null : snapLine(ex + dx, targets.xs, tol.x);
+				const sy = ey === null ? null : snapLine(ey + dy, targets.ys, tol.y);
+				if (sx && ex !== null) dx = sx.value - ex;
+				if (sy && ey !== null) dy = sy.value - ey;
+				guides = { x: sx?.line ?? null, y: sy?.line ?? null, gaps: [] };
+			}
+			editor.setCrop(c.id, dragCrop(crop, handle, dx, dy, whole, source), key);
+		});
+	}
+
+	/** Crop handles: corners, then the middle of each side */
+	const CROP_HANDLES: { handle: CropHandle; at: (r: Rect) => [number, number] }[] = [
+		{ handle: 'nw', at: (r) => [r.x, r.y] },
+		{ handle: 'ne', at: (r) => [r.x + r.w, r.y] },
+		{ handle: 'sw', at: (r) => [r.x, r.y + r.h] },
+		{ handle: 'se', at: (r) => [r.x + r.w, r.y + r.h] },
+		{ handle: 'n', at: (r) => [r.x + r.w / 2, r.y] },
+		{ handle: 's', at: (r) => [r.x + r.w / 2, r.y + r.h] },
+		{ handle: 'w', at: (r) => [r.x, r.y + r.h / 2] },
+		{ handle: 'e', at: (r) => [r.x + r.w, r.y + r.h / 2] }
+	];
+
 	// --- Zoom segment: view with fixed aspect ratio (w === h in normalized coordinates)
 
 	const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
@@ -487,6 +524,10 @@
 	}
 
 	function onKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && croppingClip) {
+			e.preventDefault();
+			return editor.endCrop();
+		}
 		if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
 			e.preventDefault();
 			return cycle(e.shiftKey);
@@ -528,6 +569,18 @@
 		se: 'cursor-nwse-resize',
 		ne: 'cursor-nesw-resize',
 		sw: 'cursor-nesw-resize'
+	};
+	// Crop handles look different from the scaling ones: filled bars in the selection color
+	const cropBase = 'absolute -translate-x-1/2 -translate-y-1/2 rounded-sm border border-white bg-selection shadow';
+	const cropCorner = `${cropBase} size-3.5`;
+	const cropSideNS = `${cropBase} h-2 w-5`;
+	const cropSideEW = `${cropBase} h-5 w-2`;
+	const cropCursors: Record<CropHandle, string> = {
+		...cursors,
+		n: 'cursor-ns-resize',
+		s: 'cursor-ns-resize',
+		w: 'cursor-ew-resize',
+		e: 'cursor-ew-resize'
 	};
 </script>
 
@@ -602,6 +655,7 @@
 					class="absolute cursor-move {frame}"
 					style={boxStyle(item.rect)}
 					onpointerdown={(e) => moveClip(e, item)}
+					ondblclick={() => editor.startCrop(item.id)}
 					role="presentation"
 				></div>
 			{/if}
@@ -643,7 +697,21 @@
 			</div>
 		{/if}
 
-		{#if selectedClip && active.some((c) => c.id === selectedClip.id)}
+		{#if croppingClip && active.some((c) => c.id === croppingClip.id)}
+			{@const c = croppingClip}
+			<!-- Crop mode: outline of the whole source, handles crop instead of scaling -->
+			<div class="outline-selection pointer-events-none absolute outline-2 outline-dashed" style={boxStyle(fullRect(c.rect, c.crop))}></div>
+			{#each CROP_HANDLES as { handle: h, at } (h)}
+				{@const [x, y] = at(c.rect)}
+				<div
+					class="{h.length === 2 ? cropCorner : h === 'n' || h === 's' ? cropSideNS : cropSideEW} {cropCursors[h]}"
+					style="left: {px(x)}; top: {py(y)}"
+					title={m.inspector.crop}
+					onpointerdown={(e) => cropClip(e, c, h)}
+					role="presentation"
+				></div>
+			{/each}
+		{:else if selectedClip && active.some((c) => c.id === selectedClip.id)}
 			{@const c = selectedClip}
 			{#each CORNERS as corner (corner)}
 				<div

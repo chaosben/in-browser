@@ -2,6 +2,7 @@
 // background. Clips show their thumbnail in their shape (a neutral area until it has loaded); clips without a
 // picture (audio) have no place in the picture – for items of only audio the caller shows an audio icon instead.
 import type { ItemMedia } from '#lib/media/visuals.js';
+import { FULL } from '#lib/project/crop.js';
 import type { Clip, Item, Rect } from '#lib/project/types.js';
 import { drawOverlay, overlayBounds } from './overlays.js';
 
@@ -70,7 +71,8 @@ export function drawItemsPreview(
 		const frame = media?.frames.get(item.id);
 		if (frame) {
 			ctx.clip();
-			ctx.drawImage(frame, x, y, w, h);
+			const c = item.crop ?? FULL;
+			ctx.drawImage(frame, c.x * frame.width, c.y * frame.height, c.w * frame.width, c.h * frame.height, x, y, w, h);
 		} else {
 			ctx.fillStyle = '#6b7280';
 			ctx.fill();

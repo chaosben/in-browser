@@ -64,7 +64,8 @@ const help = {
 			items: {
 				flow: {
 					title: 'How a recording works',
-					text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. After the optional 3 second countdown the recording runs. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording.'
+					text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. After the optional 3 second countdown the recording runs. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording.',
+					tip: 'When you share a single window, the browser records only that window: its dialogs, menus and pop-ups are separate windows and are missing. If you need them, share the whole screen and crop the clip to the window afterwards (“Crop” in the clip’s properties).'
 				},
 				screenQuality: {
 					title: 'Screen – Quality',
@@ -382,6 +383,12 @@ const help = {
 					},
 					tip: 'Fit for screen recordings – nothing important gets cut off. Fill for camera pictures or when a different aspect ratio must not leave bars.'
 				},
+				crop: {
+					title: 'Crop',
+					text: '“Crop” in the clip’s properties (also in the context menu, or double-click the clip in the preview) shows the outline of the whole picture dashed; drag the edges or corners to cut away what you don’t want to show. The picture stays in place, only its frame gets smaller, and the edges snap like everything else. The fields Left, Top, Right and Bottom set the cut in pixels of the recording. “Done”, Esc or Enter ends cropping; “Remove crop” shows the whole picture again. “Fit” and “Fill” then use the cropped part.',
+					tip: 'To show a program with its dialogs and menus, record the whole screen and crop to the area of the program window. Hold frames and split clips keep the crop.',
+					keys: [['Esc'], ['Enter']]
+				},
 				shape: {
 					title: 'Shape',
 					text: 'How the clip is cut out.',
@@ -394,7 +401,7 @@ const help = {
 				},
 				windowPosition: {
 					title: 'Window position',
-					text: 'Only appears if the recorded window changed its size. The clip has the size of the largest window; while the window was smaller, the rest stays empty. The 3×3 grid sets where the smaller window sits.'
+					text: 'Only appears if the recorded window changed its size. The clip has the size of the largest window; while the window was smaller, the rest stays empty. The 3×3 grid sets where the smaller window sits. A cropped clip leaves the window where it was.'
 				},
 				volume: {
 					title: 'Volume',
@@ -640,6 +647,7 @@ const help = {
 				undo: { title: 'Undo / redo', text: 'Last change', keys: [['Ctrl', 'Z'], ['Ctrl', 'Shift', 'Z'], ['Ctrl', 'Y']] },
 				all: { title: 'Select all', text: 'All elements', keys: [['Ctrl', 'A']] },
 				deselect: { title: 'Deselect', text: 'Clear the selection', keys: [['Esc']] },
+				crop: { title: 'End cropping', text: 'The clip stays selected', keys: [['Esc'], ['Enter']] },
 				link: { title: 'Link / unlink', text: 'Selected elements', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
 				track: { title: 'Track', text: 'Forward / backward; with Shift to the front / back', keys: [['Ctrl', '↑'], ['Ctrl', '↓']] },
 				clipboard: { title: 'Copy / cut / paste', text: 'Selected elements; pasted at the playhead', keys: [['Ctrl', 'C'], ['Ctrl', 'X'], ['Ctrl', 'V']] },

@@ -42,7 +42,8 @@ const help: typeof enHelp = {
 			items: {
 				flow: {
 					title: 'So läuft eine Aufnahme',
-					text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du teilst. Nach dem optionalen 3-Sekunden-Countdown läuft die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.'
+					text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du teilst. Nach dem optionalen 3-Sekunden-Countdown läuft die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
+					tip: 'Teilst du ein einzelnes Fenster, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, teile den ganzen Bildschirm und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in den Eigenschaften des Clips).'
 				},
 				screenQuality: {
 					title: 'Bildschirm – Qualität',
@@ -360,6 +361,12 @@ const help: typeof enHelp = {
 					},
 					tip: 'Einpassen für Bildschirmaufnahmen – nichts Wichtiges wird abgeschnitten. Füllen für Kamerabilder oder wenn ein anderes Seitenverhältnis keine Balken lassen soll.'
 				},
+				crop: {
+					title: 'Zuschneiden',
+					text: '„Zuschneiden“ in den Eigenschaften des Clips (auch im Kontextmenü, oder Doppelklick auf den Clip in der Vorschau) zeigt den Umriss des ganzen Bildes gestrichelt; zieh die Kanten oder Ecken, um wegzuschneiden, was du nicht zeigen willst. Das Bild bleibt dabei stehen, nur sein Rahmen wird kleiner, und die Kanten rasten ein wie alles andere. Die Felder Links, Oben, Rechts und Unten legen den Schnitt in Pixeln der Aufnahme fest. „Fertig“, Esc oder Enter beendet das Zuschneiden; „Zuschnitt entfernen“ zeigt wieder das ganze Bild. „Einpassen“ und „Füllen“ richten sich dann nach dem zugeschnittenen Teil.',
+					tip: 'Um ein Programm mit seinen Dialogen und Menüs zu zeigen, nimm den ganzen Bildschirm auf und schneide auf den Bereich des Programmfensters zu. Gehaltene Frames und geteilte Clips behalten den Zuschnitt.',
+					keys: [['Esc'], ['Enter']]
+				},
 				shape: {
 					title: 'Form',
 					text: 'Wie der Clip ausgeschnitten wird.',
@@ -372,7 +379,7 @@ const help: typeof enHelp = {
 				},
 				windowPosition: {
 					title: 'Fensterposition',
-					text: 'Erscheint nur, wenn das aufgenommene Fenster seine Größe geändert hat. Der Clip hat die Größe des größten Fensters; solange das Fenster kleiner war, bleibt der Rest leer. Im 3×3-Raster legst du fest, wo das kleinere Fenster steht.'
+					text: 'Erscheint nur, wenn das aufgenommene Fenster seine Größe geändert hat. Der Clip hat die Größe des größten Fensters; solange das Fenster kleiner war, bleibt der Rest leer. Im 3×3-Raster legst du fest, wo das kleinere Fenster steht. Bei einem zugeschnittenen Clip bleibt das Fenster, wo es war.'
 				},
 				volume: {
 					title: 'Lautstärke',
@@ -618,6 +625,7 @@ const help: typeof enHelp = {
 				undo: { title: 'Rückgängig / Wiederholen', text: 'Letzte Änderung', keys: [['Strg', 'Z'], ['Strg', 'Umschalt', 'Z'], ['Strg', 'Y']] },
 				all: { title: 'Alles auswählen', text: 'Alle Elemente', keys: [['Strg', 'A']] },
 				deselect: { title: 'Auswahl aufheben', text: 'Nichts mehr ausgewählt', keys: [['Esc']] },
+				crop: { title: 'Zuschneiden beenden', text: 'Der Clip bleibt ausgewählt', keys: [['Esc'], ['Enter']] },
 				link: { title: 'Verknüpfen / lösen', text: 'Ausgewählte Elemente', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
 				track: { title: 'Spur', text: 'Nach vorne / hinten; mit Umschalt ganz nach vorne / hinten', keys: [['Strg', '↑'], ['Strg', '↓']] },
 				clipboard: { title: 'Kopieren / Ausschneiden / Einfügen', text: 'Ausgewählte Elemente; eingefügt am Abspielkopf', keys: [['Strg', 'C'], ['Strg', 'X'], ['Strg', 'V']] },

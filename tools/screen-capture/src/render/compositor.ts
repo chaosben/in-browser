@@ -62,16 +62,16 @@ export function renderFrame(ctx: Ctx2D, width: number, height: number, scene: Sc
 		const { x, y, w, h } = item.rect;
 		// Fading clips let the tracks below and the background shine through
 		ctx.globalAlpha = scene.fades === false ? 1 : fadeAlpha(scene.t, item.start, itemEnd(item), item.fadeIn, item.fadeOut);
-		drawClip(ctx, frame, x * width, y * height, w * width, h * height, item.shape ?? 'rect');
+		drawClip(ctx, frame, x * width, y * height, w * width, h * height, item.shape ?? 'rect', item.crop);
 		ctx.globalAlpha = 1;
 	}
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 /** Draws a clip frame into its rect, rounded or as a circle (centered, diameter = shorter side) */
-function drawClip(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number, shape: ClipShape) {
+function drawClip(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number, shape: ClipShape, crop?: Rect) {
 	if (shape === 'rect') {
-		drawFrame(ctx, frame, x, y, w, h);
+		drawFrame(ctx, frame, x, y, w, h, crop);
 		return;
 	}
 	ctx.save();
@@ -79,14 +79,18 @@ function drawClip(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: 
 	if (shape === 'rounded') ctx.roundRect(x, y, w, h, 0.08 * Math.min(w, h));
 	else ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) / 2, 0, 2 * Math.PI);
 	ctx.clip();
-	drawFrame(ctx, frame, x, y, w, h);
+	drawFrame(ctx, frame, x, y, w, h, crop);
 	ctx.restore();
 }
 
-function drawFrame(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number) {
+function drawFrame(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number, crop?: Rect) {
 	const { width, height } = frame;
 	const vw = Math.min(frame.visible?.width ?? width, width);
 	const vh = Math.min(frame.visible?.height ?? height, height);
+	if (crop) {
+		drawCropped(ctx, frame, x, y, w, h, crop, vw, vh);
+		return;
+	}
 	const dw = (w * vw) / width;
 	const dh = (h * vh) / height;
 	// The window is always centered in the file, only its place in the rect can change
@@ -94,4 +98,24 @@ function drawFrame(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h:
 	const sy = (frame.y ?? 0) + (height - vh) / 2;
 	const f = anchorFactors(frame.anchor);
 	ctx.drawImage(frame.image, sx, sy, vw, vh, x + (w - dw) * f.x, y + (h - dh) * f.y, dw, dh);
+}
+
+/**
+ * Cropped clip: the `crop` part of the frame fills the rect. A resized window stays where it is in the file
+ * (centered, no anchor); only the part of it inside the crop is drawn.
+ */
+function drawCropped(ctx: Ctx2D, frame: Frame, x: number, y: number, w: number, h: number, crop: Rect, vw: number, vh: number) {
+	const { width, height } = frame;
+	const left = crop.x * width;
+	const top = crop.y * height;
+	const x0 = Math.max(left, (width - vw) / 2);
+	const y0 = Math.max(top, (height - vh) / 2);
+	const x1 = Math.min(left + crop.w * width, (width + vw) / 2);
+	const y1 = Math.min(top + crop.h * height, (height + vh) / 2);
+	if (x1 <= x0 || y1 <= y0) return;
+	const sx = w / (crop.w * width);
+	const sy = h / (crop.h * height);
+	const ox = frame.x ?? 0;
+	const oy = frame.y ?? 0;
+	ctx.drawImage(frame.image, ox + x0, oy + y0, x1 - x0, y1 - y0, x + (x0 - left) * sx, y + (y0 - top) * sy, (x1 - x0) * sx, (y1 - y0) * sy);
 }

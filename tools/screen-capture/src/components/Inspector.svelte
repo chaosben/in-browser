@@ -5,6 +5,7 @@
 	import InspectorSection from './InspectorSection.svelte';
 	import NumberField from './NumberField.svelte';
 	import type { Size } from '#lib/project/canvas.js';
+	import { croppedSize, cropInsets, FULL, insetsCrop, type CropInsets } from '#lib/project/crop.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import {
@@ -142,9 +143,17 @@
 	function place(c: Clip, cover: boolean) {
 		const source = editor.source(c.sourceId);
 		if (!source) return;
-		const rect = fitRect(source, editor.project.width, editor.project.height, cover);
+		// The visible part fits or fills, so a crop counts
+		const rect = fitRect(croppedSize(source, c.crop), editor.project.width, editor.project.height, cover);
 		editor.update((t) => updateItem(t, c.id, { rect }));
 	}
+
+	const CROP_SIDES: { side: keyof CropInsets; label: string }[] = [
+		{ side: 'left', label: m.inspector.cropLeft },
+		{ side: 'top', label: m.inspector.cropTop },
+		{ side: 'right', label: m.inspector.cropRight },
+		{ side: 'bottom', label: m.inspector.cropBottom }
+	];
 
 	/** Color change from the ColorField: drag = one undo step, `final` completes it */
 	function setColor(field: 'color' | 'background', value: string | null, final: boolean) {
@@ -580,7 +589,42 @@
 			</InspectorField>
 			{#if source?.hasVideo}
 				{@render placement(m.inspector.placement, (cover) => place(c, cover), m.inspector.placementHint)}
-				{#if source.sizes}
+				{@const cropping = editor.croppingClip?.id === c.id}
+				{@const insets = cropInsets(source, c.crop)}
+				<InspectorField label={m.inspector.crop} keywords={[m.inspector.removeCrop, ...CROP_SIDES.map((s) => s.label)]}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.crop}</span>
+						<div class="flex gap-1">
+							<button
+								class="btn btn-sm flex-1 {cropping ? 'btn-primary' : ''}"
+								onclick={() => (cropping ? editor.endCrop() : editor.startCrop(c.id))}
+								aria-pressed={cropping}
+							>
+								<span class="icon-[material-symbols-light--crop] size-5" aria-hidden="true"></span>
+								{cropping ? m.inspector.cropDone : m.inspector.crop}
+							</button>
+							{#if c.crop}
+								<button class="btn btn-sm" onclick={() => editor.setCrop(c.id, FULL)}>{m.inspector.removeCrop}</button>
+							{/if}
+						</div>
+						<div class="grid grid-cols-2 gap-x-3 gap-y-1">
+							{#each CROP_SIDES as { side, label } (side)}
+								<NumberField
+									{label}
+									layout="inline"
+									value={insets[side]}
+									unit="px"
+									min={0}
+									max={(side === 'left' || side === 'right' ? source.width : source.height) - 16}
+									oninput={(px) => editor.setCrop(c.id, insetsCrop(source, { ...insets, [side]: px }), `crop-${c.id}-${side}`)}
+									oncommit={end}
+								/>
+							{/each}
+						</div>
+						<p class="text-xs opacity-60">{m.inspector.cropHint}</p>
+					</div>
+				</InspectorField>
+				{#if source.sizes && !c.crop}
 					<!-- Recorded window was resized: where it sits while it is smaller -->
 					<InspectorField label={m.inspector.windowPosition}>
 						<div class="flex flex-col gap-1">

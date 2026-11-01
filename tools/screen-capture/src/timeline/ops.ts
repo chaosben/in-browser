@@ -593,6 +593,7 @@ export function insertFreeze(
 			rect: item.rect,
 			shape: item.shape,
 			anchor: item.anchor,
+			crop: item.crop,
 			group: item.group,
 			start: t,
 			at,

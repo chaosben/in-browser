@@ -496,6 +496,10 @@
 	function itemMenu(e: MouseEvent, extra: MenuEntry[] = []) {
 		const items = editor?.selectedItems ?? [];
 		const ctrl = m.keys.ctrl;
+		// A single clip with a picture on an unlocked track
+		const clip = items.length === 1 ? editor?.selectedClip : null;
+		const croppable =
+			clip && editor?.source(clip.sourceId)?.hasVideo && !trackState(editor.project.timeline, clip.track).locked ? clip : null;
 		openContextMenu(e, [
 			{
 				label: m.menu.cut,
@@ -535,6 +539,7 @@
 				] as const
 			).map(([label, icon, keys, op]) => ({ label, icon, keys, disabled: !arrangeable(op), run: () => arrange(op) })),
 			{ separator: true },
+			...(croppable ? [{ label: m.inspector.crop, icon: 'icon-[material-symbols-light--crop]', run: () => editor?.startCrop(croppable.id) }] : []),
 			{
 				label: m.library.add,
 				icon: 'icon-[material-symbols-light--bookmark-add-outline]',
@@ -725,7 +730,9 @@
 		} else if (key === 'f') {
 			holdFrame();
 		} else if (e.key === 'Escape') {
-			editor.selection = null;
+			// Ends crop mode first, the clip stays selected
+			if (editor.croppingClip) editor.endCrop();
+			else editor.selection = null;
 		} else if (e.key === 'Delete' || e.key === 'Backspace') {
 			removeSelected(e.shiftKey);
 		} else if (e.key === 'ArrowLeft') {

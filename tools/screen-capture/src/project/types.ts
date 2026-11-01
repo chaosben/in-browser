@@ -53,10 +53,12 @@ export interface VideoClip extends ItemBase {
 	sourceId: string;
 	in: number;
 	out: number;
-	/** Position on the canvas (content coordinates), default: source fitted */
+	/** Position of the visible part on the canvas (content coordinates), default: `placeRect` */
 	rect: Rect;
 	shape?: ClipShape;
 	anchor?: Anchor;
+	/** Visible part of the source (fractions of its used area, see `project/crop.ts`); missing = all of it */
+	crop?: Rect;
 	/** Volume 0…1 (default 1) */
 	volume?: number;
 	/** Fade in/out of picture and sound in seconds (missing or 0: none) */
@@ -73,6 +75,7 @@ export interface FreezeClip extends ItemBase {
 	rect: Rect;
 	shape?: ClipShape;
 	anchor?: Anchor;
+	crop?: Rect;
 	/** Fade in/out of the picture in seconds (missing or 0: none) */
 	fadeIn?: number;
 	fadeOut?: number;
