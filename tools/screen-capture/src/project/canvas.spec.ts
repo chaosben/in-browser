@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampCanvasSize, growTo, refitDefaults, resizeCanvas, shrunkSources } from './canvas';
+import { clampCanvasSize, growTo, largestClipArea, refitDefaults, resizeCanvas, shrunkSources } from './canvas';
 import { cameraRect, placeRect } from './defaults';
 import type { Annotation, Clip, Source, Timeline } from './types';
 
@@ -117,5 +117,38 @@ describe('clampCanvasSize', () => {
 	it('rounds down to even sizes within the limits', () => {
 		expect(clampCanvasSize({ width: 1001, height: 15 })).toEqual({ width: 1000, height: 16 });
 		expect(clampCanvasSize({ width: 9999, height: NaN })).toEqual({ width: 7680, height: 16 });
+	});
+});
+
+describe('resizeCanvas with an offset', () => {
+	it('places the old canvas at the offset', () => {
+		// The clip at 250…750 × 125…375 of a 1000×500 canvas becomes the whole 500×250 canvas
+		const t = resizeCanvas(timeline(clip({ x: 0.25, y: 0.25, w: 0.5, h: 0.5 })), from, { width: 500, height: 250 }, { x: -250, y: -125 });
+		const r = (t.items[0] as Clip).rect;
+		expect(r.x).toBeCloseTo(0);
+		expect(r.y).toBeCloseTo(0);
+		expect(r.w).toBeCloseTo(1);
+		expect(r.h).toBeCloseTo(1);
+	});
+});
+
+describe('largestClipArea', () => {
+	const big = { ...source(1000, 500), id: 'big' };
+	const audio = { ...source(0, 0), id: 'audio', hasVideo: false };
+	it('the largest clip with a picture, within the canvas, even and centered on it', () => {
+		const t = timeline(
+			{ ...clip({ x: 0.1, y: 0.1, w: 0.301, h: 0.5 }), id: 'a', sourceId: 'big' },
+			{ ...clip({ x: 0.8, y: 0.8, w: 0.1, h: 0.1 }), id: 'b', sourceId: 'big' },
+			{ ...clip(), id: 'c', sourceId: 'audio' }
+		);
+		expect(largestClipArea(t, [big, audio], from)).toEqual({ size: { width: 300, height: 250 }, offset: { x: -100.5, y: -50 } });
+	});
+	it('cuts the clip to the canvas', () => {
+		const t = timeline({ ...clip({ x: -0.5, y: 0, w: 1, h: 0.5 }), sourceId: 'big' });
+		expect(largestClipArea(t, [big], from)?.size).toEqual({ width: 500, height: 250 });
+	});
+	it('null if nothing gets smaller or there is no clip with a picture', () => {
+		expect(largestClipArea(timeline({ ...clip(), sourceId: 'big' }), [big], from)).toBeNull();
+		expect(largestClipArea(timeline({ ...clip({ x: 0, y: 0, w: 0.5, h: 0.5 }), sourceId: 'audio' }), [audio], from)).toBeNull();
 	});
 });

@@ -33,13 +33,16 @@ export function clampCanvasSize(size: Size): Size {
 	return { width: clamp(size.width), height: clamp(size.height) };
 }
 
-/** Converts all positions and sizes from canvas `from` to canvas `to`, content centered */
-export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline {
-	if (from.width === to.width && from.height === to.height) return timeline;
+/**
+ * Converts all positions and sizes from canvas `from` to canvas `to`. `offset`: where the old canvas lies in
+ * the new one, in pixels (default: centered).
+ */
+export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: Point): Timeline {
+	if (from.width === to.width && from.height === to.height && !offset?.x && !offset?.y) return timeline;
 	const sx = from.width / to.width;
 	const sy = from.height / to.height;
-	const ox = (to.width - from.width) / 2 / to.width;
-	const oy = (to.height - from.height) / 2 / to.height;
+	const ox = (offset?.x ?? (to.width - from.width) / 2) / to.width;
+	const oy = (offset?.y ?? (to.height - from.height) / 2) / to.height;
 	const point = (p: Point): Point => ({ x: p.x * sx + ox, y: p.y * sy + oy });
 	const rect = (r: Rect): Rect => ({ ...point(r), w: r.w * sx, h: r.h * sy });
 	// Fixed text boxes keep their width in pixels, so the text wraps the same
@@ -90,6 +93,28 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size): Timeline
 	};
 
 	return { ...timeline, items: timeline.items.map(item), zoom: timeline.zoom.map(zoom) };
+}
+
+/**
+ * Canvas reduced to the largest clip with a picture (its frame within the canvas, even pixel counts, centered on
+ * it) and the offset for `resizeCanvas`; `null` if there is none or it would not get smaller.
+ */
+export function largestClipArea(timeline: Timeline, sources: Source[], canvas: Size): { size: Size; offset: Point } | null {
+	const pictures = new Set(sources.filter((s) => s.hasVideo).map((s) => s.id));
+	let best: Rect | null = null;
+	for (const item of timeline.items) {
+		if (item.type === 'annotation' || !pictures.has(item.sourceId)) continue;
+		if (!best || item.rect.w * item.rect.h > best.w * best.h) best = item.rect;
+	}
+	if (!best) return null;
+	const x0 = Math.max(0, best.x * canvas.width);
+	const y0 = Math.max(0, best.y * canvas.height);
+	const x1 = Math.min(canvas.width, (best.x + best.w) * canvas.width);
+	const y1 = Math.min(canvas.height, (best.y + best.h) * canvas.height);
+	if (x1 <= x0 || y1 <= y0) return null;
+	const size = clampCanvasSize({ width: x1 - x0, height: y1 - y0 });
+	if (size.width >= canvas.width && size.height >= canvas.height) return null;
+	return { size, offset: { x: -(x0 + (x1 - x0 - size.width) / 2), y: -(y0 + (y1 - y0 - size.height) / 2) } };
 }
 
 /** Canvas size that also holds the new sources with a picture 1:1, or `null` if they already fit */

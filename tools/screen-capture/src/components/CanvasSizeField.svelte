@@ -4,37 +4,49 @@
 
 	interface Props {
 		value: Size;
-		onchange: (size: Size) => void;
+		/** Offers the size of the largest clip (changing the canvas of a project); `clip`: that option was chosen */
+		largestClip?: Size | null;
+		onchange: (size: Size, clip: boolean) => void;
 	}
 
-	let { value, onchange }: Props = $props();
+	let { value, largestClip = null, onchange }: Props = $props();
 
 	const preset = $derived(CANVAS_PRESETS.find((p) => p.width === value.width && p.height === value.height));
 	/** Custom fields stay open after a choice, even if the values happen to match a preset */
 	let customOpen = $state(false);
-	const custom = $derived(customOpen || !preset);
+	let clipChosen = $state(false);
+	const clip = $derived(clipChosen && !!largestClip);
+	const custom = $derived(!clip && (customOpen || !preset));
 
 	function choose(name: string) {
+		clipChosen = name === 'clip' && !!largestClip;
+		if (clipChosen && largestClip) {
+			customOpen = false;
+			return onchange(largestClip, true);
+		}
 		const p = CANVAS_PRESETS.find((p) => p.name === name);
 		customOpen = !p;
-		if (p) onchange({ width: p.width, height: p.height });
+		if (p) onchange({ width: p.width, height: p.height }, false);
 	}
 
 	function setDimension(key: keyof Size, input: HTMLInputElement) {
 		const size = clampCanvasSize({ ...value, [key]: Number(input.value) });
 		// Shows the clamped value even if the size didn't change
 		input.value = String(size[key]);
-		onchange(size);
+		onchange(size, false);
 	}
 </script>
 
 <div class="flex flex-col gap-2">
 	<select
 		class="select select-sm w-full"
-		value={custom ? 'custom' : preset?.name}
+		value={clip ? 'clip' : custom ? 'custom' : preset?.name}
 		onchange={(e) => choose(e.currentTarget.value)}
 		aria-label={m.newProject.size}
 	>
+		{#if largestClip}
+			<option value="clip">{largestClip.width} × {largestClip.height} · {m.canvasSize.largestClip}</option>
+		{/if}
 		{#each CANVAS_PRESETS as p (p.name)}
 			<option value={p.name}>{p.width} × {p.height} · {m.canvasSize[p.name]}</option>
 		{/each}

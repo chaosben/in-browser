@@ -53,8 +53,10 @@
 	const clip = $derived(editor.selectedClip);
 	/** Suggestion for the project panel: canvas that shows shrunk clips 1:1 */
 	const largerCanvas = $derived(editor.largerCanvas());
+	const clipCanvas = $derived(editor.clipCanvas());
 	/** Canvas size being chosen in the project panel (`null`: closed) */
-	let canvasDraft = $state<Size | null>(null);
+	/** Size being chosen; `clip`: the largest clip, applied with its offset */
+	let canvasDraft = $state<(Size & { clip: boolean }) | null>(null);
 	/** Several selected, without a primary item (e.g. Ctrl+A) */
 	const multiple = $derived(editor.selectedItems.length > 1 && !editor.selectedItem ? editor.selectedItems : null);
 	/** Other items selected along with it (e.g. the group of the clicked clip) */
@@ -729,7 +731,7 @@
 	{:else}
 		{@render header('icon-[material-symbols-light--movie-edit-outline]', m.inspector.project)}
 		<InspectorSection id="canvas" title={m.inspector.sections.canvas}>
-			<InspectorField label={m.inspector.canvas} keywords={[m.inspector.changeCanvas, m.editor.growCanvas]}>
+			<InspectorField label={m.inspector.canvas} keywords={[m.inspector.changeCanvas, m.editor.growCanvas, m.canvasSize.largestClip]}>
 				<div class="flex flex-col gap-1">
 					<span class="flex items-center justify-between text-xs">
 						<span class="opacity-70">{m.inspector.canvas}</span>
@@ -737,7 +739,7 @@
 							<span class="tabular-nums">{editor.project.width} × {editor.project.height}</span>
 							<button
 								class="btn btn-ghost btn-xs"
-								onclick={() => (canvasDraft = canvasDraft ? null : { width: editor.project.width, height: editor.project.height })}
+								onclick={() => (canvasDraft = canvasDraft ? null : { width: editor.project.width, height: editor.project.height, clip: false })}
 								aria-expanded={!!canvasDraft}
 							>
 								{m.inspector.changeCanvas}
@@ -746,12 +748,13 @@
 					</span>
 					{#if canvasDraft}
 						{@const draft = canvasDraft}
-						<CanvasSizeField value={draft} onchange={(s) => (canvasDraft = s)} />
-						<p class="text-xs opacity-60">{m.inspector.changeCanvasHint}</p>
+						<CanvasSizeField value={draft} largestClip={clipCanvas?.size} onchange={(s, clip) => (canvasDraft = { ...s, clip })} />
+						<p class="text-xs opacity-60">{draft.clip ? m.inspector.cropCanvasHint : m.inspector.changeCanvasHint}</p>
 						<button
 							class="btn btn-sm btn-primary"
 							onclick={() => {
-								editor.resizeCanvas(draft);
+								if (draft.clip && clipCanvas) editor.resizeCanvas(clipCanvas.size, clipCanvas.offset);
+								else editor.resizeCanvas({ width: draft.width, height: draft.height });
 								canvasDraft = null;
 							}}
 						>
@@ -766,6 +769,7 @@
 						</button>
 						<p class="text-xs opacity-60">{m.inspector.growCanvasHint}</p>
 					{/if}
+
 				</div>
 			</InspectorField>
 		</InspectorSection>

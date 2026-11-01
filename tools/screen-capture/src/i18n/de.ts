@@ -266,6 +266,7 @@ const de: Messages = {
 		square: 'Quadrat 1:1',
 		feed: 'Hochformat 4:5',
 		custom: 'Eigene',
+		largestClip: 'Größter Clip',
 		width: 'Breite in Pixeln',
 		height: 'Höhe in Pixeln'
 	},
@@ -354,6 +355,7 @@ const de: Messages = {
 		project: 'Projekt',
 		canvas: 'Leinwand',
 		growCanvasHint: 'Bisheriger Inhalt behält seine Größe und rückt in die Mitte.',
+		cropCanvasHint: 'Die Leinwand bekommt die Größe des größten Clips; nichts wird skaliert, Inhalt außerhalb ragt über den Rand.',
 		changeCanvas: 'Ändern',
 		applyCanvas: 'Übernehmen',
 		changeCanvasHint: 'Der Inhalt behält seine Größe und bleibt mittig; auf einer kleineren Leinwand ragt er evtl. über den Rand.',

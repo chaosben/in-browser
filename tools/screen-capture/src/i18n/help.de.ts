@@ -214,6 +214,11 @@ const help: typeof enHelp = {
 					title: 'Ändern',
 					text: 'Mit „Ändern“ in den Projekt-Eigenschaften setzt du eine neue Größe. Alles behält seine Größe in Pixeln und bleibt mittig; auf einer kleineren Leinwand kann Inhalt über den Rand ragen. Lässt sich rückgängig machen.'
 				},
+				cropCanvas: {
+					title: 'Leinwandgröße des größten Clips',
+					text: '„Ändern“ in den Projekt-Eigenschaften bietet oben in der Größenliste „Größter Clip“ an, sobald der größte Clip mit Bild kleiner als die Leinwand ist; der Eintrag zeigt die neue Größe. Nach „Übernehmen“ bekommt die Leinwand genau die Größe dieses Clips (des Teils auf der Leinwand). Nichts wird skaliert – der Clip füllt die Leinwand danach 1:1, anderer Inhalt behält seine Pixelgröße und kann über den Rand ragen. Lässt sich rückgängig machen.',
+					tip: 'Nimm es, nachdem du eine Bildschirmaufnahme auf ein Fenster zugeschnitten hast: Der Export hat dann die Größe des Fensters statt des ganzen Bildschirms – kleinere Dateien, kein leerer Rand.'
+				},
 				enlarge: {
 					title: 'Leinwand vergrößern?',
 					text: 'Fügst du Material ein, das größer als die Leinwand ist, wird es verkleinert gezeigt, und du wirst gefragt, ob die Leinwand mitwachsen soll. Kleineres Material wird in 100 % mittig eingefügt, nie vergrößert.',
@@ -364,7 +369,7 @@ const help: typeof enHelp = {
 				crop: {
 					title: 'Zuschneiden',
 					text: '„Zuschneiden“ in den Eigenschaften des Clips (auch im Kontextmenü, oder Doppelklick auf den Clip in der Vorschau) zeigt den Umriss des ganzen Bildes gestrichelt; zieh die Kanten oder Ecken, um wegzuschneiden, was du nicht zeigen willst. Das Bild bleibt dabei stehen, nur sein Rahmen wird kleiner, und die Kanten rasten ein wie alles andere. Die Felder Links, Oben, Rechts und Unten legen den Schnitt in Pixeln der Aufnahme fest. „Fertig“, Esc oder Enter beendet das Zuschneiden; „Zuschnitt entfernen“ zeigt wieder das ganze Bild. „Einpassen“ und „Füllen“ richten sich dann nach dem zugeschnittenen Teil.',
-					tip: 'Um ein Programm mit seinen Dialogen und Menüs zu zeigen, nimm den ganzen Bildschirm auf und schneide auf den Bereich des Programmfensters zu. Gehaltene Frames und geteilte Clips behalten den Zuschnitt.',
+					tip: 'Um ein Programm mit seinen Dialogen und Menüs zu zeigen, nimm den ganzen Bildschirm auf und schneide auf den Bereich des Programmfensters zu. Danach verkleinert „Größter Clip“ in der Größenliste der Projekt-Eigenschaften die Leinwand darauf. Gehaltene Frames und geteilte Clips behalten den Zuschnitt.',
 					keys: [['Esc'], ['Enter']]
 				},
 				shape: {

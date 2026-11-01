@@ -236,6 +236,11 @@ const help = {
 					title: 'Change',
 					text: '“Change” in the project properties sets a new size. Everything keeps its size in pixels and stays centered; on a smaller canvas, content can reach over the edge. Can be undone.'
 				},
+				cropCanvas: {
+					title: 'Canvas size of the largest clip',
+					text: '“Change” in the project properties offers “Largest clip” at the top of the size list as soon as the largest clip with a picture is smaller than the canvas; the entry shows the new size. After “Apply” the canvas takes exactly the size of that clip (the part on the canvas). Nothing is scaled – the clip then fills the canvas 1:1, other content keeps its pixel size and may reach over the edge. Can be undone.',
+					tip: 'Use it after cropping a screen recording to a window: the export then has the size of the window instead of the whole screen – smaller files, no empty border.'
+				},
 				enlarge: {
 					title: 'Enlarge canvas?',
 					text: 'If you insert material larger than the canvas, it is shown scaled down, and you are asked whether the canvas should grow. Smaller material is inserted at 100 % in the center, never enlarged.',
@@ -386,7 +391,7 @@ const help = {
 				crop: {
 					title: 'Crop',
 					text: '“Crop” in the clip’s properties (also in the context menu, or double-click the clip in the preview) shows the outline of the whole picture dashed; drag the edges or corners to cut away what you don’t want to show. The picture stays in place, only its frame gets smaller, and the edges snap like everything else. The fields Left, Top, Right and Bottom set the cut in pixels of the recording. “Done”, Esc or Enter ends cropping; “Remove crop” shows the whole picture again. “Fit” and “Fill” then use the cropped part.',
-					tip: 'To show a program with its dialogs and menus, record the whole screen and crop to the area of the program window. Hold frames and split clips keep the crop.',
+					tip: 'To show a program with its dialogs and menus, record the whole screen and crop to the area of the program window. Then “Largest clip” in the canvas size list of the project properties reduces the canvas to it. Hold frames and split clips keep the crop.',
 					keys: [['Esc'], ['Enter']]
 				},
 				shape: {

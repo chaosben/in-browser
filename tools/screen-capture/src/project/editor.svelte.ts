@@ -1,11 +1,11 @@
 import { deleteMediaFile, projectFileDate, saveProject } from '#lib/storage/store.js';
 import { addItem, clipsChanged, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup, updateItem } from '#lib/timeline/ops.js';
-import { growTo, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
+import { growTo, largestClipArea, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { cleanCrop, croppedRect, fullRect } from './crop.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
 import { canvasSize, placeRecording, recordingSources, type Recording } from './project.js';
-import { newId, type ImageAsset, type Item, type Rect, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
+import { newId, type ImageAsset, type Item, type Point, type Rect, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
 import { entriesUse } from './library.js';
 import { m } from '#lib/i18n/index.js';
 import { parseColor } from '#lib/util/color.js';
@@ -261,17 +261,24 @@ export class Editor {
 	/**
 	 * Resizes the canvas (one undo step): existing content keeps its size in pixels and stays centered,
 	 * clips that were shrunk to fit a smaller canvas fill a larger one 1:1, webcams move to its corner.
+	 * With `offset` (old canvas in the new one, pixels) the content moves there and nothing is refitted.
 	 */
-	resizeCanvas(size: Size) {
+	resizeCanvas(size: Size, offset?: Point) {
 		const from = { width: this.project.width, height: this.project.height };
-		if (from.width === size.width && from.height === size.height) return;
+		if (from.width === size.width && from.height === size.height && !offset) return;
 		const before = this.#snapshot();
 		this.#undo = [...this.#undo, before].slice(-HISTORY_LIMIT);
 		this.#redo = [];
 		this.#lastMergeKey = null;
-		const timeline = refitDefaults(resizeCanvas(before.timeline, from, size), this.project.sources, from, size);
+		const resized = resizeCanvas(before.timeline, from, size, offset);
+		const timeline = offset ? resized : refitDefaults(resized, this.project.sources, from, size);
 		this.project = { ...this.project, width: size.width, height: size.height };
 		this.#setTimeline(timeline, before.timeline, true);
+	}
+
+	/** Canvas reduced to the largest clip with a picture (`largestClipArea`), or `null` */
+	clipCanvas() {
+		return largestClipArea(this.project.timeline, this.project.sources, this.project);
 	}
 
 	/**

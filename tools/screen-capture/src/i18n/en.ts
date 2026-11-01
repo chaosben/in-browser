@@ -266,6 +266,7 @@ const en = {
 		square: 'Square 1:1',
 		feed: 'Portrait 4:5',
 		custom: 'Custom',
+		largestClip: 'Largest clip',
 		width: 'Width in pixels',
 		height: 'Height in pixels'
 	},
@@ -342,6 +343,7 @@ const en = {
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',
+		cropCanvasHint: 'The canvas takes the size of the largest clip; nothing is scaled, content outside it reaches over the edge.',
 		changeCanvas: 'Change',
 		applyCanvas: 'Apply',
 		changeCanvasHint: 'Content keeps its size and stays centered; on a smaller canvas it may reach over the edge.',
