@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { peaks, thumbnails, type Peaks, type Thumbnails } from '#lib/media/visuals.js';
+	import { FULL } from '#lib/project/crop.js';
 	import type { Clip, Source } from '#lib/project/types.js';
 	import { clipDuration } from '#lib/timeline/ops.js';
 
@@ -22,8 +23,22 @@
 	const from = $derived(clip.type === 'freeze' ? clip.at : clip.in);
 	const length = $derived(clipDuration(clip));
 	const volume = $derived(clip.type === 'video' ? (clip.volume ?? 1) : 1);
+	// The thumbnails show only the cropped part; single numbers, so an unchanged crop doesn't redraw
+	const cropX = $derived((clip.crop ?? FULL).x);
+	const cropY = $derived((clip.crop ?? FULL).y);
+	const cropW = $derived((clip.crop ?? FULL).w);
+	const cropH = $derived((clip.crop ?? FULL).h);
 
-	function draw(canvas: HTMLCanvasElement, freeze: boolean, from: number, length: number, volume: number, width: number, height: number) {
+	function draw(
+		canvas: HTMLCanvasElement,
+		freeze: boolean,
+		from: number,
+		length: number,
+		volume: number,
+		crop: [number, number, number, number],
+		width: number,
+		height: number
+	) {
 		const dpr = window.devicePixelRatio || 1;
 		const w = Math.max(1, Math.min(Math.round(width * dpr), MAX_WIDTH));
 		const h = Math.max(1, Math.round(height * dpr));
@@ -43,10 +58,14 @@
 			if (cancelled) return;
 			ctx!.clearRect(0, 0, w, h);
 			if (thumbs) {
-				const tileW = h * thumbs.aspect;
+				const [cx, cy, cw, ch] = crop;
+				const tileW = (h * thumbs.aspect * cw) / ch;
 				for (let x = 0; x < w; x += tileW) {
 					const index = Math.min(Math.round(timeAt(x + tileW / 2) / thumbs.interval), thumbs.images.length - 1);
-					ctx!.drawImage(thumbs.images[Math.max(index, 0)], x, 0, tileW, h);
+					const image = thumbs.images[Math.max(index, 0)];
+					const iw = image.width;
+					const ih = image.height;
+					ctx!.drawImage(image, cx * iw, cy * ih, cw * iw, ch * ih, x, 0, tileW, h);
 				}
 			}
 			if (wave) {
@@ -86,5 +105,5 @@
 
 <canvas
 	class="pointer-events-none absolute inset-0 h-full w-full"
-	{@attach (canvas) => draw(canvas, freeze, from, length, volume, width, height)}
+	{@attach (canvas) => draw(canvas, freeze, from, length, volume, [cropX, cropY, cropW, cropH], width, height)}
 ></canvas>
