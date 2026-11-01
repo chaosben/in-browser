@@ -2,7 +2,7 @@ import { cacheDir } from '@in-browser/files/cache.js';
 import { isPackage, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
 import { FilesError, list, mkdir, read, readText, remove, stat, write, writable } from '@in-browser/files/fs.js';
-import { extname, join, normalize, parent, safeName } from '@in-browser/files/path.js';
+import { basename, extname, join, normalize, parent, safeName, stem } from '@in-browser/files/path.js';
 import { m } from '#lib/i18n/index.js';
 import { IMAGE_EXTENSIONS } from '#lib/media/images.js';
 import { MEDIA_EXTENSIONS } from '#lib/media/media.js';
@@ -73,6 +73,11 @@ export async function saveProject(project: Project): Promise<void> {
 /** Last change of the project's `project.json`, `undefined` if it is gone */
 export async function projectFileDate(path: string): Promise<number | undefined> {
 	return (await stat(join(path, PACKAGE_MANIFEST)))?.modified;
+}
+
+/** Name of the project in the package at `path` (its file name without extension) */
+export function projectName(path: string): string {
+	return stem(basename(path));
 }
 
 /**

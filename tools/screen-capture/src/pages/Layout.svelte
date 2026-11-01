@@ -24,7 +24,6 @@
 </script>
 
 <svelte:head>
-	<title>{BRAND.tool} · {BRAND.suite}</title>
 	<meta name="description" content={m.brand.description} />
 	<meta name="application-name" content={BRAND.tool} />
 	<meta property="og:type" content="website" />

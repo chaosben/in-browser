@@ -35,7 +35,9 @@
 		mediaFile,
 		PROJECT_EXT,
 		projectFileDate,
-		rememberProject
+		projectName,
+		rememberProject,
+		saveProject
 	} from '#lib/storage/store.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
@@ -663,6 +665,8 @@
 				await removePath(path);
 			}
 			await copy(from, path);
+			// The copy is named like its package
+			await saveProject({ ...(await loadProject(path)), name: projectName(path) });
 			// The editor of the copy takes the lock itself
 			release?.();
 			release = null;

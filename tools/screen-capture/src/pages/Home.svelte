@@ -20,6 +20,7 @@
 		chooseNewProject,
 		lastFolder,
 		PROJECT_EXT,
+		projectName,
 		requestPersistence,
 		storageEstimate
 	} from '#lib/storage/store.js';
@@ -55,9 +56,9 @@
 	async function startRecording() {
 		requestPersistence();
 		try {
-			const name = defaultProjectName();
-			const path = await chooseNewProject(name);
-			if (path) recordingFor = { path, name };
+			const path = await chooseNewProject(defaultProjectName());
+			// The name typed in the save dialog wins over the suggestion
+			if (path) recordingFor = { path, name: projectName(path) };
 		} catch (e) {
 			toast(errorMessage(e), 'error', 8000);
 		}
@@ -82,7 +83,7 @@
 		try {
 			const path = await chooseNewProject(name);
 			if (!path) return;
-			await createProject(path, name, [], size);
+			await createProject(path, projectName(path), [], size);
 			await goto(editorUrl(path));
 		} catch (e) {
 			toast(errorMessage(e), 'error', 8000);
@@ -108,7 +109,7 @@
 				if (isImageFile(file)) images.push(await importImage(path, file));
 				else sources.push(await importFile(path, file, (p) => (importing!.progress = p)));
 			}
-			await createProject(path, name, sources, undefined, images);
+			await createProject(path, projectName(path), sources, undefined, images);
 			await goto(editorUrl(path));
 		} catch (e) {
 			toast(errorMessage(e), 'error', 8000);
@@ -146,6 +147,8 @@
 		await refresh();
 	}
 </script>
+
+<svelte:head><title>{BRAND.tool} · {BRAND.suite}</title></svelte:head>
 
 <!-- The whole page is a drop zone for video files; the footer stays at the bottom -->
 <div
