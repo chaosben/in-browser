@@ -8,7 +8,7 @@ import {
 	type AudioCodec,
 	type VideoSample
 } from 'mediabunny';
-import { captureLayout, placeInBox } from '#lib/media/content.js';
+import { captureLayout, placeInBox, sameShape } from '#lib/media/content.js';
 import { pickAudioCodec } from '#lib/media/media.js';
 import { openDevice } from './devices.svelte.js';
 import { pickEncoder, pickScreenEncoder } from './encoder.js';
@@ -228,7 +228,7 @@ export class Recorder {
 				hardwareAcceleration: encoder.acceleration,
 				// With window captures the size changes when the window is resized; the box keeps it constant.
 				sizeChangeBehavior: box ? 'passThrough' : 'contain',
-				transform: box ? { process: this.#intoBox(box) } : undefined
+				transform: box ? { process: this.#intoBox(box, settings.displaySurface === 'browser') } : undefined
 			},
 			{ frameRate }
 		);
@@ -236,21 +236,30 @@ export class Recorder {
 		return source;
 	}
 
-	/** Draws every frame 1:1 and centered into the box and remembers the window size over time */
-	#intoBox(box: Size) {
+	/**
+	 * Draws every frame 1:1 and centered into the box and remembers the window size over time. Chrome re-renders
+	 * shared tabs at a capture scale of 1–2 that it changes now and then (start, navigation, load): with `rescaled`,
+	 * frames that are only a uniform rescale of the last size are drawn at that size and count as no size change.
+	 */
+	#intoBox(box: Size, rescaled: boolean) {
 		this.#box = box;
 		const canvas = new OffscreenCanvas(box.width, box.height);
 		const ctx = canvas.getContext('2d', { alpha: false })!;
 		let last: Size | null = null;
+		let stable: Size | null = null;
 		return (sample: VideoSample) => {
-			const place = placeInBox(box, { width: sample.displayWidth, height: sample.displayHeight });
+			let frame = { width: sample.displayWidth, height: sample.displayHeight };
+			if (rescaled && stable && sameShape(stable, frame)) frame = stable;
+			else stable = frame;
+			const place = placeInBox(box, frame);
 			if (place.width !== last?.width || place.height !== last.height) {
 				last = { width: place.width, height: place.height };
 				this.#sizes.push({ t: sample.timestamp, ...last });
 				this.#max = { width: Math.max(this.#max.width, last.width), height: Math.max(this.#max.height, last.height) };
 			}
-			// Fills the box exactly (the usual case): pass it through without a copy
-			if (place.x === 0 && place.y === 0 && place.width === box.width && place.height === box.height) return sample;
+			// Fills the box exactly at its own size (the usual case): pass it through without a copy
+			const fills = place.x === 0 && place.y === 0 && place.width === box.width && place.height === box.height;
+			if (fills && sample.displayWidth === box.width && sample.displayHeight === box.height) return sample;
 			ctx.fillStyle = '#000';
 			ctx.fillRect(0, 0, box.width, box.height);
 			sample.draw(ctx, place.x, place.y, place.width, place.height);

@@ -52,6 +52,16 @@ export function placeInBox(box: Size, frame: Size) {
 }
 
 /**
+ * Whether `b` is `a` scaled uniformly (±2 px after scaling back), e.g. a tab frame after Chrome changed its capture
+ * scale – not a real size change
+ */
+export function sameShape(a: Size, b: Size) {
+	return (
+		Math.abs((b.height * a.width) / b.width - a.height) <= 2 && Math.abs((b.width * a.height) / b.height - a.width) <= 2
+	);
+}
+
+/**
  * Area of a frame of `width` × `height` (the whole decoded video) to draw for `source` at source time `t`
  * (see `Frame` in the compositor)
  */

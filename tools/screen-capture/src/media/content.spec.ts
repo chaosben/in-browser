@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchorFactors, captureLayout, contentSizeAt, placeInBox, sourceCrop, visibleRect } from './content';
+import { anchorFactors, captureLayout, contentSizeAt, placeInBox, sameShape, sourceCrop, visibleRect } from './content';
 import type { Source } from '#lib/project/types.js';
 
 const source = (extra: Partial<Source> = {}): Source => ({
@@ -66,6 +66,22 @@ describe('placeInBox', () => {
 	});
 	it('scaled down if too large', () => {
 		expect(placeInBox({ width: 1000, height: 500 }, { width: 2000, height: 500 })).toEqual({ x: 0, y: 125, width: 1000, height: 250 });
+	});
+});
+
+describe('sameShape', () => {
+	const tab = { width: 2394, height: 1574 };
+	it('same size', () => {
+		expect(sameShape(tab, tab)).toBe(true);
+	});
+	it('half size with rounding (Chrome capture scale 1 instead of 2)', () => {
+		expect(sameShape(tab, { width: 1196, height: 786 })).toBe(true);
+	});
+	it('other scale step', () => {
+		expect(sameShape(tab, { width: 2094, height: 1376 })).toBe(true);
+	});
+	it('only the width changed', () => {
+		expect(sameShape(tab, { width: 2000, height: 1574 })).toBe(false);
 	});
 });
 
