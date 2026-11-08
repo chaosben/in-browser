@@ -17,6 +17,16 @@ import { newId, type Source, type SourceSize } from '#lib/project/types.js';
 import { deleteMediaFile, mediaWritable } from '#lib/storage/store.js';
 import { m } from '#lib/i18n/index.js';
 
+interface FocusController {
+	setFocusBehavior(behavior: 'focus-captured-surface' | 'no-focus-change'): void;
+}
+
+/** Conditional Focus (Chromium): decides whether the browser brings the shared window/tab to the front */
+function captureController(): FocusController | undefined {
+	const Controller = (globalThis as { CaptureController?: new () => FocusController }).CaptureController;
+	return Controller && 'setFocusBehavior' in Controller.prototype ? new Controller() : undefined;
+}
+
 export interface RecordOptions {
 	microphone: boolean;
 	/** Also record system or tab audio (only partially supported by browsers). */
@@ -70,11 +80,13 @@ export class Recorder {
 	elapsed = $state(0);
 	/** Notice, e.g. when no audio could be recorded. */
 	warning = $state<string | null>(null);
+	/** Shared screen, window or tab (for the preview in the dialog) */
+	display = $state.raw<MediaStream | null>(null);
 	/** Webcam stream (for the preview in the dialog) */
 	camera = $state.raw<MediaStream | null>(null);
+	/** Microphone stream (for the level meter in the dialog) */
+	mic = $state.raw<MediaStream | null>(null);
 
-	#display: MediaStream | null = null;
-	#mic: MediaStream | null = null;
 	#parts: Part[] = [];
 	#timer: ReturnType<typeof setInterval> | undefined;
 	#lastTick = 0;
@@ -97,17 +109,41 @@ export class Recorder {
 		return this.#box && this.#max.width > 0 ? captureLayout(this.#box, this.#max, this.#sizes) : null;
 	}
 
-	/** Requests screen, microphone and webcam (browser dialogs). Must be called from a user action. */
-	async acquire(options: RecordOptions): Promise<MediaStream> {
-		this.#display = await navigator.mediaDevices.getDisplayMedia({
+	/**
+	 * Requests screen, microphone and webcam (browser dialogs). Must be called from a user action. Our tab stays in
+	 * front after choosing (where the browser supports it), so the dialog can show a preview before the start.
+	 * `onEnded` is called when the user stops sharing in the browser – before or during the recording.
+	 */
+	async acquire(options: RecordOptions, onEnded: () => void): Promise<MediaStream> {
+		const controller = captureController();
+		let focusSet = false;
+		try {
+			// Newer Chromium allows this before choosing, older ones only right after
+			controller?.setFocusBehavior('no-focus-change');
+			focusSet = true;
+		} catch {
+			// set below
+		}
+		const display = await navigator.mediaDevices.getDisplayMedia({
 			video: { frameRate: { ideal: options.settings.frameRate, max: options.settings.frameRate } },
 			audio: options.systemAudio && { ...options.settings.systemProcessing },
 			// Chromium-specific options
-			...({ selfBrowserSurface: 'exclude', surfaceSwitching: 'include', systemAudio: 'include' } as object)
+			...({ selfBrowserSurface: 'exclude', surfaceSwitching: 'include', systemAudio: 'include', controller } as object)
 		});
+		if (!focusSet) {
+			try {
+				// Only possible for windows and tabs; for a whole screen nothing gets focused anyway
+				controller?.setFocusBehavior('no-focus-change');
+			} catch {
+				// too late or not a window/tab: the browser focuses the shared window
+			}
+		}
+		this.display = display;
+		this.#onEnded = onEnded;
+		display.getVideoTracks()[0]?.addEventListener('ended', this.#handleEnded);
 		if (options.microphone) {
 			try {
-				this.#mic = await openDevice('microphone', options.microphoneId, options.settings);
+				this.mic = await openDevice('microphone', options.microphoneId, options.settings);
 			} catch {
 				this.warning = m.record.noMicrophone;
 			}
@@ -119,18 +155,18 @@ export class Recorder {
 				this.warning ??= m.record.noCamera;
 			}
 		}
-		if (options.systemAudio && this.#display.getAudioTracks().length === 0) {
+		if (options.systemAudio && display.getAudioTracks().length === 0) {
 			this.warning ??= m.record.noSystemAudio;
 		}
-		return this.#display;
+		return display;
 	}
 
-	/** Starts recording. `onEnded` is called when the user stops sharing in the browser. */
-	async start(options: RecordOptions, onEnded: () => void) {
-		if (!this.#display) throw new Error(m.record.noSource);
-		const screenTrack = this.#display.getVideoTracks()[0];
-		const audioCodec = this.#display.getAudioTracks().length || this.#mic ? await pickAudioCodec(RECORD_AUDIO_CODECS) : null;
-		if ((this.#display.getAudioTracks().length || this.#mic) && !audioCodec) this.warning = m.record.noAudioEncoder;
+	/** Starts recording the sources from `acquire`. */
+	async start(options: RecordOptions) {
+		if (!this.display) throw new Error(m.record.noSource);
+		const screenTrack = this.display.getVideoTracks()[0];
+		const audioCodec = this.display.getAudioTracks().length || this.mic ? await pickAudioCodec(RECORD_AUDIO_CODECS) : null;
+		if ((this.display.getAudioTracks().length || this.mic) && !audioCodec) this.warning = m.record.noAudioEncoder;
 
 		// Screen with system audio
 		const screen = await this.#part('screen');
@@ -138,7 +174,7 @@ export class Recorder {
 		screenTrack.contentHint = 'text';
 		const { settings } = options;
 		screen.sources.push(await this.#video(screen, screenTrack, 'screen', settings.screenQuality, settings.frameRate, settings));
-		const systemAudio = this.#display.getAudioTracks()[0];
+		const systemAudio = this.display.getAudioTracks()[0];
 		if (systemAudio && audioCodec) screen.sources.push(this.#audio(screen, systemAudio, audioCodec, settings.systemKbps));
 
 		const cameraTrack = this.camera?.getVideoTracks()[0];
@@ -146,14 +182,12 @@ export class Recorder {
 			const part = await this.#part('camera');
 			part.sources.push(await this.#video(part, cameraTrack, 'camera', settings.cameraQuality, CAMERA_FPS));
 		}
-		const micTrack = this.#mic?.getAudioTracks()[0];
+		const micTrack = this.mic?.getAudioTracks()[0];
 		if (micTrack && audioCodec) {
 			const part = await this.#part('mic');
 			part.sources.push(this.#audio(part, micTrack, audioCodec, settings.micKbps));
 		}
 
-		this.#onEnded = onEnded;
-		screenTrack.addEventListener('ended', this.#handleEnded);
 		// Start all files as simultaneously as possible so the tracks are in sync
 		await Promise.all(this.#parts.map((p) => p.output.start()));
 		this.state = 'recording';
@@ -277,7 +311,7 @@ export class Recorder {
 	}
 
 	#handleEnded = () => {
-		if (this.state === 'recording' || this.state === 'paused') this.#onEnded?.();
+		if (this.state === 'idle' || this.state === 'recording' || this.state === 'paused') this.#onEnded?.();
 	};
 
 	pause() {
@@ -318,8 +352,8 @@ export class Recorder {
 	}
 
 	#release() {
-		this.#display?.getVideoTracks()[0]?.removeEventListener('ended', this.#handleEnded);
-		for (const stream of [this.#display, this.#mic, this.camera]) stream?.getTracks().forEach((t) => t.stop());
-		this.#display = this.#mic = this.camera = null;
+		this.display?.getVideoTracks()[0]?.removeEventListener('ended', this.#handleEnded);
+		for (const stream of [this.display, this.mic, this.camera]) stream?.getTracks().forEach((t) => t.stop());
+		this.display = this.mic = this.camera = null;
 	}
 }

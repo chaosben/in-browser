@@ -42,7 +42,7 @@ const help: typeof enHelp = {
 			items: {
 				flow: {
 					title: 'So läuft eine Aufnahme',
-					text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du teilst. Nach dem optionalen 3-Sekunden-Countdown läuft die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
+					text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du teilst. Danach zeigt der Dialog eine Vorschau davon; „Aufnahme starten“ startet den optionalen 3-Sekunden-Countdown – wechsle währenddessen zum Fenster, das du aufnimmst – und dann die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
 					tip: 'Teilst du ein einzelnes Fenster, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, teile den ganzen Bildschirm und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in den Eigenschaften des Clips).'
 				},
 				screenQuality: {
@@ -123,6 +123,16 @@ const help: typeof enHelp = {
 					tip: '720p genügt, solange die Webcam ein kleines Bild in der Ecke ist. Nimm 1080p, wenn du zwischendurch bildfüllend auf die Kamera schaltest. Lass die Qualität der Webcam auf „Sehr hoch“: Kamerabilder rauschen und brauchen mehr Daten als Bildschirminhalte.'
 				},
 				countdown: { title: '3 Sekunden Countdown', text: 'Gibt dir Zeit, zum aufgenommenen Fenster zu wechseln. Schalte ihn aus, wenn es sofort losgehen soll.' },
+				preview: {
+					title: 'Vorschau vor dem Start',
+					text: 'Nach der Auswahl bleibt dein Tab vorne und zeigt das geteilte Bild live, was du teilst (ganzer Bildschirm, Fenster oder Browser-Tab), Auflösung und Bildrate, ob System-/Tab-Ton dabei ist, und die geschätzte Dateigröße pro Minute bei dieser Auflösung. Webcam und Mikrofon zeigen Bild und Pegel. Hinweise sagen, worauf du achten solltest: fehlende Menüs bei einem Fenster, wie der Browser einen geteilten Tab skaliert, und die Skalierung deines Systems. „Andere Quelle“ lässt dich neu wählen, „Zurück“ führt zu den Einstellungen.',
+					tip: 'Prüfe die Auflösung: Sie bestimmt Schärfe und Dateigröße. Gehören Menüs oder Dialoge ins Video, wähle „Andere Quelle“ und teile den ganzen Bildschirm – den Clip schneidest du danach auf das Fenster zu. Stell bei einem Tab vor dem Start den Zoom der Seite (Strg +/−) so ein, dass der Text groß genug ist.'
+				},
+				floating: {
+					title: 'Schwebendes Kontrollfenster',
+					text: 'In Chrome und Edge öffnet sich bei eingeschaltetem „Schwebendes Kontrollfenster“ (Standard) beim Klick auf „Aufnahme starten“ ein kleines Fenster. Es bleibt über allen anderen Fenstern, so siehst du Countdown, Aufnahmezeit, „Pause“ und „Stopp“ auch dann, wenn das aufgenommene Fenster vorne ist. Das × blendet es aus (minimieren lässt es sich nicht); die Aufnahme läuft weiter, und „Steuerung einblenden“ im Aufnahme-Dialog holt es zurück.',
+					tip: 'Teilst du ein Fenster oder einen Tab, ist das kleine Fenster nicht im Video. Teilst du den ganzen Bildschirm, wird es mit aufgenommen – blende es aus, schieb es auf einen anderen Bildschirm oder schalte die Option aus. Schalte sie auch aus, wenn du den Aufnahme-Dialog ohnehin siehst, z. B. auf einem zweiten Bildschirm.'
+				},
 				result: {
 					title: 'Nach der Aufnahme',
 					text: 'Bildschirm, Webcam und Mikrofon werden eigene Clips, miteinander verknüpft und hinten an die Timeline angehängt: die Webcam unten rechts mit einem Viertel der Breite und abgerundeten Ecken, das Mikrofon auf einer eigenen Spur. Ein Klick wählt alle aus; „Verknüpfung lösen“ trennt sie.'

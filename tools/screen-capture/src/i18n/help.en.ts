@@ -64,7 +64,7 @@ const help = {
 			items: {
 				flow: {
 					title: 'How a recording works',
-					text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. After the optional 3 second countdown the recording runs. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording.',
+					text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. The dialog then shows a preview of what you shared; “Start recording” starts the optional 3 second countdown – switch to the window you record in the meantime – and then the recording. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording.',
 					tip: 'When you share a single window, the browser records only that window: its dialogs, menus and pop-ups are separate windows and are missing. If you need them, share the whole screen and crop the clip to the window afterwards (“Crop” in the clip’s properties).'
 				},
 				screenQuality: {
@@ -145,6 +145,16 @@ const help = {
 					tip: '720p is enough as long as the webcam is a small picture in the corner. Choose 1080p if you switch to the camera full screen. Keep “Very high” quality for the webcam: camera pictures are noisy and need more data than screen content.'
 				},
 				countdown: { title: '3 second countdown', text: 'Gives you time to switch to the window you record. Turn it off if you want to start immediately.' },
+				preview: {
+					title: 'Preview before the start',
+					text: 'After choosing, your tab stays in front and shows the shared picture live, what you shared (whole screen, window or browser tab), its resolution and frame rate, whether system/tab audio is included, and the estimated file size per minute at this resolution. Webcam and microphone show their picture and level. Notes point out what to watch for: missing menus in a window, how the browser scales a shared tab, and the display scaling of your system. “Other source” lets you choose again, “Back” returns to the settings.',
+					tip: 'Check the resolution: it decides the sharpness and the file size. If menus or dialogs belong in the video, choose “Other source” and share the whole screen – you can crop the clip to the window later. For a tab, set the page zoom (Ctrl +/−) so the text is large enough before you start.'
+				},
+				floating: {
+					title: 'Floating controls window',
+					text: 'In Chrome and Edge, with “Floating controls window” on (default), a small window opens when you click “Start recording”. It stays on top of all other windows, so you see the countdown, the recording time, “Pause” and “Stop” even while the recorded window is in front. The × hides it (it cannot be minimised); the recording goes on, and “Show controls” in the recording dialog brings it back.',
+					tip: 'When you share a window or a tab, the small window is not in the video. When you share the whole screen, it is recorded too – hide it, move it to another screen, or turn the option off. Turn it off as well if the recording dialog stays visible anyway, e.g. on a second screen.'
+				},
 				result: {
 					title: 'After recording',
 					text: 'Screen, webcam and microphone become separate clips, linked to each other and appended at the end of the timeline: the webcam bottom right at a quarter of the width with rounded corners, the microphone on its own track. A click selects all of them; “Unlink” separates them.'

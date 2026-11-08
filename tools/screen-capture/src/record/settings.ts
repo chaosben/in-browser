@@ -26,6 +26,8 @@ export interface RecordSettings {
 	systemAudio: boolean;
 	/** 3-second countdown before recording starts */
 	countdown: boolean;
+	/** Countdown and controls in a small always-on-top window (where the browser supports it) */
+	floatingControls: boolean;
 	screenQuality: RecordLevel;
 	cameraQuality: RecordLevel;
 	cameraResolution: (typeof CAMERA_RESOLUTIONS)[number];
@@ -46,6 +48,7 @@ export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
 	camera: false,
 	systemAudio: false,
 	countdown: true,
+	floatingControls: true,
 	screenQuality: 'high',
 	cameraQuality: 'very-high',
 	cameraResolution: 720,
@@ -131,6 +134,7 @@ export function sanitizeRecordSettings(raw: unknown): RecordSettings {
 		camera: flag(r.camera, d.camera),
 		systemAudio: flag(r.systemAudio, d.systemAudio),
 		countdown: flag(r.countdown, d.countdown),
+		floatingControls: flag(r.floatingControls, d.floatingControls),
 		screenQuality: pick(r.screenQuality, RECORD_LEVELS, d.screenQuality),
 		cameraQuality: pick(r.cameraQuality, RECORD_LEVELS, d.cameraQuality),
 		cameraResolution: pick(r.cameraResolution, CAMERA_RESOLUTIONS, d.cameraResolution),

@@ -5,6 +5,8 @@
 	import { devices, openDevice, type DeviceKind } from '#lib/record/devices.svelte.js';
 	import { probeEncoders, pickScreenEncoder, type Encoder, type EncoderSupport } from '#lib/record/encoder.js';
 	import { Recorder, type RecordOptions } from '#lib/record/recorder.svelte.js';
+	import { floatingWindow } from '#lib/record/pip.svelte.js';
+	import { describeShare, scalePercent } from '#lib/record/share.js';
 	import {
 		AUDIO_FILTERS,
 		AUDIO_RATES,
@@ -20,7 +22,8 @@
 		type RecordLevel
 	} from '#lib/record/settings.js';
 	import { formatClock, m } from '#lib/i18n/index.js';
-	import { errorMessage, formatTime, isAbort } from '#lib/util/format.js';
+	import { errorMessage, isAbort } from '#lib/util/format.js';
+	import RecordControls from './RecordControls.svelte';
 
 	interface Props {
 		projectId: string;
@@ -110,30 +113,40 @@
 		};
 	}
 
+	/** Shows the level of a microphone stream in `micLevel` until the returned cleanup runs */
+	function levelMeter(stream: MediaStream) {
+		const context = new AudioContext();
+		const analyser = context.createAnalyser();
+		analyser.fftSize = 512;
+		context.createMediaStreamSource(stream).connect(analyser);
+		const data = new Float32Array(analyser.fftSize);
+		let raf = 0;
+		const measure = () => {
+			analyser.getFloatTimeDomainData(data);
+			let peak = 0;
+			for (const v of data) peak = Math.max(peak, Math.abs(v));
+			micLevel = Math.max(peak, micLevel * 0.85);
+			raf = requestAnimationFrame(measure);
+		};
+		measure();
+		return () => {
+			cancelAnimationFrame(raf);
+			context.close().catch(() => {});
+			micLevel = 0;
+		};
+	}
+
 	// Microphone level meter, so the right microphone (and the effect of the filters) can be recognised
 	$effect(() => {
 		if (!settings.microphone || starting || recorder) return;
-		return preview('microphone', devices.selected.microphone, (stream) => {
-			const context = new AudioContext();
-			const analyser = context.createAnalyser();
-			analyser.fftSize = 512;
-			context.createMediaStreamSource(stream).connect(analyser);
-			const data = new Float32Array(analyser.fftSize);
-			let raf = 0;
-			const measure = () => {
-				analyser.getFloatTimeDomainData(data);
-				let peak = 0;
-				for (const v of data) peak = Math.max(peak, Math.abs(v));
-				micLevel = Math.max(peak, micLevel * 0.85);
-				raf = requestAnimationFrame(measure);
-			};
-			measure();
-			return () => {
-				cancelAnimationFrame(raf);
-				context.close().catch(() => {});
-				micLevel = 0;
-			};
-		});
+		return preview('microphone', devices.selected.microphone, levelMeter);
+	});
+
+	// The same before the start, from the microphone the recording will use
+	$effect(() => {
+		const mic = ready ? recorder?.mic : null;
+		if (!mic) return;
+		return untrack(() => levelMeter(mic));
 	});
 
 	// Live webcam preview before recording
@@ -148,10 +161,53 @@
 		});
 	});
 
-	async function start() {
+	/**
+	 * Countdown and controls in a small always-on-top window, visible while the shared window is in front. Needs a
+	 * user activation, so it opens from a click; without support everything stays in this dialog.
+	 */
+	function showFloating() {
+		if (!floatingWindow.supported) return;
+		floatingWindow
+			.show(RecordControls, {
+				get recorder() {
+					return recorder;
+				},
+				get countdown() {
+					return countdown;
+				},
+				onstop: () => stop(),
+				onhide: () => floatingWindow.close()
+			})
+			.catch((e) => console.warn('Floating recording controls unavailable', e));
+	}
+
+	/** Options of the chosen sources, from `choose` until the recording starts */
+	let chosen = $state.raw<RecordOptions | null>(null);
+	/** Sources are chosen, the dialog shows the preview until “Start recording” */
+	let ready = $state(false);
+
+	/** Size of the shared picture, from the preview's frames (the track settings report the maximum instead) */
+	let shareSize = $state<{ width: number; height: number } | null>(null);
+
+	/** Facts about the shared screen for the preview (kind, frame rate) */
+	const share = $derived.by(() => {
+		const track = recorder?.display?.getVideoTracks()[0];
+		return track ? describeShare(track.getSettings()) : null;
+	});
+
+	/** Step 1: the browser asks what to share (also “Other source” in the preview) */
+	async function choose() {
 		error = null;
+		// Release the preview devices (or the previous share) before the recorder opens them
+		starting = true;
+		ready = false;
+		shareSize = null;
+		const previous = recorder;
+		recorder = null;
+		await previous?.cancel();
+		await tick();
 		const rec = new Recorder(projectId);
-		const chosen: RecordOptions = {
+		const options: RecordOptions = {
 			microphone: settings.microphone,
 			camera: settings.camera,
 			systemAudio: settings.systemAudio,
@@ -159,26 +215,50 @@
 			microphoneId: devices.selected.microphone,
 			cameraId: devices.selected.camera
 		};
-		// Release the preview devices before the recorder opens them
-		starting = true;
-		await tick();
 		try {
-			await rec.acquire(chosen);
+			// Sharing ended in the browser: before the recording runs back to the settings, afterwards it stops
+			await rec.acquire(options, () => (rec.state === 'idle' ? back() : stop()));
 		} catch (e) {
 			if (!isAbort(e)) error = errorMessage(e);
+			await rec.cancel();
 			starting = false;
 			return;
 		}
+		chosen = options;
 		recorder = rec;
+		ready = true;
+	}
+
+	/** From the preview back to the settings: ends the share */
+	async function back() {
+		const rec = recorder;
+		ready = false;
+		shareSize = null;
+		recorder = null;
+		chosen = null;
+		starting = false;
+		floatingWindow.close();
+		await rec?.cancel();
+	}
+
+	/** Step 2: floating window (needs this click), countdown, recording */
+	async function record() {
+		const rec = recorder;
+		if (!rec || !chosen) return;
+		ready = false;
+		if (settings.floatingControls) showFloating();
 		if (settings.countdown) {
 			for (countdown = 3; countdown > 0; countdown--) {
 				await new Promise((r) => setTimeout(r, 1000));
+				// Sharing ended or discarded during the countdown
+				if (recorder !== rec) return void (countdown = 0);
 			}
 		}
 		try {
-			await rec.start(chosen, () => stop());
+			await rec.start(chosen);
 		} catch (e) {
 			error = errorMessage(e);
+			floatingWindow.close();
 			await rec.cancel();
 			recorder = null;
 			starting = false;
@@ -191,6 +271,7 @@
 		// Can fire twice: stop button and "Stop sharing" in the browser
 		if (!recorder || stopping) return;
 		stopping = true;
+		floatingWindow.close();
 		try {
 			await recorder.stop();
 			const { screen, camera, mic } = recorder.files;
@@ -211,11 +292,13 @@
 	}
 
 	async function cancel() {
+		floatingWindow.close();
 		await recorder?.cancel();
 		oncancel();
 	}
 
 	onDestroy(() => {
+		floatingWindow.close();
 		if (recorder && recorder.state !== 'done') recorder.cancel();
 	});
 </script>
@@ -401,35 +484,114 @@
 					<input type="checkbox" class="toggle toggle-primary" bind:checked={settings.countdown} />
 					{m.record.countdown}
 				</label>
+				{#if floatingWindow.supported}
+					<label class="label">
+						<input type="checkbox" class="toggle toggle-primary" bind:checked={settings.floatingControls} />
+						{m.record.floatingControls}
+					</label>
+				{/if}
 				<p class="text-sm opacity-60">{m.record.sizePerMinute(mbPerMinute.toFixed(0))}</p>
 			</fieldset>
 			{#if error}<div role="alert" class="alert alert-error mt-4">{error}</div>{/if}
 			<div class="modal-action">
 				<button class="btn btn-ghost" onclick={cancel}>{m.common.cancel}</button>
-				<button class="btn btn-primary" onclick={start}><span class="icon-[material-symbols-light--screen-share-outline] size-5" aria-hidden="true"></span> {m.record.chooseSource}</button>
+				<button class="btn btn-primary" onclick={choose}><span class="icon-[material-symbols-light--screen-share-outline] size-5" aria-hidden="true"></span> {m.record.chooseSource}</button>
 			</div>
-		{:else if countdown > 0}
-			<div class="flex flex-col items-center gap-2 py-8">
-				<span class="countdown font-mono text-7xl">
-					<span style="--value:{countdown};" aria-live="polite" aria-label={String(countdown)}>{countdown}</span>
-				</span>
-				<span class="opacity-70">{m.record.startingSoon}</span>
+		{:else if ready}
+			<h3 class="text-lg font-bold">{m.record.readyTitle}</h3>
+			<p class="py-2 text-sm opacity-70">{m.record.readyIntro(settings.countdown)}</p>
+			<div class="flex flex-col gap-3">
+				<video
+					class="rounded-box bg-base-300 max-h-60 w-full object-contain"
+					autoplay
+					muted
+					playsinline
+					aria-label={m.record.sharePreview}
+					{@attach (video) => {
+						video.srcObject = recorder?.display ?? null;
+						// Follows the shared window live, also when it is resized before the start
+						const measure = () => {
+							if (video.videoWidth) shareSize = { width: video.videoWidth, height: video.videoHeight };
+						};
+						video.addEventListener('loadedmetadata', measure);
+						video.addEventListener('resize', measure);
+						return () => {
+							video.removeEventListener('loadedmetadata', measure);
+							video.removeEventListener('resize', measure);
+						};
+					}}
+				></video>
+				{#if share}
+					<div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+						{#if share.surface}
+							<span class="opacity-70">{m.record.shared}</span>
+							<span>{m.record.surfaces[share.surface]}</span>
+						{/if}
+						{#if shareSize}
+							<span class="opacity-70">{m.record.resolution}</span>
+							<span>{shareSize.width} × {shareSize.height} px</span>
+						{/if}
+						{#if share.frameRate}
+							<span class="opacity-70">{m.record.frameRate}</span>
+							<span>{share.frameRate} fps</span>
+						{/if}
+						{#if chosen?.systemAudio}
+							<span class="opacity-70">{m.record.systemAudioShared}</span>
+							<span>{recorder.display?.getAudioTracks().length ? m.record.included : m.record.notIncluded}</span>
+						{/if}
+						{#if shareSize}
+							<span class="opacity-70">{m.record.estimatedSize}</span>
+							<span>{m.record.sizePerMinute(estimateMbPerMinute(settings, shareSize).toFixed(0))}</span>
+						{/if}
+					</div>
+					{#if share.surface === 'window' || share.surface === 'browser'}
+						<p class="text-sm">{m.record.windowHint}</p>
+					{/if}
+					{#if share.surface === 'browser'}
+						<p class="text-sm">{m.record.tabScaleHint}</p>
+					{:else if scalePercent(devicePixelRatio) !== 100}
+						<p class="text-sm">{m.record.scaleHint(scalePercent(devicePixelRatio))}</p>
+					{/if}
+					{#if share.surface === 'monitor' && settings.floatingControls && floatingWindow.supported}
+						<p class="text-sm">{m.record.monitorHint}</p>
+					{/if}
+				{/if}
+				{#if recorder.camera || recorder.mic}
+					<div class="flex items-center gap-3">
+						{#if recorder.camera}
+							<video
+								class="rounded-box aspect-video w-32 bg-black object-cover"
+								autoplay
+								muted
+								playsinline
+								aria-label={m.record.cameraPreview}
+								{@attach (video) => {
+									video.srcObject = recorder?.camera ?? null;
+								}}
+							></video>
+						{/if}
+						{#if recorder.mic}
+							<progress class="progress progress-success h-1.5 flex-1" value={micLevel} max="1" aria-label={m.record.level}
+							></progress>
+						{/if}
+					</div>
+				{/if}
+				{#if recorder.warning}<div role="alert" class="alert alert-warning text-sm">{recorder.warning}</div>{/if}
+				{#if error}<div role="alert" class="alert alert-error">{error}</div>{/if}
+			</div>
+			<div class="modal-action">
+				<button class="btn btn-ghost" onclick={back}>{m.record.back}</button>
+				<button class="btn" onclick={choose}
+					><span class="icon-[material-symbols-light--screen-share-outline] size-5" aria-hidden="true"></span>
+					{m.record.otherSource}</button
+				>
+				<button class="btn btn-primary" onclick={record}
+					><span class="icon-[material-symbols-light--radio-button-checked-outline] size-5" aria-hidden="true"></span>
+					{m.record.startRecording}</button
+				>
 			</div>
 		{:else}
-			<div class="flex flex-col items-center gap-4 py-4">
-				<div class="flex items-center gap-3">
-					{#if recorder.state === 'recording'}
-						<span class="status status-error status-lg animate-pulse"></span>
-						<span class="font-semibold">{m.record.recording}</span>
-					{:else if recorder.state === 'paused'}
-						<span class="status status-warning status-lg"></span>
-						<span class="font-semibold">{m.record.paused}</span>
-					{:else}
-						<span class="loading loading-spinner"></span>
-						<span class="font-semibold">{m.record.finalizing}</span>
-					{/if}
-				</div>
-				<div class="font-mono text-5xl tabular-nums">{formatTime(recorder.elapsed, 0)}</div>
+			<RecordControls {recorder} {countdown} onstop={stop}>
 				{#if recorder.camera}
 					<video
 						class="rounded-box aspect-video w-48 bg-black object-cover"
@@ -447,20 +609,16 @@
 				<p class="text-center text-sm opacity-70">
 					{m.record.stopHint}
 				</p>
-				<div class="flex gap-2">
-					{#if recorder.state === 'recording'}
-						<button class="btn" onclick={() => recorder?.pause()}><span class="icon-[material-symbols-light--pause] size-5" aria-hidden="true"></span> {m.record.pause}</button>
-					{:else if recorder.state === 'paused'}
-						<button class="btn" onclick={() => recorder?.resume()}><span class="icon-[material-symbols-light--resume-outline] size-5" aria-hidden="true"></span> {m.record.resume}</button>
+				{#snippet extra()}
+					{#if floatingWindow.supported && !floatingWindow.open && recorder?.state !== 'finalizing'}
+						<button class="btn" onclick={showFloating}
+							><span class="icon-[material-symbols-light--picture-in-picture-alt-outline] size-5" aria-hidden="true"></span>
+							{m.record.pipShow}</button
+						>
 					{/if}
-					<button
-						class="btn btn-error"
-						disabled={recorder.state !== 'recording' && recorder.state !== 'paused'}
-						onclick={stop}><span class="icon-[material-symbols-light--stop] size-5" aria-hidden="true"></span> {m.record.stop}</button
-					>
-					<button class="btn btn-ghost" onclick={cancel} disabled={recorder.state === 'finalizing'}>{m.record.discard}</button>
-				</div>
-			</div>
+					<button class="btn btn-ghost" onclick={cancel} disabled={recorder?.state === 'finalizing'}>{m.record.discard}</button>
+				{/snippet}
+			</RecordControls>
 		{/if}
 	</div>
 </dialog>
