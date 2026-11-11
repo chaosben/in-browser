@@ -125,7 +125,11 @@ export class Recorder {
 			// set below
 		}
 		const display = await navigator.mediaDevices.getDisplayMedia({
-			video: { frameRate: { ideal: options.settings.frameRate, max: options.settings.frameRate } },
+			video: {
+				frameRate: { ideal: options.settings.frameRate, max: options.settings.frameRate },
+				// Chromium only; other browsers ignore it (the dialog then warns)
+				...({ cursor: options.settings.cursor ? 'always' : 'never' } as object)
+			},
 			audio: options.systemAudio && { ...options.settings.systemProcessing },
 			// Chromium-specific options
 			...({ selfBrowserSurface: 'exclude', surfaceSwitching: 'include', systemAudio: 'include', controller } as object)

@@ -101,6 +101,18 @@ const help = {
 					text: 'Only matters when you share a single window or tab. The recording has a fixed size from the start. If the window gets larger later, it is scaled down to fit – unless this option is on: then the recording reserves the full screen size, and the larger window stays sharp.',
 					tip: 'Leave it off if you don’t resize the window while recording – it saves processor power. Turn it on if you enlarge the window during the recording. Where a smaller window sits in the picture is set later under “Window position” of the clip.'
 				},
+				cursor: {
+					title: 'Record mouse pointer',
+					text: 'Setting in the “Screen” tab, before you choose what to share. The preview then shows whether the pointer is in the picture.',
+					options: {
+						on: { label: 'On (default)', text: 'The pointer is recorded as you see it.' },
+						off: {
+							label: 'Off',
+							text: 'The pointer is left out of the picture – works in Chrome and Edge for screens and windows. Other browsers ignore it; then the preview shows a warning. Shared tabs never contain the pointer.'
+						}
+					},
+					tip: 'For calm tutorials, turn it off and mark the important clicks afterwards with the “Click” annotation. Leave it on if viewers need to follow where you point.'
+				},
 				estimate: {
 					title: 'Size estimate',
 					text: '“up to approx. … MB per minute” is an upper bound for the full screen with all chosen sources. Screen recordings with little movement are usually much smaller.'
@@ -250,6 +262,11 @@ const help = {
 					title: 'Canvas size of the largest clip',
 					text: '“Change” in the project properties offers “Largest clip” at the top of the size list as soon as the largest clip with a picture is smaller than the canvas; the entry shows the new size. After “Apply” the canvas takes exactly the size of that clip (the part on the canvas). Nothing is scaled – the clip then fills the canvas 1:1, other content keeps its pixel size and may reach over the edge. Can be undone.',
 					tip: 'Use it after cropping a screen recording to a window: the export then has the size of the window instead of the whole screen – smaller files, no empty border.'
+				},
+				fitToClip: {
+					title: 'Fit canvas to clip',
+					text: '“Fit canvas to clip” in the properties of a clip with a picture (also in its context menu) gives the canvas the original size of the clip’s visible part – a crop counts. The button shows the new size. The clip then fills the canvas 1:1; everything else keeps its size in pixels around the clip’s center, webcams in their default place move to the new corner. The canvas can get smaller or larger. Can be undone.',
+					tip: 'Use it when a recording is shown scaled down and should be exported sharp at its own resolution, or to export exactly one clip. Unlike “Largest clip”, it uses the original size of the clip you chose, not the frame it has on the canvas right now.'
 				},
 				enlarge: {
 					title: 'Enlarge canvas?',
@@ -474,6 +491,17 @@ const help = {
 				step: {
 					title: 'Step',
 					text: 'A numbered circle for instructions. New steps get the next number; you can change it. The number is automatically black or white, whichever reads better on the color.'
+				},
+				click: {
+					title: 'Click',
+					text: 'Marks a mouse click with a short animation. Place it where the click happens and set its start to the moment of the click; new clicks last 0.6 s, and the animation plays once over the duration (longer = slower). Drag the corner handle to change the size. When stopped, the preview shows the animation’s shape.',
+					options: {
+						ripple: { label: 'Ripple (default)', text: 'A ring spreads out and fades – the classic click.' },
+						rings: { label: 'Double ring', text: 'Two rings one after the other – reads well as a double click.' },
+						dot: { label: 'Dot', text: 'A filled dot pops up and shrinks – stands out on busy content.' },
+						burst: { label: 'Rays', text: 'Short lines spring outward – lively, good for important clicks.' }
+					},
+					tip: 'Choose one style per video and keep it. Pick a color that contrasts with the content; with a hidden mouse pointer, a click annotation shows where something happens.'
 				},
 				image: {
 					title: 'Image',

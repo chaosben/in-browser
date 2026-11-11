@@ -17,6 +17,8 @@ describe('sanitizeRecordSettings', () => {
 		const s = sanitizeRecordSettings({ microphone: false, camera: true, systemAudio: 'yes', countdown: false, growWindow: 1 });
 		expect(s).toMatchObject({ microphone: false, camera: true, systemAudio: false, countdown: false, growWindow: false });
 		expect(sanitizeRecordSettings({ growWindow: true }).growWindow).toBe(true);
+		expect(sanitizeRecordSettings({ cursor: false }).cursor).toBe(false);
+		expect(sanitizeRecordSettings({ cursor: 'no' }).cursor).toBe(true);
 		expect(sanitizeRecordSettings({ floatingControls: false }).floatingControls).toBe(false);
 		expect(sanitizeRecordSettings({ floatingControls: 'no' }).floatingControls).toBe(true);
 	});

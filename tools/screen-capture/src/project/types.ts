@@ -169,6 +169,21 @@ export interface StepAnnotation extends AnnotationBase, Shadowed {
 	color: string;
 }
 
+/** Look of a click animation */
+export type ClickStyle = 'ripple' | 'rings' | 'dot' | 'burst';
+
+/** Animated mark of a mouse click; the animation runs once over the item's duration */
+export interface ClickAnnotation extends AnnotationBase {
+	kind: 'click';
+	/** Center */
+	x: number;
+	y: number;
+	/** Largest diameter during the animation */
+	size: number;
+	color: string;
+	style: ClickStyle;
+}
+
 export interface HighlightAnnotation extends AnnotationBase {
 	kind: 'highlight';
 	rect: Rect;
@@ -261,6 +276,7 @@ export type Annotation =
 	| RectAnnotation
 	| EllipseAnnotation
 	| StepAnnotation
+	| ClickAnnotation
 	| HighlightAnnotation
 	| SpotlightAnnotation
 	| BlurAnnotation

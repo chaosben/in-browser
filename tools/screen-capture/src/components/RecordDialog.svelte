@@ -6,7 +6,7 @@
 	import { probeEncoders, pickScreenEncoder, type Encoder, type EncoderSupport } from '#lib/record/encoder.js';
 	import { Recorder, type RecordOptions } from '#lib/record/recorder.svelte.js';
 	import { floatingWindow } from '#lib/record/pip.svelte.js';
-	import { describeShare, scalePercent } from '#lib/record/share.js';
+	import { cursorNotHidden, describeShare, scalePercent } from '#lib/record/share.js';
 	import {
 		AUDIO_FILTERS,
 		AUDIO_RATES,
@@ -407,6 +407,13 @@
 							<p class="label text-xs whitespace-normal">{m.record.growWindowHint}</p>
 						</div>
 						<div class="flex flex-col gap-1">
+							<label class="label text-sm">
+								<input type="checkbox" class="checkbox checkbox-sm" bind:checked={settings.cursor} />
+								{m.record.cursor}
+							</label>
+							<p class="label text-xs whitespace-normal">{m.record.cursorHint}</p>
+						</div>
+						<div class="flex flex-col gap-1">
 							<select class="select select-sm w-full" bind:value={settings.screenEncoder} aria-label={m.record.encoder}>
 								{#each SCREEN_ENCODER_MODES as mode (mode)}<option value={mode}>{m.record.encoderModes[mode]}</option>{/each}
 							</select>
@@ -539,11 +546,18 @@
 							<span class="opacity-70">{m.record.systemAudioShared}</span>
 							<span>{recorder.display?.getAudioTracks().length ? m.record.included : m.record.notIncluded}</span>
 						{/if}
+						{#if share.surface !== 'browser' && share.cursor}
+							<span class="opacity-70">{m.record.pointer}</span>
+							<span>{share.cursor === 'never' ? m.record.pointerHidden : m.record.pointerShown}</span>
+						{/if}
 						{#if shareSize}
 							<span class="opacity-70">{m.record.estimatedSize}</span>
 							<span>{m.record.sizePerMinute(estimateMbPerMinute(settings, shareSize).toFixed(0))}</span>
 						{/if}
 					</div>
+					{#if cursorNotHidden(share, chosen?.settings.cursor ?? settings.cursor)}
+						<p class="text-warning text-sm">{m.record.cursorNotHidden}</p>
+					{/if}
 					{#if share.surface === 'window' || share.surface === 'browser'}
 						<p class="text-sm">{m.record.windowHint}</p>
 					{/if}

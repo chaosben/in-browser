@@ -79,6 +79,18 @@ const help: typeof enHelp = {
 					text: 'Spielt nur eine Rolle, wenn du ein einzelnes Fenster oder einen Tab teilst. Die Aufnahme hat von Anfang an eine feste Größe. Wird das Fenster später größer, wird es passend verkleinert – außer diese Option ist an: Dann reserviert die Aufnahme die volle Bildschirmgröße, und das größere Fenster bleibt scharf.',
 					tip: 'Lass sie aus, wenn du die Fenstergröße während der Aufnahme nicht änderst – das spart Rechenleistung. Schalte sie ein, wenn du das Fenster während der Aufnahme vergrößerst. Wo ein kleineres Fenster im Bild steht, legst du später unter „Fensterposition“ des Clips fest.'
 				},
+				cursor: {
+					title: 'Mauszeiger aufnehmen',
+					text: 'Einstellung im Tab „Bildschirm“, bevor du wählst, was du teilst. Die Vorschau zeigt danach, ob der Zeiger im Bild ist.',
+					options: {
+						on: { label: 'An (Standard)', text: 'Der Zeiger wird so aufgenommen, wie du ihn siehst.' },
+						off: {
+							label: 'Aus',
+							text: 'Der Zeiger fehlt im Bild – klappt in Chrome und Edge bei Bildschirmen und Fenstern. Andere Browser ignorieren es; dann zeigt die Vorschau eine Warnung. Geteilte Tabs enthalten den Zeiger nie.'
+						}
+					},
+					tip: 'Für ruhige Anleitungen schalte ihn aus und markiere die wichtigen Klicks danach mit der Annotation „Klick“. Lass ihn an, wenn man sehen soll, worauf du zeigst.'
+				},
 				estimate: {
 					title: 'Größenschätzung',
 					text: '„bis ca. … MB pro Minute“ ist eine Obergrenze für den ganzen Bildschirm mit allen gewählten Quellen. Bildschirmaufnahmen mit wenig Bewegung sind meist deutlich kleiner.'
@@ -228,6 +240,11 @@ const help: typeof enHelp = {
 					title: 'Leinwandgröße des größten Clips',
 					text: '„Ändern“ in den Projekt-Eigenschaften bietet oben in der Größenliste „Größter Clip“ an, sobald der größte Clip mit Bild kleiner als die Leinwand ist; der Eintrag zeigt die neue Größe. Nach „Übernehmen“ bekommt die Leinwand genau die Größe dieses Clips (des Teils auf der Leinwand). Nichts wird skaliert – der Clip füllt die Leinwand danach 1:1, anderer Inhalt behält seine Pixelgröße und kann über den Rand ragen. Lässt sich rückgängig machen.',
 					tip: 'Nimm es, nachdem du eine Bildschirmaufnahme auf ein Fenster zugeschnitten hast: Der Export hat dann die Größe des Fensters statt des ganzen Bildschirms – kleinere Dateien, kein leerer Rand.'
+				},
+				fitToClip: {
+					title: 'Leinwand an Clip anpassen',
+					text: '„Leinwand an Clip anpassen“ in den Eigenschaften eines Clips mit Bild (auch in seinem Kontextmenü) gibt der Leinwand die Originalgröße des sichtbaren Teils des Clips – ein Zuschnitt zählt. Der Button zeigt die neue Größe. Der Clip füllt die Leinwand danach 1:1; alles andere behält seine Pixelgröße rund um die Mitte des Clips, Webcams an ihrem Standardplatz wandern in die neue Ecke. Die Leinwand kann kleiner oder größer werden. Lässt sich rückgängig machen.',
+					tip: 'Nimm es, wenn eine Aufnahme verkleinert angezeigt wird und scharf in ihrer eigenen Auflösung exportiert werden soll, oder um genau einen Clip zu exportieren. Anders als „Größter Clip“ nimmt es die Originalgröße des gewählten Clips, nicht den Rahmen, den er gerade auf der Leinwand hat.'
 				},
 				enlarge: {
 					title: 'Leinwand vergrößern?',
@@ -452,6 +469,17 @@ const help: typeof enHelp = {
 				step: {
 					title: 'Schritt',
 					text: 'Ein nummerierter Kreis für Anleitungen. Neue Schritte bekommen die nächste Nummer; du kannst sie ändern. Die Ziffer ist automatisch schwarz oder weiß, je nachdem, was auf der Farbe besser lesbar ist.'
+				},
+				click: {
+					title: 'Klick',
+					text: 'Markiert einen Mausklick mit einer kurzen Animation. Setz ihn dorthin, wo geklickt wird, und seinen Anfang auf den Moment des Klicks; neue Klicks dauern 0,6 s, die Animation läuft einmal über die Dauer (länger = langsamer). Zieh am Eckpunkt, um die Größe zu ändern. Im Stillstand zeigt die Vorschau die Form der Animation.',
+					options: {
+						ripple: { label: 'Welle (Standard)', text: 'Ein Ring breitet sich aus und verblasst – der klassische Klick.' },
+						rings: { label: 'Doppelring', text: 'Zwei Ringe nacheinander – gut als Doppelklick lesbar.' },
+						dot: { label: 'Punkt', text: 'Ein gefüllter Punkt ploppt auf und schrumpft – fällt auf unruhigem Inhalt auf.' },
+						burst: { label: 'Strahlen', text: 'Kurze Striche springen nach außen – lebendig, gut für wichtige Klicks.' }
+					},
+					tip: 'Nimm einen Stil pro Video und bleib dabei. Wähl eine Farbe, die sich vom Inhalt abhebt; bei ausgeblendetem Mauszeiger zeigt die Klick-Annotation, wo etwas passiert.'
 				},
 				image: {
 					title: 'Bild',

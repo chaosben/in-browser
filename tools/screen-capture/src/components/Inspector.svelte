@@ -14,6 +14,7 @@
 		type Annotation,
 		type Clip,
 		type AreaShape,
+		type ClickStyle,
 		type ClipShape,
 		type FontId,
 		type TextAlign,
@@ -130,6 +131,13 @@
 	const AREA_SHAPES: { value: AreaShape; label: string; icon: string }[] = [
 		{ value: 'rect', label: m.inspector.shapeRect, icon: 'icon-[material-symbols-light--crop-landscape-outline]' },
 		{ value: 'ellipse', label: m.inspector.shapeEllipse, icon: 'icon-[material-symbols-light--circle-outline]' }
+	];
+
+	const CLICK_STYLES: { value: ClickStyle; label: string; icon: string }[] = [
+		{ value: 'ripple', label: m.inspector.clickStyles.ripple, icon: 'icon-[material-symbols-light--radio-button-unchecked]' },
+		{ value: 'rings', label: m.inspector.clickStyles.rings, icon: 'icon-[material-symbols-light--adjust]' },
+		{ value: 'dot', label: m.inspector.clickStyles.dot, icon: 'icon-[material-symbols-light--circle]' },
+		{ value: 'burst', label: m.inspector.clickStyles.burst, icon: 'icon-[material-symbols-light--flare]' }
 	];
 
 	const ALIGNS: { value: TextAlign; label: string; icon: string }[] = [
@@ -337,7 +345,7 @@
 		{@const o = overlay}
 		{@render header(OVERLAY_KINDS[o.kind].icon, OVERLAY_KINDS[o.kind].label)}
 
-		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'image'}
+		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'click' || o.kind === 'image'}
 			<InspectorSection id="content" title={m.inspector.sections.content}>
 				{#if o.kind === 'text' || o.kind === 'callout'}
 					<InspectorField label={m.inspector.text}>
@@ -362,6 +370,28 @@
 							oninput={(v) => setOverlay({ number: v }, 'number')}
 							oncommit={end}
 						/>
+					</InspectorField>
+				{:else if o.kind === 'click'}
+					<InspectorField label={m.inspector.clickStyle} keywords={CLICK_STYLES.map((style) => style.label)}>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs opacity-70">{m.inspector.clickStyle}</span>
+							<div class="grid grid-cols-2 gap-1">
+								{#each CLICK_STYLES as style (style.value)}
+									<button
+										class="btn btn-sm justify-start {o.style === style.value ? 'btn-primary' : ''}"
+										aria-pressed={o.style === style.value}
+										onclick={() => {
+											setOverlay({ style: style.value }, 'style');
+											end();
+										}}
+									>
+										<span class="{style.icon} size-5" aria-hidden="true"></span>
+										{style.label}
+									</button>
+								{/each}
+							</div>
+							<p class="text-xs opacity-60">{m.inspector.clickHint}</p>
+						</div>
 					</InspectorField>
 				{:else if o.kind === 'image'}
 					{@const image = editor.image(o.imageId)}
@@ -446,7 +476,7 @@
 			{#if o.kind === 'line'}
 				{@render checkbox(m.inspector.dashed, o.dashed, (v) => setOverlay({ dashed: v }, 'dashed'))}
 			{/if}
-			{#if o.kind === 'step'}
+			{#if o.kind === 'step' || o.kind === 'click'}
 				{@render pixels(m.inspector.size, o.size, 8 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
 			{/if}
 			{#if o.kind === 'rect'}
@@ -591,6 +621,18 @@
 			</InspectorField>
 			{#if source?.hasVideo}
 				{@render placement(m.inspector.placement, (cover) => place(c, cover), m.inspector.placementHint)}
+				{@const fit = editor.clipCanvasOf(c.id)}
+				{#if fit}
+					<InspectorField label={m.inspector.fitCanvasToClip} keywords={[m.inspector.canvas]}>
+						<div class="flex flex-col gap-1">
+							<button class="btn btn-sm" onclick={() => editor.fitCanvasToClip(c.id)}>
+								<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span>
+								{m.inspector.fitCanvasToClip} ({fit.size.width} × {fit.size.height})
+							</button>
+							<p class="text-xs opacity-60">{m.inspector.fitCanvasToClipHint}</p>
+						</div>
+					</InspectorField>
+				{/if}
 				{@const cropping = editor.croppingClip?.id === c.id}
 				{@const insets = cropInsets(source, c.crop)}
 				<InspectorField label={m.inspector.crop} keywords={[m.inspector.removeCrop, ...CROP_SIDES.map((s) => s.label)]}>

@@ -1,6 +1,6 @@
 import { deleteMediaFile, projectFileDate, saveProject } from '#lib/storage/store.js';
 import { addItem, clipsChanged, clipsOf, pasteItems, findItem, group, groupOf, isClip, setTrackState, trackState, ungroup, updateItem } from '#lib/timeline/ops.js';
-import { growTo, largestClipArea, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
+import { clipCanvasArea, growTo, largestClipArea, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { cleanCrop, croppedRect, fullRect } from './crop.js';
 import { createClip } from './defaults.js';
 import { pruneHistory } from './history.js';
@@ -266,12 +266,19 @@ export class Editor {
 	resizeCanvas(size: Size, offset?: Point) {
 		const from = { width: this.project.width, height: this.project.height };
 		if (from.width === size.width && from.height === size.height && !offset) return;
+		this.#resize(size, (t) => {
+			const resized = resizeCanvas(t, from, size, offset);
+			return offset ? resized : refitDefaults(resized, this.project.sources, from, size);
+		});
+	}
+
+	/** New canvas size and the converted timeline as one undo step */
+	#resize(size: Size, convert: (timeline: Timeline) => Timeline) {
 		const before = this.#snapshot();
 		this.#undo = [...this.#undo, before].slice(-HISTORY_LIMIT);
 		this.#redo = [];
 		this.#lastMergeKey = null;
-		const resized = resizeCanvas(before.timeline, from, size, offset);
-		const timeline = offset ? resized : refitDefaults(resized, this.project.sources, from, size);
+		const timeline = convert(before.timeline);
 		this.project = { ...this.project, width: size.width, height: size.height };
 		this.#setTimeline(timeline, before.timeline, true);
 	}
@@ -279,6 +286,28 @@ export class Editor {
 	/** Canvas reduced to the largest clip with a picture (`largestClipArea`), or `null` */
 	clipCanvas() {
 		return largestClipArea(this.project.timeline, this.project.sources, this.project);
+	}
+
+	/** Canvas at the original size of a clip's visible part (`clipCanvasArea`), or `null` */
+	clipCanvasOf(id: string) {
+		const clip = this.project.timeline.items.find((i) => i.id === id);
+		if (!clip || clip.type === 'annotation') return null;
+		return clipCanvasArea(clip, this.source(clip.sourceId), this.project);
+	}
+
+	/**
+	 * Canvas takes the size of the clip at its original resolution (one undo step): the clip fills it 1:1, the
+	 * rest keeps its size in pixels around the clip's center, webcams in default placement move to the corner.
+	 */
+	fitCanvasToClip(id: string) {
+		const area = this.clipCanvasOf(id);
+		if (!area) return;
+		const from = { width: this.project.width, height: this.project.height };
+		const { size, offset } = area;
+		this.#resize(size, (t) => {
+			const resized = refitDefaults(resizeCanvas(t, from, size, offset), this.project.sources, from, size, offset, true);
+			return { ...resized, items: resized.items.map((i) => (i.id === id && i.type !== 'annotation' ? { ...i, rect: { x: 0, y: 0, w: 1, h: 1 } } : i)) };
+		});
 	}
 
 	/**

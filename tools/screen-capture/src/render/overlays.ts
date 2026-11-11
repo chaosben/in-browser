@@ -4,6 +4,7 @@ import { parseColor } from '#lib/util/color.js';
 import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
 import { iconPicture, imagePicture } from './images.svelte.js';
+import { drawClick } from './click.js';
 import { arrowHead, partialStrokes, strokesOf } from './sketch.js';
 
 
@@ -69,7 +70,7 @@ export function overlayAlpha(a: Annotation, t: number): number {
  * Draws an annotation. `ctx` already has the zoom transform; coordinates are canvas pixels
  * (W × H) in content space.
  */
-/** `progress`: how far a self-drawing shape is drawn (0…1, see `drawProgress`) */
+/** `progress`: how far a self-drawing shape is drawn (0…1, see `drawProgress`); for a click its animation phase (`clickPhase`) */
 export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alpha: number, progress = 1) {
 	if (alpha <= 0) return;
 	if (alpha < 1 && hasShadow(a) && a.shadow) {
@@ -164,6 +165,9 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			ctx.stroke();
 			break;
 		}
+		case 'click':
+			drawClick(ctx, a, a.x * W, a.y * H, (a.size * H) / 2, progress);
+			break;
 		case 'step': {
 			const r = (a.size * H) / 2;
 			const cx = a.x * W;
@@ -181,7 +185,8 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			// Optical center: digits sit slightly high with "middle"
 			ctx.fillText(String(a.number), cx, cy + r * 0.05);
 			break;
-		}		case 'arrow': {
+		}
+		case 'arrow': {
 			const x1 = a.from.x * W;
 			const y1 = a.from.y * H;
 			const x2 = a.to.x * W;
@@ -425,6 +430,7 @@ export function moveAnnotation(a: Annotation, dx: number, dy: number): Partial<A
 			return { from: by(a.from), to: by(a.to) };
 		case 'text':
 		case 'step':
+		case 'click':
 			return { x: a.x + dx, y: a.y + dy };
 		case 'callout':
 			// The pointer moves along
@@ -484,6 +490,7 @@ export function overlayBounds(a: Annotation, W: number, H: number): Rect {
 				h: Math.abs(a.to.y - a.from.y)
 			};
 		case 'step':
+		case 'click':
 			return { x: a.x - (a.size * H) / W / 2, y: a.y - a.size / 2, w: (a.size * H) / W, h: a.size };
 		case 'text':
 		case 'callout': {

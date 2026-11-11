@@ -19,7 +19,7 @@
 	import { importFile, isMediaFile, MEDIA_ACCEPT } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
 	import { Player } from '#lib/preview/player.svelte.js';
-	import { createIcon, createImage, createOverlay, createZoom, FREEZE_ICON } from '#lib/project/defaults.js';
+	import { createIcon, createImage, createOverlay, createZoom, defaultDuration, FREEZE_ICON } from '#lib/project/defaults.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
 	import type { Annotation, IconData, Point, Timeline as TimelineData, ToolKind } from '#lib/project/types.js';
@@ -305,7 +305,7 @@
 	function addAnnotation(kind: ToolKind, at: DropPlace = {}) {
 		if (!editor || !player) return;
 		const start = at.start ?? player.time;
-		placeAnnotation(applyStyle(createOverlay(kind, start, start + 3, nextStepNumber(editor.project.timeline)), loadStyle(kind)), at);
+		placeAnnotation(applyStyle(createOverlay(kind, start, start + defaultDuration(kind), nextStepNumber(editor.project.timeline)), loadStyle(kind)), at);
 	}
 
 	/** Own image from the media bin */
@@ -542,6 +542,9 @@
 			).map(([label, icon, keys, op]) => ({ label, icon, keys, disabled: !arrangeable(op), run: () => arrange(op) })),
 			{ separator: true },
 			...(croppable ? [{ label: m.inspector.crop, icon: 'icon-[material-symbols-light--crop]', run: () => editor?.startCrop(croppable.id) }] : []),
+			...(clip && editor?.clipCanvasOf(clip.id)
+				? [{ label: m.inspector.fitCanvasToClip, icon: 'icon-[material-symbols-light--fit-screen-outline]', run: () => editor?.fitCanvasToClip(clip.id) }]
+				: []),
 			{
 				label: m.library.add,
 				icon: 'icon-[material-symbols-light--bookmark-add-outline]',

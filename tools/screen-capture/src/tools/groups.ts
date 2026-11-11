@@ -33,7 +33,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
 			{
 				id: 'annotations',
 				label: m.tools.groups.annotations,
-				items: (['arrow', 'line', 'rect', 'ellipse', 'highlight', 'spotlight', 'blur', 'step'] as const).map(annotation)
+				items: (['arrow', 'line', 'rect', 'ellipse', 'highlight', 'spotlight', 'blur', 'step', 'click'] as const).map(annotation)
 			}
 		]
 	},

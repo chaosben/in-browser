@@ -21,6 +21,7 @@ export const OVERLAY_KINDS: Record<AnnotationKind, { label: string; icon: string
 	rect: { label: m.kinds.rect, icon: 'icon-[material-symbols-light--crop-square-outline]' },
 	ellipse: { label: m.kinds.ellipse, icon: 'icon-[material-symbols-light--circle-outline]' },
 	step: { label: m.kinds.step, icon: 'icon-[material-symbols-light--counter-1-outline]' },
+	click: { label: m.kinds.click, icon: 'icon-[material-symbols-light--ads-click]' },
 	highlight: { label: m.kinds.highlight, icon: 'icon-[material-symbols-light--ink-highlighter-outline]' },
 	spotlight: { label: m.kinds.spotlight, icon: 'icon-[material-symbols-light--flashlight-on-outline]' },
 	blur: { label: m.kinds.blur, icon: 'icon-[material-symbols-light--blur-on]' },
@@ -39,6 +40,9 @@ export const FREEZE_ICON = 'icon-[material-symbols-light--ac-unit]';
 /** Swatches of the color picker (opacity is set separately) */
 export const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
 
+/** Duration of a new annotation in seconds (a click is a short animation) */
+export const defaultDuration = (kind: ToolKind) => (kind === 'click' ? 0.6 : 3);
+
 /** New annotation with sensible defaults in the center of the frame. `step`: number of a new step. */
 export function createOverlay(kind: ToolKind, start: number, end: number, step = 1): Annotation {
 	const base = overlayBase(start, end);
@@ -53,6 +57,9 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 			return { ...base, kind, rect: { x: 0.38, y: 0.36, w: 0.24, h: 0.28 }, color: '#ef4444', width: 0.005, sketch: false, drawIn: 0 };
 		case 'step':
 			return { ...base, kind, x: 0.5, y: 0.5, size: 0.07, number: step, color: '#ef4444' };
+		case 'click':
+			// The animation fades by itself
+			return { ...base, kind, x: 0.5, y: 0.5, size: 0.08, color: '#facc15', style: 'ripple', fadeIn: 0, fadeOut: 0 };
 		case 'highlight':
 			return { ...base, kind, rect: { x: 0.35, y: 0.46, w: 0.3, h: 0.08 }, color: '#facc1566' };
 		case 'spotlight':

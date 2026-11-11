@@ -196,7 +196,7 @@
 		editor.update((t) => updateItem(t, id, patch), key);
 	}
 
-	/** Size dragged at the corner (text, speech bubble, step) – also used for the next annotation of that type */
+	/** Size dragged at the corner (text, speech bubble, step, click) – also used for the next annotation of that type */
 	function resizeTo(o: Annotation, size: number, key: string) {
 		patchOverlay(o.id, { size }, key);
 		rememberStyle(o.kind, { size });
@@ -280,7 +280,7 @@
 				patchOverlay(o.id, { ...boxWidth, x, y, size, radius: o.radius * k, padding: o.padding * k }, key);
 				return rememberStyle(o.kind, { size });
 			}
-			if (o.kind === 'step') {
+			if (o.kind === 'step' || o.kind === 'click') {
 				// The center stays, the corner sets the diameter
 				return resizeTo(o, Math.max(0.02, o.size + 2 * dy), key);
 			}
@@ -738,7 +738,7 @@
 					onpointerdown={(e) => movePoint(e, o, 'to')}
 					role="presentation"
 				></div>
-			{:else if o.kind === 'step'}
+			{:else if o.kind === 'step' || o.kind === 'click'}
 				<div
 					class="{handle} {cursors.se}"
 					style={cornerPos(bounds(o), 'se')}

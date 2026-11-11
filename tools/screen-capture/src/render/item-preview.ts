@@ -4,6 +4,7 @@
 import type { ItemMedia } from '#lib/media/visuals.js';
 import { FULL } from '#lib/project/crop.js';
 import type { Clip, Item, Rect } from '#lib/project/types.js';
+import { STILL_PHASE } from './click.js';
 import { drawOverlay, overlayBounds } from './overlays.js';
 
 /** Outline of the items with a picture in canvas pixels, with a margin for strokes and shadows */
@@ -62,7 +63,7 @@ export function drawItemsPreview(
 	ctx.setTransform(scale, 0, 0, scale, -bounds.x * scale, -bounds.y * scale);
 	for (const item of [...items].sort((a, b) => a.track - b.track)) {
 		if (item.type === 'annotation') {
-			drawOverlay(ctx, item, W, H, 1);
+			drawOverlay(ctx, item, W, H, 1, item.kind === 'click' ? STILL_PHASE : 1);
 			continue;
 		}
 		if (!hasPicture(item)) continue;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calloutTail, fitTextToCanvas, moveAnnotation, textBox, wrapText } from './overlays';
+import { calloutTail, fitTextToCanvas, moveAnnotation, overlayBounds, textBox, wrapText } from './overlays';
 import type { Ctx2D } from './compositor';
 import { createOverlay } from '#lib/project/defaults.js';
 import type { TextAnnotation } from '#lib/project/types.js';
@@ -40,6 +40,23 @@ describe('moveAnnotation', () => {
 		const rect = createOverlay('rect', 0, 1);
 		if (rect.kind !== 'rect') throw new Error();
 		expect(moveAnnotation(rect, -0.05, 0)).toEqual({ rect: { ...rect.rect, x: rect.rect.x - 0.05 } });
+	});
+	it('moves a click by its center', () => {
+		const click = createOverlay('click', 0, 1);
+		if (click.kind !== 'click') throw new Error();
+		expect(moveAnnotation(click, 0.1, -0.1)).toEqual({ x: click.x + 0.1, y: click.y - 0.1 });
+	});
+});
+
+describe('overlayBounds', () => {
+	it('puts a click into a square around its center', () => {
+		const click = createOverlay('click', 0, 1);
+		if (click.kind !== 'click') throw new Error();
+		const b = overlayBounds(click, 2000, 1000);
+		expect(b.h).toBeCloseTo(click.size);
+		expect(b.w * 2000).toBeCloseTo(b.h * 1000);
+		expect(b.x + b.w / 2).toBeCloseTo(click.x);
+		expect(b.y + b.h / 2).toBeCloseTo(click.y);
 	});
 });
 

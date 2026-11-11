@@ -2,8 +2,9 @@
 // so a new canvas size means converting everything. Existing content keeps its size in pixels and stays
 // centered; new space around it stays empty, on a smaller canvas it reaches over the edge.
 
+import { croppedSize } from './crop.js';
 import { cameraRect, placeRect } from './defaults.js';
-import type { Annotation, Item, Point, Rect, Source, Timeline, ZoomSegment } from './types.js';
+import type { Annotation, Clip, Item, Point, Rect, Source, Timeline, ZoomSegment } from './types.js';
 
 export interface Size {
 	width: number;
@@ -67,6 +68,7 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 			case 'blur':
 				return { ...a, rect: rect(a.rect), strength: a.strength * sy, radius: a.radius * sy };
 			case 'step':
+			case 'click':
 				return { ...a, ...point(a), size: a.size * sy };
 			case 'text':
 				return { ...a, ...point(a), size: a.size * sy, radius: a.radius * sy, padding: a.padding * sy, ...boxWidth(a.boxWidth) };
@@ -117,6 +119,24 @@ export function largestClipArea(timeline: Timeline, sources: Source[], canvas: S
 	return { size, offset: { x: -(x0 + (x1 - x0 - size.width) / 2), y: -(y0 + (y1 - y0 - size.height) / 2) } };
 }
 
+/**
+ * Canvas with the size of `clip`'s visible part at its original resolution (crop counts; within MAX_CANVAS,
+ * keeping its aspect ratio) and the offset for `resizeCanvas` that puts the clip's center into the center of the
+ * new canvas. `null` without a picture or when the clip already fills the canvas 1:1.
+ */
+export function clipCanvasArea(clip: Clip, source: Source | undefined, canvas: Size): { size: Size; offset: Point } | null {
+	if (!source?.hasVideo || !source.width || !source.height) return null;
+	const natural = croppedSize(source, clip.crop);
+	const scale = Math.min(1, MAX_CANVAS / natural.width, MAX_CANVAS / natural.height);
+	const size = clampCanvasSize({ width: Math.round(natural.width * scale), height: Math.round(natural.height * scale) });
+	const { x, y, w, h } = clip.rect;
+	const fills = Math.abs(x) + Math.abs(y) + Math.abs(w - 1) + Math.abs(h - 1) < 1e-6;
+	if (fills && size.width === canvas.width && size.height === canvas.height) return null;
+	const cx = (x + w / 2) * canvas.width;
+	const cy = (y + h / 2) * canvas.height;
+	return { size, offset: { x: size.width / 2 - cx, y: size.height / 2 - cy } };
+}
+
 /** Canvas size that also holds the new sources with a picture 1:1, or `null` if they already fit */
 export function growTo(canvas: Size, sources: Pick<Source, 'hasVideo' | 'width' | 'height'>[]): Size | null {
 	const visual = sources.filter((s) => s.hasVideo && s.width > 0 && s.height > 0);
@@ -140,17 +160,18 @@ export function shrunkSources(timeline: Timeline, sources: Source[], canvas: Siz
 /**
  * Clips still in a default placement after the canvas has grown: those that were only shrunk to fit the old
  * canvas (source larger than it) fill the new one 1:1, webcam overlays move to the corner of the new one.
- * Moved or resized clips stay as they are.
+ * Moved or resized clips stay as they are. `offset`: as passed to `resizeCanvas`; `camerasOnly`: leave the
+ * shrunk clips alone.
  */
-export function refitDefaults(timeline: Timeline, sources: Source[], from: Size, to: Size): Timeline {
+export function refitDefaults(timeline: Timeline, sources: Source[], from: Size, to: Size, offset?: Point, camerasOnly = false): Timeline {
 	const items = timeline.items.map((item) => {
 		if (item.type === 'annotation') return item;
 		const source = sources.find((s) => s.id === item.sourceId);
 		if (!source?.hasVideo) return item;
 		// Default placement in the old canvas, converted like everything else
-		const was = (rect: Rect) => near(item.rect, (resizeCanvas(timeline1({ ...item, rect }), from, to).items[0] as typeof item).rect);
+		const was = (rect: Rect) => near(item.rect, (resizeCanvas(timeline1({ ...item, rect }), from, to, offset).items[0] as typeof item).rect);
 		const larger = source.width > from.width || source.height > from.height;
-		if (larger && was(placeRect(source, from.width, from.height))) return { ...item, rect: placeRect(source, to.width, to.height) };
+		if (larger && !camerasOnly && was(placeRect(source, from.width, from.height))) return { ...item, rect: placeRect(source, to.width, to.height) };
 		if (was(cameraRect(source, from.width, from.height))) return { ...item, rect: cameraRect(source, to.width, to.height) };
 		return item;
 	});

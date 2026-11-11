@@ -41,6 +41,8 @@ export interface RecordSettings {
 	/** A shared window/tab may grow while recording: encodes at monitor size (more CPU) instead of the start size */
 	growWindow: boolean;
 	screenEncoder: ScreenEncoderMode;
+	/** Mouse pointer in the screen picture (hiding it works in Chromium only) */
+	cursor: boolean;
 }
 
 export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
@@ -58,7 +60,8 @@ export const DEFAULT_RECORD_SETTINGS: RecordSettings = {
 	systemProcessing: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
 	frameRate: 30,
 	growWindow: false,
-	screenEncoder: 'auto'
+	screenEncoder: 'auto',
+	cursor: true
 };
 
 /**
@@ -144,7 +147,8 @@ export function sanitizeRecordSettings(raw: unknown): RecordSettings {
 		systemProcessing: filters(r.systemProcessing, d.systemProcessing),
 		frameRate: pick(r.frameRate, FRAME_RATES, d.frameRate),
 		growWindow: flag(r.growWindow, d.growWindow),
-		screenEncoder: pick(r.screenEncoder, SCREEN_ENCODER_MODES, d.screenEncoder)
+		screenEncoder: pick(r.screenEncoder, SCREEN_ENCODER_MODES, d.screenEncoder),
+		cursor: flag(r.cursor, d.cursor)
 	};
 }
 
