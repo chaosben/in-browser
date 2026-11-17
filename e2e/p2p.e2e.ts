@@ -55,7 +55,7 @@ test('two devices pair, sync and can be removed', async ({ browser }) => {
 	// A turns the troubleshooting log on
 	await a.locator('aside').getByRole('button', { name: /^Sync/ }).click();
 	await a.getByText('Troubleshooting').click();
-	await a.getByLabel('Record a log of the sync with your devices').check();
+	await a.getByLabel('Record a log of the sync (devices and folder)').check();
 	await a.getByRole('dialog').getByRole('button', { name: 'Close' }).last().click();
 
 	// A creates a folder, it shows up on B
@@ -74,6 +74,7 @@ test('two devices pair, sync and can be removed', async ({ browser }) => {
 	const logContent = await (await download.createReadStream()).toArray().then((chunks) => Buffer.concat(chunks).toString());
 	expect(logContent).toContain('# in-browser sync log');
 	expect(logContent).toContain('/Projects');
+	expect(logContent).toMatch(/\[p2p\] (sync|serve)\./);
 	await a.getByRole('dialog').getByRole('button', { name: 'Close' }).last().click();
 
 	// The footer of another tool shows the devices

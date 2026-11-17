@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-	import { clearLog, exportLog, logInfo, p2pStatus, setLogEnabled, type LogInfo } from '@in-browser/files/p2p/p2p.svelte.js';
+	import { COMMIT } from '@in-browser/brand/build.js';
+	import { p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
+	import { clearLog, exportLog, logInfo, setLogEnabled, type LogInfo } from '@in-browser/files/sync/journal.svelte.js';
+	import { syncStatus } from '@in-browser/files/sync/sync.svelte.js';
 	import { safeName } from '@in-browser/files/path.js';
 	import { m } from '#lib/i18n/index.js';
 
-	// Opt-in log of the device sync for finding errors: switch, number of entries, export as text file, clear
+	// Opt-in log of both syncs (devices and folder) for finding errors: switch, number of entries, export, clear
 
 	let info = $state<LogInfo | null>(null);
 
@@ -29,7 +32,17 @@
 	}
 
 	async function download() {
-		const text = await exportLog();
+		const view = p2pStatus.view;
+		const iso = (time: number | null) => (time ? new Date(time).toISOString() : null);
+		const text = await exportLog({
+			exported: new Date().toISOString(),
+			device: view.self ? `${view.self.name} (${view.self.id})` : null,
+			version: COMMIT,
+			browser: navigator.userAgent,
+			excludedFolders: view.scope,
+			devices: view.devices.map((d) => ({ id: d.id, name: d.name, online: d.online, lastSync: iso(d.lastSync), scope: d.scope })),
+			folder: syncStatus.folder ? { name: syncStatus.folder, state: syncStatus.state, lastSync: iso(syncStatus.lastSync), failed: syncStatus.failed } : null
+		});
 		const device = safeName(p2pStatus.view.self?.name ?? '', 'device');
 		const date = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
 		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));

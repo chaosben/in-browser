@@ -3,6 +3,8 @@ import { basename, nameProblem, parent, segments } from '../path.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
 import { deletedLocalFiles, holdDeletes, plan, type Base, type BaseEntry, type Op, type Snapshot } from './plan.js';
 import { DIR, scan, stateOf } from './scan.js';
+import { journal } from './journal.svelte.js';
+import type { LogFn } from './log.js';
 import { startP2p } from '../p2p/p2p.svelte.js';
 
 // Sync of the shared file system with a folder on disk (File System Access API, Chromium only).
@@ -145,8 +147,16 @@ function onRequest(request: Request) {
 	schedule(0);
 }
 
+/** Opt-in log (no-op until the leading tab has loaded it) */
+let log: LogFn = () => {};
+
 function lead() {
-	watch(() => !applying && schedule(2000));
+	void journal('folder').then((l) => (log = l.add));
+	watch((paths) => {
+		if (applying) return;
+		log('folder.trigger', { reason: 'change in the browser', paths });
+		schedule(2000);
+	});
 	setInterval(() => schedule(0), INTERVAL);
 	schedule(0);
 }
@@ -166,7 +176,13 @@ async function observe(folder: FileSystemDirectoryHandle) {
 	const Observer = (globalThis as { FileSystemObserver?: new (cb: () => void) => { observe(h: FileSystemHandle, o: { recursive: boolean }): Promise<void> } }).FileSystemObserver;
 	if (!Observer || (observed && (await observed.isSameEntry(folder)))) return;
 	observed = folder;
-	await new Observer(() => !applying && schedule(2000)).observe(folder, { recursive: true }).catch(() => {});
+	await new Observer(() => {
+		if (applying) return;
+		log('folder.trigger', { reason: 'change in the folder' });
+		schedule(2000);
+	})
+		.observe(folder, { recursive: true })
+		.catch(() => {});
 }
 
 async function run(): Promise<void> {
@@ -175,6 +191,7 @@ async function run(): Promise<void> {
 		const folder = await idbGet<FileSystemDirectoryHandle>(HANDLE);
 		if (!folder) return publish({ folder: null, state: 'off' });
 		if ((await folder.queryPermission?.({ mode: 'readwrite' })) !== 'granted') {
+			log('folder.paused', { folder: folder.name, reason: 'no permission' });
 			return publish({ folder: folder.name, state: 'paused' });
 		}
 		publish({ folder: folder.name, state: 'syncing' });
@@ -184,10 +201,17 @@ async function run(): Promise<void> {
 		const disk = await scan(folder);
 
 		let ops = plan(local, disk, base);
+		log('folder.start', { folder: folder.name, local: local.size, disk: disk.size, base: base.size });
+		for (const op of ops) {
+			if (op.type === 'remember' && base.has(op.path)) continue;
+			const b = base.get(op.path);
+			log('folder.plan', { ...op, local: local.get(op.path) ?? null, disk: disk.get(op.path) ?? null, baseLocal: b?.local ?? null, baseDisk: b?.disk ?? null });
+		}
 		const deletes = deletedLocalFiles(ops);
 		let pendingDeletes = 0;
 		if (!deletesAllowed && holdDeletes(ops, disk, base)) {
 			pending = ops.filter(isLocalDelete);
+			log('folder.deletesHeld', { count: pending.length });
 			ops = ops.filter((op) => !isLocalDelete(op));
 			pendingDeletes = deletes;
 		} else pending = [];
@@ -202,6 +226,7 @@ async function run(): Promise<void> {
 				} catch (e) {
 					failed++;
 					console.error('[Sync]', op, e);
+					log('folder.failed', { ...op, error: e instanceof Error ? e.message : String(e) });
 				}
 				if (i % 50 === 49) await saveBase(base);
 			}
@@ -209,6 +234,7 @@ async function run(): Promise<void> {
 			applying = false;
 		}
 		await saveBase(base);
+		log('folder.done', { applied: ops.length - failed, failed, pendingDeletes });
 		publish({
 			state: 'idle',
 			lastSync: Date.now(),

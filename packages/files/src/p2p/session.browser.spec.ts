@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Base } from '../sync/plan.js';
 import { Rpc } from './rpc.js';
 import { drive, Gate, serve, type DriveOptions, type Tree } from './session.js';
-import { folderTree, linkedPair, readText, writeText } from './testing.js';
+import { folderTree, linkedPair, readText, until, writeText } from './testing.js';
 
 // Two devices with their own OPFS folder, connected by a real WebRTC data channel
 
@@ -156,6 +156,68 @@ describe('P2P session', () => {
 		driver.close();
 		await new Promise((r) => setTimeout(r, 300));
 		expect(gate.busy).toBe(false);
+	});
+
+	describe('connection lost in the middle of a transfer', () => {
+		const big = () => new Uint8Array(40 * 1024 * 1024).map((_, i) => i % 97);
+		const writeBig = async (tree: Tree, path: string, data: Uint8Array) => {
+			const writer = (await tree.write(path)).getWriter();
+			await writer.write(data);
+			await writer.close();
+		};
+		/** Starts a sync and cuts the connection shortly after */
+		const interrupted = async () => {
+			const running = sync().catch(() => null);
+			await new Promise((r) => setTimeout(r, 300));
+			rpcA.close();
+			await running;
+			await new Promise((r) => setTimeout(r, 300));
+		};
+		/** A new connection between the same devices */
+		const reconnect = async () => {
+			const [linkA, linkB] = await linkedPair();
+			rpcA = new Rpc(linkA);
+			rpcB = new Rpc(linkB);
+			serve(rpcB, { tree: b, gate: new Gate() });
+		};
+
+		it('leaves nothing behind on the receiving device (upload)', async () => {
+			await writeBig(a, '/photo.jpg', big());
+			await interrupted();
+			// Neither a half file nor a leftover temporary file (cleaning up may take a moment after the abort)
+			await until(async () => (await b.names('/')).length === 0, 5000, 'B cleaned up');
+			expect(await b.names('/')).toEqual([]);
+			await reconnect();
+			const result = await sync();
+			expect(result.conflicts).toEqual([]);
+			expect((await b.read('/photo.jpg')).size).toBe(40 * 1024 * 1024);
+		}, 60_000);
+
+		it('leaves nothing behind on the receiving device (download)', async () => {
+			await writeBig(b, '/photo.jpg', big());
+			await interrupted();
+			await until(async () => (await a.names('/')).length === 0, 5000, 'A cleaned up');
+			expect(await a.names('/')).toEqual([]);
+			await reconnect();
+			expect((await sync()).conflicts).toEqual([]);
+			expect((await a.read('/photo.jpg')).size).toBe(40 * 1024 * 1024);
+		}, 60_000);
+
+		it('keeps the old version in place when a conflict transfer breaks off', async () => {
+			await writeText(a, '/project.json', 'base');
+			await sync();
+			await writeText(b, '/project.json', 'old on B');
+			await new Promise((r) => setTimeout(r, 20));
+			await writeBig(a, '/project.json', big());
+			await interrupted();
+			await until(async () => (await b.names('/')).length === 1, 5000, 'B cleaned up');
+			expect(await b.names('/')).toEqual(['project.json']);
+			expect(await readText(b, '/project.json')).toBe('old on B');
+			await reconnect();
+			const result = await sync();
+			expect(result.conflicts).toEqual(['/project.json']);
+			expect((await b.names('/')).sort()).toEqual(['project (conflict B).json', 'project.json']);
+		}, 60_000);
 	});
 
 	it('refuses a second session while one is running', async () => {

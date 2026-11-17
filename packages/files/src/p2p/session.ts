@@ -2,7 +2,7 @@ import { basename, extname, join, nameProblem, parent, segments, uniqueName } fr
 import { holdDeletes, plan, type Base, type FileState, type Op, type Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
 import type { Json, Rpc } from './rpc.js';
-import type { LogFn } from './log.js';
+import type { LogFn } from '../sync/log.js';
 import { intersect } from './scope.js';
 
 // Sync of two devices: the one with the smaller ID drives (plans and applies), the other one only answers requests
@@ -84,6 +84,53 @@ export async function conflictPath(tree: Tree, path: string, label: string): Pro
 
 const validName = (path: string) => segments(path).every((name) => !nameProblem(name));
 
+/** Deletes a file that may still be open for writing for a moment (aborted transfer) */
+async function removeSoon(tree: Tree, path: string) {
+	for (let attempt = 0; attempt < 20; attempt++) {
+		try {
+			await tree.remove(path);
+			if (!(await tree.stat(path))) return;
+		} catch {
+			// Still locked by the aborted write
+		}
+		await new Promise((r) => setTimeout(r, 100));
+	}
+}
+
+/**
+ * Receives a file atomically: into a hidden temporary file next to it first (ignored by every scan), and only when
+ * it is complete into place – a connection lost halfway leaves nothing behind. `keep`: the existing version is kept
+ * as a conflict copy with this label (also only once the new one is complete).
+ */
+async function receive<T>(
+	tree: Tree,
+	path: string,
+	fill: (target: WritableStream<Uint8Array>) => Promise<T>,
+	keep: string | undefined,
+	onWrite: (path: string) => void
+): Promise<{ result: T; copy?: string }> {
+	const temp = join(parent(path), `.p2p-${crypto.randomUUID()}.part`);
+	onWrite(temp);
+	let result: T;
+	try {
+		result = await fill(await tree.write(temp));
+	} catch (e) {
+		await removeSoon(tree, temp);
+		throw e;
+	}
+	let copy: string | undefined;
+	onWrite(path);
+	if (await tree.stat(path)) {
+		if (keep) {
+			copy = await conflictPath(tree, path, keep);
+			onWrite(copy);
+			await tree.move(path, copy);
+		} else await tree.remove(path);
+	}
+	await tree.move(temp, path);
+	return { result, copy };
+}
+
 /**
  * Answers the requests of the driving device. Returns a function to call when the connection ends: it frees this
  * device for other sessions if the driver vanished in the middle of one.
@@ -111,13 +158,12 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, lo
 		return { value: stateToJson(stateOf(file)), download: file.stream() };
 	});
 	rpc.handle('put', async (params, upload) => {
-		const path = params as string;
+		const { path, keep } = params as { path: string; keep?: string };
 		if (!validName(path) || !upload) throw new Error(`Invalid name: ${path}`);
-		onWrite?.(path);
-		await upload.pipeTo(await tree.write(path));
+		const { copy } = await receive(tree, path, (target) => upload.pipeTo(target), keep, (p) => onWrite?.(p));
 		const state = (await tree.stat(path))!;
-		log?.('serve.put', { path, state });
-		return { value: stateToJson(state) };
+		log?.('serve.put', { path, state, ...(copy ? { conflictCopy: copy } : {}) });
+		return { value: { state: stateToJson(state), copy: copy ?? null } };
 	});
 	rpc.handle('mkdir', async (params) => {
 		const path = params as string;
@@ -133,15 +179,6 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, lo
 		onWrite?.(path);
 		await tree.remove(path).catch(() => {});
 		log?.('serve.remove', { path, kind });
-	});
-	rpc.handle('keep', async (params) => {
-		const { path, label } = params as { path: string; label: string };
-		const target = await conflictPath(tree, path, label);
-		onWrite?.(path);
-		onWrite?.(target);
-		await tree.move(path, target);
-		log?.('serve.conflictCopy', { path, copy: target });
-		return { value: target };
 	});
 	return release;
 }
@@ -284,28 +321,32 @@ async function apply(
 	switch (op.type) {
 		case 'toLocal': {
 			if (!validName(path)) throw new Error(`Invalid name: ${path}`);
-			if (op.both) {
-				const copy = await conflictPath(tree, path, options.conflictLabel('mine'));
-				write(path);
-				write(copy);
-				await tree.move(path, copy);
+			const { result: state, copy } = await receive(
+				tree,
+				path,
+				async (target) => (await rpc.call('get', path, { download: target })) as unknown as FileState,
+				op.both ? options.conflictLabel('mine') : undefined,
+				write
+			);
+			if (copy) {
 				result.conflicts.push(path);
 				options.log?.('sync.conflictCopy', { path, copy, kept: 'here' });
 			}
-			write(path);
-			const state = (await rpc.call('get', path, { download: await tree.write(path) })) as unknown as FileState;
 			base.set(path, { local: (await tree.stat(path))!, disk: state });
 			return true;
 		}
 		case 'toDisk': {
-			if (op.both) {
-				const copy = await rpc.call('keep', { path, label: options.conflictLabel('theirs') });
-				result.conflicts.push(path);
-				options.log?.('sync.conflictCopy', { path, copy, kept: 'there' });
-			}
 			const file = await tree.read(path);
-			const state = (await rpc.call('put', path, { upload: file.stream() })) as unknown as FileState;
-			base.set(path, { local: stateOf(file), disk: state });
+			const params: Json = op.both ? { path, keep: options.conflictLabel('theirs') } : { path };
+			const reply = (await rpc.call('put', params, { upload: file.stream() })) as unknown as {
+				state: FileState;
+				copy: string | null;
+			};
+			if (reply.copy) {
+				result.conflicts.push(path);
+				options.log?.('sync.conflictCopy', { path, copy: reply.copy, kept: 'there' });
+			}
+			base.set(path, { local: stateOf(file), disk: reply.state });
 			return true;
 		}
 		case 'mkdirLocal':

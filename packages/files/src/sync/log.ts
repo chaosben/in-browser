@@ -1,12 +1,14 @@
-// Opt-in log of the P2P sync for finding errors: what each sync saw and decided (states of both sides and of the
-// last sync per path, content comparisons, conflict copies, sign-ins, member changes). Kept on this device only;
-// exported as a text file on request. Contains file and device names.
+// Opt-in log of the syncs (folder on disk and other devices) for finding errors: what each sync saw and decided
+// (states of both sides and of the last sync per path, content comparisons, conflict copies, sign-ins, member
+// changes). Kept on this device only; exported as a text file on request. Contains file and device names.
 
 export type LogFn = (event: string, data?: Record<string, unknown>) => void;
 
 export interface LogEntry {
 	/** Time in ms */
 	t: number;
+	/** Which sync wrote it */
+	source?: string;
 	event: string;
 	data?: Record<string, unknown>;
 }
@@ -41,7 +43,8 @@ export class SyncLog {
 export function logText(entries: LogEntry[], header: Record<string, unknown>): string {
 	const lines = [`# in-browser sync log`, ...Object.entries(header).map(([key, value]) => `# ${key}: ${JSON.stringify(value)}`), ''];
 	for (const entry of entries) {
-		lines.push(`${new Date(entry.t).toISOString()} ${entry.event}${entry.data ? ' ' + JSON.stringify(entry.data) : ''}`);
+		const source = entry.source ? `[${entry.source}] ` : '';
+		lines.push(`${new Date(entry.t).toISOString()} ${source}${entry.event}${entry.data ? ' ' + JSON.stringify(entry.data) : ''}`);
 	}
 	return lines.join('\n') + '\n';
 }

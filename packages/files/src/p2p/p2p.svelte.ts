@@ -2,10 +2,8 @@ import { requestPersistence } from '../cache.js';
 import { watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import type { Device, DeviceEvent, P2pView } from './device.js';
-import { COMMIT } from '@in-browser/brand/build.js';
-import { idbGet, idbSet } from '../sync/idb.js';
 import { ed25519Supported } from './identity.js';
-import { logText, SyncLog, type LogEntry } from './log.js';
+import { journal } from '../sync/journal.svelte.js';
 
 // The P2P sync in the app: one tab per browser runs the device (Web Lock `files:p2p-leader`, independent of the folder
 // sync, so it also runs where folders on disk can't be accessed: Firefox, Safari, phones). Every other tab mirrors its
@@ -35,11 +33,7 @@ type Action =
 	| ['syncNow']
 	| ['applyDeletes']
 	| ['sizes', string]
-	| ['diagnostics']
-	| ['logInfo']
-	| ['setLog', boolean]
-	| ['exportLog']
-	| ['clearLog'];
+	| ['diagnostics'];
 
 type Message =
 	| { status: P2pView }
@@ -53,12 +47,6 @@ let device: Device | null = null;
 let started = false;
 const waiting = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 const eventHandlers = new Set<(event: DeviceEvent) => void>();
-
-// Opt-in log (kept in IndexedDB, so it survives reloads; only the leading tab writes it)
-const LOG_ENABLED = 'p2p-log-enabled';
-const LOG_ENTRIES = 'p2p-log';
-const syncLog = new SyncLog();
-let logTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Starts the P2P machinery in this tab (once) */
 export function startP2p() {
@@ -99,17 +87,8 @@ export function startP2p() {
 	});
 }
 
-async function startLog() {
-	syncLog.enabled = (await idbGet<boolean>(LOG_ENABLED)) ?? false;
-	syncLog.entries = (await idbGet<LogEntry[]>(LOG_ENTRIES)) ?? [];
-	syncLog.onChange(() => {
-		clearTimeout(logTimer);
-		logTimer = setTimeout(() => void idbSet(LOG_ENTRIES, syncLog.entries), 2000);
-	});
-}
-
 async function lead() {
-	await startLog();
+	const log = await journal('p2p');
 	// Loaded only in the leading tab (Trystero and its Nostr crypto are not needed elsewhere)
 	const [{ Device }, { idbStore }, { opfsTree }, { trysteroNetwork }] = await Promise.all([
 		import('./device.js'),
@@ -122,7 +101,7 @@ async function lead() {
 		tree: opfsTree,
 		network: trysteroNetwork,
 		conflictLabel: (name) => filesMessages().p2p.conflictLabel(name),
-		log: syncLog.add,
+		log: log.add,
 		onChange: (view) => {
 			p2pStatus.view = view;
 			channel?.postMessage({ status: view } satisfies Message);
@@ -167,19 +146,6 @@ async function run(action: Action): Promise<unknown> {
 			return d.remoteSizes(action[1]);
 		case 'diagnostics':
 			return diagnosticsHere();
-		case 'logInfo':
-			return { enabled: syncLog.enabled, count: syncLog.entries.length } satisfies LogInfo;
-		case 'setLog':
-			syncLog.enabled = action[1];
-			await idbSet(LOG_ENABLED, action[1]);
-			syncLog.add('log.enabled');
-			return;
-		case 'exportLog':
-			return exportText();
-		case 'clearLog':
-			syncLog.clear();
-			await idbSet(LOG_ENTRIES, []);
-			return;
 	}
 }
 
@@ -213,33 +179,6 @@ export const applyDeviceDeletes = () => request<void>('applyDeletes');
 /** Sizes of the subfolders of `folder` per device (connected ones and this one) */
 export const folderSizes = (folder: string) => request<Record<string, Record<string, number>>>('sizes', folder);
 export const diagnostics = () => request<Diagnostics>('diagnostics');
-
-// --- Log for finding errors (opt-in) ---
-
-export interface LogInfo {
-	enabled: boolean;
-	count: number;
-}
-
-export const logInfo = () => request<LogInfo>('logInfo');
-export const setLogEnabled = (on: boolean) => request<void>('setLog', on);
-/** The log as text (header plus one line per entry) */
-export const exportLog = () => request<string>('exportLog');
-export const clearLog = () => request<void>('clearLog');
-
-function exportText(): string {
-	const d = device!;
-	const view = d.view();
-	return logText(syncLog.entries, {
-		exported: new Date().toISOString(),
-		device: view.self ? `${view.self.name} (${view.self.id})` : d.identity?.id,
-		version: COMMIT,
-		browser: navigator.userAgent,
-		excludedFolders: view.scope,
-		devices: view.devices.map((x) => ({ id: x.id, name: x.name, online: x.online, lastSync: x.lastSync ? new Date(x.lastSync).toISOString() : null, scope: x.scope })),
-		entries: syncLog.entries.length
-	});
-}
 
 /** Events of the sync (conflict copies, devices added/removed) in every tab */
 export function onP2pEvent(handler: (event: DeviceEvent) => void): () => void {

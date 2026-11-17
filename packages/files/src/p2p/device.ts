@@ -14,7 +14,7 @@ import {
 import { deviceIdOf, type Identity } from './identity.js';
 import { advance, mergeDevices, mergeLogs, record, type Change, type DeviceInfo, type Vector } from './knowledge.js';
 import type { Link } from './link.js';
-import type { LogFn } from './log.js';
+import type { LogFn } from '../sync/log.js';
 import { createOp, heads, mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
@@ -467,6 +467,9 @@ export class Device {
 				if (!this.group?.members.has(peerId)) return fail();
 				await this.takeKnowledge(peerId, answer.info, false);
 				verified(true);
+				// Entries the partner didn't have when it answered (e.g. a rename made during the sign-in) follow now
+				const theirs = new Set((answer.ops ?? []).map((op) => op.id));
+				if (this.state.ops.some((op) => !theirs.has(op.id))) rpc.call('members', this.state.ops as unknown as Json).catch(() => {});
 				this.log('signIn.ok', { peer: this.nameOf(peerId), drives: this.drives(peerId) });
 				this.emit();
 				if (this.drives(peerId)) this.schedule(peer, 0);

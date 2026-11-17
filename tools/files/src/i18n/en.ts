@@ -106,7 +106,7 @@ const en = {
 
 	log: {
 		title: 'Troubleshooting',
-		record: 'Record a log of the sync with your devices',
+		record: 'Record a log of the sync (devices and folder)',
 		hint: 'Turn it on on every device involved, reproduce the problem, then export the log on each. It stays on this device until you export it and contains file and device names – look through it before you pass it on.',
 		count: (n: number) => (n === 1 ? '1 entry' : `${n} entries`),
 		export: 'Export log',

@@ -106,7 +106,7 @@ const de: Messages = {
 
 	log: {
 		title: 'Fehlersuche',
-		record: 'Protokoll des Abgleichs mit deinen Geräten aufzeichnen',
+		record: 'Protokoll des Abgleichs aufzeichnen (Geräte und Ordner)',
 		hint: 'Schalte es auf jedem beteiligten Gerät ein, lass das Problem noch einmal auftreten und exportiere dann auf jedem Gerät das Protokoll. Es bleibt auf diesem Gerät, bis du es exportierst, und enthält Datei- und Gerätenamen – schau es dir an, bevor du es weitergibst.',
 		count: (n) => (n === 1 ? '1 Eintrag' : `${n} Einträge`),
 		export: 'Protokoll exportieren',
