@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { m } from '#lib/i18n/index.js';
 	import DevicesPanel from './DevicesPanel.svelte';
+	import LogSection from './LogSection.svelte';
 	import SyncPanel from './SyncPanel.svelte';
 
 	// Everything about syncing in one dialog: your other devices and the folder on this computer. Opened from the
@@ -26,6 +27,8 @@
 		<DevicesPanel />
 		<div class="divider my-0"></div>
 		<SyncPanel />
+		<div class="divider my-0"></div>
+		<LogSection />
 		<div class="modal-action">
 			<button class="btn" onclick={onclose}>{m.devices.close}</button>
 		</div>

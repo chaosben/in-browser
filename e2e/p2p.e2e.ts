@@ -52,12 +52,29 @@ test('two devices pair, sync and can be removed', async ({ browser }) => {
 	await expect(b.getByRole('dialog').getByText('Laptop')).toBeVisible();
 	await b.getByRole('dialog').getByRole('button', { name: 'Close' }).last().click();
 
+	// A turns the troubleshooting log on
+	await a.locator('aside').getByRole('button', { name: /^Sync/ }).click();
+	await a.getByText('Troubleshooting').click();
+	await a.getByLabel('Record a log of the sync with your devices').check();
+	await a.getByRole('dialog').getByRole('button', { name: 'Close' }).last().click();
+
 	// A creates a folder, it shows up on B
 	await a.getByRole('button', { name: 'New folder' }).first().click();
 	const input = a.getByRole('textbox', { name: /name/i });
 	await input.fill('Projects');
 	await input.press('Enter');
 	await expect(b.getByRole('main').getByText('Projects', { exact: true })).toBeVisible({ timeout: 30_000 });
+
+	// A exports the log: it shows the sync and the folder
+	await a.locator('aside').getByRole('button', { name: /^Sync/ }).click();
+	await a.getByText('Troubleshooting').click();
+	await expect(a.getByRole('button', { name: 'Export log' })).toBeEnabled({ timeout: 10_000 });
+	const [download] = await Promise.all([a.waitForEvent('download'), a.getByRole('button', { name: 'Export log' }).click()]);
+	expect(download.suggestedFilename()).toMatch(/^in-browser-sync-log-Laptop-.*\.txt$/);
+	const logContent = await (await download.createReadStream()).toArray().then((chunks) => Buffer.concat(chunks).toString());
+	expect(logContent).toContain('# in-browser sync log');
+	expect(logContent).toContain('/Projects');
+	await a.getByRole('dialog').getByRole('button', { name: 'Close' }).last().click();
 
 	// The footer of another tool shows the devices
 	const editor = await contextB.newPage();

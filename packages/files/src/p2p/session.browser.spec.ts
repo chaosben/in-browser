@@ -76,6 +76,19 @@ describe('P2P session', () => {
 		expect(await paths(a)).toEqual(['/x.txt']);
 	});
 
+	it('compares large files by content too (in slices)', async () => {
+		const big = new Uint8Array(65 * 1024 * 1024).map((_, i) => i % 199);
+		for (const tree of [a, b]) {
+			const writer = (await tree.write('/video.bin')).getWriter();
+			await writer.write(big);
+			await writer.close();
+			await new Promise((r) => setTimeout(r, 20));
+		}
+		const result = await sync();
+		expect(result.conflicts).toEqual([]);
+		expect(result.applied).toBe(0);
+	}, 60_000);
+
 	it('does not transfer files with the same content', async () => {
 		await writeText(a, '/same.txt', 'identical');
 		await new Promise((r) => setTimeout(r, 20));
@@ -91,7 +104,14 @@ describe('P2P session', () => {
 		await writeText(a, '/note.md', 'A wins? no');
 		await new Promise((r) => setTimeout(r, 20));
 		await writeText(b, '/note.md', 'B is newer');
-		const result = await sync();
+		const log: { event: string; data?: Record<string, unknown> }[] = [];
+		const result = await sync({ log: (event, data) => log.push({ event, data }) });
+		// The log shows why: both sides changed since the last sync, different content
+		const planned = log.find((e) => e.event === 'sync.plan' && e.data?.path === '/note.md')!.data!;
+		expect(planned).toMatchObject({ type: 'toLocal', both: true });
+		expect(planned.baseLocal).not.toBeNull();
+		expect(log.find((e) => e.event === 'sync.compare')?.data).toMatchObject({ path: '/note.md', same: false });
+		expect(log.find((e) => e.event === 'sync.conflictCopy')?.data).toMatchObject({ path: '/note.md', kept: 'here' });
 		expect(result.conflicts).toEqual(['/note.md']);
 		expect(await readText(a, '/note.md')).toBe('B is newer');
 		expect(await readText(a, '/note (conflict A).md')).toBe('A wins? no');

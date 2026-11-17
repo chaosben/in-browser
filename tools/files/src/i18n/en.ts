@@ -104,6 +104,16 @@ const en = {
 		used: (used: string, quota: string) => `${used} of ${quota} used`
 	},
 
+	log: {
+		title: 'Troubleshooting',
+		record: 'Record a log of the sync with your devices',
+		hint: 'Turn it on on every device involved, reproduce the problem, then export the log on each. It stays on this device until you export it and contains file and device names – look through it before you pass it on.',
+		count: (n: number) => (n === 1 ? '1 entry' : `${n} entries`),
+		export: 'Export log',
+		clear: 'Clear log',
+		fileName: (device: string, date: string) => `in-browser-sync-log-${device}-${date}.txt`
+	},
+
 	syncHub: {
 		title: 'Sync',
 		open: 'Open sync settings',

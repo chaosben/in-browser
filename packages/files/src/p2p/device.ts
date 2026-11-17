@@ -14,6 +14,7 @@ import {
 import { deviceIdOf, type Identity } from './identity.js';
 import { advance, mergeDevices, mergeLogs, record, type Change, type DeviceInfo, type Vector } from './knowledge.js';
 import type { Link } from './link.js';
+import type { LogFn } from './log.js';
 import { createOp, heads, mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
@@ -77,6 +78,8 @@ export interface DeviceOptions {
 	onChange?: (view: P2pView) => void;
 	onEvent?: (event: DeviceEvent) => void;
 	now?: () => number;
+	/** Opt-in log for finding errors */
+	log?: LogFn;
 }
 
 interface Peer {
@@ -111,6 +114,13 @@ export class Device {
 
 	constructor(private options: DeviceOptions) {}
 
+	private log: LogFn = (event, data) => this.options.log?.(event, data);
+
+	/** Short name of a device for the log */
+	private nameOf(id: string) {
+		return `${this.group?.members.get(id)?.name ?? this.group?.removed.get(id)?.name ?? '?'} (${id.slice(0, 6)})`;
+	}
+
 	private now() {
 		return this.options.now?.() ?? Date.now();
 	}
@@ -120,6 +130,7 @@ export class Device {
 		this.state = await this.options.store.load();
 		this.state.invites = this.state.invites.filter((invite) => invite.expires > this.now());
 		this.group = resolve(this.state.ops);
+		this.log('device.start', { self: this.nameOf(this.identity.id), members: this.group ? [...this.group.members.keys()].map((id) => this.nameOf(id)) : [], scope: this.state.scope });
 		await this.connect();
 		this.interval = setInterval(() => this.scheduleAll(0), INTERVAL);
 		this.emit();
@@ -226,6 +237,7 @@ export class Device {
 	/** After being removed or leaving: back to “no group” (a new key pair for a later pairing) */
 	async forget() {
 		this.epoch++;
+		this.log('device.reset');
 		const peers = Object.keys(this.state.devices);
 		for (const room of [...this.rooms.values(), ...this.pairRooms.values()]) room.leave();
 		this.rooms.clear();
@@ -243,6 +255,7 @@ export class Device {
 	/** Folders this device takes part in; `deleted`: excluded folders whose local copy was deleted */
 	async setScope(next: string[]) {
 		const dropped = next.filter((folder) => !this.state.scope.includes(folder));
+		this.log('scope.set', { scope: next, newlyExcluded: dropped });
 		this.state.scope = next;
 		// Forget the base below newly excluded folders: deleting the local copy must not count as a deletion later,
 		// and including them again starts like a first sync (nothing gets deleted)
@@ -295,7 +308,10 @@ export class Device {
 			const until = this.ownWrites.get(path);
 			return (!until || until < now) && inScope(path, this.state.scope);
 		});
+		const skipped = paths.filter((path) => !own.includes(path));
+		if (skipped.length) this.log('local.skipped', { paths: skipped, reason: 'written by a sync or outside the folders' });
 		if (!own.length) return;
+		this.log('local.change', { paths: own });
 		let { log, vector } = this.state;
 		for (const path of own) ({ log, vector } = record(log, vector, this.identity.id, path));
 		this.state.log = log;
@@ -366,6 +382,7 @@ export class Device {
 		const room = this.pairRooms.get(code);
 		this.pairRooms.delete(code);
 		setTimeout(() => room?.leave(), 3000);
+		this.log('pair.added', { device: unique });
 		this.options.onEvent?.({ type: 'added', name: unique });
 		this.emit();
 		return { value: { ops: this.state.ops, proof: await pairProof(code, 'inviter', fingerprints) } as unknown as Json };
@@ -389,7 +406,16 @@ export class Device {
 			const answer = await answerHello(this.identity, this.state.ops, (params as { nonce: string }).nonce, link.fingerprints());
 			return { value: { ...answer, info: this.knowledge() } as unknown as Json };
 		});
-		const release = serve({ handle }, { tree: this.options.tree, gate: this.gate, onWrite: (path) => this.ownWrite(path), scope: () => this.state.scope });
+		const release = serve(
+			{ handle },
+			{
+				tree: this.options.tree,
+				gate: this.gate,
+				onWrite: (path) => this.ownWrite(path),
+				scope: () => this.state.scope,
+				log: (event, data) => this.log(event, { ...data, from: peerId ? this.nameOf(peerId) : '?' })
+			}
+		);
 		link.onClose(release);
 		handle('changed', async () => {
 			if (peerId) this.scheduleById(peerId, 500);
@@ -418,6 +444,7 @@ export class Device {
 				clearTimeout(timer);
 				if (epoch !== this.epoch) return fail();
 				if (!check.ok) {
+					this.log('signIn.rejected', { peer: answer.id ? this.nameOf(answer.id) : '?', reason: check.reason });
 					if (check.reason === 'version') {
 						this.outdated.add(answer.id);
 						this.emit();
@@ -431,6 +458,7 @@ export class Device {
 				const peer: Peer = { id: peerId, rpc, link, syncing: null };
 				this.peers.set(peerId, peer);
 				link.onClose(() => {
+					this.log('peer.closed', { peer: this.nameOf(peer.id) });
 					if (this.peers.get(peer.id) === peer) this.peers.delete(peer.id);
 					clearTimeout(peer.timer);
 					this.emit();
@@ -439,6 +467,7 @@ export class Device {
 				if (!this.group?.members.has(peerId)) return fail();
 				await this.takeKnowledge(peerId, answer.info, false);
 				verified(true);
+				this.log('signIn.ok', { peer: this.nameOf(peerId), drives: this.drives(peerId) });
 				this.emit();
 				if (this.drives(peerId)) this.schedule(peer, 0);
 			})
@@ -476,6 +505,7 @@ export class Device {
 			const base = await this.options.store.loadBase(peer.id);
 			const names = (id: string) => this.group?.members.get(id)?.name ?? '';
 			const allow = this.allowDeletes;
+			this.log('session.start', { peer: this.nameOf(peer.id), base: base.size, theirScope: info?.scope ?? [] });
 			result = await drive(peer.rpc, {
 				tree: this.options.tree,
 				gate: this.gate,
@@ -492,10 +522,12 @@ export class Device {
 				onProgress: (done, total) => {
 					peer.syncing = { done, total };
 					this.emit();
-				}
+				},
+				log: (event, data) => this.log(event, { ...data, peer: this.nameOf(peer.id) })
 			});
 			if (allow && !result.busy) this.allowDeletes = false;
 			if (result.busy) {
+				this.log('session.busy', { peer: this.nameOf(peer.id) });
 				this.schedule(peer, 2000 + Math.random() * 2000);
 				return;
 			}
@@ -508,6 +540,7 @@ export class Device {
 			}
 		} catch (e) {
 			console.warn('[P2P] sync failed', e);
+			this.log('session.error', { peer: this.nameOf(peer.id), error: e instanceof Error ? e.message : String(e) });
 		} finally {
 			peer.running = false;
 			peer.syncing = null;
@@ -524,6 +557,7 @@ export class Device {
 
 	private async addOp(body: Op['body']) {
 		const op = await createOp(this.identity, heads(this.state.ops), body, this.now());
+		this.log('members.add', { type: body.type, ...('device' in body ? { device: this.nameOf(body.device) } : {}), ...('name' in body ? { name: body.name } : {}) });
 		await this.setOps([...this.state.ops, op]);
 		for (const peer of this.peers.values()) peer.rpc.call('members', this.state.ops as unknown as Json).catch(() => {});
 		await this.connect();
@@ -533,6 +567,8 @@ export class Device {
 		const merged = mergeOps(this.state.ops, ops);
 		if (merged.length === this.state.ops.length) return;
 		const roomBefore = this.group?.room;
+		const known = new Set(this.state.ops.map((op) => op.id));
+		this.log('members.merged', { new: ops.filter((op) => !known.has(op.id)).map((op) => `${op.body.type} by ${this.nameOf(op.author)}`) });
 		await this.setOps(merged);
 		for (const [id, peer] of this.peers) if (!this.group?.members.has(id)) peer.rpc.close();
 		if (this.group?.room !== roomBefore || !this.group?.members.has(this.identity.id)) await this.connect();
@@ -542,6 +578,7 @@ export class Device {
 		this.state.ops = ops;
 		this.group = resolve(ops);
 		if (this.group?.removed.has(this.identity.id)) {
+			this.log('members.selfRemoved');
 			this.state.removed = true;
 			for (const room of [...this.rooms.values(), ...this.pairRooms.values()]) room.leave();
 			this.rooms.clear();
@@ -571,7 +608,9 @@ export class Device {
 		if (synced) {
 			const theirVector = theirs.vector ?? {};
 			const theirScope = theirs.scope ?? [];
+			const before = this.state.vector;
 			this.state.vector = advance(this.state.vector, this.state.scope, theirVector, theirScope, log);
+			this.log('knowledge.synced', { peer: this.nameOf(peer), before, after: this.state.vector, theirs: theirVector });
 			// The partner takes over our numbers the same way; compute its result here too, so both sides know it
 			this.state.devices[peer].vector = advance(theirVector, theirScope, this.state.vector, this.state.scope, log);
 			this.state.devices[peer].lastSync = now;

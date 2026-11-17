@@ -2,6 +2,7 @@ import { basename, extname, join, nameProblem, parent, segments, uniqueName } fr
 import { holdDeletes, plan, type Base, type FileState, type Op, type Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
 import type { Json, Rpc } from './rpc.js';
+import type { LogFn } from './log.js';
 import { intersect } from './scope.js';
 
 // Sync of two devices: the one with the smaller ID drives (plans and applies), the other one only answers requests
@@ -43,10 +44,11 @@ export interface ServeOptions {
 	onWrite?: (path: string) => void;
 	/** Excluded folders of this device right now (sent with every snapshot, so the driver never uses an old choice) */
 	scope?: () => string[];
+	log?: LogFn;
 }
 
-/** Files above this size are not compared by content (WebCrypto can only hash a file as a whole) */
-const MAX_HASH = 256 * 1024 * 1024;
+/** Files are hashed in slices of this size (WebCrypto can only hash a whole buffer, not a stream) */
+const HASH_SLICE = 64 * 1024 * 1024;
 
 type WireState = [string, 'f' | 'd', number, number];
 
@@ -55,10 +57,20 @@ const toWire = (snapshot: Snapshot): WireState[] =>
 const fromWire = (wire: WireState[]): Snapshot =>
 	new Map(wire.map(([path, k, size, modified]) => [path, { kind: k === 'f' ? 'file' : 'directory', size, modified }]));
 
-export async function hashFile(file: File): Promise<string | null> {
-	if (file.size > MAX_HASH) return null;
-	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
-	return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+/**
+ * Content fingerprint of a file of any size: SHA-256 of the file, or for large files SHA-256 over the SHA-256 of each
+ * slice (both devices compute it the same way, so equal fingerprints mean equal content)
+ */
+export async function hashFile(file: File): Promise<string> {
+	const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+	if (file.size <= HASH_SLICE) return hex(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
+	const digests: Uint8Array[] = [];
+	for (let offset = 0; offset < file.size; offset += HASH_SLICE) {
+		digests.push(new Uint8Array(await crypto.subtle.digest('SHA-256', await file.slice(offset, offset + HASH_SLICE).arrayBuffer())));
+	}
+	const all = new Uint8Array(digests.length * 32);
+	digests.forEach((digest, i) => all.set(digest, i * 32));
+	return `s${hex(await crypto.subtle.digest('SHA-256', all))}`;
 }
 
 /** `/a/Notes.md` → `/a/Notes (conflict Laptop).md`, numbered if taken */
@@ -76,7 +88,7 @@ const validName = (path: string) => segments(path).every((name) => !nameProblem(
  * Answers the requests of the driving device. Returns a function to call when the connection ends: it frees this
  * device for other sessions if the driver vanished in the middle of one.
  */
-export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope }: ServeOptions): () => void {
+export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, log }: ServeOptions): () => void {
 	let holding = false;
 	const release = () => {
 		if (holding) gate.leave();
@@ -84,6 +96,7 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope }: 
 	};
 	rpc.handle('begin', async () => {
 		holding = gate.enter();
+		log?.('serve.begin', { accepted: holding });
 		return { value: holding };
 	});
 	rpc.handle('end', async () => release());
@@ -102,20 +115,24 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope }: 
 		if (!validName(path) || !upload) throw new Error(`Invalid name: ${path}`);
 		onWrite?.(path);
 		await upload.pipeTo(await tree.write(path));
-		return { value: stateToJson((await tree.stat(path))!) };
+		const state = (await tree.stat(path))!;
+		log?.('serve.put', { path, state });
+		return { value: stateToJson(state) };
 	});
 	rpc.handle('mkdir', async (params) => {
 		const path = params as string;
 		if (!validName(path)) throw new Error(`Invalid name: ${path}`);
 		onWrite?.(path);
 		await tree.mkdir(path);
+		log?.('serve.mkdir', { path });
 	});
 	rpc.handle('remove', async (params) => {
 		const { path, kind } = params as { path: string; kind: FileState['kind'] };
 		// Folders only when empty: files new inside them stay (and get synced back)
-		if (kind === 'directory' && (await tree.names(path)).length) return;
+		if (kind === 'directory' && (await tree.names(path)).length) return log?.('serve.remove.skipped', { path, reason: 'folder not empty' });
 		onWrite?.(path);
 		await tree.remove(path).catch(() => {});
+		log?.('serve.remove', { path, kind });
 	});
 	rpc.handle('keep', async (params) => {
 		const { path, label } = params as { path: string; label: string };
@@ -123,6 +140,7 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope }: 
 		onWrite?.(path);
 		onWrite?.(target);
 		await tree.move(path, target);
+		log?.('serve.conflictCopy', { path, copy: target });
 		return { value: target };
 	});
 	return release;
@@ -146,6 +164,7 @@ export interface DriveOptions {
 	allowDeletes?: boolean;
 	onWrite?: (path: string) => void;
 	onProgress?: (done: number, total: number) => void;
+	log?: LogFn;
 }
 
 export interface DriveResult {
@@ -188,8 +207,18 @@ async function run(rpc: Rpc, options: DriveOptions, result: DriveResult) {
 	// (both sides merged, nothing deleted)
 	const base = intersect(fullBase, scope.mine, scope.theirs);
 
+	const log = options.log;
+	log?.('sync.start', { scope, local: local.size, remote: remote.size, base: base.size });
 	let ops = plan(local, remote, base);
-	ops = await sameContent(rpc, tree, ops, local, remote);
+	ops = await sameContent(rpc, tree, ops, local, remote, log);
+	if (log) {
+		// Every step with what it is based on: this side, the other side and the state after the last sync
+		for (const op of ops) {
+			if (op.type === 'remember' && base.has(op.path)) continue;
+			const b = base.get(op.path);
+			log('sync.plan', { ...op, local: local.get(op.path) ?? null, remote: remote.get(op.path) ?? null, baseLocal: b?.local ?? null, baseRemote: b?.disk ?? null });
+		}
+	}
 
 	// Many deletions at once, or the other side empty, wait for confirmation – in both directions
 	if (!options.allowDeletes) {
@@ -199,6 +228,7 @@ async function run(rpc: Rpc, options: DriveOptions, result: DriveResult) {
 		};
 		for (const [type, other] of [['deleteLocal', remote], ['deleteDisk', local]] as const) {
 			if (held(type, other)) {
+				log?.('sync.deletesHeld', { type, count: ops.filter((op) => op.type === type).length });
 				result.pendingDeletes += ops.filter((op) => op.type === type && op.kind === 'file').length;
 				ops = ops.filter((op) => op.type !== type);
 			}
@@ -212,15 +242,17 @@ async function run(rpc: Rpc, options: DriveOptions, result: DriveResult) {
 		} catch (e) {
 			result.failed++;
 			console.error('[P2P]', op, e);
+			log?.('sync.failed', { ...op, error: e instanceof Error ? e.message : String(e) });
 		}
 		options.onProgress?.(i + 1, ops.length);
 		if (i % 50 === 49) await options.saveBase(base);
 	}
 	await options.saveBase(base);
+	log?.('sync.done', { applied: result.applied, failed: result.failed, conflicts: result.conflicts, pendingDeletes: result.pendingDeletes });
 }
 
 /** Copies between files of equal size changed on both sides become `remember` when the content is the same */
-async function sameContent(rpc: Rpc, tree: Tree, ops: Op[], local: Snapshot, remote: Snapshot): Promise<Op[]> {
+async function sameContent(rpc: Rpc, tree: Tree, ops: Op[], local: Snapshot, remote: Snapshot, log?: LogFn): Promise<Op[]> {
 	const candidates = ops.filter(
 		(op) => (op.type === 'toLocal' || op.type === 'toDisk') && op.both && local.get(op.path)!.size === remote.get(op.path)!.size
 	);
@@ -230,6 +262,7 @@ async function sameContent(rpc: Rpc, tree: Tree, ops: Op[], local: Snapshot, rem
 	for (const op of candidates) {
 		const mine = await hashFile(await tree.read(op.path)).catch(() => null);
 		if (mine && mine === theirs[op.path]) same.add(op.path);
+		log?.('sync.compare', { path: op.path, size: local.get(op.path)!.size, mine, theirs: theirs[op.path] ?? null, same: same.has(op.path) });
 	}
 	return ops.map((op) => (same.has(op.path) && (op.type === 'toLocal' || op.type === 'toDisk') ? { type: 'remember', path: op.path } : op));
 }
@@ -257,6 +290,7 @@ async function apply(
 				write(copy);
 				await tree.move(path, copy);
 				result.conflicts.push(path);
+				options.log?.('sync.conflictCopy', { path, copy, kept: 'here' });
 			}
 			write(path);
 			const state = (await rpc.call('get', path, { download: await tree.write(path) })) as unknown as FileState;
@@ -265,8 +299,9 @@ async function apply(
 		}
 		case 'toDisk': {
 			if (op.both) {
-				await rpc.call('keep', { path, label: options.conflictLabel('theirs') });
+				const copy = await rpc.call('keep', { path, label: options.conflictLabel('theirs') });
 				result.conflicts.push(path);
+				options.log?.('sync.conflictCopy', { path, copy, kept: 'there' });
 			}
 			const file = await tree.read(path);
 			const state = (await rpc.call('put', path, { upload: file.stream() })) as unknown as FileState;
