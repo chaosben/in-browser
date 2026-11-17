@@ -14,6 +14,7 @@ const en = {
 		aborted: 'Canceled.',
 		saving: 'Saving …',
 		saved: 'Saved',
+		notSaved: 'Not saved yet',
 		importing: (name: string) => `Importing ${name} …`,
 		recordingName: (time: string) => `Recording ${time}`,
 		projectName: (time: string) => `Project ${time}`
@@ -238,22 +239,7 @@ const en = {
 	},
 
 	icons: {
-		searchSet: (set: string) => `Search ${set} (English names)`,
-		source: 'Icon set',
-		variant: 'Style',
-		category: 'Category',
-		all: 'All',
-		hint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline',
-		insert: (name: string) => `Insert icon ${name}`,
-		categories: { arrows: 'Arrows', notices: 'Notices', status: 'Status', input: 'Mouse & keyboard', objects: 'Objects', people: 'People' },
-		noResults: 'No matching icon.',
-		count: (n: number) => `${n.toLocaleString('en')} icons`,
-		load: (size: string) => `Load all icons (approx. ${size})`,
-		loadHint: (count: number) =>
-			`Loads about ${count.toLocaleString('en')} icons once – afterwards they are kept in the browser and work offline. Then you can filter by style.`,
-		license: (set: string, license: string) => `${set} · ${license} license`,
-		offline: 'Loading an icon set needs an internet connection.',
-		loadFailed: (error: string) => `The icons could not be loaded: ${error}`
+		hint: 'Click: insert at the playhead · Drag: drop onto the preview or the timeline'
 	},
 
 	keys: { del: 'Del', ctrl: 'Ctrl', shift: 'Shift' },
@@ -331,14 +317,7 @@ const en = {
 		autoWidth: 'Auto width',
 		autoWidthHint: 'The box fits the longest line again, without wrapping. Drag a side of the box to set a fixed width.',
 		background: 'Background color',
-		none: 'None',
-		opacity: 'Opacity',
 		color: 'Color',
-		colorValue: (c: string) => `Color ${c}`,
-		customColor: 'Custom color',
-		recentColors: 'Recent and project colors',
-		paletteHint: 'drag a color here to replace it',
-		resetPalette: 'Restore default colors',
 		lineWidth: 'Line width',
 		radius: 'Corner radius',
 		padding: 'Padding',

@@ -27,5 +27,8 @@ vite.config.ts.timestamp-*
 test-results
 playwright-report
 
+# Browser log of the dev server (vite-browser-log.ts)
+.debug
+
 # Vitest browser mode
 .vitest

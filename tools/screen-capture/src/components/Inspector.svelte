@@ -1,9 +1,9 @@
 <script lang="ts">
 	import CanvasSizeField from './CanvasSizeField.svelte';
-	import ColorField from './ColorField.svelte';
+	import ColorField from '@in-browser/graphics/ColorField.svelte';
 	import InspectorField from './InspectorField.svelte';
 	import InspectorSection from './InspectorSection.svelte';
-	import NumberField from './NumberField.svelte';
+	import NumberField from '@in-browser/graphics/NumberField.svelte';
 	import type { Size } from '#lib/project/canvas.js';
 	import { croppedSize, cropInsets, FULL, insetsCrop, type CropInsets } from '#lib/project/crop.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';

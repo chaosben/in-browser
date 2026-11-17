@@ -3,12 +3,12 @@ import { addItem, clipsChanged, clipsOf, pasteItems, findItem, group, groupOf, i
 import { clipCanvasArea, growTo, largestClipArea, refitDefaults, resizeCanvas, shrunkSources, type Size } from './canvas.js';
 import { cleanCrop, croppedRect, fullRect } from './crop.js';
 import { createClip } from './defaults.js';
-import { pruneHistory } from './history.js';
+import { pruneHistory } from '@in-browser/graphics/history.js';
 import { canvasSize, placeRecording, recordingSources, type Recording } from './project.js';
 import { newId, type ImageAsset, type Item, type Point, type Rect, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
 import { entriesUse } from './library.js';
 import { m } from '#lib/i18n/index.js';
-import { parseColor } from '#lib/util/color.js';
+import { parseColor } from '@in-browser/graphics/color.js';
 
 const HISTORY_LIMIT = 100;
 

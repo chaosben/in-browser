@@ -11,8 +11,6 @@ export interface Crumb {
 	href?: string;
 	/** … or a click */
 	onclick?: () => void;
-	/** Small status after the name, e.g. "Saved" */
-	status?: string;
 	/** The name can be changed inline (click on it or `startRename()`) */
 	rename?: (name: string) => void;
 	/** Actions of the object: menu behind the name (same entries as a context menu) */

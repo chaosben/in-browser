@@ -37,9 +37,6 @@ export const isToolKind = (kind: AnnotationKind): kind is ToolKind => kind !== '
 export const ZOOM_ICON = 'icon-[material-symbols-light--zoom-in]';
 export const FREEZE_ICON = 'icon-[material-symbols-light--ac-unit]';
 
-/** Swatches of the color picker (opacity is set separately) */
-export const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
-
 /** Duration of a new annotation in seconds (a click is a short animation) */
 export const defaultDuration = (kind: ToolKind) => (kind === 'click' ? 0.6 : 3);
 

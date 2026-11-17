@@ -1,4 +1,8 @@
 import { m } from '#lib/i18n/index.js';
+import type { IconData } from '@in-browser/graphics/icons/types.js';
+
+export type { IconData };
+
 /** A media file in the project (recording or import), stored in the OPFS under `projects/<id>/media/<file>`. */
 export interface Source {
 	id: string;
@@ -261,14 +265,6 @@ export interface IconAnnotation extends AnnotationBase, Shadowed {
 	color: string;
 }
 
-export interface IconData {
-	/** Iconify name, e.g. `arrow-forward` */
-	name: string;
-	/** SVG content (paths with `fill="currentColor"`) */
-	body: string;
-	width: number;
-	height: number;
-}
 
 export type Annotation =
 	| ArrowAnnotation

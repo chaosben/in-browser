@@ -226,7 +226,18 @@
 	});
 
 	// Canvas size and length of the project on the left of the BrandFooter
-	$effect(() => setBrandFooter({ status: footerStatus }));
+	$effect(() =>
+		setBrandFooter({
+			status: footerStatus,
+			save: !editor
+				? null
+				: editor.saving
+					? { state: 'saving', text: m.common.saving }
+					: editor.dirty
+						? { state: 'unsaved', text: m.common.notSaved }
+						: { state: 'saved', text: m.common.saved }
+		})
+	);
 
 	// Project name with all its actions on the left of the BrandBar, export right after it, help on the right
 	$effect(() => {
@@ -237,7 +248,6 @@
 			crumbs: [
 				{
 					label: ed.project.name,
-					status: ed.saving ? m.common.saving : m.common.saved,
 					rename: (name) => ed.rename(name),
 					menu: [
 						{ label: m.editor.rename, icon: 'icon-[material-symbols-light--edit-outline]', run: startRename },

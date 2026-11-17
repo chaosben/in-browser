@@ -15,19 +15,14 @@
 		"#lib": "./src/index.js",
 		"#lib/*": "./src/*"
 	},
-	"scripts": {
-		"icons": "node scripts/icons.mjs"
-	},
 	"dependencies": {
 		"@fontsource/caveat": "5.3.0",
 		"@fontsource/inter": "5.3.0",
 		"@fontsource/jetbrains-mono": "5.3.0",
 		"@fontsource/montserrat": "5.3.0",
-		"@iconify-json/material-symbols": "1.2.100",
-		"@iconify-json/ph": "1.2.2",
-		"@iconify-json/tabler": "1.2.46",
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
+		"@in-browser/graphics": "*",
 		"gifenc": "1.0.3",
 		"mediabunny": "1.66.0"
 	}

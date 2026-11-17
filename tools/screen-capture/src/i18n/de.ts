@@ -13,6 +13,7 @@ const de: Messages = {
 		aborted: 'Abgebrochen.',
 		saving: 'Speichert …',
 		saved: 'Gespeichert',
+		notSaved: 'Noch nicht gespeichert',
 		importing: (name) => `Importiere ${name} …`,
 		recordingName: (time) => `Aufnahme ${time}`,
 		projectName: (time) => `Projekt ${time}`
@@ -238,22 +239,7 @@ const de: Messages = {
 	},
 
 	icons: {
-		searchSet: (set) => `${set} durchsuchen (englische Namen)`,
-		source: 'Icon-Set',
-		variant: 'Stil',
-		category: 'Kategorie',
-		all: 'Alle',
-		hint: 'Klick: am Abspielkopf einfügen · Ziehen: auf Vorschau oder Timeline ablegen',
-		insert: (name) => `Icon ${name} einfügen`,
-		categories: { arrows: 'Pfeile', notices: 'Hinweise', status: 'Status', input: 'Maus & Tastatur', objects: 'Objekte', people: 'Personen' },
-		noResults: 'Kein passendes Icon.',
-		count: (n) => `${n.toLocaleString('de')} Icons`,
-		load: (size) => `Alle Icons laden (ca. ${size.replace('.', ',')})`,
-		loadHint: (count) =>
-			`Lädt einmalig rund ${count.toLocaleString('de')} Icons – danach bleiben sie im Browser gespeichert und funktionieren auch offline. Dann lässt sich auch nach Stil filtern.`,
-		license: (set, license) => `${set} · ${license}-Lizenz`,
-		offline: 'Zum Laden eines Icon-Sets braucht es eine Internetverbindung.',
-		loadFailed: (error) => `Die Icons konnten nicht geladen werden: ${error}`
+		hint: 'Klick: am Abspielkopf einfügen · Ziehen: auf Vorschau oder Timeline ablegen'
 	},
 
 	keys: { del: 'Entf', ctrl: 'Strg', shift: 'Umschalt' },
@@ -331,14 +317,7 @@ const de: Messages = {
 		autoWidth: 'Breite automatisch',
 		autoWidthHint: 'Die Box ist wieder so breit wie die längste Zeile, ohne Umbruch. Ziehst du an einer Seite der Box, legst du eine feste Breite fest.',
 		background: 'Hintergrundfarbe',
-		none: 'Keiner',
-		opacity: 'Deckkraft',
 		color: 'Farbe',
-		colorValue: (c) => `Farbe ${c}`,
-		customColor: 'Eigene Farbe',
-		recentColors: 'Zuletzt verwendete und Projektfarben',
-		paletteHint: 'zieh eine Farbe hierher, um sie zu ersetzen',
-		resetPalette: 'Standardfarben wiederherstellen',
 		lineWidth: 'Linienstärke',
 		radius: 'Eckenradius',
 		padding: 'Innenabstand',

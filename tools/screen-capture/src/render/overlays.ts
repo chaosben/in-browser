@@ -1,6 +1,6 @@
 import { hasShadow, isDrawable, type Annotation, type BlurAnnotation, type DrawableAnnotation, type CalloutAnnotation, type SpotlightAnnotation, type Point, type Rect, type TextAnnotation } from '#lib/project/types.js';
 import { fadeAlpha } from '#lib/timeline/ops.js';
-import { parseColor } from '#lib/util/color.js';
+import { parseColor } from '@in-browser/graphics/color.js';
 import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
 import { iconPicture, imagePicture } from './images.svelte.js';

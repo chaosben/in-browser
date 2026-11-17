@@ -91,3 +91,54 @@ test('Text Editor: wraps lines and switches between editor and Markdown preview'
 	const own = (p: string) => p.includes("Blocked script execution in 'about:srcdoc'");
 	problems.splice(0, problems.length, ...problems.filter((p) => !own(p)));
 });
+
+test('Notes: a finger draws, two fingers pinch, the palette works by tapping', async ({ page, problems: _ }) => {
+	await page.goto('/notes');
+	await page.getByRole('button', { name: 'New notebook' }).tap();
+	await page.getByRole('button', { name: 'Save', exact: true }).tap();
+	await expect(page.getByTestId('surface')).toBeVisible();
+	const box = (await page.getByTestId('surface').boundingBox())!;
+	const cdp = await page.context().newCDPSession(page);
+	const touch = (type: string, points: { x: number; y: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+
+	// One finger: a stroke
+	const x = box.x + 60;
+	const y = box.y + 120;
+	await touch('touchStart', [{ x, y }]);
+	for (let i = 1; i <= 12; i++) await touch('touchMove', [{ x: x + i * 15, y: y + Math.sin(i) * 10 }]);
+	await touch('touchEnd', []);
+	await expect.poll(() => savedItems(page)).toBe(1);
+
+	// Two fingers: zoom changes, no stroke
+	const zoom = page.getByTitle('Zoom');
+	const before = await zoom.textContent();
+	const cx = box.x + box.width / 2;
+	const cy = box.y + box.height / 2;
+	await touch('touchStart', [{ x: cx - 30, y: cy }, { x: cx + 30, y: cy }]);
+	for (let i = 1; i <= 8; i++) await touch('touchMove', [{ x: cx - 30 - i * 10, y: cy }, { x: cx + 30 + i * 10, y: cy }]);
+	await touch('touchEnd', []);
+	await expect(zoom).not.toHaveText(before!);
+
+	// Palette: highlighter, its options, a color
+	await page.getByRole('button', { name: 'Highlighter' }).tap();
+	await page.getByRole('button', { name: 'Color, thickness and smoothing' }).tap();
+	await page.getByRole('button', { name: 'Color #22c55e' }).tap();
+	await page.getByRole('button', { name: 'Thickness 22' }).tap();
+	await expect(page.getByRole('button', { name: 'Thickness 22' })).toHaveAttribute('aria-pressed', 'true');
+	await page.getByRole('button', { name: 'Strong' }).tap();
+	await expect(page.getByRole('button', { name: 'Strong' })).toHaveAttribute('aria-pressed', 'true');
+	expect(await savedItems(page)).toBe(1);
+});
+
+/** Strokes saved in the notebook `Notebook.note` (OPFS) */
+function savedItems(page: Page): Promise<number> {
+	return page.evaluate(async () => {
+		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files');
+		const pages = await (await root.getDirectoryHandle('Notebook.note')).getDirectoryHandle('pages');
+		let count = 0;
+		for await (const handle of (pages as unknown as { values(): AsyncIterable<FileSystemFileHandle> }).values()) {
+			count += JSON.parse(await (await handle.getFile()).text()).items.length;
+		}
+		return count;
+	});
+}

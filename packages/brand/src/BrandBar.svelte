@@ -102,7 +102,6 @@
 					<span class={['truncate', last && 'font-semibold']}>{crumb.label}</span>
 				{/if}
 				{#if crumb.menu?.length}{@render menuButton(crumb.label, crumb.menu)}{/if}
-				{#if crumb.status}<span class="hidden shrink-0 text-xs opacity-50 sm:inline">{crumb.status}</span>{/if}
 			</span>
 		{/each}
 		{#if brandBar.primary}

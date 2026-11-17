@@ -18,7 +18,7 @@ const abs = (path: string) => `/${path}`;
 const PRECACHE = [
 	...prerendered.map((page) => abs(page.path)),
 	// Except Screen Capture's whole icon sets and their metadata (2–8 MB each, loaded only on demand and kept
-	// in their own cache, see `tools/screen-capture/src/icons/index.ts`)
+	// in their own cache, see `packages/graphics/src/icons/index.ts`)
 	...immutable.filter((file) => !/\/(icons|metadata)\.[\w-]+\.json$/.test(file.path)).map((file) => abs(file.path)),
 	// `_headers` & co. are Cloudflare configuration, not served files
 	...assets.filter((file) => !file.path.split('/').pop()!.startsWith('_')).map((file) => abs(file.path))

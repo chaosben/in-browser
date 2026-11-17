@@ -28,5 +28,11 @@ export const TOOLS: readonly Tool[] = [
 		url: '/text-editor',
 		icon: '/text-editor/favicon.svg',
 		requires: 'anyBrowser'
+	},
+	{
+		id: 'notes',
+		url: '/notes',
+		icon: '/notes/favicon.svg',
+		requires: 'anyBrowser'
 	}
 ];

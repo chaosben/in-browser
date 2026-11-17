@@ -7,8 +7,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { brandBar, setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
-	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
+	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
+	import { setBrandFooter, type SaveState } from '@in-browser/brand/brand-footer.svelte.js';
 	import { openMenuBelow, type MenuAction, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
@@ -149,17 +149,17 @@
 		}
 	]);
 
-	/** Files with a place save themselves: how far that is; without a place a dot (and "Save …") */
-	function statusOf(tab: Tab) {
-		if (tab.conflict === 'deleted') return m.status.deleted;
-		if (!tab.path) return tab.dirty ? '•' : undefined;
-		if (tab.pending || tab.saving) return m.status.saving;
-		return tab.dirty ? m.status.notSaved : m.status.saved;
+	/** Files with a place save themselves: how far that is; without a place only "not saved" (and "Save …") */
+	function saveOf(tab: Tab): SaveState | null {
+		if (tab.conflict === 'deleted') return { state: 'error', text: m.status.deleted };
+		if (!tab.path) return tab.dirty ? { state: 'unsaved', text: m.status.notSaved } : null;
+		if (tab.pending || tab.saving) return { state: 'saving', text: m.status.saving };
+		return tab.dirty ? { state: 'unsaved', text: m.status.notSaved } : { state: 'saved', text: m.status.saved };
 	}
 
 	// The active file with all its actions on the left of the BrandBar, the main ones as buttons right after it,
 	// new/open/view on the right. Only rebuilt when the file changes (rebuilding would close the rename field);
-	// the menu reads undo/redo live, the status follows in the effect below.
+	// the menu reads undo/redo live. The save state is in the footer.
 	$effect(() => {
 		const tab = active;
 		if (!tab) {
@@ -196,23 +196,15 @@
 				c.close
 			];
 			return setBrandBar({
-				crumbs: [{ label: name, status: statusOf(tab), rename: path ? (newName) => workspace.rename(tab, newName) : undefined, menu }],
+				crumbs: [{ label: name, rename: path ? (newName) => workspace.rename(tab, newName) : undefined, menu }],
 				primary: barPrimary,
 				actions: barActions
 			});
 		});
 	});
 
-	$effect(() => {
-		const status = active ? statusOf(active) : undefined;
-		untrack(() => {
-			const crumb = brandBar.crumbs.at(-1);
-			if (crumb && crumb.status !== status) crumb.status = status;
-		});
-	});
-
-	// Position, language, line ending and encoding of the active tab on the left of the BrandFooter
-	$effect(() => setBrandFooter({ status: footerStatus }));
+	// Save state, position, language, line ending and encoding of the active tab on the left of the BrandFooter
+	$effect(() => setBrandFooter({ status: footerStatus, save: active ? saveOf(active) : null }));
 
 	function onKey(e: KeyboardEvent) {
 		if (!ready || document.querySelector('dialog[open]')) return;

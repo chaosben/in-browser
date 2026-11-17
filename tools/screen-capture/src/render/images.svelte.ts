@@ -4,7 +4,8 @@
 
 import type { Annotation, IconData, ImageAsset, Item } from '#lib/project/types.js';
 import { libraryMediaFile, mediaFile } from '#lib/storage/store.js';
-import { parseColor } from '#lib/util/color.js';
+import { parseColor } from '@in-browser/graphics/color.js';
+import { iconSvg } from '@in-browser/graphics/icons/types.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { m } from '#lib/i18n/index.js';
 
@@ -95,11 +96,6 @@ function loadImage(imageId: string): Promise<void> {
 	});
 }
 
-/** SVG of an icon in a solid color (opacity is applied when drawing) */
-export function iconSvg(icon: IconData, hex: string): string {
-	const body = icon.body.replaceAll('currentColor', hex);
-	return `<svg xmlns="http://www.w3.org/2000/svg" width="${icon.width * 10}" height="${icon.height * 10}" viewBox="0 0 ${icon.width} ${icon.height}">${body}</svg>`;
-}
 
 function loadIcon(icon: IconData, hex: string): Promise<void> {
 	return load(iconKey(icon, hex), icon.name, () => loadElement(new Blob([iconSvg(icon, hex)], { type: 'image/svg+xml' })));

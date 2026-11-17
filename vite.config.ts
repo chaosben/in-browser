@@ -4,6 +4,7 @@ import { playwright } from '@vitest/browser-playwright';
 import tailwindcss from '@tailwindcss/vite';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { browserLog } from './vite-browser-log.ts';
 
 /** Commit being built (`abc1234`, `-dirty` with uncommitted changes), `dev` without git – shown in the footer */
 function commit() {
@@ -21,8 +22,19 @@ function commit() {
 export default defineConfig(({ command }) => ({
 	define: { __COMMIT__: JSON.stringify(command === 'build' ? commit() : 'dev') },
 	// Workers of tools and packages (`new URL(…, import.meta.url)`) are requested as files via /@fs/
-	server: { fs: { allow: ['tools', 'packages'] } },
+	server: {
+		fs: { allow: ['tools', 'packages'] },
+		// Browser console and uncaught errors in the terminal of the dev server
+		forwardConsole: { unhandledErrors: true, logLevels: ['error', 'warn', 'info'] }
+	},
+	// Libraries only loaded on demand (dynamic import): pre-bundled at server start, otherwise found only on first use,
+	// which makes the dev server re-bundle and fail that import (504 "Outdated Optimize Dep")
+	optimizeDeps: { include: ['pdfjs-dist', 'pdf-lib'] },
+	// Supported browsers: latest two versions, Safari latest two majors (see .claude/rules/browser-support.md)
+	build: { target: ['chrome156', 'edge156', 'firefox159', 'safari26'] },
 	plugins: [
+		// Dev only: browser errors and `debug()` messages in `.debug/browser.log`, labeled per browser
+		browserLog(),
 		tailwindcss(),
 		sveltekit({
 			compilerOptions: {

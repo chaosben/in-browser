@@ -12,6 +12,12 @@
   Permissions-Policy: camera=(), microphone=(), display-capture=(), geolocation=()
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
+# Build files: a worker runs under the policy of its own script. PDF.js (Notes) decodes images in its workers with
+# WebAssembly, so scripts may compile it; pages keep their own policies below
+/_app/immutable/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
 # Screen Capture: screen, microphone and camera; media and workers from blob:
 /screen-capture*
   ! Permissions-Policy
@@ -27,6 +33,11 @@
 # Text Editor: the defaults; the Markdown preview is a sandboxed srcdoc frame with its own CSP (needs no frame-src),
 # downloads are blob: links
 /text-editor*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Notes: drawing; imported PDFs are rendered by PDF.js workers (see `/_app/immutable/*`); exports are blob: links
+/notes*
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 

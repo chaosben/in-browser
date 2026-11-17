@@ -96,6 +96,17 @@ const en = {
 				'Keeps the encoding and line endings – UTF-8, UTF-16 and Windows-1252, with or without BOM',
 				'Opens text files from Files with a double-click and notices when they change elsewhere'
 			]
+		},
+		notes: {
+			name: 'Notes',
+			description: 'Handwritten notebooks – write and sketch with a stylus, a finger or the mouse, like on paper.',
+			features: [
+				'Pen with pressure, highlighter and eraser, colors and thicknesses',
+				'Pages with blank, lined, grid or dotted paper',
+				'Palm rejection: once you use a stylus, fingers only move and zoom the page',
+				'Fast ink: drawn in the input event, with the operating system’s ink trail where the browser offers it',
+				'Notebooks sync with your other devices – no cloud, no account'
+			]
 		}
 	},
 

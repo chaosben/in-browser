@@ -1,0 +1,23 @@
+{
+	"name": "@in-browser/graphics",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Shared graphics building blocks of in-browser: colors, icons, shapes, number and color fields (included as source code)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"scripts": {
+		"icons": "node scripts/icons.mjs"
+	},
+	"dependencies": {
+		"@iconify-json/material-symbols": "1.2.100",
+		"@iconify-json/ph": "1.2.2",
+		"@iconify-json/tabler": "1.2.46",
+		"@in-browser/brand": "*"
+	}
+}

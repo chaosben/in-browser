@@ -5,7 +5,7 @@ import { devices, test } from '@playwright/test';
 const DIR = process.env.SCREENS;
 test.skip(!DIR, 'set SCREENS to an output folder');
 
-for (const path of ['/', '/files', '/text-editor', '/screen-capture']) {
+for (const path of ['/', '/files', '/text-editor', '/screen-capture', '/notes']) {
 	for (const scheme of ['light', 'dark'] as const) {
 		test(`${path} ${scheme}`, async ({ page }) => {
 			await page.emulateMedia({ colorScheme: scheme });

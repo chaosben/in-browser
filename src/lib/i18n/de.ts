@@ -95,6 +95,17 @@ const de: Messages = {
 				'Behält Kodierung und Zeilenenden – UTF-8, UTF-16 und Windows-1252, mit oder ohne BOM',
 				'Öffnet Textdateien aus Files per Doppelklick und merkt, wenn sie woanders geändert werden'
 			]
+		},
+		notes: {
+			name: 'Notes',
+			description: 'Handschriftliche Notizbücher – schreib und skizziere mit Stift, Finger oder Maus wie auf Papier.',
+			features: [
+				'Stift mit Druckstärke, Textmarker und Radierer, Farben und Stärken',
+				'Seiten mit blankem, liniertem, kariertem oder gepunktetem Papier',
+				'Handballenerkennung: Sobald du einen Stift nutzt, verschieben und zoomen Finger nur noch die Seite',
+				'Schnelle Tinte: direkt im Eingabe-Event gezeichnet, mit der Tintenspur des Betriebssystems, wo der Browser sie anbietet',
+				'Notizbücher gleichen sich mit deinen anderen Geräten ab – ohne Cloud, ohne Konto'
+			]
 		}
 	},
 
