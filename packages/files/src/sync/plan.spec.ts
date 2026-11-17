@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deletedLocalFiles, ignored, plan, type Base, type FileState, type Snapshot } from './plan';
+import { deletedLocalFiles, holdDeletes, ignored, plan, type Base, type FileState, type Snapshot } from './plan';
 
 const file = (modified: number, size = 10): FileState => ({ kind: 'file', size, modified });
 const dir: FileState = { kind: 'directory', size: 0, modified: 0 };
@@ -82,5 +82,32 @@ describe('deletedLocalFiles', () => {
 		// /a gone on disk, /b gone in the browser, /d gone on disk (folder: not counted)
 		const ops = plan(snap({ '/a': file(1), '/d': dir }), snap({ '/b': file(1) }), b);
 		expect(deletedLocalFiles(ops)).toBe(1);
+	});
+});
+
+describe('plan: changes on both sides', () => {
+	it('marks copies that overwrite a change of the other side', () => {
+		const synced = base({ '/a': [file(1), file(1)] });
+		expect(plan(snap({ '/a': file(9) }), snap({ '/a': file(5) }), synced)).toEqual([{ type: 'toDisk', path: '/a', both: true }]);
+		expect(plan(snap({ '/a': file(1) }), snap({ '/a': file(5) }), synced)).toEqual([{ type: 'toLocal', path: '/a' }]);
+	});
+});
+
+describe('holdDeletes', () => {
+	const files = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`/f${i}`, file(1)]));
+	const allSynced = (n: number) => base(Object.fromEntries(Array.from({ length: n }, (_, i) => [`/f${i}`, [file(1), file(1)]])));
+
+	it('holds deletions when the other side is empty', () => {
+		const b = allSynced(2);
+		const local = snap(files(2));
+		expect(holdDeletes(plan(local, snap({}), b), snap({}), b)).toBe(true);
+	});
+	it('holds many deletions, lets few through', () => {
+		const b = allSynced(40);
+		const local = snap(files(40));
+		const many = snap(Object.fromEntries(Object.entries(files(40)).slice(20)));
+		const few = snap(Object.fromEntries(Object.entries(files(40)).slice(2)));
+		expect(holdDeletes(plan(local, many, b), many, b)).toBe(true);
+		expect(holdDeletes(plan(local, few, b), few, b)).toBe(false);
 	});
 });

@@ -19,7 +19,7 @@ const en = {
 	principles: {
 		local: {
 			title: 'No uploads',
-			text: 'Everything is processed right on your device. Your files never leave the browser.'
+			text: 'Everything is processed right on your device. Your files never end up on a server.'
 		},
 		account: {
 			title: 'No account',
@@ -28,6 +28,10 @@ const en = {
 		tracking: {
 			title: 'No tracking',
 			text: 'No cookies, no analytics, no ads.'
+		},
+		devices: {
+			title: 'Sync your way',
+			text: 'Your devices – phone, laptop, tablet – exchange your files directly and encrypted, without a cloud. Or keep them in sync with a folder on your computer and let your own sync tool (Syncthing, Nextcloud …) carry them on.'
 		},
 		offline: {
 			title: 'Installable & offline',
@@ -77,6 +81,7 @@ const en = {
 				'Upload files and folders, download as file or ZIP',
 				'Preview of images, videos, audio and text',
 				'Opens projects directly in their tool',
+				'Syncs directly with your other devices – no cloud, no account',
 				'Keeps everything in sync with a folder on your computer – the newer version wins'
 			]
 		},

@@ -1,9 +1,12 @@
 import { mkdir, remove, rootHandle, watch, writable } from '../fs.js';
 import { basename, nameProblem, parent, segments } from '../path.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
-import { deletedLocalFiles, ignored, plan, type Base, type BaseEntry, type FileState, type Op, type Snapshot } from './plan.js';
+import { deletedLocalFiles, holdDeletes, plan, type Base, type BaseEntry, type Op, type Snapshot } from './plan.js';
+import { DIR, scan, stateOf } from './scan.js';
+import { startP2p } from '../p2p/p2p.svelte.js';
 
 // Sync of the shared file system with a folder on disk (File System Access API, Chromium only).
+// `startSync()` also starts the P2P sync with other devices (`p2p/p2p.svelte.ts`), in every browser.
 // - The folder handle and the state after the last run (`Base`) live in IndexedDB.
 // - Every tool calls `startSync()`; one tab at a time (Web Lock `files:sync-leader`) runs the sync: on start,
 //   after changes in the browser (`watch`), when the folder changes (`FileSystemObserver`, where available) and
@@ -45,8 +48,6 @@ export function syncSupported() {
 const HANDLE = 'handle';
 const BASE = 'base';
 const INTERVAL = 30_000;
-/** From this many files deleted in the folder (and a quarter of all synced ones) deletions wait for confirmation */
-const MANY_DELETES = 20;
 
 type Request = 'run' | 'applyDeletes' | 'restoreDeleted' | 'status?';
 type Message = { status: SyncStatus } | { request: Request };
@@ -66,6 +67,7 @@ function send(request: Request) {
 
 /** Starts the sync machinery in this tab (once per tab; call in the layout of every tool). */
 export function startSync() {
+	startP2p();
 	if (started || !syncSupported()) return;
 	started = true;
 	channel = new BroadcastChannel('files:sync');
@@ -183,9 +185,8 @@ async function run(): Promise<void> {
 
 		let ops = plan(local, disk, base);
 		const deletes = deletedLocalFiles(ops);
-		const emptied = deletes > 0 && countFiles(disk) === 0;
 		let pendingDeletes = 0;
-		if (!deletesAllowed && (emptied || (deletes >= MANY_DELETES && deletes * 4 > countBaseFiles(base)))) {
+		if (!deletesAllowed && holdDeletes(ops, disk, base)) {
 			pending = ops.filter(isLocalDelete);
 			ops = ops.filter((op) => !isLocalDelete(op));
 			pendingDeletes = deletes;
@@ -235,26 +236,6 @@ async function restorePending() {
 }
 
 const saveBase = (base: Base) => idbSet(BASE, [...base]);
-const countFiles = (snapshot: Snapshot) => [...snapshot.values()].filter((s) => s.kind === 'file').length;
-const countBaseFiles = (base: Base) => [...base.values()].filter((b) => b.local.kind === 'file').length;
-
-/** All files and folders below `dir` (paths from its root), without ignored ones */
-async function scan(dir: FileSystemDirectoryHandle, prefix = '', into: Snapshot = new Map()): Promise<Snapshot> {
-	for await (const [name, handle] of dir.entries()) {
-		const path = `${prefix}/${name}`;
-		if (ignored(path)) continue;
-		if (handle.kind === 'directory') {
-			into.set(path, { kind: 'directory', size: 0, modified: 0 });
-			await scan(handle as FileSystemDirectoryHandle, path, into);
-		} else {
-			into.set(path, stateOf(await (handle as FileSystemFileHandle).getFile()));
-		}
-	}
-	return into;
-}
-
-const stateOf = (file: File): FileState => ({ kind: 'file', size: file.size, modified: file.lastModified });
-const DIR: FileState = { kind: 'directory', size: 0, modified: 0 };
 
 async function diskDir(root: FileSystemDirectoryHandle, path: string, create = false) {
 	let dir = root;

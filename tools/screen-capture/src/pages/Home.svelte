@@ -4,7 +4,6 @@
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { parent } from '@in-browser/files/path.js';
-	import CommitLink from '@in-browser/brand/CommitLink.svelte';
 	import { BRAND, editorUrl } from '#lib/brand.js';
 	import NewProjectDialog from '#lib/components/NewProjectDialog.svelte';
 	import RecordDialog from '#lib/components/RecordDialog.svelte';
@@ -150,7 +149,7 @@
 
 <svelte:head><title>{BRAND.tool} · {BRAND.suite}</title></svelte:head>
 
-<!-- The whole page is a drop zone for video files; the footer stays at the bottom -->
+<!-- The whole page is a drop zone for video files -->
 <div
 	class="flex min-h-full flex-col"
 	role="region"
@@ -242,15 +241,6 @@
 	{/if}
 </main>
 
-<footer
-	class="border-base-300 mx-auto flex w-full max-w-5xl flex-wrap items-baseline gap-x-4 border-t px-4 py-6 text-sm opacity-70"
->
-	<span>
-		{m.brand.partOf}
-		<a class="link link-hover font-semibold" href={resolve('/')} data-sveltekit-reload>{BRAND.suite}</a> – {m.brand.suiteClaim}
-	</span>
-	<span class="ml-auto"><CommitLink /></span>
-</footer>
 </div>
 
 {#if draggingFiles}

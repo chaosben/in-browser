@@ -4,13 +4,16 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
-	import CommitLink from '@in-browser/brand/CommitLink.svelte';
+	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { supported, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { isInside, normalize, parent, segments } from '@in-browser/files/path.js';
+	import { parseInviteCode } from '@in-browser/files/p2p/auth.js';
+	import { includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
+	import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
 	import {
 		duplicate,
 		newFolder,
@@ -27,7 +30,15 @@
 	import FolderTree from '#lib/components/FolderTree.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
 	import PropertiesDialog from '#lib/components/PropertiesDialog.svelte';
-	import SyncPanel from '#lib/components/SyncPanel.svelte';
+	import SyncDialog from '#lib/components/SyncDialog.svelte';
+	import SyncEntry from '#lib/components/SyncEntry.svelte';
+	import ExcludeFolderDialog from '#lib/components/ExcludeFolderDialog.svelte';
+	import ExplainDialog from '#lib/components/ExplainDialog.svelte';
+	import FolderScopeDialog from '#lib/components/FolderScopeDialog.svelte';
+	import JoinDialog from '#lib/components/JoinDialog.svelte';
+	import PairDialog from '#lib/components/PairDialog.svelte';
+	import SetupDialog from '#lib/components/SetupDialog.svelte';
+	import { closeDevicesDialog, devicesUi, openDevicesDialog } from '#lib/devices.svelte.js';
 	import { acceptsDrag, DRAG_TYPE } from '#lib/dnd.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { toItem, type Item } from '#lib/items.js';
@@ -52,6 +63,9 @@
 
 	// Folder path with all actions of the open folder on the left of the BrandBar, upload and new folder right after it;
 	// search and view on the right
+	// Count, selection, upload and storage on the left of the BrandFooter
+	$effect(() => setBrandFooter({ status: footerStatus }));
+
 	$effect(() => {
 		const folder = current;
 		const canPaste = !!clipboard.current;
@@ -97,6 +111,19 @@
 	let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 	onMount(() => {
 		updateUsage();
+		// Pairing link (`#pair=KEY`, the key stays out of requests) and “Manage devices” from the footer of any tool
+		const code = parseInviteCode(location.hash);
+		const panel = page.url.searchParams.get('panel') === 'sync';
+		if (code || panel) {
+			const url = new URL(location.href);
+			url.hash = '';
+			url.searchParams.delete('panel');
+			history.replaceState(history.state, '', url);
+		}
+		if (code) {
+			devicesUi.joinCode = code;
+			openDevicesDialog('join');
+		} else if (panel) openDevicesDialog('sync');
 		const stop = watch((paths) => {
 			treeVersion.current++;
 			const folder = manager.folder;
@@ -190,6 +217,7 @@
 					{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && (manager.renaming = one.path) },
 					{ label: m.menu.delete, icon: 'icon-[material-symbols-light--delete-outline]', keys: 'Del', run: () => removeItems(manager, items) },
 					{ separator: true },
+					...scopeEntries(one),
 					{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', disabled: !one, run: () => (properties = one) }
 				]
 			: [
@@ -203,6 +231,23 @@
 					{ label: m.toolbar.refresh, icon: 'icon-[material-symbols-light--refresh]', run: () => manager.refresh() }
 				];
 		openContextMenu(e, entries);
+	}
+
+	/** Folders can be left out of the sync with the other devices on this device (or taken in again) */
+	function scopeEntries(item: Item | null | undefined): MenuEntry[] {
+		if (!item?.folder || p2pStatus.view.state !== 'online' || !canExclude(item.path)) return [];
+		if (inScope(item.path, p2pStatus.view.scope)) {
+			return [{ label: m.scope.exclude, icon: 'icon-[material-symbols-light--sync-disabled]', run: () => (devicesUi.exclude = item.path) }];
+		}
+		const parentExcluded = !inScope(parent(item.path), p2pStatus.view.scope) && parent(item.path) !== '/';
+		return [
+			{
+				label: m.scope.include,
+				icon: 'icon-[material-symbols-light--sync]',
+				disabled: parentExcluded,
+				run: () => includeFolder(item.path).catch((e) => toast(filesErrorText(e), 'error'))
+			}
+		];
 	}
 
 	function onKey(e: KeyboardEvent) {
@@ -241,7 +286,22 @@
 	}
 </script>
 
+{#snippet footerStatus()}
+	<span class="flex min-w-0 items-center gap-3 px-1 opacity-70">
+		<span>{m.list.items(manager.visible.length)}</span>
+		{#if manager.selected.length}<span>{m.list.selected(manager.selected.length)}</span>{/if}
+		{#if uploading}
+			<span class="flex items-center gap-1"><span class="loading loading-spinner loading-xs"></span>{m.toasts.uploading(uploading)}</span>
+		{/if}
+		{#if usage}<span class="hidden lg:inline">{usage}</span>{/if}
+		<span class="hidden truncate 2xl:inline">{m.list.hint}</span>
+	</span>
+{/snippet}
+
 {#snippet barActions()}
+	<button class="btn btn-ghost btn-sm btn-square md:hidden" onclick={() => openDevicesDialog('sync')} title={m.syncHub.open} aria-label={m.syncHub.open}>
+		<span class="icon-[material-symbols-light--sync] size-5" aria-hidden="true"></span>
+	</button>
 	<label class="input input-sm w-36 lg:w-48">
 		<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
 		<input type="search" bind:value={manager.query} placeholder={m.toolbar.search} aria-label={m.toolbar.search} />
@@ -302,13 +362,7 @@
 				/>
 			</ul>
 			<div class="mt-auto flex flex-col gap-4">
-				<SyncPanel />
-				{#if usage}<p class="text-xs opacity-60">{usage}</p>{/if}
-				<p class="text-xs opacity-60">
-					{m.brand.partOf} <a class="link link-hover" href={resolve('/')} data-sveltekit-reload>{BRAND.suite}</a> –
-					{m.brand.suiteClaim}
-					<br /><CommitLink />
-				</p>
+				<SyncEntry />
 			</div>
 		</aside>
 
@@ -359,15 +413,6 @@
 					</div>
 				{/if}
 			</div>
-
-			<div class="border-base-300 flex items-center gap-3 border-t px-3 py-1 text-xs opacity-70">
-				<span>{m.list.items(manager.visible.length)}</span>
-				{#if manager.selected.length}<span>{m.list.selected(manager.selected.length)}</span>{/if}
-				{#if uploading}
-					<span class="flex items-center gap-1"><span class="loading loading-spinner loading-xs"></span>{m.toasts.uploading(uploading)}</span>
-				{/if}
-				<span class="ml-auto hidden truncate xl:inline">{m.list.hint}</span>
-			</div>
 		</main>
 	</div>
 {/if}
@@ -377,4 +422,20 @@
 {/if}
 {#if properties}
 	<PropertiesDialog item={properties} onclose={() => (properties = null)} />
+{/if}
+{#if devicesUi.dialog === 'sync'}
+	<SyncDialog onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'explain'}
+	<ExplainDialog onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'setup'}
+	<SetupDialog onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'pair'}
+	<PairDialog onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'join'}
+	<JoinDialog code={devicesUi.joinCode} onclose={() => ((devicesUi.joinCode = ''), closeDevicesDialog())} />
+{:else if devicesUi.dialog === 'scope'}
+	<FolderScopeDialog onclose={closeDevicesDialog} />
+{/if}
+{#if devicesUi.exclude}
+	<ExcludeFolderDialog path={devicesUi.exclude} onclose={() => (devicesUi.exclude = null)} />
 {/if}

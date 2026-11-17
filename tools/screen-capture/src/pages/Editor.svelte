@@ -7,6 +7,7 @@
 	import { BRAND, editorUrl } from '#lib/brand.js';
 	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
 	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
+	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import HelpWindow from '#lib/components/HelpWindow.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
@@ -223,6 +224,9 @@
 		const scale = Math.min(1, 1920 / width, 1080 / height);
 		return { width: Math.round(width * scale), height: Math.round(height * scale) };
 	});
+
+	// Canvas size and length of the project on the left of the BrandFooter
+	$effect(() => setBrandFooter({ status: footerStatus }));
 
 	// Project name with all its actions on the left of the BrandBar, export right after it, help on the right
 	$effect(() => {
@@ -822,6 +826,15 @@
 		importFiles(e.dataTransfer.files, place);
 	}
 </script>
+
+{#snippet footerStatus()}
+	{#if editor && player}
+		<span class="flex items-center gap-3 px-1 opacity-70">
+			<span>{m.editor.footerSize(editor.project.width, editor.project.height)}</span>
+			<span>{m.editor.footerLength(formatTime(player.duration))}</span>
+		</span>
+	{/if}
+{/snippet}
 
 {#snippet barActions()}
 	{#if editor && player}

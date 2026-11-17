@@ -12,6 +12,7 @@
 		"./*.js": "./src/*.ts"
 	},
 	"dependencies": {
-		"@in-browser/brand": "*"
+		"@in-browser/brand": "*",
+		"trystero": "0.27.0"
 	}
 }

@@ -21,7 +21,8 @@ export interface BaseEntry {
 export type Base = Map<string, BaseEntry>;
 
 export type Op =
-	| { type: 'toDisk' | 'toLocal'; path: string }
+	/** `both`: changed on both sides since the base (the other version is lost unless kept as a conflict copy) */
+	| { type: 'toDisk' | 'toLocal'; path: string; both?: true }
 	/** Folder missing on one side */
 	| { type: 'mkdirDisk' | 'mkdirLocal'; path: string }
 	| { type: 'deleteDisk' | 'deleteLocal'; path: string; kind: FileState['kind'] }
@@ -82,8 +83,8 @@ export function plan(local: Snapshot, disk: Snapshot, base: Base): Op[] {
 				if (!b) files.push({ type: 'remember', path });
 			} else if (localChanged && diskChanged) {
 				// Both new or both changed: the newer one wins (equal times: the same file)
-				if (l.modified > d.modified) files.push({ type: 'toDisk', path });
-				else if (d.modified > l.modified) files.push({ type: 'toLocal', path });
+				if (l.modified > d.modified) files.push({ type: 'toDisk', path, both: true });
+				else if (d.modified > l.modified) files.push({ type: 'toLocal', path, both: true });
 				else files.push({ type: 'remember', path });
 			} else if (localChanged) files.push({ type: 'toDisk', path });
 			else if (diskChanged) files.push({ type: 'toLocal', path });
@@ -110,4 +111,19 @@ export function plan(local: Snapshot, disk: Snapshot, base: Base): Op[] {
 /** Files the plan deletes in the browser because they were deleted in the folder on disk */
 export function deletedLocalFiles(ops: Op[]): number {
 	return ops.filter((op) => op.type === 'deleteLocal' && op.kind === 'file').length;
+}
+
+/** From this many files deleted on the other side (and a quarter of all synced ones) deletions wait for confirmation */
+export const MANY_DELETES = 20;
+
+/**
+ * Whether the deletions coming from the other side must wait for confirmation: when that side is empty (lost or
+ * emptied by accident) or when they are many.
+ */
+export function holdDeletes(ops: Op[], other: Snapshot, base: Base): boolean {
+	const deletes = deletedLocalFiles(ops);
+	if (!deletes) return false;
+	const otherFiles = [...other.values()].filter((s) => s.kind === 'file').length;
+	const baseFiles = [...base.values()].filter((b) => b.local.kind === 'file').length;
+	return otherFiles === 0 || (deletes >= MANY_DELETES && deletes * 4 > baseFiles);
 }

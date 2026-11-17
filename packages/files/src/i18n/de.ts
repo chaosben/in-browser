@@ -36,6 +36,46 @@ const de: FilesMessages = {
 		root: (_name) => 'Mit dem obersten Ordner geht das nicht.'
 	},
 
+	indicator: {
+		label: 'Abgleich-Status',
+		folder: (folder) => `Ordner „${folder}“`,
+		synced: 'Aktuell',
+		syncing: 'Gleiche ab …',
+		paused: 'Pausiert',
+		pausedHint: 'Erlaube den Zugriff in Files erneut.',
+		failed: (n) => (n === 1 ? '1 Datei nicht abgeglichen' : `${n} Dateien nicht abgeglichen`),
+		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
+		lastSync: (ago) => `Zuletzt abgeglichen ${ago}`,
+		syncNow: 'Jetzt abgleichen',
+		manage: 'In Files verwalten'
+	},
+
+	p2p: {
+		conflictLabel: (device) => `Konflikt ${device}`,
+		connected: (online, total) => `${online} von ${total} Geräten verbunden`,
+		waiting: 'Warte auf deine Geräte',
+		syncingWith: (name, done, total) => `Gleiche mit ${name} ab … ${done}/${total}`,
+		upToDate: 'Aktuell',
+		probablyBehind: (name) => `${name} wahrscheinlich nicht aktuell`,
+		selfBehind: 'Dieses Gerät ist nicht aktuell',
+		removed: 'Dieses Gerät wurde aus deinen Geräten entfernt',
+		online: 'verbunden',
+		lastSeen: (ago) => `zuletzt gesehen ${ago}`,
+		never: 'noch nicht gesehen',
+		unreachable: 'online, aber nicht erreichbar',
+		outdated: 'braucht ein Update von in-browser',
+		missing: (n, more) => (more ? `mehr als ${n} Änderungen fehlen` : n === 1 ? '1 Änderung fehlt' : `${n} Änderungen fehlen`),
+		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
+		manage: 'Geräte verwalten',
+		conflicts: (names) =>
+			names.length === 1
+				? `„${names[0]}“ wurde auf zwei Geräten geändert – beide Fassungen sind erhalten.`
+				: `${names.length} Dateien wurden auf zwei Geräten geändert – beide Fassungen sind erhalten.`,
+		added: (name) => `${name} wurde zu deinen Geräten hinzugefügt.`,
+		removedDevice: (name) => `${name} wurde aus deinen Geräten entfernt.`,
+		paired: 'Dieses Gerät ist jetzt mit deinen Geräten verbunden.'
+	},
+
 	names: {
 		empty: 'Gib einen Namen ein.',
 		dots: '„.“ und „..“ sind nicht erlaubt.',

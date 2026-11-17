@@ -3,10 +3,12 @@
 	import type { Snippet } from 'svelte';
 	import { asset, resolve } from '$app/paths';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
+	import BrandFooter from '@in-browser/brand/BrandFooter.svelte';
 	import { setLocale } from '@in-browser/brand/i18n/index.svelte.js';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import FileDialog from '@in-browser/files/FileDialog.svelte';
+	import SyncIndicator from '@in-browser/files/SyncIndicator.svelte';
 	import { startSync } from '@in-browser/files/sync/sync.svelte.js';
 	import { BRAND } from '#lib/brand.js';
 	import ConfirmDialog from '@in-browser/brand/ConfirmDialog.svelte';
@@ -42,6 +44,9 @@
 	<div class="min-h-0 flex-1">
 		{@render children()}
 	</div>
+	<BrandFooter>
+		{#snippet indicators()}<SyncIndicator />{/snippet}
+	</BrandFooter>
 </div>
 <Toasts />
 <ConfirmDialog />

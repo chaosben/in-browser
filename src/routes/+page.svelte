@@ -8,6 +8,7 @@
 		{ key: 'local', icon: 'icon-[material-symbols-light--cloud-off-outline]' },
 		{ key: 'account', icon: 'icon-[material-symbols-light--no-accounts-outline]' },
 		{ key: 'tracking', icon: 'icon-[material-symbols-light--visibility-off-outline]' },
+		{ key: 'devices', icon: 'icon-[material-symbols-light--devices-outline]' },
 		{ key: 'offline', icon: 'icon-[material-symbols-light--offline-pin-outline]' },
 		{ key: 'openSource', icon: 'icon-[material-symbols-light--code-blocks-outline]' }
 	] as const;
@@ -66,7 +67,7 @@
 
 		<section class="flex flex-col gap-4" aria-labelledby="principles-heading">
 			<h2 id="principles-heading" class="text-xl font-semibold">{m.home.principlesHeading}</h2>
-			<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+			<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each PRINCIPLES as principle (principle.key)}
 					<li class="rounded-box border-base-300 flex flex-col gap-2 border p-4">
 						<span class="{principle.icon} text-primary size-8" aria-hidden="true"></span>

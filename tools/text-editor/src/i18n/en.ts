@@ -7,8 +7,6 @@ const en = {
 	},
 
 	brand: {
-		partOf: 'Part of',
-		suiteClaim: 'tools that run entirely in your browser',
 		description:
 			'Edit text, Markdown, JSON, YAML, CSV and code with tabs, syntax highlighting and a Markdown preview – free and entirely in the browser.'
 	},

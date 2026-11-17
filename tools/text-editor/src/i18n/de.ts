@@ -9,8 +9,6 @@ const de: Messages = {
 	},
 
 	brand: {
-		partOf: 'Teil von',
-		suiteClaim: 'Tools, die komplett in deinem Browser laufen',
 		description:
 			'Text, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Tabs, Syntax-Hervorhebung und Markdown-Vorschau, kostenlos und komplett im Browser.'
 	},

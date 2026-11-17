@@ -19,6 +19,8 @@ class ContextMenuState {
 	entries = $state.raw<MenuEntry[]>([]);
 	x = $state(0);
 	y = $state(0);
+	/** `y` is the bottom edge of the menu (opened above a button) instead of its top edge */
+	above = $state(false);
 
 	get open() {
 		return this.entries.length > 0;
@@ -31,9 +33,10 @@ class ContextMenuState {
 
 export const contextMenu = new ContextMenuState();
 
-function show(x: number, y: number, entries: MenuEntry[]) {
+function show(x: number, y: number, entries: MenuEntry[], above = false) {
 	contextMenu.x = x;
 	contextMenu.y = y;
+	contextMenu.above = above;
 	contextMenu.entries = entries.filter((entry, i, all) => !('separator' in entry) || (i > 0 && i < all.length - 1));
 }
 
@@ -50,4 +53,12 @@ export function openMenuBelow(e: MouseEvent, entries: MenuEntry[]) {
 	e.stopPropagation();
 	const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 	show(rect.left, rect.bottom + 2, entries);
+}
+
+/** Opens the menu above a button (in the footer); it stays inside the window */
+export function openMenuAbove(e: MouseEvent, entries: MenuEntry[]) {
+	e.preventDefault();
+	e.stopPropagation();
+	const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	show(rect.left, rect.top - 2, entries, true);
 }

@@ -21,7 +21,8 @@
 		"test:watch": "vitest",
 		"deploy": "npm run build && wrangler deploy",
 		"deploy:check": "npm run build && wrangler deploy --dry-run",
-		"preview:cf": "npm run build && wrangler dev"
+		"preview:cf": "npm run build && wrangler dev",
+		"test:e2e": "npm run build && playwright test"
 	},
 	"imports": {
 		"#lib": "./src/lib/index.js",
@@ -37,18 +38,21 @@
 	"devDependencies": {
 		"@iconify-json/material-symbols-light": "^1.2.97",
 		"@iconify/tailwind4": "^1.2.3",
+		"@playwright/test": "^1.65.1",
 		"@sveltejs/adapter-static": "^4.0.0",
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^26.6.5",
+		"@vitest/browser-playwright": "^5.1.0",
 		"daisyui": "^5.7.50",
+		"playwright": "^1.65.1",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.6.0",
 		"tailwindcss": "^4.3.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.3.0",
-		"vitest": "^4.1.8",
+		"vitest": "^5.1.0",
 		"wrangler": "^4.152.0"
 	},
 	"allowScripts": {

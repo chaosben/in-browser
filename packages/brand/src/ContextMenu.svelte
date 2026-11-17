@@ -47,7 +47,8 @@
 		menu.showPopover();
 		const { offsetWidth: w, offsetHeight: h } = menu;
 		menu.style.left = `${Math.max(4, Math.min(contextMenu.x, window.innerWidth - w - 4))}px`;
-		menu.style.top = `${Math.max(4, Math.min(contextMenu.y, window.innerHeight - h - 4))}px`;
+		const top = contextMenu.above ? contextMenu.y - h : contextMenu.y;
+		menu.style.top = `${Math.max(4, Math.min(top, window.innerHeight - h - 4))}px`;
 		buttons()[0]?.focus({ preventScroll: true });
 		const outside = (e: Event) => {
 			if (!menu.contains(e.target as Node)) close();

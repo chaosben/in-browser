@@ -19,8 +19,6 @@ const de: Messages = {
 	},
 
 	brand: {
-		partOf: 'Teil von',
-		suiteClaim: 'Werkzeuge, die komplett im Browser laufen',
 		description:
 			'Bildschirm aufnehmen, mit Markierungen, Text, Standbildern und Zoom bearbeiten und als MP4, WebM oder GIF exportieren – kostenlos und komplett im Browser.'
 	},
@@ -182,6 +180,8 @@ const de: Messages = {
 	},
 
 	editor: {
+		footerSize: (width, height) => `${width} × ${height} px`,
+		footerLength: (length) => `Länge ${length}`,
 		title: 'Editor',
 		loadFailed: (error) => `Projekt konnte nicht geladen werden: ${error}`,
 		backToOverview: 'Zur Übersicht',

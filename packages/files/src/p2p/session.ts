@@ -1,0 +1,306 @@
+import { basename, extname, join, nameProblem, parent, segments, uniqueName } from '../path.js';
+import { holdDeletes, plan, type Base, type FileState, type Op, type Snapshot } from '../sync/plan.js';
+import { stateOf } from '../sync/scan.js';
+import type { Json, Rpc } from './rpc.js';
+import { intersect } from './scope.js';
+
+// Sync of two devices: the one with the smaller ID drives (plans and applies), the other one only answers requests
+// (`serve`). The plan is the one of the folder sync (`sync/plan.ts`) with the other device in the role of “disk”;
+// on top: files changed on both sides are compared by content (SHA-256), and when they really differ the losing
+// version is kept as a conflict copy. Only paths both devices take part in are synced (their folder choices).
+
+/** The file system a session works on (the shared OPFS in the app, a separate folder per device in the specs) */
+export interface Tree {
+	scan(): Promise<Snapshot>;
+	stat(path: string): Promise<FileState | null>;
+	read(path: string): Promise<File>;
+	/** Replaces the file's content when the stream closes (creates missing folders) */
+	write(path: string): Promise<WritableStream<Uint8Array>>;
+	mkdir(path: string): Promise<void>;
+	remove(path: string): Promise<void>;
+	move(from: string, to: string): Promise<void>;
+	/** Names in a folder (`[]` if it doesn't exist) */
+	names(folder: string): Promise<string[]>;
+}
+
+/** Only one session at a time per device (it may drive one or answer one) */
+export class Gate {
+	busy = false;
+	enter(): boolean {
+		if (this.busy) return false;
+		this.busy = true;
+		return true;
+	}
+	leave() {
+		this.busy = false;
+	}
+}
+
+export interface ServeOptions {
+	tree: Tree;
+	gate: Gate;
+	/** Called for every path a session writes or deletes here (not to be taken for a local change) */
+	onWrite?: (path: string) => void;
+	/** Excluded folders of this device right now (sent with every snapshot, so the driver never uses an old choice) */
+	scope?: () => string[];
+}
+
+/** Files above this size are not compared by content (WebCrypto can only hash a file as a whole) */
+const MAX_HASH = 256 * 1024 * 1024;
+
+type WireState = [string, 'f' | 'd', number, number];
+
+const toWire = (snapshot: Snapshot): WireState[] =>
+	[...snapshot].map(([path, s]) => [path, s.kind === 'file' ? 'f' : 'd', s.size, s.modified]);
+const fromWire = (wire: WireState[]): Snapshot =>
+	new Map(wire.map(([path, k, size, modified]) => [path, { kind: k === 'f' ? 'file' : 'directory', size, modified }]));
+
+export async function hashFile(file: File): Promise<string | null> {
+	if (file.size > MAX_HASH) return null;
+	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
+	return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** `/a/Notes.md` → `/a/Notes (conflict Laptop).md`, numbered if taken */
+export async function conflictPath(tree: Tree, path: string, label: string): Promise<string> {
+	const name = basename(path);
+	const ext = extname(name);
+	const stem = ext ? name.slice(0, -ext.length) : name;
+	const candidate = `${stem} (${label})${ext ? name.slice(-ext.length) : ''}`;
+	return join(parent(path), uniqueName(candidate, await tree.names(parent(path))));
+}
+
+const validName = (path: string) => segments(path).every((name) => !nameProblem(name));
+
+/**
+ * Answers the requests of the driving device. Returns a function to call when the connection ends: it frees this
+ * device for other sessions if the driver vanished in the middle of one.
+ */
+export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope }: ServeOptions): () => void {
+	let holding = false;
+	const release = () => {
+		if (holding) gate.leave();
+		holding = false;
+	};
+	rpc.handle('begin', async () => {
+		holding = gate.enter();
+		return { value: holding };
+	});
+	rpc.handle('end', async () => release());
+	rpc.handle('snapshot', async () => ({ value: { scope: scope?.(), entries: toWire(await tree.scan()) } as unknown as Json }));
+	rpc.handle('hash', async (params) => {
+		const out: Record<string, string | null> = {};
+		for (const path of params as string[]) out[path] = await hashFile(await tree.read(path)).catch(() => null);
+		return { value: out };
+	});
+	rpc.handle('get', async (params) => {
+		const file = await tree.read(params as string);
+		return { value: stateToJson(stateOf(file)), download: file.stream() };
+	});
+	rpc.handle('put', async (params, upload) => {
+		const path = params as string;
+		if (!validName(path) || !upload) throw new Error(`Invalid name: ${path}`);
+		onWrite?.(path);
+		await upload.pipeTo(await tree.write(path));
+		return { value: stateToJson((await tree.stat(path))!) };
+	});
+	rpc.handle('mkdir', async (params) => {
+		const path = params as string;
+		if (!validName(path)) throw new Error(`Invalid name: ${path}`);
+		onWrite?.(path);
+		await tree.mkdir(path);
+	});
+	rpc.handle('remove', async (params) => {
+		const { path, kind } = params as { path: string; kind: FileState['kind'] };
+		// Folders only when empty: files new inside them stay (and get synced back)
+		if (kind === 'directory' && (await tree.names(path)).length) return;
+		onWrite?.(path);
+		await tree.remove(path).catch(() => {});
+	});
+	rpc.handle('keep', async (params) => {
+		const { path, label } = params as { path: string; label: string };
+		const target = await conflictPath(tree, path, label);
+		onWrite?.(path);
+		onWrite?.(target);
+		await tree.move(path, target);
+		return { value: target };
+	});
+	return release;
+}
+
+const stateToJson = (s: FileState): Json => ({ kind: s.kind, size: s.size, modified: s.modified });
+
+export interface DriveOptions {
+	tree: Tree;
+	gate: Gate;
+	/** Excluded folders of both devices (theirs as last known; the snapshot brings the current one) */
+	scope: { mine: string[]; theirs: string[] };
+	/** The other device's current excluded folders, from its snapshot */
+	onTheirScope?: (scope: string[]) => void;
+	/** State after the last sync with this device */
+	base: Base;
+	saveBase: (base: Base) => Promise<void>;
+	/** Label of a conflict copy, e.g. `conflict Laptop` (the device whose version lost) */
+	conflictLabel: (side: 'mine' | 'theirs') => string;
+	/** Deletions that would wait for confirmation go through (after the user confirmed) */
+	allowDeletes?: boolean;
+	onWrite?: (path: string) => void;
+	onProgress?: (done: number, total: number) => void;
+}
+
+export interface DriveResult {
+	/** The other device was busy with another session: try again later */
+	busy?: true;
+	applied: number;
+	failed: number;
+	/** Paths whose losing version was kept as a conflict copy */
+	conflicts: string[];
+	/** Deletions waiting for confirmation */
+	pendingDeletes: number;
+}
+
+/** Runs one sync with the other device (this one drives) */
+export async function drive(rpc: Rpc, options: DriveOptions): Promise<DriveResult> {
+	const { gate } = options;
+	const result: DriveResult = { applied: 0, failed: 0, conflicts: [], pendingDeletes: 0 };
+	if (!gate.enter()) return { ...result, busy: true };
+	try {
+		if (!(await rpc.call('begin'))) return { ...result, busy: true };
+		try {
+			await run(rpc, options, result);
+		} finally {
+			await rpc.call('end').catch(() => {});
+		}
+		return result;
+	} finally {
+		gate.leave();
+	}
+}
+
+async function run(rpc: Rpc, options: DriveOptions, result: DriveResult) {
+	const { tree, base: fullBase } = options;
+	const snapshot = (await rpc.call('snapshot')) as unknown as { scope: string[]; entries: WireState[] };
+	const scope = { mine: options.scope.mine, theirs: snapshot.scope ?? options.scope.theirs };
+	options.onTheirScope?.(scope.theirs);
+	const local = intersect(await tree.scan(), scope.mine, scope.theirs);
+	const remote = intersect(fromWire(snapshot.entries), scope.mine, scope.theirs);
+	// Outside the folders both take part in, the base is forgotten: a folder taken in again starts like a first sync
+	// (both sides merged, nothing deleted)
+	const base = intersect(fullBase, scope.mine, scope.theirs);
+
+	let ops = plan(local, remote, base);
+	ops = await sameContent(rpc, tree, ops, local, remote);
+
+	// Many deletions at once, or the other side empty, wait for confirmation – in both directions
+	if (!options.allowDeletes) {
+		const held = (type: Op['type'], other: Snapshot) => {
+			const mirrored = ops.map((op) => (op.type === type ? { ...op, type: 'deleteLocal' as const } : { ...op, type: 'remember' as const }));
+			return holdDeletes(mirrored as Op[], other, base);
+		};
+		for (const [type, other] of [['deleteLocal', remote], ['deleteDisk', local]] as const) {
+			if (held(type, other)) {
+				result.pendingDeletes += ops.filter((op) => op.type === type && op.kind === 'file').length;
+				ops = ops.filter((op) => op.type !== type);
+			}
+		}
+	}
+
+	const write = (path: string) => options.onWrite?.(path);
+	for (const [i, op] of ops.entries()) {
+		try {
+			if (await apply(rpc, options, base, op, local, remote, write, result)) result.applied++;
+		} catch (e) {
+			result.failed++;
+			console.error('[P2P]', op, e);
+		}
+		options.onProgress?.(i + 1, ops.length);
+		if (i % 50 === 49) await options.saveBase(base);
+	}
+	await options.saveBase(base);
+}
+
+/** Copies between files of equal size changed on both sides become `remember` when the content is the same */
+async function sameContent(rpc: Rpc, tree: Tree, ops: Op[], local: Snapshot, remote: Snapshot): Promise<Op[]> {
+	const candidates = ops.filter(
+		(op) => (op.type === 'toLocal' || op.type === 'toDisk') && op.both && local.get(op.path)!.size === remote.get(op.path)!.size
+	);
+	if (!candidates.length) return ops;
+	const theirs = (await rpc.call('hash', candidates.map((op) => op.path))) as Record<string, string | null>;
+	const same = new Set<string>();
+	for (const op of candidates) {
+		const mine = await hashFile(await tree.read(op.path)).catch(() => null);
+		if (mine && mine === theirs[op.path]) same.add(op.path);
+	}
+	return ops.map((op) => (same.has(op.path) && (op.type === 'toLocal' || op.type === 'toDisk') ? { type: 'remember', path: op.path } : op));
+}
+
+const DIR: FileState = { kind: 'directory', size: 0, modified: 0 };
+
+async function apply(
+	rpc: Rpc,
+	options: DriveOptions,
+	base: Base,
+	op: Op,
+	local: Snapshot,
+	remote: Snapshot,
+	write: (path: string) => void,
+	result: DriveResult
+): Promise<boolean> {
+	const { tree } = options;
+	const { path } = op;
+	switch (op.type) {
+		case 'toLocal': {
+			if (!validName(path)) throw new Error(`Invalid name: ${path}`);
+			if (op.both) {
+				const copy = await conflictPath(tree, path, options.conflictLabel('mine'));
+				write(path);
+				write(copy);
+				await tree.move(path, copy);
+				result.conflicts.push(path);
+			}
+			write(path);
+			const state = (await rpc.call('get', path, { download: await tree.write(path) })) as unknown as FileState;
+			base.set(path, { local: (await tree.stat(path))!, disk: state });
+			return true;
+		}
+		case 'toDisk': {
+			if (op.both) {
+				await rpc.call('keep', { path, label: options.conflictLabel('theirs') });
+				result.conflicts.push(path);
+			}
+			const file = await tree.read(path);
+			const state = (await rpc.call('put', path, { upload: file.stream() })) as unknown as FileState;
+			base.set(path, { local: stateOf(file), disk: state });
+			return true;
+		}
+		case 'mkdirLocal':
+			if (!validName(path)) throw new Error(`Invalid name: ${path}`);
+			write(path);
+			await tree.mkdir(path);
+			base.set(path, { local: DIR, disk: DIR });
+			return true;
+		case 'mkdirDisk':
+			await rpc.call('mkdir', path);
+			base.set(path, { local: DIR, disk: DIR });
+			return true;
+		case 'deleteLocal':
+			if (op.kind === 'file' || !(await tree.names(path)).length) {
+				write(path);
+				await tree.remove(path);
+			}
+			base.delete(path);
+			return true;
+		case 'deleteDisk':
+			await rpc.call('remove', { path, kind: op.kind });
+			base.delete(path);
+			return true;
+		case 'remember':
+			base.set(path, { local: local.get(path)!, disk: remote.get(path)! });
+			return false;
+		case 'forget':
+			base.delete(path);
+			return false;
+		case 'conflict':
+			throw new Error(`File on one device, folder on the other: ${path}`);
+	}
+}

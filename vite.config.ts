@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { defineConfig } from 'vitest/config';
+import { playwright } from '@vitest/browser-playwright';
 import tailwindcss from '@tailwindcss/vite';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -45,7 +46,16 @@ export default defineConfig(({ command }) => ({
 					server: { deps: { inline: [/@iconify-json/] } },
 					environment: 'node',
 					include: ['{src,packages/*/src,tools/*/src}/**/*.{test,spec}.{js,ts}'],
-					exclude: ['**/*.svelte.{test,spec}.{js,ts}']
+					exclude: ['**/*.svelte.{test,spec}.{js,ts}', '**/*.browser.{test,spec}.{js,ts}']
+				}
+			},
+			{
+				extends: true,
+				test: {
+					// Logic that needs real browser APIs (OPFS, Web Locks, WebCrypto, WebRTC) in headless Chromium
+					name: 'browser',
+					include: ['{src,packages/*/src,tools/*/src}/**/*.browser.{test,spec}.{js,ts}'],
+					browser: { enabled: true, provider: playwright(), headless: true, instances: [{ browser: 'chromium' }] }
 				}
 			}
 		]

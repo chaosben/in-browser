@@ -7,7 +7,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { brandBar, setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
-	import CommitLink from '@in-browser/brand/CommitLink.svelte';
+	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import { openMenuBelow, type MenuAction, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
@@ -198,6 +198,9 @@
 		});
 	});
 
+	// Position, language, line ending and encoding of the active tab on the left of the BrandFooter
+	$effect(() => setBrandFooter({ status: footerStatus }));
+
 	function onKey(e: KeyboardEvent) {
 		if (!ready || document.querySelector('dialog[open]')) return;
 		const mod = e.ctrlKey || e.metaKey;
@@ -240,6 +243,10 @@
 		workspace.openLocal(files);
 	}
 </script>
+
+{#snippet footerStatus()}
+	{#if active}<StatusBar {workspace} tab={active} />{/if}
+{/snippet}
 
 {#snippet tool(action: MenuAction)}
 	<button
@@ -359,11 +366,6 @@
 							<p class="text-sm opacity-60">{m.home.noRecent}</p>
 						{/if}
 					</section>
-					<p class="text-xs opacity-60">
-						{m.brand.partOf} <a class="link link-hover" href={resolve('/')} data-sveltekit-reload>{BRAND.suite}</a> –
-						{m.brand.suiteClaim}
-						<br /><CommitLink />
-					</p>
 				</div>
 			</div>
 		{:else}
@@ -397,9 +399,6 @@
 						</div>
 					{/if}
 				</div>
-				{#if active}
-					<StatusBar {workspace} tab={active} />
-				{/if}
 			</div>
 		{/if}
 		{#if dropping}

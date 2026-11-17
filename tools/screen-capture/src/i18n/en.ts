@@ -20,8 +20,6 @@ const en = {
 	},
 
 	brand: {
-		partOf: 'Part of',
-		suiteClaim: 'tools that run entirely in your browser',
 		description:
 			'Record your screen, edit it with annotations, text, still frames and zoom, and export it as MP4, WebM or GIF – free and entirely in the browser.'
 	},
@@ -182,6 +180,8 @@ const en = {
 	},
 
 	editor: {
+		footerSize: (width: number, height: number) => `${width} × ${height} px`,
+		footerLength: (length: string) => `Length ${length}`,
 		title: 'Editor',
 		loadFailed: (error: string) => `The project could not be loaded: ${error}`,
 		backToOverview: 'Back to overview',

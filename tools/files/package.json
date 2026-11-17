@@ -18,6 +18,7 @@
 	"dependencies": {
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
-		"client-zip": "2.5.1"
+		"client-zip": "2.5.1",
+		"uqr": "0.1.3"
 	}
 }

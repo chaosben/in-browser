@@ -11,8 +11,6 @@ const de: Messages = {
 	},
 
 	brand: {
-		partOf: 'Teil von',
-		suiteClaim: 'Tools, die komplett im Browser laufen',
 		description:
 			'Verwalte die Dateien deiner in-browser-Tools im Browserspeicher und gleiche sie mit einem Ordner auf deinem Rechner ab.'
 	},
@@ -98,6 +96,150 @@ const de: Messages = {
 
 	storage: {
 		used: (used, quota) => `${used} von ${quota} belegt`
+	},
+
+	syncHub: {
+		title: 'Abgleich',
+		open: 'Abgleich-Einstellungen öffnen',
+		off: 'Nicht eingerichtet',
+		devices: (online, total) => `${online} von ${total} Geräten verbunden`,
+		alone: 'Warte auf ein zweites Gerät',
+		waiting: 'Warte auf deine Geräte',
+		removed: 'Aus deinen Geräten entfernt',
+		folder: (name) => `Ordner „${name}“`,
+		folderPaused: 'Ordner pausiert'
+	},
+
+	devices: {
+		title: 'Deine Geräte',
+		intro: 'Gleiche diese Dateien direkt mit deinen anderen Geräten ab – Handy, Laptop, Tablet. Ohne Cloud, ohne Konto.',
+		unsupported: 'Dieser Browser kann nicht mit anderen Geräten abgleichen. Nutze eine aktuelle Version von Chrome, Edge, Firefox oder Safari.',
+		connect: 'Geräte verbinden',
+		enterKey: 'Schlüssel eingeben',
+		howItWorks: 'So funktioniert’s',
+		addDevice: 'Gerät hinzufügen',
+		chooseFolders: 'Ordner auswählen',
+		syncNow: 'Jetzt abgleichen',
+		leave: 'Dieses Gerät trennen',
+		removeNamed: (name) => `„${name}“ entfernen`,
+		remove: 'Gerät entfernen',
+		rename: 'Umbenennen',
+		thisDevice: 'dieses Gerät',
+		online: 'verbunden',
+		syncing: (done, total) => `gleiche ab … ${done}/${total}`,
+		lastSeen: (ago) => `zuletzt gesehen ${ago}`,
+		never: 'noch nicht gesehen',
+		unreachable: 'Online, aber nicht erreichbar. Vermutlich blockiert das Netz direkte Verbindungen (z. B. Mobilfunk oder Firmen-WLAN).',
+		outdated: 'Braucht ein Update: Öffne dort in-browser und lade die Seite neu.',
+		lastSync: (ago) => `zuletzt abgeglichen ${ago}`,
+		upToDate: 'aktuell',
+		probablyBehind: (changes, ago) => `Wahrscheinlich nicht aktuell: ${changes} seit dem letzten Abgleich ${ago}.`,
+		changes: (n, more) => (more ? `mehr als ${n} Änderungen` : n === 1 ? '1 Änderung' : `${n} Änderungen`),
+		waiting: 'Warte auf deine anderen Geräte. Öffne in-browser auf einem davon.',
+		selfBehind: (ago) =>
+			`Dieses Gerät wurde zuletzt ${ago} abgeglichen. Öffne in-browser auf einem deiner anderen Geräte, bevor du hier weiterarbeitest – sonst können Konfliktkopien entstehen.`,
+		excludedCount: (n) => (n === 1 ? '1 Ordner wird auf diesem Gerät nicht abgeglichen' : `${n} Ordner werden auf diesem Gerät nicht abgeglichen`),
+		pendingDeletes: (n) => `${n} Dateien wurden auf einem anderen Gerät gelöscht. Hier auch löschen?`,
+		applyDeletes: 'Hier auch löschen',
+		runsWhileOpen: 'Abgeglichen wird, solange in-browser auf mindestens zwei Geräten geöffnet ist.',
+		removeTitle: (name) => `„${name}“ entfernen?`,
+		removeMessage:
+			'Es kann sich nicht mehr mit deinen Geräten verbinden und bekommt nichts Neues mehr. Was es schon hat, bleibt dort – aus der Ferne löschen geht nicht.',
+		leaveTitle: 'Dieses Gerät trennen?',
+		leaveMessage: 'Deine Dateien bleiben hier und auf den anderen Geräten. Dieses Gerät gleicht nur nicht mehr ab; du kannst es später wieder verbinden.',
+		removedTitle: 'Dieses Gerät wurde aus deinen Geräten entfernt.',
+		removedMessage: 'Es gleicht nicht mehr ab. Die abgeglichenen Dateien bleiben hier, bis du sie löschst.',
+		resetKeep: 'Zurücksetzen, Dateien behalten',
+		resetDelete: 'Dateien löschen und zurücksetzen',
+		resetDeleteTitle: 'Alle Dateien auf diesem Gerät löschen und zurücksetzen?',
+		resetDeleteMessage:
+			'Das löscht alle Dateien in Files auf diesem Gerät und setzt den Abgleich auf den Anfang zurück. Die anderen Geräte sind nicht betroffen.',
+		resetHint: 'Zurücksetzen bringt dieses Gerät auf den Anfang: Du kannst es dann mit einem neuen Schlüssel wieder verbinden.',
+		nameLabel: 'Name dieses Geräts',
+		nameHint: 'Damit du deine Geräte auseinanderhalten kannst, z. B. „Laptop Büro“.',
+		suggestion: (browser, system) => (browser && system ? `${browser} auf ${system}` : browser || system || 'Mein Gerät'),
+		phone: 'Android-Handy',
+		tablet: 'Android-Tablet',
+		next: 'Weiter',
+		back: 'Zurück',
+		close: 'Schließen',
+		cancel: 'Abbrechen',
+		start: 'Verbinden',
+		failed: (message) => `Das hat nicht geklappt: ${message}`
+	},
+
+	pair: {
+		title: 'Gerät hinzufügen',
+		yourKey: 'Dein Schlüssel',
+		scan: 'Scanne den Code mit der Kamera deines Handys oder gib den Schlüssel auf dem anderen Gerät in in-browser ein (Files → Deine Geräte → Schlüssel eingeben).',
+		copyLink: 'Link kopieren',
+		copied: 'Link kopiert.',
+		validity: 'Gilt einmal, 24 Stunden lang, solange dieses Gerät online ist.',
+		warning: 'Wer diesen Schlüssel hat, kann ein Gerät verbinden und alle deine abgeglichenen Dateien lesen und ändern.',
+		waiting: 'Warte auf das andere Gerät …',
+		added: (name) => `${name} wurde hinzugefügt.`,
+		addAnother: 'Weiteres Gerät hinzufügen'
+	},
+
+	join: {
+		title: 'Dieses Gerät verbinden',
+		keyLabel: 'Schlüssel',
+		keyPlaceholder: 'XXXX-XXXX-XXXX-XXXX-XXXX',
+		invalidKey: 'Das ist kein gültiger Schlüssel (20 Zeichen).',
+		confirm: 'Dieses Gerät mit deinen Geräten verbinden? Alle Dateien werden mit den anderen Geräten abgeglichen.',
+		connecting: 'Verbinde … Lass in-browser auf dem Gerät geöffnet, das den Schlüssel zeigt.',
+		timeout: 'Keine Antwort. Ist in-browser auf dem anderen Gerät geöffnet, und gilt der Schlüssel noch?',
+		done: 'Verbunden.'
+	},
+
+	explain: {
+		title: 'So funktioniert’s',
+		simple: 'Einfach',
+		expert: 'Für Experten',
+		points: [
+			'Deine Geräte tauschen Dateien **direkt** miteinander aus – verschlüsselt, ohne Cloud.',
+			'Abgeglichen wird, **solange mindestens zwei Geräte in-browser geöffnet haben**. Ein Tab mit einem beliebigen Tool genügt, auch im Hintergrund. Am Handy nur, solange die Seite vorne ist. Verpasstes wird nachgeholt.',
+			'**Jedes Gerät hat seinen eigenen Schlüssel.** Ein neues Gerät kommt nur mit einem Einmal-Schlüssel dazu, den eines deiner Geräte ausstellt. Ein verlorenes Gerät kannst du jederzeit entfernen.',
+			'Pro Gerät kannst du Ordner ausnehmen. Sie bleiben dann nur dort, wo sie sind.'
+		],
+		diagram: 'Drei Geräte, direkt miteinander verbunden, kein Server dazwischen',
+		expertSections: [
+			['Transport', 'WebRTC-DataChannels (SCTP über DTLS), direkt zwischen den Geräten, jedes mit jedem. STUN über stun.cloudflare.com, kein TURN – strenge NATs (symmetrisches NAT, CGNAT im Mobilfunk) verhindern deshalb oft eine Verbindung.'],
+			['Signaling', 'Trystero über öffentliche Nostr-Relays. Sie sehen IP-Adressen, Zeitpunkte und einen Hash des Raums; Angebote und ICE-Kandidaten sind mit einem Schlüssel aus dem Raumgeheimnis verschlüsselt. Jedes Entfernen bringt ein neues Raumgeheimnis.'],
+			['Identität', 'Ed25519-Schlüsselpaar pro Gerät (WebCrypto, nicht exportierbar, IndexedDB). Die Geräte-ID ist der Fingerabdruck des öffentlichen Schlüssels. Die Anmeldung signiert eine Zufallszahl zusammen mit den DTLS-Fingerabdrücken der Verbindung, damit kein Relay dazwischen sitzen kann.'],
+			['Mitglieder', 'Hash-verkettetes Protokoll signierter Einträge (create, add, remove, rename), bei jedem Kontakt zusammengeführt. Entfernen schlägt gleichzeitige Einträge des entfernten Geräts; gegenseitiges gleichzeitiges Entfernen entfernt beide. Ein Gerät, das offline war, erfährt vom Entfernen über jedes Mitglied – trifft es zuerst das entfernte Gerät, kann dieses bis dahin noch mit ihm abgleichen.'],
+			['Einmal-Schlüssel', '100 Bit, einmal und 24 Stunden gültig, nur solange das ausstellende Gerät online ist. Nachweis per HMAC über die DTLS-Fingerabdrücke in beide Richtungen.'],
+			['Abgleich', 'Drei-Wege-Vergleich pro Gerätepaar gegen den gespeicherten Stand des letzten Abgleichs; das Gerät mit der kleineren ID steuert. Die neuere Fassung gewinnt, die andere wird zur Konfliktkopie; SHA-256 vermeidet unnötige Übertragungen; viele Löschungen auf einmal warten auf Bestätigung. Ordnerauswahl = Schnittmenge beider Geräte, löst nie ein Löschen aus.'],
+			['Wissensstand', 'Änderungsprotokoll mit laufenden Nummern pro Gerät und Versionsvektoren: Grundlage der Hinweise auf Geräte, die wahrscheinlich nicht aktuell sind, auch wenn sie Änderungen indirekt bekommen haben.'],
+			['Speicher', 'Dateien im OPFS (dauerhafte Speicherung angefordert); Schlüssel, Mitgliederliste, Abgleichstand und Vektoren in IndexedDB.'],
+			['Grenzen', 'Läuft nur in einem offenen Tab, am Handy nur im Vordergrund. Was ein entferntes Gerät schon hat, behält es.']
+		],
+		source: 'Quellcode des P2P-Moduls',
+		diagnostics: 'Diagnose',
+		ownFingerprint: 'Dieses Gerät',
+		connection: { host: 'direkt im lokalen Netz', srflx: 'über NAT (STUN)', prflx: 'über NAT', relay: 'weitergeleitet (TURN)', unknown: 'unbekannt' },
+		rtt: (ms) => `${ms} ms`,
+		relays: 'Relays',
+		relayConnected: 'verbunden',
+		relayDisconnected: 'nicht verbunden',
+		noPeers: 'Gerade ist kein Gerät verbunden.',
+		copyDiagnostics: 'Diagnose kopieren',
+		copied: 'Diagnose kopiert.'
+	},
+
+	scope: {
+		empty: 'Noch keine Ordner.',
+		title: 'Ordner auswählen',
+		hint: 'Abgewählte Ordner bleiben auf den anderen Geräten und werden dort weiter abgeglichen – nur dieses Gerät bekommt sie nicht.',
+		always: 'Immer abgeglichen (Daten der Tools)',
+		onlyOn: (devices) => `nur auf ${devices}`,
+		excludeTitle: (name) => `„${name}“ auf diesem Gerät nicht mehr abgleichen?`,
+		excludeMessage: 'Die anderen Geräte behalten ihn. Du kannst die Kopie auf diesem Gerät behalten oder hier löschen – das betrifft die anderen Geräte nicht.',
+		keepCopy: 'Kopie hier behalten',
+		deleteCopy: 'Hier löschen',
+		exclude: 'Auf diesem Gerät nicht abgleichen',
+		include: 'Auf diesem Gerät wieder abgleichen',
+		excluded: 'Wird auf diesem Gerät nicht abgeglichen'
 	},
 
 	sync: {

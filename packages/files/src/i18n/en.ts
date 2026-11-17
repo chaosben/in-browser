@@ -36,6 +36,50 @@ const en = {
 		root: (_name: string) => 'This is not possible with the top folder.'
 	},
 
+	/** Sync status in the footer of every tool (`SyncIndicator`) */
+	indicator: {
+		label: 'Sync status',
+		folder: (folder: string) => `Folder “${folder}”`,
+		synced: 'Up to date',
+		syncing: 'Syncing …',
+		paused: 'Paused',
+		pausedHint: 'Allow access again in Files.',
+		failed: (n: number) => (n === 1 ? '1 file not synced' : `${n} files not synced`),
+		pendingDeletes: (n: number) => `${n} deletions wait for your confirmation`,
+		lastSync: (ago: string) => `Last synced ${ago}`,
+		syncNow: 'Sync now',
+		manage: 'Manage in Files'
+	},
+
+	/** Sync with your other devices (footer of every tool, toasts) */
+	p2p: {
+		/** Part of the name of a conflict copy: `Notes (conflict Laptop).md` */
+		conflictLabel: (device: string) => `conflict ${device}`,
+		connected: (online: number, total: number) => `${online} of ${total} devices connected`,
+		waiting: 'Waiting for your devices',
+		syncingWith: (name: string, done: number, total: number) => `Syncing with ${name} … ${done}/${total}`,
+		upToDate: 'Up to date',
+		probablyBehind: (name: string) => `${name} probably not up to date`,
+		selfBehind: 'This device is not up to date',
+		removed: 'This device was removed from your devices',
+		online: 'connected',
+		lastSeen: (ago: string) => `last seen ${ago}`,
+		never: 'not seen yet',
+		unreachable: 'online, but not reachable',
+		outdated: 'needs an update of in-browser',
+		missing: (n: number, more: boolean) =>
+			more ? `more than ${n} changes missing` : n === 1 ? '1 change missing' : `${n} changes missing`,
+		pendingDeletes: (n: number) => `${n} deletions wait for your confirmation`,
+		manage: 'Manage devices',
+		conflicts: (names: string[]) =>
+			names.length === 1
+				? `“${names[0]}” was changed on two devices – both versions are kept.`
+				: `${names.length} files were changed on two devices – both versions are kept.`,
+		added: (name: string) => `${name} was added to your devices.`,
+		removedDevice: (name: string) => `${name} was removed from your devices.`,
+		paired: 'This device is now connected with your devices.'
+	},
+
 	/** Why a name is not allowed (shown while typing) */
 	names: {
 		empty: 'Enter a name.',

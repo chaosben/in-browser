@@ -19,7 +19,7 @@ const de: Messages = {
 	principles: {
 		local: {
 			title: 'Keine Uploads',
-			text: 'Alles wird direkt auf deinem Gerät verarbeitet. Deine Dateien verlassen nie den Browser.'
+			text: 'Alles wird direkt auf deinem Gerät verarbeitet. Deine Dateien landen nie auf einem Server.'
 		},
 		account: {
 			title: 'Kein Konto',
@@ -28,6 +28,10 @@ const de: Messages = {
 		tracking: {
 			title: 'Kein Tracking',
 			text: 'Keine Cookies, keine Analyse-Dienste, keine Werbung.'
+		},
+		devices: {
+			title: 'Abgleich, wie du willst',
+			text: 'Deine Geräte – Handy, Laptop, Tablet – tauschen deine Dateien direkt und verschlüsselt aus, ohne Cloud. Oder du gleichst sie mit einem Ordner auf deinem Rechner ab und lässt dein eigenes Sync-Tool (Syncthing, Nextcloud …) sie weitertragen.'
 		},
 		offline: {
 			title: 'Installierbar & offline',
@@ -76,6 +80,7 @@ const de: Messages = {
 				'Dateien und Ordner hochladen, als Datei oder ZIP herunterladen',
 				'Vorschau für Bilder, Videos, Ton und Text',
 				'Öffnet Projekte direkt in ihrem Tool',
+				'Gleicht direkt mit deinen anderen Geräten ab – ohne Cloud, ohne Konto',
 				'Gleicht alles mit einem Ordner auf deinem Rechner ab – die neuere Fassung gewinnt'
 			]
 		},
