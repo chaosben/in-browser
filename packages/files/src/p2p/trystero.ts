@@ -8,9 +8,26 @@ import type { Network } from './network.js';
 const APP_ID = 'in-browser/files';
 export const STUN = 'stun:stun.cloudflare.com:3478';
 
-export const trysteroNetwork: Network = {
+export interface TrysteroOptions {
+	/** WebRTC outside the browser (the p2p-node in Node) */
+	rtcPolyfill?: typeof RTCPeerConnection;
+	/** Other relays than Trystero's public ones (tests) */
+	relays?: string[];
+}
+
+export const createTrysteroNetwork = ({ rtcPolyfill, relays }: TrysteroOptions = {}): Network => ({
 	join(roomId, password) {
-		const room = joinRoom({ appId: APP_ID, password, identity: 'none', rtcConfig: { iceServers: [{ urls: STUN }] } }, roomId);
+		const room = joinRoom(
+			{
+				appId: APP_ID,
+				password,
+				identity: 'none',
+				rtcConfig: { iceServers: [{ urls: STUN }] },
+				...(rtcPolyfill ? { rtcPolyfill } : {}),
+				...(relays ? { relayConfig: { urls: relays } } : {})
+			},
+			roomId
+		);
 		const action = room.makeAction<Uint8Array>('frame');
 		const linkHandlers: ((link: Link, peerId: string) => void)[] = [];
 		const unreachableHandlers: ((peerId: string) => void)[] = [];
@@ -75,7 +92,9 @@ export const trysteroNetwork: Network = {
 			}
 		};
 	}
-};
+});
+
+export const trysteroNetwork = createTrysteroNetwork();
 
 /** Relays and whether they are connected (diagnostics) */
 export function relayStates(): { url: string; connected: boolean }[] {

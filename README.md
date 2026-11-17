@@ -6,18 +6,25 @@ that serves the overview site and every tool on a single origin, so the tools ca
 | Folder | Content | Address |
 | --- | --- | --- |
 | `src/` | The app: overview page, thin routes per tool, Service Worker | https://in-browser.org |
-| `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.org/screen-capture |
-| `tools/files` | `@in-browser/files-app`: file manager of the shared browser storage, sync with a folder on disk | https://in-browser.org/files |
+| `tools/files` | `@in-browser/files-app`: file manager of the shared browser storage, sync with a folder on disk and between devices | https://in-browser.org/files |
 | `tools/text-editor` | `@in-browser/text-editor`: text, Markdown and code editor with tabs | https://in-browser.org/text-editor |
-| `packages/brand` | `@in-browser/brand`: header, theme, language logic, PWA | – |
-| `packages/files` | `@in-browser/files`: shared file system (OPFS), file dialog, sync | – |
+| `tools/notes` | `@in-browser/notes`: handwritten notebooks, PDF import and export | https://in-browser.org/notes |
+| `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.org/screen-capture |
+| `packages/brand` | `@in-browser/brand`: header, footer, theme, language logic, PWA, toasts, dialogs, context menu | – |
+| `packages/files` | `@in-browser/files`: shared file system (OPFS), file dialog, formats, folder and device sync | – |
+| `packages/graphics` | `@in-browser/graphics`: colors, icons, shapes and fields of the drawing tools | – |
+| `packages/p2p-node` | `@in-browser/p2p-node`: always-on device for the device sync, runs in Node ([README](packages/p2p-node/README.md)) | https://in-browser.org/p2p-node/install.sh |
 
 Each tool is its own npm workspace package with its logic, components and texts; the app only has a few route
 files per tool (`src/routes/<tool>/`). Tools never import from each other – shared code lives in `packages/` and is
 consumed as source.
 
-Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest. The UI is available in
-English and German (following the browser language).
+Your devices sync their files directly with each other over WebRTC, without a server of ours. Only encrypted
+connection offers pass through public Nostr relays. A device syncs while in-browser is open on it; to keep the
+files moving while no browser is open, run a [p2p-node](packages/p2p-node/README.md) on a computer or home server.
+
+Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest, Playwright. The UI is
+available in English and German (following the browser language).
 
 ## Development
 
@@ -25,8 +32,15 @@ English and German (following the browser language).
 npm install         # once (Node 26, see .node-version)
 npm run dev         # overview and all tools (http://localhost:5173)
 npm run check       # type check
-npm test            # unit tests of the app, packages and tools
-npm run build       # static build into build/
+npm test            # unit tests (Node) and browser tests (headless Chromium)
+npm run build       # static build into build/, plus the p2p-node into build/p2p-node/
+npm run test:e2e    # build, then end-to-end tests against the local Worker
+```
+
+Browser tests and end-to-end tests need Chromium for Playwright once:
+
+```sh
+npx playwright install chromium
 ```
 
 ## Deployment
@@ -41,8 +55,9 @@ npm run preview:cf      # local preview with real asset behaviour (http://localh
 npm run deploy          # build + upload
 ```
 
-Header rules (CSP, Permissions-Policy per tool, caching) are in `static/_headers`. The footer of each tool shows the
-commit it was built from.
+Deploying needs the p2p-node release key, otherwise it stops before uploading (see
+[packages/p2p-node](packages/p2p-node/README.md#development)). Header rules (CSP, Permissions-Policy per tool,
+caching) are in `static/_headers`. The footer of the overview shows the commit the site was built from.
 
 ## How this was built
 

@@ -14,6 +14,11 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 	for (const tool of TOOLS) await expect(page.locator(`a[href="${tool.path}"]`).first()).toBeVisible();
 	// The version is shown here (not in the tools)
 	await expect(page.getByRole('contentinfo').getByText(/^Version /)).toBeVisible();
+	// …and the licenses of the third-party software it ships, as of this build
+	await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Licenses' })).toHaveAttribute(
+		'href',
+		/\/blob\/[0-9a-f]+\/THIRD_PARTY_LICENSES\.md$/
+	);
 
 	for (const tool of TOOLS) {
 		await page.goto(tool.path);

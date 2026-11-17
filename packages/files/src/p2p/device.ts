@@ -80,6 +80,8 @@ export interface DeviceOptions {
 	now?: () => number;
 	/** Opt-in log for finding errors */
 	log?: LogFn;
+	/** A device answered with another protocol version (the p2p-node then looks for an update) */
+	onOutdated?: (version: number) => void;
 }
 
 interface Peer {
@@ -289,6 +291,11 @@ export class Device {
 		await this.setScope(includeFolder(this.state.scope, folder));
 	}
 
+	/** A session is running right now (driven or answered) */
+	get busy() {
+		return this.gate.busy;
+	}
+
 	syncNow() {
 		this.scheduleAll(0);
 		for (const peer of this.peers.values()) if (!this.drives(peer.id)) peer.rpc.call('changed').catch(() => {});
@@ -447,6 +454,7 @@ export class Device {
 					this.log('signIn.rejected', { peer: answer.id ? this.nameOf(answer.id) : '?', reason: check.reason });
 					if (check.reason === 'version') {
 						this.outdated.add(answer.id);
+						this.options.onOutdated?.(answer.v);
 						this.emit();
 					}
 					return fail();

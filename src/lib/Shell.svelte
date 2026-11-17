@@ -3,6 +3,7 @@
 	import { onMount, type Snippet } from 'svelte';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
+	import { sourceUrl } from '@in-browser/brand/build.js';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
 	import { applyBrowserLocale, lang, m } from '#lib/i18n/index.svelte.js';
 
@@ -38,6 +39,9 @@
 			<span><span class="font-semibold">{BRAND.suite}</span> – {m.brand.claim}</span>
 			<a class="link link-hover ml-auto" href={BRAND.repoUrl} target="_blank" rel="noopener">
 				{m.footer.openSource}
+			</a>
+			<a class="link link-hover" href={sourceUrl('THIRD_PARTY_LICENSES.md')} target="_blank" rel="noopener">
+				{m.footer.licenses}
 			</a>
 			<CommitLink />
 		</footer>

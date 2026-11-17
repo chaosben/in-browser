@@ -1,0 +1,15 @@
+{
+	"name": "@in-browser/p2p-node",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Always-on device for the P2P sync of in-browser: runs in Node, keeps the files in a folder (bundled and served by the site, see .claude/rules/p2p-node.md)",
+	"exports": {
+		"./*.js": "./src/*.ts"
+	},
+	"dependencies": {
+		"@in-browser/files": "*",
+		"trystero": "0.27.0",
+		"werift": "0.27.0"
+	}
+}

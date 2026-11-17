@@ -45,7 +45,9 @@ const en = {
 	},
 
 	footer: {
-		openSource: 'Open source on GitHub'
+		openSource: 'Open source on GitHub',
+		/** Third-party software the site ships, with its licenses */
+		licenses: 'Licenses'
 	},
 
 	/** Details shown as tooltip of the requirement badge */

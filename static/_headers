@@ -41,6 +41,17 @@
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
+# p2p-node (packages/p2p-node): the starters fetch version.json to find updates, people pipe the install scripts
+# into a shell – always fresh, scripts as text
+/p2p-node/*
+  Cache-Control: no-cache
+
+/p2p-node/install.sh
+  Content-Type: text/plain; charset=utf-8
+
+/p2p-node/install.ps1
+  Content-Type: text/plain; charset=utf-8
+
 # Always revalidate the Service Worker and the manifests so new versions get through
 /service-worker.js
   Cache-Control: no-cache

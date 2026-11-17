@@ -45,7 +45,8 @@ const de: Messages = {
 	},
 
 	footer: {
-		openSource: 'Open Source auf GitHub'
+		openSource: 'Open Source auf GitHub',
+		licenses: 'Lizenzen'
 	},
 
 	requiresHint: {
