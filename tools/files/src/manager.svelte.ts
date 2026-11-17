@@ -33,6 +33,8 @@ export class Manager {
 	/** Entry with the keyboard focus (start of Shift ranges) */
 	focus = $state<string | null>(null);
 	renaming = $state<string | null>(null);
+	/** Touch: selection mode (started by a long press), taps toggle entries instead of opening them */
+	selecting = $state(false);
 	sortKey = $state<SortKey>('name');
 	desc = $state(false);
 	query = $state('');
@@ -47,6 +49,7 @@ export class Manager {
 	async load(folder: string) {
 		if (folder !== this.folder) {
 			this.selection.clear();
+			this.selecting = false;
 			this.focus = null;
 			this.query = '';
 			this.items = null;
@@ -117,6 +120,13 @@ export class Manager {
 
 	selectAll() {
 		this.visible.forEach((i) => this.selection.add(i.path));
+		this.selecting = true;
+	}
+
+	/** Leaves the touch selection mode with nothing selected */
+	clearSelection() {
+		this.selection.clear();
+		this.selecting = false;
 	}
 
 	/** Moves the focus by `step` entries (arrow keys); Shift extends the selection */

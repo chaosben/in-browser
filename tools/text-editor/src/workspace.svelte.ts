@@ -146,7 +146,8 @@ export class Workspace {
 	tabs = $state<Tab[]>([]);
 	activeId = $state<string | null>(null);
 	active = $derived(this.tabs.find((t) => t.id === this.activeId) ?? null);
-	wrap = $state(load(WRAP_KEY, false));
+	/** Wrapped by default on phones and narrow windows (no horizontal scrolling there) */
+	wrap = $state(load(WRAP_KEY, typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 47.99rem)').matches));
 	preview = $state(load(PREVIEW_KEY, true));
 	recent = $state<string[]>(load(RECENT_KEY, []));
 	fontSize = $state(load(FONT_KEY, FONT_SIZES.default));

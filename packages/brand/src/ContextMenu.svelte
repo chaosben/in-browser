@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { contextMenu, type MenuAction, type MenuEntry } from './ui/context-menu.svelte.js';
+	import { contextMenu, installLongPress, type MenuAction, type MenuEntry } from './ui/context-menu.svelte.js';
 
 	let menu: HTMLElement;
 	let hovered: MenuAction | undefined;
@@ -41,26 +41,34 @@
 		all[next]?.focus();
 	}
 
-	// Popover in the top layer at the mouse position, shifted into the window; closes on anything outside
-	$effect(() => {
-		if (!contextMenu.open) return;
-		menu.showPopover();
+	// Long press with a finger opens the context menu like a right click
+	$effect(() => installLongPress());
+
+	function place() {
 		const { offsetWidth: w, offsetHeight: h } = menu;
 		menu.style.left = `${Math.max(4, Math.min(contextMenu.x, window.innerWidth - w - 4))}px`;
 		const top = contextMenu.above ? contextMenu.y - h : contextMenu.y;
 		menu.style.top = `${Math.max(4, Math.min(top, window.innerHeight - h - 4))}px`;
+	}
+
+	// Popover in the top layer at the mouse position, shifted into the window; closes on anything outside.
+	// Scrolling inside the menu keeps it open; a resize (mobile URL bar, keyboard) only moves it back into the window.
+	$effect(() => {
+		if (!contextMenu.open) return;
+		menu.showPopover();
+		place();
 		buttons()[0]?.focus({ preventScroll: true });
 		const outside = (e: Event) => {
 			if (!menu.contains(e.target as Node)) close();
 		};
 		window.addEventListener('pointerdown', outside, { capture: true });
-		window.addEventListener('scroll', close, { capture: true });
-		window.addEventListener('resize', close);
+		window.addEventListener('scroll', outside, { capture: true });
+		window.addEventListener('resize', place);
 		window.addEventListener('blur', close);
 		return () => {
 			window.removeEventListener('pointerdown', outside, { capture: true });
-			window.removeEventListener('scroll', close, { capture: true });
-			window.removeEventListener('resize', close);
+			window.removeEventListener('scroll', outside, { capture: true });
+			window.removeEventListener('resize', place);
 			window.removeEventListener('blur', close);
 			if (menu.matches(':popover-open')) menu.hidePopover();
 		};
@@ -70,7 +78,7 @@
 <div
 	bind:this={menu}
 	popover="manual"
-	class="bg-base-100 text-base-content border-base-300 rounded-box m-0 max-h-[calc(100vh-1rem)] min-w-52 overflow-y-auto border p-1 shadow-lg"
+	class="bg-base-100 text-base-content border-base-300 rounded-box m-0 max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-0.5rem)] min-w-52 overflow-y-auto border p-1 shadow-lg"
 	role="menu"
 	tabindex="-1"
 	onkeydown={onKeyDown}
@@ -95,7 +103,7 @@
 					>
 						<span class="{entry.icon ?? ''} size-4 shrink-0" aria-hidden="true"></span>
 						<span class="min-w-0 flex-1 truncate">{entry.label}</span>
-						{#if entry.keys}<kbd class="kbd kbd-xs">{entry.keys}</kbd>{/if}
+						{#if entry.keys}<kbd class="kbd kbd-xs pointer-coarse:hidden">{entry.keys}</kbd>{/if}
 					</button>
 				</li>
 			{/if}

@@ -12,6 +12,8 @@ const en = {
 	dialog: {
 		titleOpen: 'Open',
 		titleSave: 'Save as',
+		titleFolder: 'Choose folder',
+		chooseFolder: 'Choose this folder',
 		open: 'Open',
 		openCount: (n: number) => `Open (${n})`,
 		save: 'Save',

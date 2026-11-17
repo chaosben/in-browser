@@ -2,7 +2,8 @@
 // once in its layout. Promise-based like `ask()` from @in-browser/brand.
 
 export interface FileDialogOptions {
-	mode: 'open' | 'save';
+	/** `folder`: pick a folder (only folders shown; confirming takes the open folder) */
+	mode: 'open' | 'save' | 'folder';
 	/** Folder shown first (created if missing) */
 	folder: string;
 	/** Selectable extensions (packages and files), e.g. `['.screencapture']`; folders are always shown */
@@ -11,6 +12,8 @@ export interface FileDialogOptions {
 	name?: string;
 	/** Own title instead of “Open”/“Save as” */
 	title?: string;
+	/** Own label of the confirm button (e.g. “Move here”) */
+	confirmLabel?: string;
 	/** Open: several files can be chosen (Ctrl/Shift-click) */
 	multiple?: boolean;
 	/** Save: an existing file (or package) of an accepted format may be replaced */

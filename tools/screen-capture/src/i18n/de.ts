@@ -25,6 +25,9 @@ const de: Messages = {
 
 	home: {
 		tagline: 'Bildschirm aufnehmen, schneiden und als MP4, WebM oder GIF exportieren – komplett im Browser, nichts verlässt deinen Rechner.',
+		desktopOnly:
+			'Screen Capture braucht einen Computer: Handys und Tablets können ihren Bildschirm im Browser nicht aufnehmen. Öffne diese Seite auf deinem Computer (empfohlen: Chrome oder Edge).',
+		allTools: 'Alle Tools anzeigen',
 		unsupported: (missing) =>
 			`Dieser Browser unterstützt nicht alles, was die App braucht (${missing}). Bitte verwende einen aktuellen Desktop-Browser (empfohlen: Chrome oder Edge).`,
 		screenCapture: 'Bildschirmaufnahme',

@@ -12,6 +12,8 @@ const de: FilesMessages = {
 	dialog: {
 		titleOpen: 'Öffnen',
 		titleSave: 'Speichern unter',
+		titleFolder: 'Ordner wählen',
+		chooseFolder: 'Diesen Ordner wählen',
 		open: 'Öffnen',
 		openCount: (n) => `Öffnen (${n})`,
 		save: 'Speichern',

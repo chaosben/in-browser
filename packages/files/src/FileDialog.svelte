@@ -52,8 +52,15 @@
 		markedFolder === entry.path ||
 		(options?.mode === 'save' ? existing?.path === entry.path : selected.includes(entry.path));
 	const canConfirm = $derived(
-		!!markedFolder || (options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0)
+		!!markedFolder || options?.mode === 'folder' || (options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0)
 	);
+
+	const confirmText = $derived.by(() => {
+		if (markedFolder) return t.dialog.open;
+		if (options?.mode === 'folder') return options.confirmLabel ?? t.dialog.chooseFolder;
+		if (options?.mode === 'save') return replacing && !nameIssue ? t.dialog.replace : t.dialog.save;
+		return selected.length > 1 ? t.dialog.openCount(selected.length) : t.dialog.open;
+	});
 
 	async function load(path: string) {
 		error = null;
@@ -96,6 +103,7 @@
 		if (!canConfirm) return;
 		// With a folder marked the button opens it, like in system dialogs
 		if (markedFolder) return load(markedFolder);
+		if (options?.mode === 'folder') return closeFileDialog([folder]);
 		// Replacing keeps the existing spelling (a name differing only in case would collide)
 		closeFileDialog(options?.mode === 'save' ? [join(folder, replacing && existing ? existing.name : fullName)] : selected);
 	}
@@ -155,7 +163,7 @@
 			}}
 		>
 			<div class="modal-box flex max-h-[85vh] w-11/12 max-w-2xl flex-col gap-3">
-				<h3 class="text-lg font-bold">{options.title ?? (options.mode === 'save' ? t.dialog.titleSave : t.dialog.titleOpen)}</h3>
+				<h3 class="text-lg font-bold">{options.title ?? (options.mode === 'save' ? t.dialog.titleSave : options.mode === 'folder' ? t.dialog.titleFolder : t.dialog.titleOpen)}</h3>
 
 				<div class="flex items-center gap-1">
 					<button
@@ -249,15 +257,7 @@
 						disabled={!canConfirm}
 						onclick={confirm}
 					>
-						{markedFolder
-							? t.dialog.open
-							: options.mode === 'save'
-								? replacing && !nameIssue
-									? t.dialog.replace
-									: t.dialog.save
-								: selected.length > 1
-									? t.dialog.openCount(selected.length)
-									: t.dialog.open}
+						{confirmText}
 					</button>
 				</div>
 			</div>

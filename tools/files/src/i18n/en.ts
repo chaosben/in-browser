@@ -48,7 +48,12 @@ const en = {
 		paste: 'Paste',
 		delete: 'Delete',
 		properties: 'Properties',
-		selectAll: 'Select all'
+		selectAll: 'Select all',
+		moveTo: 'Move to …',
+		moveHere: 'Move here',
+		more: (name: string) => `Actions for “${name}”`,
+		selection: 'Actions for the selection',
+		clearSelection: 'Clear selection'
 	},
 
 	list: {
@@ -91,6 +96,7 @@ const en = {
 		uploaded: (n: number) => (n === 1 ? '1 file uploaded' : `${n} files uploaded`),
 		uploading: (name: string) => `Uploading ${name} …`,
 		pasted: (n: number) => (n === 1 ? '1 item pasted' : `${n} items pasted`),
+		moved: (n: number) => (n === 1 ? '1 item moved' : `${n} items moved`),
 		zipping: 'Preparing the ZIP file …'
 	},
 

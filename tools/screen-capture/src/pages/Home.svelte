@@ -33,6 +33,8 @@
 		!navigator.storage?.getDirectory && 'Origin Private File System',
 		!navigator.mediaDevices?.getDisplayMedia && m.home.screenCapture
 	].filter(Boolean);
+	/** Phones and tablets: no screen capture in any mobile browser, the tool is for computers */
+	const desktopOnly = !navigator.mediaDevices?.getDisplayMedia && matchMedia('(pointer: coarse)').matches;
 
 	let projects = $state<Project[] | null>(null);
 	let usage = $state<string | null>(null);
@@ -175,7 +177,13 @@
 		<p class="opacity-70">{m.home.tagline}</p>
 	</header>
 
-	{#if missing.length > 0}
+	{#if desktopOnly}
+		<div role="alert" class="alert alert-info alert-vertical sm:alert-horizontal">
+			<span class="icon-[material-symbols-light--computer-outline] size-6 shrink-0" aria-hidden="true"></span>
+			<span class="flex-1">{m.home.desktopOnly}</span>
+			<a class="btn btn-sm" href={resolve('/')} data-sveltekit-reload>{m.home.allTools}</a>
+		</div>
+	{:else if missing.length > 0}
 		<div role="alert" class="alert alert-error">
 			<span>{m.home.unsupported(missing.join(', '))}</span>
 		</div>

@@ -15,7 +15,11 @@ export default defineConfig({
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure'
 	},
-	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+	projects: [
+		{ name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: '**/mobile.e2e.ts' },
+		// Phone: small screen, touch as the only pointer (Files and Text Editor are meant to work there)
+		{ name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: '**/mobile.e2e.ts' }
+	],
 	webServer: {
 		command: `npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
 		url: `http://localhost:${PORT}/`,

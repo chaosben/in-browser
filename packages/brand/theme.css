@@ -182,3 +182,36 @@ html,
 body {
 	height: 100%;
 }
+
+/*
+ * Touch screens: larger tap targets for the small controls the desktop layout uses everywhere (header, footer,
+ * menus, dialogs), without touching the layout of each tool. `pointer: coarse` = the primary pointer is a finger.
+ */
+@media (pointer: coarse) {
+	.btn-xs {
+		--size: calc(var(--size-field, 0.25rem) * 8);
+	}
+	.btn-sm {
+		--size: calc(var(--size-field, 0.25rem) * 10);
+	}
+	.menu-sm :where(li:not(.menu-title) > :not(ul, menu, details, .menu-title)) {
+		padding-block: 0.625rem;
+		font-size: 0.875rem;
+	}
+	/* Long press opens our context menu, not the browser's callout or a text selection */
+	button,
+	[role='button'],
+	[role='row'],
+	[role='gridcell'],
+	[role='option'],
+	[role='tab'],
+	[draggable='true'] {
+		-webkit-touch-callout: none;
+		user-select: none;
+	}
+}
+
+/* Notch / home indicator in the installed app (`viewport-fit=cover`) */
+body {
+	padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}

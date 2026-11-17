@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { redo, undo } from '@codemirror/commands';
 	import { gotoLine, openSearchPanel } from '@codemirror/search';
 	import type { EditorView } from '@codemirror/view';
@@ -30,6 +31,14 @@
 	let ready = $state(false);
 	let dropping = $state(false);
 	let fileInput = $state<HTMLInputElement>();
+	/** Below `md` there is no room for editor and preview side by side: one of them fills the page */
+	const narrow = new MediaQuery('max-width: 47.99rem', false);
+	let previewOnly = $state(false);
+	const previewShown = $derived(markdown && (narrow.current ? previewOnly : workspace.preview));
+	function togglePreview() {
+		if (narrow.current) previewOnly = !previewOnly;
+		else workspace.setPreview(!workspace.preview);
+	}
 
 	onMount(() => {
 		if (!supported()) return;
@@ -118,7 +127,7 @@
 	const CHECK = 'icon-[material-symbols-light--check]';
 	const viewEntries = $derived<MenuEntry[]>([
 		{ label: m.view.wrap, icon: workspace.wrap ? CHECK : undefined, run: () => workspace.setWrap(!workspace.wrap) },
-		...(markdown ? [{ label: m.view.preview, icon: workspace.preview ? CHECK : undefined, run: () => workspace.setPreview(!workspace.preview) }] : []),
+		...(markdown ? [{ label: m.view.preview, icon: previewShown ? CHECK : undefined, run: togglePreview }] : []),
 		{ separator: true },
 		{
 			label: m.view.fontLarger,
@@ -179,6 +188,10 @@
 				...(path ? [c.rename] : []),
 				c.download,
 				...(path ? [c.showInFiles] : []),
+				{ separator: true },
+				// New and open also sit on the right, which is hidden on phones
+				{ label: m.actions.new, icon: 'icon-[material-symbols-light--note-add-outline]', keys: 'Alt+N', run: () => workspace.newTab() },
+				...openEntries,
 				{ separator: true },
 				c.close
 			];
@@ -290,12 +303,26 @@
 {/snippet}
 
 {#snippet barActions()}
-	<button class="btn btn-ghost btn-sm" onclick={() => workspace.newTab()} title="{m.actions.new} (Alt+N)">
-		<span class="icon-[material-symbols-light--note-add-outline] size-5" aria-hidden="true"></span>
-		<span class="hidden lg:inline">{m.actions.new}</span>
-		<span class="sr-only lg:hidden">{m.actions.new}</span>
-	</button>
-	{@render menuButton(m.actions.open, 'icon-[material-symbols-light--folder-open-outline]', openEntries, true)}
+	<!-- With a file open, new/open are also in its menu: below `sm` they give the file name room -->
+	<div class={active ? 'hidden sm:contents' : 'contents'}>
+		<button class="btn btn-ghost btn-sm" onclick={() => workspace.newTab()} title="{m.actions.new} (Alt+N)">
+			<span class="icon-[material-symbols-light--note-add-outline] size-5" aria-hidden="true"></span>
+			<span class="hidden lg:inline">{m.actions.new}</span>
+			<span class="sr-only lg:hidden">{m.actions.new}</span>
+		</button>
+		{@render menuButton(m.actions.open, 'icon-[material-symbols-light--folder-open-outline]', openEntries, true)}
+	</div>
+	{#if markdown && narrow.current}
+		<button
+			class={['btn btn-ghost btn-sm btn-square', previewOnly && 'btn-active']}
+			onclick={togglePreview}
+			title={m.view.preview}
+			aria-label={m.view.preview}
+			aria-pressed={previewOnly}
+		>
+			<span class="icon-[material-symbols-light--preview] size-5" aria-hidden="true"></span>
+		</button>
+	{/if}
 	{#if active}
 		{@render menuButton(m.view.title, 'icon-[material-symbols-light--visibility-outline]', viewEntries, true)}
 	{/if}
@@ -390,11 +417,12 @@
 					</div>
 				{/if}
 				<div class="flex min-h-0 flex-1">
-					<div class="min-w-0 flex-1" style:--editor-font-size="{workspace.fontSize}px">
+					<!-- Narrow: the preview replaces the editor (which stays mounted) -->
+					<div class={['min-w-0 flex-1', narrow.current && previewShown && 'hidden']} style:--editor-font-size="{workspace.fontSize}px">
 						<Editor {workspace} />
 					</div>
-					{#if active && markdown && workspace.preview}
-						<div class="border-base-300 hidden min-w-0 flex-1 border-l md:block">
+					{#if active && previewShown}
+						<div class="border-base-300 min-w-0 flex-1 md:border-l">
 							<MarkdownPreview tab={active} />
 						</div>
 					{/if}

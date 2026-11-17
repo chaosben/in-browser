@@ -6,6 +6,7 @@
 	import type { Item, SortKey } from '#lib/items.js';
 	import { clipboard, type Manager } from '#lib/manager.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
+	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 
 	interface Props {
 		manager: Manager;
@@ -34,13 +35,31 @@
 		return ext ? t.kinds.fileType(ext) : t.kinds.file;
 	}
 
+	/** The current press is a finger (or pen): a tap opens, or toggles while something is selected */
+	let touch = false;
+	/** Touch: entries are selected one by one (long press starts it), taps toggle until nothing is selected */
+	const selecting = $derived(coarsePointer.current && manager.selecting && manager.selection.size > 0);
+
 	function click(e: MouseEvent, item: Item) {
 		e.stopPropagation();
+		if (touch && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+			if (selecting) {
+				manager.select(item.path, { ctrl: true });
+				if (manager.selection.size === 0) manager.selecting = false;
+			} else onopen(item);
+			return;
+		}
 		manager.select(item.path, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey });
 	}
 
 	function menu(e: MouseEvent, item: Item) {
 		e.stopPropagation();
+		// A long press (not the ⋯ button) starts the selection mode, or adds to it
+		if (touch && e.type === 'contextmenu') {
+			if (manager.selecting && manager.selection.size > 0) {
+				if (!manager.selection.has(item.path)) manager.select(item.path, { ctrl: true });
+			} else manager.selecting = true;
+		}
 		if (!manager.selection.has(item.path)) manager.select(item.path);
 		onmenu(e, item);
 	}
@@ -105,6 +124,29 @@
 	{/if}
 {/snippet}
 
+<!-- Touch: marks of the selection mode and a button with the menu of the entry (instead of right-click) -->
+{#snippet check(selected: boolean, classes: string)}
+	<span
+		class={[
+			'size-5 shrink-0',
+			selected ? 'icon-[material-symbols-light--check-box] text-selection' : 'icon-[material-symbols-light--check-box-outline-blank] opacity-60',
+			classes
+		]}
+		aria-hidden="true"
+	></span>
+{/snippet}
+
+{#snippet more(item: Item, classes: string)}
+	<button
+		class="btn btn-ghost btn-sm btn-square shrink-0 {classes}"
+		onclick={(e) => menu(e, item)}
+		title={m.menu.more(item.name)}
+		aria-label={m.menu.more(item.name)}
+	>
+		<span class="icon-[material-symbols-light--more-vert] size-5" aria-hidden="true"></span>
+	</button>
+{/snippet}
+
 {#if manager.view === 'list'}
 	<div class="border-base-300 bg-base-100 sticky top-0 z-10 flex items-center gap-3 border-b px-3 py-1 text-xs font-semibold">
 		{#each columns as column (column.key)}
@@ -135,15 +177,18 @@
 		<li
 			role="option"
 			aria-selected={selected}
-			draggable={manager.renaming !== item.path}
+			draggable={!coarsePointer.current && manager.renaming !== item.path}
 			class={[
 				'rounded-field cursor-default select-none',
-				manager.view === 'grid' ? 'flex flex-col items-center gap-1 p-2 text-center' : 'mx-1 flex items-center gap-3 px-2 py-1',
+				manager.view === 'grid'
+					? 'relative flex flex-col items-center gap-1 p-2 text-center'
+					: 'mx-1 flex items-center gap-3 px-2 py-1 pointer-coarse:py-0.5',
 				selected ? 'bg-selection/20' : 'hover:bg-base-200',
 				target === item.path && 'outline-selection outline-2',
 				manager.focus === item.path && 'ring-base-content/30 ring-1',
 				cut.has(item.path) && 'opacity-50'
 			]}
+			onpointerdown={(e) => (touch = e.pointerType !== 'mouse')}
 			onclick={(e) => click(e, item)}
 			ondblclick={() => onopen(item)}
 			oncontextmenu={(e) => menu(e, item)}
@@ -153,10 +198,13 @@
 			ondrop={(e) => drop(e, item)}
 		>
 			{#if manager.view === 'grid'}
+				{#if selecting}{@render check(selected, 'absolute top-1 left-1')}{/if}
 				<FileIcon name={item.name} kind={item.kind} size="size-12" />
 				{@render name(item, 'line-clamp-2 w-full text-sm break-words')}
+				{#if coarsePointer.current}{@render more(item, 'absolute top-0 right-0')}{/if}
 			{:else}
 				<span class="flex min-w-0 flex-1 items-center gap-2">
+					{#if selecting}{@render check(selected, '')}{/if}
 					<FileIcon name={item.name} kind={item.kind} />
 					{@render name(item, 'flex-1 truncate')}
 				</span>
@@ -165,6 +213,7 @@
 					{item.size === undefined || item.kind === 'directory' ? '' : formatSize(item.size, intlLocale)}
 				</span>
 				<span class="hidden w-44 text-sm opacity-70 md:block">{item.modified ? formatDateTime(item.modified) : ''}</span>
+				{#if coarsePointer.current}{@render more(item, '')}{/if}
 			{/if}
 		</li>
 	{/each}

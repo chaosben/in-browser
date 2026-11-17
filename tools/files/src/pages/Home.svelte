@@ -6,8 +6,10 @@
 	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
 	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
+	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { supported, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { isInside, normalize, parent, segments } from '@in-browser/files/path.js';
@@ -55,6 +57,17 @@
 	let usage = $state<string | null>(null);
 	let fileInput = $state<HTMLInputElement>();
 	let folderInput = $state<HTMLInputElement>();
+	/** Small screens: the search is a button until it is opened (or has a query) */
+	let searchOpen = $state(false);
+
+	/** Uploading whole folders needs `webkitdirectory` (missing on iOS) */
+	const folderUpload = 'webkitdirectory' in HTMLInputElement.prototype;
+	const uploadEntries = (): MenuEntry[] => [
+		{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
+		...(folderUpload
+			? [{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() }]
+			: [])
+	];
 
 	const crumbs = $derived(segments(manager.folder).map((name, i, all) => ({ name, path: '/' + all.slice(0, i + 1).join('/') })));
 
@@ -72,9 +85,14 @@
 		const menu: MenuEntry[] = [
 			{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
 			{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
-			{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
-			{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() },
+			...uploadEntries(),
 			{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', disabled: !canPaste, run: () => paste(manager) },
+			{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() },
+			{ separator: true },
+			// The view switch on the right is hidden on small screens
+			manager.view === 'list'
+				? { label: m.toolbar.grid, icon: 'icon-[material-symbols-light--grid-view-outline]', run: () => manager.setView('grid') }
+				: { label: m.toolbar.list, icon: 'icon-[material-symbols-light--view-list-outline]', run: () => manager.setView('list') },
 			{ separator: true },
 			{ label: m.menu.downloadZip, icon: 'icon-[material-symbols-light--folder-zip-outline]', run: () => downloadItems([folder]) },
 			{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', run: () => (properties = folder) }
@@ -173,6 +191,19 @@
 		}
 	}
 
+	/** “Move to …”: pick the target folder in the file dialog (touch has no dragging) */
+	async function moveTo(items: Item[]) {
+		const folder = await chooseFile({ mode: 'folder', folder: manager.folder, accept: [], title: m.menu.moveTo, confirmLabel: m.menu.moveHere });
+		if (!folder) return;
+		const done = await transfer(
+			items.map((i) => i.path),
+			folder,
+			'move'
+		);
+		if (done) toast(m.toasts.moved(done), 'success');
+		await manager.refresh();
+	}
+
 	async function dropItems(paths: string[], folder: string, copy: boolean) {
 		await transfer(paths, folder, copy ? 'copy' : 'move');
 		manager.refresh();
@@ -185,7 +216,8 @@
 		if (!(await rename(manager, item.path, name))) manager.renaming = item.path;
 	}
 
-	function menu(e: MouseEvent, item: Item | null) {
+	/** Menu of the selection (`item`) or of the free area (`null`); at the pointer, or below a button */
+	function menu(e: MouseEvent, item: Item | null, show = openContextMenu) {
 		const items = manager.selected;
 		const one = items.length === 1 ? items[0] : null;
 		const entries: MenuEntry[] = item
@@ -213,24 +245,27 @@
 						? [{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', run: () => paste(manager, one.path) }]
 						: []),
 					{ label: m.menu.duplicate, icon: 'icon-[material-symbols-light--folder-copy-outline]', run: () => duplicate(manager, items) },
+					{ label: m.menu.moveTo, icon: 'icon-[material-symbols-light--drive-file-move-outline]', run: () => moveTo(items) },
 					{ separator: true },
 					{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && (manager.renaming = one.path) },
 					{ label: m.menu.delete, icon: 'icon-[material-symbols-light--delete-outline]', keys: 'Del', run: () => removeItems(manager, items) },
 					{ separator: true },
+					...(coarsePointer.current
+						? [{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() }]
+						: []),
 					...scopeEntries(one),
 					{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', disabled: !one, run: () => (properties = one) }
 				]
 			: [
 					{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
 					{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
-					{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
-					{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() },
+					...uploadEntries(),
 					{ separator: true },
 					{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', keys: 'Ctrl+V', disabled: !clipboard.current, run: () => paste(manager) },
 					{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', keys: 'Ctrl+A', run: () => manager.selectAll() },
 					{ label: m.toolbar.refresh, icon: 'icon-[material-symbols-light--refresh]', run: () => manager.refresh() }
 				];
-		openContextMenu(e, entries);
+		show(e, entries);
 	}
 
 	/** Folders can be left out of the sync with the other devices on this device (or taken in again) */
@@ -265,7 +300,7 @@
 		if (e.key === 'F2' && items.length === 1) return handled(), (manager.renaming = items[0].path);
 		if (e.key === 'Enter' && (focused ?? items[0])) return handled(), open((focused ?? items[0])!);
 		if (e.key === ' ' && items.length === 1 && items[0].kind === 'file') return handled(), (preview = items[0]);
-		if (e.key === 'Escape') return manager.selection.clear();
+		if (e.key === 'Escape') return manager.clearSelection();
 		if (e.key === 'Backspace' || (e.altKey && e.key === 'ArrowUp')) return handled(), navigate(parent(manager.folder));
 		const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
 		if (step && !e.altKey) return handled(), manager.step(step, e.shiftKey);
@@ -299,41 +334,74 @@
 {/snippet}
 
 {#snippet barActions()}
+	{#if coarsePointer.current && manager.selecting && manager.selected.length}
+		<!-- Touch selection mode: its actions and the way out instead of search and view -->
+		<button
+			class="btn btn-ghost btn-sm btn-square"
+			onclick={(e) => menu(e, manager.selected[0], openMenuBelow)}
+			title={m.menu.selection}
+			aria-label={m.menu.selection}
+		>
+			<span class="icon-[material-symbols-light--more-vert] size-5" aria-hidden="true"></span>
+		</button>
+		<button class="btn btn-ghost btn-sm btn-square" onclick={() => manager.clearSelection()} title={m.menu.clearSelection} aria-label={m.menu.clearSelection}>
+			<span class="icon-[material-symbols-light--close] size-5" aria-hidden="true"></span>
+		</button>
+	{:else}
+		{@render search()}
+	{/if}
+{/snippet}
+
+{#snippet search()}
 	<button class="btn btn-ghost btn-sm btn-square md:hidden" onclick={() => openDevicesDialog('sync')} title={m.syncHub.open} aria-label={m.syncHub.open}>
 		<span class="icon-[material-symbols-light--sync] size-5" aria-hidden="true"></span>
 	</button>
-	<label class="input input-sm w-36 lg:w-48">
-		<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
-		<input type="search" bind:value={manager.query} placeholder={m.toolbar.search} aria-label={m.toolbar.search} />
-	</label>
-	<div class="join">
-		<button
-			class={['btn btn-sm join-item', manager.view === 'list' && 'btn-active']}
-			onclick={() => manager.setView('list')}
-			title={m.toolbar.list}
-			aria-label={m.toolbar.list}
-		>
-			<span class="icon-[material-symbols-light--view-list-outline] size-5" aria-hidden="true"></span>
+	{#if !searchOpen && !manager.query}
+		<button class="btn btn-ghost btn-sm btn-square sm:hidden" onclick={() => (searchOpen = true)} title={m.toolbar.search} aria-label={m.toolbar.search}>
+			<span class="icon-[material-symbols-light--search] size-5" aria-hidden="true"></span>
 		</button>
-		<button
-			class={['btn btn-sm join-item', manager.view === 'grid' && 'btn-active']}
-			onclick={() => manager.setView('grid')}
-			title={m.toolbar.grid}
-			aria-label={m.toolbar.grid}
-		>
-			<span class="icon-[material-symbols-light--grid-view-outline] size-5" aria-hidden="true"></span>
-		</button>
+	{/if}
+	<div class={searchOpen || manager.query ? 'contents' : 'hidden sm:contents'}>
+		<label class="input input-sm w-36 lg:w-48">
+			<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
+			<input
+				type="search"
+				bind:value={manager.query}
+				placeholder={m.toolbar.search}
+				aria-label={m.toolbar.search}
+				onblur={() => (searchOpen = false)}
+				{@attach (input) => {
+					if (searchOpen) input.focus();
+				}}
+			/>
+		</label>
+	</div>
+	<div class="hidden sm:block">
+		<div class="join">
+			<button
+				class={['btn btn-sm join-item', manager.view === 'list' && 'btn-active']}
+				onclick={() => manager.setView('list')}
+				title={m.toolbar.list}
+				aria-label={m.toolbar.list}
+			>
+				<span class="icon-[material-symbols-light--view-list-outline] size-5" aria-hidden="true"></span>
+			</button>
+			<button
+				class={['btn btn-sm join-item', manager.view === 'grid' && 'btn-active']}
+				onclick={() => manager.setView('grid')}
+				title={m.toolbar.grid}
+				aria-label={m.toolbar.grid}
+			>
+				<span class="icon-[material-symbols-light--grid-view-outline] size-5" aria-hidden="true"></span>
+			</button>
+		</div>
 	</div>
 {/snippet}
 
 {#snippet barPrimary()}
 	<button
 		class="btn btn-primary btn-sm"
-		onclick={(e) =>
-			openMenuBelow(e, [
-				{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
-				{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() }
-			])}
+		onclick={(e) => openMenuBelow(e, uploadEntries())}
 	>
 		<span class="icon-[material-symbols-light--upload] size-5" aria-hidden="true"></span>
 		{m.toolbar.upload}
@@ -379,7 +447,7 @@
 			<div
 				class="relative min-h-0 flex-1 overflow-auto"
 				role="presentation"
-				onclick={() => manager.selection.clear()}
+				onclick={() => manager.clearSelection()}
 				oncontextmenu={(e) => menu(e, null)}
 				ondragover={areaDragOver}
 				ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}

@@ -73,11 +73,12 @@
 		{#each brandBar.crumbs as crumb, i (i)}
 			{@const last = i === brandBar.crumbs.length - 1}
 			<span class="opacity-40" aria-hidden="true">/</span>
-			<span class={['flex min-w-0 items-center gap-1', last ? 'shrink-0' : 'shrink']}>
+			<!-- Earlier levels give way first; on narrow screens the current one truncates too -->
+			<span class={['flex min-w-0 items-center gap-1', last && brandBar.renaming ? 'flex-1' : last ? 'shrink' : 'shrink-[4]']}>
 				{#if last && crumb.rename && brandBar.renaming}
 					{@const rename = crumb.rename}
 					<input
-						class="input input-xs w-56 font-semibold"
+						class="input input-xs w-full max-w-56 min-w-24 font-semibold"
 						value={crumb.label}
 						aria-label={crumb.label}
 						{@attach renameField}
@@ -101,7 +102,7 @@
 					<span class={['truncate', last && 'font-semibold']}>{crumb.label}</span>
 				{/if}
 				{#if crumb.menu?.length}{@render menuButton(crumb.label, crumb.menu)}{/if}
-				{#if crumb.status}<span class="shrink-0 text-xs opacity-50">{crumb.status}</span>{/if}
+				{#if crumb.status}<span class="hidden shrink-0 text-xs opacity-50 sm:inline">{crumb.status}</span>{/if}
 			</span>
 		{/each}
 		{#if brandBar.primary}

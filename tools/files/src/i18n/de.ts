@@ -48,7 +48,12 @@ const de: Messages = {
 		paste: 'Einfügen',
 		delete: 'Löschen',
 		properties: 'Eigenschaften',
-		selectAll: 'Alles auswählen'
+		selectAll: 'Alles auswählen',
+		moveTo: 'Verschieben nach …',
+		moveHere: 'Hierher verschieben',
+		more: (name) => `Aktionen für „${name}“`,
+		selection: 'Aktionen für die Auswahl',
+		clearSelection: 'Auswahl aufheben'
 	},
 
 	list: {
@@ -91,6 +96,7 @@ const de: Messages = {
 		uploaded: (n) => (n === 1 ? '1 Datei hochgeladen' : `${n} Dateien hochgeladen`),
 		uploading: (name) => `${name} wird hochgeladen …`,
 		pasted: (n) => (n === 1 ? '1 Element eingefügt' : `${n} Elemente eingefügt`),
+		moved: (n) => (n === 1 ? '1 Element verschoben' : `${n} Elemente verschoben`),
 		zipping: 'Die ZIP-Datei wird vorbereitet …'
 	},
 

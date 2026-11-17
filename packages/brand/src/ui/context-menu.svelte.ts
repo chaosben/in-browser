@@ -62,3 +62,86 @@ export function openMenuAbove(e: MouseEvent, entries: MenuEntry[]) {
 	const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 	show(rect.left, rect.top - 2, entries, true);
 }
+
+/** Hold time of a touch press that opens the context menu */
+export const LONG_PRESS_MS = 500;
+/** Movement (px) that turns a press into a scroll or drag */
+const LONG_PRESS_SLOP = 10;
+
+/**
+ * Long press with a finger fires `contextmenu` at the pressed element, so every `oncontextmenu` handler also works
+ * on touch screens (iOS Safari fires none on its own). When Android fires its own `contextmenu` first, that one is
+ * used; when ours comes first, the native one and the click on release are swallowed. A press nobody handles
+ * (`preventDefault`) changes nothing, so text selection etc. stay as they are. Installed once by `ContextMenu.svelte`.
+ */
+export function installLongPress(target: Window = window): () => void {
+	let press: { id: number; x: number; y: number; el: Element; timer: ReturnType<typeof setTimeout> } | undefined;
+	/** The press opened a menu: swallow further `contextmenu` and the click until the next press */
+	let handled = false;
+	/** Our own `contextmenu` events (the others come from the browser) */
+	const ours = new WeakSet<Event>();
+
+	const cancel = () => {
+		if (press) clearTimeout(press.timer);
+		press = undefined;
+	};
+
+	const fire = () => {
+		if (!press) return;
+		const { x, y, el } = press;
+		press = undefined;
+		const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 2 });
+		ours.add(event);
+		if (!el.dispatchEvent(event)) {
+			handled = true;
+			target.getSelection()?.removeAllRanges();
+		}
+	};
+
+	const down = (e: PointerEvent) => {
+		cancel();
+		handled = false;
+		if (e.pointerType !== 'touch' || !e.isPrimary || !(e.target instanceof Element)) return;
+		press = { id: e.pointerId, x: e.clientX, y: e.clientY, el: e.target, timer: setTimeout(fire, LONG_PRESS_MS) };
+	};
+
+	const move = (e: PointerEvent) => {
+		if (press?.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) > LONG_PRESS_SLOP) cancel();
+	};
+
+	const end = (e: PointerEvent) => {
+		if (press?.id === e.pointerId) cancel();
+	};
+
+	const native = (e: MouseEvent) => {
+		if (ours.has(e)) return;
+		if (handled) {
+			e.preventDefault();
+			e.stopImmediatePropagation();
+		} else cancel(); // the browser's own long press came first
+	};
+
+	const click = (e: MouseEvent) => {
+		if (!handled) return;
+		handled = false;
+		e.preventDefault();
+		e.stopImmediatePropagation();
+	};
+
+	const options = { capture: true };
+	target.addEventListener('pointerdown', down, options);
+	target.addEventListener('pointermove', move, options);
+	target.addEventListener('pointerup', end, options);
+	target.addEventListener('pointercancel', end, options);
+	target.addEventListener('contextmenu', native, options);
+	target.addEventListener('click', click, options);
+	return () => {
+		cancel();
+		target.removeEventListener('pointerdown', down, options);
+		target.removeEventListener('pointermove', move, options);
+		target.removeEventListener('pointerup', end, options);
+		target.removeEventListener('pointercancel', end, options);
+		target.removeEventListener('contextmenu', native, options);
+		target.removeEventListener('click', click, options);
+	};
+}

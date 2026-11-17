@@ -10,6 +10,7 @@
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
+	import FileDialog from '@in-browser/files/FileDialog.svelte';
 	import SyncIndicator from '@in-browser/files/SyncIndicator.svelte';
 	import { startSync } from '@in-browser/files/sync/sync.svelte.js';
 	import { BRAND } from '#lib/brand.js';
@@ -49,4 +50,5 @@
 <Toasts />
 <ConfirmDialog />
 <ContextMenu />
+<FileDialog />
 <UpdateBanner />

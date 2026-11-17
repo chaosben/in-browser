@@ -26,6 +26,9 @@ const en = {
 
 	home: {
 		tagline: 'Record your screen, edit it and export it as MP4, WebM or GIF – entirely in the browser, nothing leaves your computer.',
+		desktopOnly:
+			'Screen Capture needs a computer: phones and tablets can’t record their screen in the browser. Open this page on your computer (Chrome or Edge recommended).',
+		allTools: 'Show all tools',
 		unsupported: (missing: string) =>
 			`This browser does not support everything the app needs (${missing}). Please use a current desktop browser (recommended: Chrome or Edge).`,
 		screenCapture: 'Screen capture',

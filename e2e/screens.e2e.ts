@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { devices, test } from '@playwright/test';
 
 // Screenshots of every tool in both themes for a visual check, not a test: `SCREENS=dir npx playwright test screens`
 
@@ -77,5 +77,41 @@ for (const scheme of ['light', 'dark'] as const) {
 		await b.screenshot({ path: `${DIR}/phone-devices-${scheme}.png` });
 		await ca.close();
 		await cb.close();
+	});
+}
+
+// Files and Text Editor on a phone (touch): list with ⋯ buttons, the menu of an entry, selection mode, editor, preview
+for (const scheme of ['light', 'dark'] as const) {
+	test(`phone ${scheme}`, async ({ browser }) => {
+		const context = await browser.newContext({ ...devices['Pixel 7'], colorScheme: scheme });
+		const page = await context.newPage();
+		await page.goto('/files');
+		await page.evaluate(async () => {
+			const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files', { create: true });
+			for (const name of ['Documents', 'Photos', 'Projects']) await root.getDirectoryHandle(name, { create: true });
+			const writable = await (await root.getFileHandle('Notes.md', { create: true })).createWritable();
+			await writable.write('# Notes\n\nA first line that is long enough to wrap on a phone.\n\n- one\n- two\n');
+			await writable.close();
+		});
+		await page.reload();
+		await page.getByRole('option', { name: 'Notes.md' }).waitFor();
+		await page.screenshot({ path: `${DIR}/phone-files-${scheme}.png` });
+		await page.getByRole('button', { name: 'Actions for “Photos”' }).tap();
+		await page.screenshot({ path: `${DIR}/phone-files-menu-${scheme}.png` });
+		await page.getByRole('menuitem', { name: 'Select all' }).tap();
+		await page.screenshot({ path: `${DIR}/phone-files-selection-${scheme}.png` });
+		await page.goto('/text-editor?path=%2FNotes.md');
+		await page.locator('.cm-content').waitFor();
+		await page.waitForTimeout(300);
+		await page.screenshot({ path: `${DIR}/phone-editor-${scheme}.png` });
+		await page.getByRole('button', { name: 'Markdown preview' }).tap();
+		await page.waitForTimeout(300);
+		await page.screenshot({ path: `${DIR}/phone-preview-${scheme}.png` });
+		// Phones have no screen capture (Chromium on the desktop does)
+		await page.addInitScript(() => delete (MediaDevices.prototype as Partial<MediaDevices>).getDisplayMedia);
+		await page.goto('/screen-capture');
+		await page.getByRole('alert').waitFor();
+		await page.screenshot({ path: `${DIR}/phone-screen-capture-${scheme}.png` });
+		await context.close();
 	});
 }
