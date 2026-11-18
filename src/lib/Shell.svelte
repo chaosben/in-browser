@@ -1,16 +1,22 @@
 <script lang="ts">
-	// Frame of the overview pages (home page and error page): header, footer, metadata, language switch
+	// Frame of the overview pages (home page and error page): header, footer, metadata, language switch, PWA
+	// (the launcher installs as the app of the whole suite)
 	import { onMount, type Snippet } from 'svelte';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
 	import { sourceUrl } from '@in-browser/brand/build.js';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
+	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
+	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import { applyBrowserLocale, lang, m } from '#lib/i18n/index.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
 	// Prerendered in English; if the browser language differs, {#key} re-renders everything once
-	onMount(applyBrowserLocale);
+	onMount(() => {
+		applyBrowserLocale();
+		initPwa();
+	});
 </script>
 
 <svelte:head>
@@ -21,6 +27,7 @@
 	<meta name="theme-color" media="(prefers-color-scheme: light)" content={BRAND.themeColor.light} />
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content={BRAND.themeColor.dark} />
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+	<link rel="manifest" href="/manifest.webmanifest" />
 	{#key lang.current}
 		<title>{BRAND.suite} – {m.brand.claim}</title>
 		<meta name="description" content={m.brand.description} />
@@ -47,3 +54,4 @@
 		</footer>
 	</div>
 {/key}
+<UpdateBanner />

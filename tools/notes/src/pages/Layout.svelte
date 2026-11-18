@@ -6,6 +6,7 @@
 	import BrandFooter from '@in-browser/brand/BrandFooter.svelte';
 	import { setLocale } from '@in-browser/brand/i18n/index.svelte.js';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
+	import { recordToolUse } from '@in-browser/brand/recent-tools.js';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import FileDialog from '@in-browser/files/FileDialog.svelte';
 	import SyncIndicator from '@in-browser/files/SyncIndicator.svelte';
@@ -21,6 +22,8 @@
 	// Pass the language on to the brand components and the document
 	setLocale(locale);
 	initPwa();
+	// For “Recently used” on the overview
+	recordToolUse(resolve('/notes'));
 	// Keeps the shared file system in sync with the folder on disk while the tool is open (if connected in Files)
 	startSync();
 </script>

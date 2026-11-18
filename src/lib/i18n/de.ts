@@ -10,38 +10,27 @@ const de: Messages = {
 	home: {
 		title: 'Werkzeuge, die komplett im Browser laufen',
 		tagline: 'Keine Uploads, kein Konto – deine Dateien bleiben auf deinem Gerät.',
-		toolsHeading: 'Tools',
-		open: 'Öffnen',
-		openTool: (name) => `${name} öffnen`,
+		searchLabel: 'Tools suchen',
+		searchPlaceholder: 'Tools suchen …',
+		noMatch: (query) => `Kein Tool passt zu „${query}“.`,
+		recent: 'Zuletzt benutzt',
 		principlesHeading: 'Warum in-browser?'
 	},
 
+	categories: {
+		media: 'Medien',
+		writing: 'Schreiben',
+		drawing: 'Zeichnen',
+		organize: 'Organisieren'
+	},
+
 	principles: {
-		local: {
-			title: 'Keine Uploads',
-			text: 'Alles wird direkt auf deinem Gerät verarbeitet. Deine Dateien landen nie auf einem Server.'
-		},
-		account: {
-			title: 'Kein Konto',
-			text: 'Seite öffnen und loslegen – ohne Anmeldung, ohne E-Mail-Adresse.'
-		},
-		tracking: {
-			title: 'Kein Tracking',
-			text: 'Keine Cookies, keine Analyse-Dienste, keine Werbung.'
-		},
-		devices: {
-			title: 'Abgleich, wie du willst',
-			text: 'Deine Geräte – Handy, Laptop, Tablet – tauschen deine Dateien direkt und verschlüsselt aus, ohne Cloud. Oder du gleichst sie mit einem Ordner auf deinem Rechner ab und lässt dein eigenes Sync-Tool (Syncthing, Nextcloud …) sie weitertragen.'
-		},
-		offline: {
-			title: 'Installierbar & offline',
-			text: 'Jedes Tool lässt sich als App installieren und funktioniert danach auch ohne Internet.'
-		},
-		openSource: {
-			title: 'Open Source',
-			text: 'Der gesamte Code ist öffentlich unter MIT-Lizenz – prüf selbst, was mit deinen Dateien passiert.',
-			link: 'Quellcode auf GitHub'
-		}
+		local: { title: 'Keine Uploads', text: 'deine Dateien bleiben auf deinem Gerät' },
+		account: { title: 'Kein Konto', text: 'Seite öffnen und loslegen' },
+		tracking: { title: 'Kein Tracking', text: 'keine Cookies, keine Werbung' },
+		devices: { title: 'Abgleich ohne Cloud', text: 'direkt zwischen deinen Geräten' },
+		offline: { title: 'Installierbar & offline', text: 'läuft auch ohne Internet' },
+		openSource: { title: 'Open Source', text: 'MIT-Lizenz', link: 'Quellcode auf GitHub' }
 	},
 
 	footer: {
@@ -49,64 +38,30 @@ const de: Messages = {
 		licenses: 'Lizenzen'
 	},
 
-	requiresHint: {
-		desktopBrowser: 'Läuft in aktuellen Desktop-Browsern – am besten in Chrome oder Edge',
-		anyBrowser: 'Läuft in aktuellen Browsern – der Abgleich mit einem Ordner braucht Chrome oder Edge'
-	},
-
 	requires: {
-		desktopBrowser: 'Desktop-Browser',
-		anyBrowser: 'Jeder aktuelle Browser'
+		displayCapture: { legend: 'Läuft nur am Computer', label: '(nur am Computer)' }
 	},
 
 	tools: {
 		screenCapture: {
 			name: 'Screen Capture',
-			description:
-				'Bildschirm aufnehmen, auf mehreren Spuren bearbeiten und als MP4, WebM oder GIF exportieren – wie ein kleines Camtasia im Browser.',
-			features: [
-				'Bildschirm, Webcam und Mikrofon gleichzeitig aufnehmen – als verknüpfte, getrennte Spuren',
-				'Bearbeiten auf mehreren Spuren: Bild im Bild, Musik und Sprecher mit eigener Lautstärke',
-				'Schneiden, Standbilder und Pan & Zoom – synchron über alle Spuren',
-				'Pfeile, Rahmen, Text, Textmarker, Spotlight und Weichzeichner',
-				'Export als MP4 oder WebM in wählbarer Auflösung und Qualität oder als GIF'
-			]
+			summary: 'Bildschirm aufnehmen, bearbeiten und als Video oder GIF exportieren',
+			keywords: 'aufnehmen, aufzeichnen, bildschirmaufnahme, bildschirmvideo, video, webcam, mikrofon, schneiden, anleitung'
 		},
 		files: {
 			name: 'Files',
-			description:
-				'Der Dateimanager für alles, was du mit den Tools von in-browser erstellst – und die Brücke zu einem Ordner auf deinem Rechner.',
-			features: [
-				'Ordner, Umbenennen, Kopieren, Verschieben, Löschen – mit Drag & Drop und Rechtsklick',
-				'Dateien und Ordner hochladen, als Datei oder ZIP herunterladen',
-				'Vorschau für Bilder, Videos, Ton und Text',
-				'Öffnet Projekte direkt in ihrem Tool',
-				'Gleicht direkt mit deinen anderen Geräten ab – ohne Cloud, ohne Konto',
-				'Gleicht alles mit einem Ordner auf deinem Rechner ab – die neuere Fassung gewinnt'
-			]
+			summary: 'Deine Dateien verwalten, abgleichen und herunterladen',
+			keywords: 'dateien, dateimanager, explorer, ordner, abgleich, synchronisieren, hochladen, herunterladen, vorschau, geräte'
 		},
 		textEditor: {
 			name: 'Text Editor',
-			description:
-				'Notizen, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Tabs, Syntax-Hervorhebung und Live-Vorschau für Markdown.',
-			features: [
-				'Mehrere Dateien nebeneinander in Tabs, ungespeicherte Änderungen überstehen das Schließen des Browsers',
-				'Syntax-Hervorhebung für Markdown, JSON, YAML, HTML, CSS, JavaScript, Python, Shell und mehr',
-				'Suchen und Ersetzen, mehrere Cursor, Zeilenumbruch',
-				'Behält Kodierung und Zeilenenden – UTF-8, UTF-16 und Windows-1252, mit oder ohne BOM',
-				'Öffnet Textdateien aus Files per Doppelklick und merkt, wenn sie woanders geändert werden'
-			]
+			summary: 'Markdown, JSON, YAML und Code mit Syntax-Hervorhebung bearbeiten',
+			keywords: 'texteditor, textdatei, notizblock, markdown, json, yaml, csv, code, quelltext'
 		},
 		notes: {
 			name: 'Notes',
-			description: 'Handschriftliche Notizbücher – schreib und skizziere mit Stift, Finger oder Maus wie auf Papier.',
-			features: [
-				'Stift mit Druckstärke, Textmarker und Radierer, Farben und Stärken',
-				'Seiten mit blankem, liniertem, kariertem oder gepunktetem Papier',
-				'Handballenerkennung: Sobald du einen Stift nutzt, verschieben und zoomen Finger nur noch die Seite',
-				'Schnelle Tinte: direkt im Eingabe-Event gezeichnet, mit der Tintenspur des Betriebssystems, wo der Browser sie anbietet',
-				'Notizbücher gleichen sich mit deinen anderen Geräten ab – ohne Cloud, ohne Konto'
-			]
+			summary: 'Handschriftliche Notizbücher für Stift, Finger oder Maus',
+			keywords: 'notizen, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen, pdf, kommentieren, tafel'
 		}
 	},
 

@@ -8,6 +8,7 @@
 	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
 	import { setLocale } from '@in-browser/brand/i18n/index.svelte.js';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
+	import { recordToolUse } from '@in-browser/brand/recent-tools.js';
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import FileDialog from '@in-browser/files/FileDialog.svelte';
@@ -21,6 +22,8 @@
 	// Pass the language on to the brand components and the document
 	setLocale(locale);
 	initPwa();
+	// For “Recently used” on the overview
+	recordToolUse(resolve('/files'));
 	startSync();
 </script>
 

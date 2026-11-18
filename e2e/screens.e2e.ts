@@ -18,6 +18,22 @@ for (const path of ['/', '/files', '/text-editor', '/screen-capture', '/notes'])
 	}
 }
 
+// The launcher on a phone, with recently used tools and Screen Capture's badge (phones have no screen capture)
+for (const scheme of ['light', 'dark'] as const) {
+	test(`phone launcher ${scheme}`, async ({ browser }) => {
+		const context = await browser.newContext({ ...devices['Pixel 7'], colorScheme: scheme });
+		await context.addInitScript(() => {
+			delete (MediaDevices.prototype as Partial<MediaDevices>).getDisplayMedia;
+			localStorage.setItem('recent-tools', JSON.stringify(['/notes', '/files', '/text-editor']));
+		});
+		const page = await context.newPage();
+		await page.goto('/');
+		await page.getByRole('region', { name: 'Recently used' }).waitFor();
+		await page.screenshot({ path: `${DIR}/phone-launcher-${scheme}.png`, fullPage: true });
+		await context.close();
+	});
+}
+
 // The device dialogs and panels, with two paired devices
 for (const scheme of ['light', 'dark'] as const) {
 	test(`devices ${scheme}`, async ({ browser }) => {

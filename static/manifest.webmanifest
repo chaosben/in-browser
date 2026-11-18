@@ -1,0 +1,23 @@
+{
+	"id": "/",
+	"name": "in-browser",
+	"short_name": "in-browser",
+	"description": "Tools that run entirely in your browser: no uploads, no account – your files stay on your device.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"launch_handler": { "client_mode": "focus-existing" },
+	"categories": ["productivity", "utilities"],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+	],
+	"shortcuts": [
+		{ "name": "Files", "url": "/files", "icons": [{ "src": "/files/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+		{ "name": "Notes", "url": "/notes", "icons": [{ "src": "/notes/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+		{ "name": "Text Editor", "url": "/text-editor", "icons": [{ "src": "/text-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+		{ "name": "Screen Capture", "url": "/screen-capture", "icons": [{ "src": "/screen-capture/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }
+	]
+}

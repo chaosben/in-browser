@@ -1,5 +1,5 @@
-// Service Worker of the whole suite: makes the tools installable and usable offline. It is registered by the
-// tools (`initPwa()` from @in-browser/brand), never by the overview, but covers the whole origin.
+// Service Worker of the whole suite: makes the launcher (the overview) and the tools installable and usable
+// offline. It is registered by every page via `initPwa()` from @in-browser/brand and covers the whole origin.
 // - Build files, prerendered pages and `static/` are precached on install (one cache per version).
 // - Navigations: network first, offline the cached page of that path (every page is prerendered).
 // - A new version waits until a page activates it via the `SKIP_WAITING` message (user clicks "Reload"), or

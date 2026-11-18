@@ -10,38 +10,29 @@ const en = {
 	home: {
 		title: 'Tools that run entirely in your browser',
 		tagline: 'No uploads, no account – your files stay on your device.',
-		toolsHeading: 'Tools',
-		open: 'Open',
-		openTool: (name: string) => `Open ${name}`,
+		searchLabel: 'Search tools',
+		searchPlaceholder: 'Search tools …',
+		noMatch: (query: string) => `No tool matches “${query}”.`,
+		recent: 'Recently used',
 		principlesHeading: 'Why in-browser?'
 	},
 
+	/** Sections of the launcher; a tool appears in its main category, the others only help the search */
+	categories: {
+		media: 'Media',
+		writing: 'Writing',
+		drawing: 'Drawing',
+		organize: 'Organize'
+	},
+
+	/** Short points of the bar below the tools: keyword in bold, then a few words */
 	principles: {
-		local: {
-			title: 'No uploads',
-			text: 'Everything is processed right on your device. Your files never end up on a server.'
-		},
-		account: {
-			title: 'No account',
-			text: 'Open the page and get started – no sign-up, no email address.'
-		},
-		tracking: {
-			title: 'No tracking',
-			text: 'No cookies, no analytics, no ads.'
-		},
-		devices: {
-			title: 'Sync your way',
-			text: 'Your devices – phone, laptop, tablet – exchange your files directly and encrypted, without a cloud. Or keep them in sync with a folder on your computer and let your own sync tool (Syncthing, Nextcloud …) carry them on.'
-		},
-		offline: {
-			title: 'Installable & offline',
-			text: 'Every tool can be installed as an app and then works without an internet connection, too.'
-		},
-		openSource: {
-			title: 'Open source',
-			text: 'All code is public under the MIT license – check for yourself what happens with your files.',
-			link: 'Source code on GitHub'
-		}
+		local: { title: 'No uploads', text: 'your files stay on your device' },
+		account: { title: 'No account', text: 'open the page and get started' },
+		tracking: { title: 'No tracking', text: 'no cookies, no ads' },
+		devices: { title: 'Sync without a cloud', text: 'directly between your devices' },
+		offline: { title: 'Installable & offline', text: 'works without internet, too' },
+		openSource: { title: 'Open source', text: 'MIT license', link: 'Source code on GitHub' }
 	},
 
 	footer: {
@@ -50,65 +41,32 @@ const en = {
 		licenses: 'Licenses'
 	},
 
-	/** Details shown as tooltip of the requirement badge */
-	requiresHint: {
-		desktopBrowser: 'Runs in current desktop browsers – works best in Chrome or Edge',
-		anyBrowser: 'Runs in current browsers – syncing with a folder needs Chrome or Edge'
-	},
-
+	/** What a tool needs and this browser lacks: badge legend and the hidden text at the tool name */
 	requires: {
-		desktopBrowser: 'Desktop browser',
-		anyBrowser: 'Any current browser'
+		displayCapture: { legend: 'Works on a computer only', label: '(computer only)' }
 	},
 
+	/** `summary`: one line on the launcher; `keywords`: synonyms for the search (not shown) */
 	tools: {
 		screenCapture: {
 			name: 'Screen Capture',
-			description:
-				'Record your screen, edit it on multiple tracks and export it as MP4, WebM or GIF – like a small Camtasia in your browser.',
-			features: [
-				'Record screen, webcam and microphone at once – as linked, separate tracks',
-				'Multi-track editing: picture in picture, music and voice-over with their own volume',
-				'Cut, still frames and pan & zoom that stay in sync across all tracks',
-				'Arrows, frames, text, highlighter, spotlight and blur',
-				'Export as MP4 or WebM in your choice of resolution and quality, or as GIF'
-			]
+			summary: 'Record your screen, edit it and export it as video or GIF',
+			keywords: 'record, recorder, screen recorder, screencast, video, webcam, microphone, gif, mp4, webm, tutorial'
 		},
 		files: {
 			name: 'Files',
-			description:
-				'The file manager for everything you create with the in-browser tools – and the bridge to a folder on your computer.',
-			features: [
-				'Folders, rename, copy, move, delete – with drag & drop and right-click',
-				'Upload files and folders, download as file or ZIP',
-				'Preview of images, videos, audio and text',
-				'Opens projects directly in their tool',
-				'Syncs directly with your other devices – no cloud, no account',
-				'Keeps everything in sync with a folder on your computer – the newer version wins'
-			]
+			summary: 'Manage, sync and download your files',
+			keywords: 'file manager, explorer, folder, sync, upload, download, zip, preview, devices'
 		},
 		textEditor: {
 			name: 'Text Editor',
-			description:
-				'Edit notes, Markdown, JSON, YAML, CSV and code – with tabs, syntax highlighting and a live Markdown preview.',
-			features: [
-				'Several files side by side in tabs, unsaved changes survive closing the browser',
-				'Syntax highlighting for Markdown, JSON, YAML, HTML, CSS, JavaScript, Python, shell and more',
-				'Find and replace, multiple cursors, word wrap',
-				'Keeps the encoding and line endings – UTF-8, UTF-16 and Windows-1252, with or without BOM',
-				'Opens text files from Files with a double-click and notices when they change elsewhere'
-			]
+			summary: 'Edit Markdown, JSON, YAML and code with syntax highlighting',
+			keywords: 'text, editor, notepad, markdown, json, yaml, csv, html, css, javascript, code, txt'
 		},
 		notes: {
 			name: 'Notes',
-			description: 'Handwritten notebooks – write and sketch with a stylus, a finger or the mouse, like on paper.',
-			features: [
-				'Pen with pressure, highlighter and eraser, colors and thicknesses',
-				'Pages with blank, lined, grid or dotted paper',
-				'Palm rejection: once you use a stylus, fingers only move and zoom the page',
-				'Fast ink: drawn in the input event, with the operating system’s ink trail where the browser offers it',
-				'Notebooks sync with your other devices – no cloud, no account'
-			]
+			summary: 'Handwritten notebooks for stylus, finger or mouse',
+			keywords: 'handwriting, notebook, stylus, pen, sketch, draw, pdf, annotate, whiteboard'
 		}
 	},
 

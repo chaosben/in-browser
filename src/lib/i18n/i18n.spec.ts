@@ -16,7 +16,7 @@ describe('translations', () => {
 		for (const tree of [de, en]) {
 			for (const key of keys(tree as unknown as Tree)) expect(key).not.toMatch(/:undefined$/);
 		}
-		expect(en.home.openTool('Screen Capture')).toBe('Open Screen Capture');
-		expect(de.home.openTool('Screen Capture')).toBe('Screen Capture öffnen');
+		expect(en.home.noMatch('xyz')).toBe('No tool matches “xyz”.');
+		expect(de.home.noMatch('xyz')).toBe('Kein Tool passt zu „xyz“.');
 	});
 });
