@@ -1,3 +1,4 @@
+import help from './help.de.js';
 import type { Messages } from './index.js';
 
 const de: Messages = {
@@ -152,7 +153,7 @@ const de: Messages = {
 		excludedCount: (n) => (n === 1 ? '1 Ordner wird auf diesem Gerät nicht abgeglichen' : `${n} Ordner werden auf diesem Gerät nicht abgeglichen`),
 		pendingDeletes: (n) => `${n} Dateien wurden auf einem anderen Gerät gelöscht. Hier auch löschen?`,
 		applyDeletes: 'Hier auch löschen',
-		runsWhileOpen: 'Abgeglichen wird, solange in-browser auf mindestens zwei Geräten geöffnet ist – oder ständig mit einer p2p-node auf einem Rechner oder Heimserver.',
+		runsWhileOpen: 'Abgeglichen wird, solange in-browser auf mindestens zwei Geräten geöffnet ist – oder ständig mit einem p2p-node auf einem Rechner oder Heimserver.',
 		p2pNode: 'p2p-node einrichten',
 		removeTitle: (name) => `„${name}“ entfernen?`,
 		removeMessage:
@@ -224,8 +225,9 @@ const de: Messages = {
 			['Abgleich', 'Drei-Wege-Vergleich pro Gerätepaar gegen den gespeicherten Stand des letzten Abgleichs; das Gerät mit der kleineren ID steuert. Die neuere Fassung gewinnt, die andere wird zur Konfliktkopie; SHA-256 vermeidet unnötige Übertragungen; viele Löschungen auf einmal warten auf Bestätigung (auf jedem der beiden Geräte). Direkt vor dem Überschreiben oder Löschen wird der Stand mit dem geplanten verglichen – was sich inzwischen geändert hat, bleibt unangetastet. Löschungen und Ersetzungen anderer Geräte werden übernommen (wie bei Syncthing); was du löschst, kommt in den Papierkorb-Ordner, der wie jeder andere abgeglichen wird. Umbenennungen nur in Groß-/Kleinschreibung bleiben Umbenennungen. Ordnerauswahl = Schnittmenge beider Geräte, löst nie ein Löschen aus.'],
 			['Wissensstand', 'Änderungsprotokoll mit laufenden Nummern pro Gerät und Versionsvektoren: Grundlage der Hinweise auf Geräte, die wahrscheinlich nicht aktuell sind, auch wenn sie Änderungen indirekt bekommen haben.'],
 			['Speicher', 'Dateien im OPFS (dauerhafte Speicherung angefordert); Schlüssel, Mitgliederliste, Abgleichstand und Vektoren in IndexedDB.'],
-			['Grenzen', 'Läuft nur in einem offenen Tab, am Handy nur im Vordergrund. Was ein entferntes Gerät schon hat, behält es. Eine p2p-node hebt die erste Grenze auf: ein Node-Prozess (WebRTC über werift), der als Gerät mitmacht und die Dateien in einem Ordner auf der Festplatte hält.']
+			['Grenzen', 'Läuft nur in einem offenen Tab, am Handy nur im Vordergrund. Was ein entferntes Gerät schon hat, behält es. Ein p2p-node hebt die erste Grenze auf: ein Node-Prozess (WebRTC über werift), der als Gerät mitmacht und die Dateien in einem Ordner auf der Festplatte hält.']
 		],
+		more: 'Mehr zum Abgleich in der Hilfe',
 		p2pNode: 'p2p-node: ein ständig laufendes Gerät für deinen Rechner oder Heimserver',
 		source: 'Quellcode des P2P-Moduls',
 		diagnostics: 'Diagnose',
@@ -301,7 +303,9 @@ const de: Messages = {
 		emptyMessage: (n) => (n === 1 ? '1 Element wird endgültig gelöscht, auf all deinen Geräten.' : `${n} Elemente werden endgültig gelöscht, auf all deinen Geräten.`),
 		more: (n) => `${n} weitere – stelle zuerst einige wieder her oder lösche sie.`,
 		close: 'Schließen'
-	}
+	},
+
+	help
 };
 
 export default de;

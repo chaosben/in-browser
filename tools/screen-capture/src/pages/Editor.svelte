@@ -9,7 +9,6 @@
 	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
 	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
-	import HelpWindow from '#lib/components/HelpWindow.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import OverlayEditor from '#lib/components/OverlayEditor.svelte';
 	import RecordDialog from '#lib/components/RecordDialog.svelte';
@@ -70,7 +69,6 @@
 	} from '#lib/timeline/ops.js';
 	import { toolState } from '#lib/tools/state.svelte.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
-	import { helpState } from '#lib/ui/help.svelte.js';
 	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { clipboard } from '#lib/project/clipboard.svelte.js';
 	import { prepareMedia, type ItemsWithMedia } from '#lib/project/transfer.js';
@@ -239,7 +237,7 @@
 		})
 	);
 
-	// Project name with all its actions on the left of the BrandBar, export right after it, help on the right
+	// Project name with all its actions on the left of the BrandBar, export right after it (help: the layout)
 	$effect(() => {
 		if (!editor || !player) return;
 		const ed = editor;
@@ -257,8 +255,7 @@
 					]
 				}
 			],
-			primary: barPrimary,
-			actions: barActions
+			primary: barPrimary
 		});
 	});
 
@@ -699,11 +696,6 @@
 
 	function onKey(e: KeyboardEvent) {
 		if (!editor || !player || dialog) return;
-		if (e.key === 'F1') {
-			// Also from within fields; not the browser's own help
-			e.preventDefault();
-			return helpState.toggle();
-		}
 		const target = e.target as HTMLElement;
 		if (target.closest('input, select, textarea, [contenteditable]')) return;
 		const mod = e.ctrlKey || e.metaKey;
@@ -741,8 +733,6 @@
 			arrange(e.shiftKey ? (up ? bringToFront : sendToBack) : up ? bringForward : sendBackward);
 		} else if (mod) {
 			return;
-		} else if (e.key === '?') {
-			helpState.toggle();
 		} else if (e.key === ' ' || key === 'k') {
 			e.preventDefault();
 			player.toggle();
@@ -843,20 +833,6 @@
 			<span>{m.editor.footerSize(editor.project.width, editor.project.height)}</span>
 			<span>{m.editor.footerLength(formatTime(player.duration))}</span>
 		</span>
-	{/if}
-{/snippet}
-
-{#snippet barActions()}
-	{#if editor && player}
-		<button
-			class="btn btn-sm btn-ghost {helpState.open ? 'btn-active' : ''}"
-			onclick={() => helpState.toggle()}
-			aria-pressed={helpState.open}
-			title={m.help.buttonTitle}
-		>
-			<span class="icon-[material-symbols-light--help-outline] size-5" aria-hidden="true"></span>
-			<span class="hidden md:inline">{m.help.button}</span>
-		</button>
 	{/if}
 {/snippet}
 
@@ -1016,7 +992,6 @@
 			<Timeline bind:this={timeline} {editor} {player} {itemMenu} height={shownTimelineHeight} />
 		</section>
 
-		<HelpWindow />
 		<LibrarySaveDialog onsave={saveToLibrary} />
 		<DragGhost {editor} />
 

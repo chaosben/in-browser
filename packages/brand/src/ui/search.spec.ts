@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchesQuery } from './inspector-search';
+import { matchesQuery } from './search';
 
 describe('matchesQuery', () => {
 	it('matches everything without a query', () => {

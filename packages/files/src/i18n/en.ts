@@ -50,7 +50,8 @@ const en = {
 		pendingDeletes: (n: number) => `${n} deletions wait for your confirmation`,
 		lastSync: (ago: string) => `Last synced ${ago}`,
 		syncNow: 'Sync now',
-		manage: 'Manage in Files'
+		manage: 'Manage in Files',
+		help: 'How syncing works'
 	},
 
 	/** Moving what the user deletes into the trash (every tool) */

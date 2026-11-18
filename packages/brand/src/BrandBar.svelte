@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { BRAND } from './brand.js';
 	import { brandBar, startRename } from './brand-bar.svelte.js';
+	import type { HelpState } from './help.svelte.js';
 	import { brandMessages } from './i18n/index.svelte.js';
 	import ThemeSwitch from './ThemeSwitch.svelte';
 	import { openMenuBelow, type MenuEntry } from './ui/context-menu.svelte.js';
@@ -11,9 +12,13 @@
 		tool?: string;
 		/** Start page of the tool (e.g. `/screen-capture`), linked from the tool name */
 		home?: string;
+		/** Help window of the tool: the help button toggles it */
+		help?: HelpState;
+		/** Without a help window (overview): the help button links to this page */
+		helpHref?: string;
 	}
 
-	let { tool, home }: Props = $props();
+	let { tool, home, help, helpHref }: Props = $props();
 
 	const t = $derived(brandMessages());
 
@@ -114,6 +119,22 @@
 
 	<div class="flex shrink-0 items-center gap-1">
 		{@render brandBar.actions?.()}
+		{#if help}
+			<button
+				class={['btn btn-sm btn-ghost', help.open && 'btn-active']}
+				onclick={() => help.toggle()}
+				aria-pressed={help.open}
+				title={t.help.buttonTitle}
+			>
+				<span class="icon-[material-symbols-light--help-outline] size-5" aria-hidden="true"></span>
+				<span class="hidden md:inline">{t.help.button}</span>
+			</button>
+		{:else if helpHref}
+			<a class="btn btn-sm btn-ghost" href={helpHref} title={t.help.title}>
+				<span class="icon-[material-symbols-light--help-outline] size-5" aria-hidden="true"></span>
+				<span class="hidden md:inline">{t.help.button}</span>
+			</a>
+		{/if}
 		<ThemeSwitch />
 	</div>
 </header>

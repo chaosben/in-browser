@@ -1,3 +1,4 @@
+import help from './help.de.js';
 import type { Messages } from './index.js';
 
 const de: Messages = {
@@ -190,7 +191,9 @@ const de: Messages = {
 		latency: 'Eingabe → Pixel',
 		rate: 'Punkte/s',
 		tiles: 'Kacheln'
-	}
+	},
+
+	help
 };
 
 export default de;

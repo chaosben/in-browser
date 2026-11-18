@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { matchesQuery } from '#lib/ui/inspector-search.js';
+	import { matchesQuery } from '@in-browser/brand/ui/search.js';
 	import { FieldMatches, getInspectorSearch, sectionState, setSectionScope } from '#lib/ui/inspector.svelte.js';
 
 	interface Props {

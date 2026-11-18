@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.js';
 
-// Files and Text Editor on a phone (project `mobile`: Pixel 7, touch only): everything without right-click,
+// Files, Text Editor and Notes on a phone (project `mobile`: Pixel 7, touch only): everything without right-click,
 // double-click, keyboard shortcuts or dragging
 
 /** Holds a finger on the element (real touch events, so the page sees `pointerType: 'touch'`) */
@@ -143,6 +143,18 @@ test('Notes: a finger draws, two fingers pinch, the palette works by tapping', a
 	await page.getByRole('button', { name: 'Strong' }).tap();
 	await expect(page.getByRole('button', { name: 'Strong' })).toHaveAttribute('aria-pressed', 'true');
 	expect(await savedItems(page)).toBe(1);
+
+	// Help: full screen on the phone, topics in a list, closed by tapping
+	await page.getByRole('banner').getByRole('button', { name: 'Help' }).tap();
+	const help = page.getByRole('dialog', { name: 'Help' });
+	await expect(help).toBeVisible();
+	const helpBox = (await help.boundingBox())!;
+	expect(helpBox.width).toBe(page.viewportSize()!.width);
+	const topics = help.getByRole('combobox', { name: 'Topics' });
+	await topics.selectOption({ index: 1 });
+	await expect(help.getByRole('heading', { level: 3 })).toHaveText((await topics.locator('option:checked').textContent())!);
+	await help.getByRole('button', { name: 'Close help' }).tap();
+	await expect(help).toBeHidden();
 });
 
 /** Strokes saved in the notebook `Notebook.note` (OPFS) */

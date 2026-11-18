@@ -1,3 +1,4 @@
+import help from './help.en.js';
 // English texts. This file defines the structure; `de.ts` must have the same keys.
 
 const en = {
@@ -190,7 +191,10 @@ const en = {
 		latency: 'Input → pixels',
 		rate: 'Points/s',
 		tiles: 'Tiles'
-	}
+	},
+
+	/** Help window and the page `/help/notes` (topics in help.en.ts) */
+	help
 };
 
 export default en;

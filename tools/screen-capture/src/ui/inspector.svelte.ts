@@ -2,7 +2,7 @@
 
 import { createContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { loadCollapsed, storeCollapsed } from './inspector-search.js';
+import { loadCollapsed, storeCollapsed } from './inspector-sections.js';
 
 /** Which registered fields match the search; every field stays registered while its section is shown */
 export class FieldMatches {

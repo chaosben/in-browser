@@ -1,3 +1,4 @@
+import help from './help.de.js';
 import type { Messages } from './index.svelte.js';
 
 const de: Messages = {
@@ -69,7 +70,9 @@ const de: Messages = {
 		notFound: 'Diese Seite gibt es nicht.',
 		other: 'Etwas ist schiefgelaufen.',
 		back: 'Zur Übersicht'
-	}
+	},
+
+	help
 };
 
 export default de;

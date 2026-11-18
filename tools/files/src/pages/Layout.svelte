@@ -6,6 +6,8 @@
 	import BrandFooter from '@in-browser/brand/BrandFooter.svelte';
 	import ConfirmDialog from '@in-browser/brand/ConfirmDialog.svelte';
 	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
+	import { HelpState, installHelpKeys } from '@in-browser/brand/help.svelte.js';
+	import HelpWindow from '@in-browser/brand/HelpWindow.svelte';
 	import { setLocale } from '@in-browser/brand/i18n/index.svelte.js';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
 	import { recordToolUse } from '@in-browser/brand/recent-tools.js';
@@ -25,6 +27,9 @@
 	// For “Recently used” on the overview
 	recordToolUse(resolve('/files'));
 	startSync();
+	// Help window (BrandBar button, F1, ?)
+	const help = new HelpState('files');
+	$effect(() => installHelpKeys(help));
 </script>
 
 <svelte:head>
@@ -42,7 +47,7 @@
 </svelte:head>
 
 <div class="flex h-full flex-col">
-	<BrandBar tool={BRAND.tool} home={resolve('/files')} />
+	<BrandBar tool={BRAND.tool} home={resolve('/files')} {help} />
 	<div class="min-h-0 flex-1">
 		{@render children()}
 	</div>
@@ -55,3 +60,4 @@
 <ContextMenu />
 <FileDialog />
 <UpdateBanner />
+<HelpWindow content={m.help} {help} page={resolve('/help/files')} />

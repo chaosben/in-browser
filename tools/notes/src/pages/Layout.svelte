@@ -14,6 +14,8 @@
 	import { BRAND } from '#lib/brand.js';
 	import ConfirmDialog from '@in-browser/brand/ConfirmDialog.svelte';
 	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
+	import { HelpState, installHelpKeys } from '@in-browser/brand/help.svelte.js';
+	import HelpWindow from '@in-browser/brand/HelpWindow.svelte';
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import { locale, m } from '#lib/i18n/index.js';
 
@@ -26,6 +28,9 @@
 	recordToolUse(resolve('/notes'));
 	// Keeps the shared file system in sync with the folder on disk while the tool is open (if connected in Files)
 	startSync();
+	// Help window (BrandBar button, F1, ?)
+	const help = new HelpState('notes');
+	$effect(() => installHelpKeys(help));
 </script>
 
 <svelte:head>
@@ -43,7 +48,7 @@
 </svelte:head>
 
 <div class="flex h-full flex-col">
-	<BrandBar tool={BRAND.tool} home={resolve('/notes')} />
+	<BrandBar tool={BRAND.tool} home={resolve('/notes')} {help} />
 	<div class="min-h-0 flex-1">
 		{@render children()}
 	</div>
@@ -56,3 +61,4 @@
 <ContextMenu />
 <FileDialog />
 <UpdateBanner />
+<HelpWindow content={m.help} {help} page={resolve('/help/notes')} />

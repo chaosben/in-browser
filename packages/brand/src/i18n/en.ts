@@ -29,6 +29,22 @@ const en = {
 		sourceHint: 'Source code on GitHub'
 	},
 
+	/** Help window of the tools and help pages */
+	help: {
+		title: 'Help',
+		button: 'Help',
+		buttonTitle: 'Help (F1)',
+		search: 'Search help',
+		noMatches: 'Nothing found.',
+		topics: 'Topics',
+		move: 'Drag to move the help window',
+		close: 'Close help',
+		tipLabel: 'How to decide',
+		asPage: 'Open as page',
+		copy: 'Copy',
+		copied: 'Copied'
+	},
+
 	pwa: {
 		updateReady: 'A new version is available.',
 		reload: 'Reload',

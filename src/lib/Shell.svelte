@@ -1,7 +1,8 @@
 <script lang="ts">
-	// Frame of the overview pages (home page and error page): header, footer, metadata, language switch, PWA
+	// Frame of the overview pages (home page, help pages and error page): header, footer, metadata, language switch, PWA
 	// (the launcher installs as the app of the whole suite)
 	import { onMount, type Snippet } from 'svelte';
+	import { resolve } from '$app/paths';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
 	import { sourceUrl } from '@in-browser/brand/build.js';
@@ -10,7 +11,21 @@
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import { applyBrowserLocale, lang, m } from '#lib/i18n/index.svelte.js';
 
-	let { children }: { children: Snippet } = $props();
+	interface Props {
+		children: Snippet;
+		/** Page title without the suite name; without it the home page title */
+		title?: string;
+		/** Meta description; without it the one of the suite */
+		description?: string;
+		/** Path of the page for the canonical URL */
+		path?: string;
+	}
+
+	let { children, title, description, path = '/' }: Props = $props();
+
+	// Functions, not $derived: `m` is no state, the {#key} below re-runs them after the language switch
+	const fullTitle = () => (title ? `${title} · ${BRAND.suite}` : `${BRAND.suite} – ${m.brand.claim}`);
+	const canonical = $derived(`${BRAND.suiteUrl}${path}`);
 
 	// Prerendered in English; if the browser language differs, {#key} re-renders everything once
 	onMount(() => {
@@ -20,31 +35,32 @@
 </script>
 
 <svelte:head>
-	<link rel="canonical" href="{BRAND.suiteUrl}/" />
+	<link rel="canonical" href={canonical} />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content={BRAND.suite} />
-	<meta property="og:url" content="{BRAND.suiteUrl}/" />
+	<meta property="og:url" content={canonical} />
 	<meta name="theme-color" media="(prefers-color-scheme: light)" content={BRAND.themeColor.light} />
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content={BRAND.themeColor.dark} />
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 	<link rel="manifest" href="/manifest.webmanifest" />
 	{#key lang.current}
-		<title>{BRAND.suite} – {m.brand.claim}</title>
-		<meta name="description" content={m.brand.description} />
-		<meta property="og:title" content="{BRAND.suite} – {m.brand.claim}" />
-		<meta property="og:description" content={m.brand.description} />
+		<title>{fullTitle()}</title>
+		<meta name="description" content={description ?? m.brand.description} />
+		<meta property="og:title" content={fullTitle()} />
+		<meta property="og:description" content={description ?? m.brand.description} />
 	{/key}
 </svelte:head>
 
 {#key lang.current}
 	<div class="flex min-h-full flex-col">
-		<BrandBar />
+		<BrandBar helpHref={resolve('/help')} />
 		{@render children()}
 		<footer
 			class="border-base-300 mx-auto mt-auto flex w-full max-w-5xl flex-wrap items-baseline gap-x-4 border-t px-4 py-6 text-sm opacity-70"
 		>
 			<span><span class="font-semibold">{BRAND.suite}</span> – {m.brand.claim}</span>
-			<a class="link link-hover ml-auto" href={BRAND.repoUrl} target="_blank" rel="noopener">
+			<a class="link link-hover ml-auto" href={resolve('/help')}>{m.help.title}</a>
+			<a class="link link-hover" href={BRAND.repoUrl} target="_blank" rel="noopener">
 				{m.footer.openSource}
 			</a>
 			<a class="link link-hover" href={sourceUrl('THIRD_PARTY_LICENSES.md')} target="_blank" rel="noopener">

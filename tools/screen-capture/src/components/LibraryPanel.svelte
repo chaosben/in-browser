@@ -2,7 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { m } from '#lib/i18n/index.js';
 	import { itemIcon, itemLabel } from '#lib/project/labels.js';
-	import { matchesQuery } from '#lib/ui/inspector-search.js';
+	import { matchesQuery } from '@in-browser/brand/ui/search.js';
 	import { entryDuration } from '#lib/project/library.js';
 	import { globalLibrary } from '#lib/project/library.svelte.js';
 	import type { Clip, LibraryEntry, Source } from '#lib/project/types.js';

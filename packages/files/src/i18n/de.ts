@@ -49,7 +49,8 @@ const de: FilesMessages = {
 		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
 		lastSync: (ago) => `Zuletzt abgeglichen ${ago}`,
 		syncNow: 'Jetzt abgleichen',
-		manage: 'In Files verwalten'
+		manage: 'In Files verwalten',
+		help: 'So funktioniert der Abgleich'
 	},
 
 	trash: {

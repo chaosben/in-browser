@@ -1,3 +1,4 @@
+import help from './help.de.js';
 import type { Messages } from './index.js';
 
 // German texts (same keys as en.ts).
@@ -165,7 +166,9 @@ const de: Messages = {
 
 	preview: {
 		title: 'Markdown-Vorschau'
-	}
+	},
+
+	help
 };
 
 export default de;

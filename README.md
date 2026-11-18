@@ -13,21 +13,20 @@ that serves the overview site and every tool on a single origin, so the tools ca
 | `packages/brand` | `@in-browser/brand`: header, footer, theme, language logic, PWA, toasts, dialogs, context menu | – |
 | `packages/files` | `@in-browser/files`: shared file system (OPFS), file dialog, formats, folder and device sync | – |
 | `packages/graphics` | `@in-browser/graphics`: colors, icons, shapes and fields of the drawing tools | – |
-| `packages/p2p-node` | `@in-browser/p2p-node`: always-on device for the device sync, runs in Node ([README](packages/p2p-node/README.md)) | https://in-browser.org/p2p-node/install.sh |
+| `packages/p2p-node` | `@in-browser/p2p-node`: always-on device for the device sync, runs in Node ([README](packages/p2p-node/README.md), [user guide](https://in-browser.org/help/p2p-node)) | https://in-browser.org/p2p-node/install.sh |
 
 Each tool is its own npm workspace package with its logic, components and texts; the app only has a few route
 files per tool (`src/routes/<tool>/`). Tools never import from each other – shared code lives in `packages/` and is
 consumed as source.
 
-Your devices sync their files directly with each other over WebRTC, without a server of ours. Only encrypted
-connection offers pass through public Nostr relays. A device syncs while in-browser is open on it; to keep the
-files moving while no browser is open, run a [p2p-node](packages/p2p-node/README.md) on a computer or home server.
+User help is on the site, not here: https://in-browser.org/help (pages in `src/routes/help/`, texts of the suite in
+`src/lib/i18n/help.*.ts`, each tool's in its `src/i18n/help.*.ts`, also shown in the tool's help window).
 
-Both syncs (devices and a folder on disk) share one way of applying changes (`packages/files/src/sync/apply.ts`):
-the newer version wins and the other one becomes a conflict copy; nothing that changed after a sync planned it is
-overwritten or deleted; deletions and replacements from the other side are applied (like Syncthing). What the user
-deletes goes into the trash, the hidden folder `/.in-browser-trash/` (`packages/files/src/trash.ts`), which syncs to
-every device like any other folder and is emptied after a retention picked in Files (7, 30, 90 days or never).
+Your devices sync their files directly with each other over WebRTC; only encrypted connection offers pass through
+public Nostr relays. Both syncs (devices and a folder on disk) share one way of applying changes
+(`packages/files/src/sync/apply.ts`): the newer version wins, the other one becomes a conflict copy, and what the user
+deletes goes into the synced trash `/.in-browser-trash/` (`packages/files/src/trash.ts`). How this looks to users:
+https://in-browser.org/help/sync.
 
 Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest, Playwright. The UI is
 available in English and German (following the browser language).

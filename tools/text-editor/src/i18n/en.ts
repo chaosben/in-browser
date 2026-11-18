@@ -1,3 +1,4 @@
+import help from './help.en.js';
 // English texts. This file defines the structure; `de.ts` must have the same keys.
 
 const en = {
@@ -164,7 +165,10 @@ const en = {
 
 	preview: {
 		title: 'Markdown preview'
-	}
+	},
+
+	/** Help window and the page `/help/text-editor` (topics in help.en.ts) */
+	help
 };
 
 export default en;

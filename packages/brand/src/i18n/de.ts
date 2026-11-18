@@ -29,6 +29,21 @@ const de: BrandMessages = {
 		sourceHint: 'Quellcode auf GitHub'
 	},
 
+	help: {
+		title: 'Hilfe',
+		button: 'Hilfe',
+		buttonTitle: 'Hilfe (F1)',
+		search: 'Hilfe durchsuchen',
+		noMatches: 'Nichts gefunden.',
+		topics: 'Themen',
+		move: 'Ziehen, um das Hilfefenster zu verschieben',
+		close: 'Hilfe schließen',
+		tipLabel: 'So entscheidest du',
+		asPage: 'Als Seite öffnen',
+		copy: 'Kopieren',
+		copied: 'Kopiert'
+	},
+
 	pwa: {
 		updateReady: 'Eine neue Version ist verfügbar.',
 		reload: 'Neu laden',

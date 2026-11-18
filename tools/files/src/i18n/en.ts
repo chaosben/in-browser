@@ -1,3 +1,4 @@
+import help from './help.en.js';
 // English texts. This file defines the structure; `de.ts` must have the same keys.
 
 const en = {
@@ -226,6 +227,7 @@ const en = {
 			['Storage', 'Files in the OPFS (persistence requested); keys, member log, sync state and vectors in IndexedDB.'],
 			['Limits', 'Runs only in an open tab, on phones only in the foreground. What a removed device already has, it keeps. A p2p-node lifts the first limit: a Node process (WebRTC via werift) that joins as a device and keeps the files in a folder on disk.']
 		] as [string, string][],
+		more: 'More about syncing in the help',
 		p2pNode: 'p2p-node: an always-on device for your computer or home server',
 		source: 'Source code of the P2P module',
 		diagnostics: 'Diagnostics',
@@ -302,7 +304,10 @@ const en = {
 		emptyMessage: (n: number) => (n === 1 ? '1 item is deleted for good, on all your devices.' : `${n} items are deleted for good, on all your devices.`),
 		more: (n: number) => `${n} more – restore or delete some first.`,
 		close: 'Close'
-	}
+	},
+
+	/** Help window and the page `/help/files` (topics in help.en.ts) */
+	help
 };
 
 export default en;

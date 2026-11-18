@@ -1,3 +1,5 @@
+import help from './help.en.js';
+
 // English texts. This file defines the structure; `de.ts` must have the same keys.
 
 const en = {
@@ -74,7 +76,10 @@ const en = {
 		notFound: 'This page does not exist.',
 		other: 'Something went wrong.',
 		back: 'Back to the overview'
-	}
+	},
+
+	/** Help pages of the whole suite (`/help/…`) */
+	help
 };
 
 export default en;

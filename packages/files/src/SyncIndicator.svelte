@@ -105,6 +105,8 @@
 		});
 		const manage = view.state !== 'off' ? t.p2p.manage : t.indicator.manage;
 		entries.push({ label: manage, icon: 'icon-[material-symbols-light--settings-outline]', run: () => location.assign('/files?panel=sync') });
+		// New tab: the tool stays as it is
+		entries.push({ label: t.indicator.help, icon: 'icon-[material-symbols-light--help-outline]', run: () => window.open('/help/sync', '_blank', 'noopener') });
 		openMenuAbove(e, entries);
 	}
 </script>

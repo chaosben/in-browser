@@ -41,12 +41,30 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 		await page.goto(tool.path);
 		await expect(page.getByRole('banner').getByText(tool.name, { exact: true })).toBeVisible();
 		await expect(page.getByRole('contentinfo').getByText(/^Version /)).toHaveCount(0);
+		// Help window: F1 opens it, the button closes it again
+		await page.keyboard.press('F1');
+		const help = page.getByRole('dialog', { name: 'Help' });
+		await expect(help).toBeVisible();
+		await expect(help.getByRole('link', { name: 'Open as page' })).toHaveAttribute('href', `/help${tool.path}`);
+		await page.getByRole('banner').getByRole('button', { name: 'Help' }).click();
+		await expect(help).toBeHidden();
 	}
 
 	// Every tool records itself: the most recent first
 	await page.goto('/');
 	const recent = page.getByRole('region', { name: 'Recently used' }).getByRole('link');
 	await expect(recent).toHaveText([...TOOLS].reverse().map((tool) => tool.name));
+
+	// Help pages: the start page with its search, a suite page and the help of a tool
+	await page.getByRole('banner').getByRole('link', { name: 'Help' }).click();
+	await expect(page).toHaveURL(/\/help$/);
+	await page.getByRole('searchbox', { name: 'Search help' }).fill('fritz');
+	await page.getByRole('link', { name: /p2p-node.*Reachable from outside/ }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('p2p-node: an always-on device');
+	await expect(page.getByText('curl -fsSL https://in-browser.org/p2p-node/install.sh | sh')).toBeVisible();
+	await page.goto('/help/notes');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Notes help');
+	await expect(page.getByRole('link', { name: 'Open Notes' })).toHaveAttribute('href', '/notes');
 
 	const response = await page.goto('/does-not-exist');
 	expect(response?.status()).toBe(404);

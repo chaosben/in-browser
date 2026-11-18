@@ -14,8 +14,11 @@
 	import { BRAND } from '#lib/brand.js';
 	import ConfirmDialog from '@in-browser/brand/ConfirmDialog.svelte';
 	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
+	import { installHelpKeys } from '@in-browser/brand/help.svelte.js';
+	import HelpWindow from '@in-browser/brand/HelpWindow.svelte';
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import { locale, m } from '#lib/i18n/index.js';
+	import { help } from '#lib/ui/help.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -26,6 +29,7 @@
 	recordToolUse(resolve('/screen-capture'));
 	// Keeps the shared file system in sync with the folder on disk while the tool is open (if connected in Files)
 	startSync();
+	$effect(() => installHelpKeys(help));
 </script>
 
 <svelte:head>
@@ -42,7 +46,7 @@
 </svelte:head>
 
 <div class="flex h-full flex-col">
-	<BrandBar tool={BRAND.tool} home={resolve('/screen-capture')} />
+	<BrandBar tool={BRAND.tool} home={resolve('/screen-capture')} {help} />
 	<div class="min-h-0 flex-1 overflow-auto">
 		{@render children()}
 	</div>
@@ -55,3 +59,5 @@
 <ContextMenu />
 <FileDialog />
 <UpdateBanner />
+<!-- Left of the editor's properties panel -->
+<HelpWindow content={m.help} {help} page={resolve('/help/screen-capture')} anchor="right: 21rem; top: 4rem" />
