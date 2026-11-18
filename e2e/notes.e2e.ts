@@ -2,7 +2,8 @@ import type { Page } from '@playwright/test';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 
-// Notes in one flow: create, draw, undo/redo, erase, saved across a reload, insert an image and a PDF, export. The drawing logic itself (lasso, pixel
+// Notes in one flow: create, draw, undo/redo, erase, drag a shape, saved across a reload, insert an image and a PDF,
+// export. The drawing logic itself (lasso, pixel
 // eraser, shapes, formats) is covered by the unit and browser specs in tools/notes.
 
 /** Items (strokes, pictures) saved in `Notebook.note` (OPFS) */
@@ -77,9 +78,18 @@ test('draws, undoes, erases, keeps strokes, inserts an image and a PDF, exports'
 	await draw(page);
 	await expect.poll(() => savedItems(page)).toBe(1);
 
+	// The shape tool drags an arrow (the default shape) as one stroke
+	await page.getByRole('button', { name: 'Shapes' }).click();
+	const box = (await page.getByTestId('surface').boundingBox())!;
+	await page.mouse.move(box.x + box.width / 2 - 100, box.y + 360);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width / 2, box.y + 340, { steps: 5 });
+	await page.mouse.up();
+	await expect.poll(() => savedItems(page)).toBe(2);
+
 	await page.reload();
 	await expect(page.getByTestId('surface')).toBeVisible();
-	await expect.poll(() => savedItems(page)).toBe(1);
+	await expect.poll(() => savedItems(page)).toBe(2);
 
 	// The image goes into the assets and is selected right away
 	await page.getByRole('button', { name: 'Insert' }).click();
@@ -87,7 +97,7 @@ test('draws, undoes, erases, keeps strokes, inserts an image and a PDF, exports'
 	await page.getByRole('menuitem', { name: 'Image from this device …' }).click();
 	await (await chooser).setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: PNG });
 	await expect(page.getByRole('toolbar', { name: '1 item selected' })).toBeVisible();
-	await expect.poll(() => savedItems(page)).toBe(2);
+	await expect.poll(() => savedItems(page)).toBe(3);
 	expect(await savedAssets(page)).toBe(1);
 
 	// A PDF becomes pages after the current one, rendered by PDF.js workers (under the real CSP)

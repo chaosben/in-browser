@@ -1,12 +1,13 @@
 <script lang="ts">
 	// Floating tool palette at the bottom of the surface (no second toolbar below the header): tools, color and
 	// thickness of the current tool, insert and page menus. Tapping the active tool again opens its options too. The
-	// icon picker opens in the same place as the options.
+	// icon picker opens in the same place as the options. Nine buttons: narrower below `sm` so the bar fits 360 px.
 	import ColorField from '@in-browser/graphics/ColorField.svelte';
 	import IconPicker from '@in-browser/graphics/IconPicker.svelte';
 	import type { IconData } from '@in-browser/graphics/icons/types.js';
 	import type { Tool } from '#lib/input/controller.js';
 	import { m } from '#lib/i18n/index.js';
+	import { fitFromDrag, SHAPE_KINDS, shapePoints, type ShapeKind } from '#lib/ink/shapes.js';
 	import { SMOOTHING_LEVELS } from '#lib/ink/smooth.js';
 	import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, tools } from '#lib/model/tools.svelte.js';
 
@@ -25,6 +26,7 @@
 	const TOOLS: { id: Tool; icon: string; label: string }[] = [
 		{ id: 'pen', icon: 'icon-[material-symbols-light--ink-pen-outline]', label: m.tools.pen },
 		{ id: 'highlighter', icon: 'icon-[material-symbols-light--ink-highlighter]', label: m.tools.highlighter },
+		{ id: 'shape', icon: 'icon-[material-symbols-light--shapes-outline]', label: m.tools.shape },
 		{ id: 'eraser', icon: 'icon-[material-symbols-light--ink-eraser-outline]', label: m.tools.eraser },
 		{ id: 'lasso', icon: 'icon-[material-symbols-light--lasso-select]', label: m.tools.lasso },
 		{ id: 'laser', icon: 'icon-[material-symbols-light--stylus-laser-pointer-outline]', label: m.tools.laser }
@@ -68,6 +70,20 @@
 
 	function setEraser(size: number) {
 		tools.eraser = size;
+		tools.store();
+	}
+
+	/** Previews of the shapes (24 × 24 SVG), drawn by the same geometry as on the page */
+	const SHAPES = SHAPE_KINDS.map((kind) => {
+		const line = kind === 'line' || kind === 'arrow' || kind === 'doubleArrow';
+		const pts = shapePoints(line ? fitFromDrag(kind, 3, 18, 21, 6) : fitFromDrag(kind, 3, 5, 21, 19), 1);
+		let points = '';
+		for (let i = 0; i < pts.length; i += 3) points += `${pts[i].toFixed(1)},${pts[i + 1].toFixed(1)} `;
+		return { kind, points };
+	});
+
+	function setShape(kind: ShapeKind) {
+		tools.shape = kind;
 		tools.store();
 	}
 
@@ -127,6 +143,24 @@
 					{/each}
 				</div>
 			{:else}
+				{#if tools.tool === 'shape'}
+					<div class="grid grid-cols-6 gap-1" role="group" aria-label={m.tools.shape}>
+						{#each SHAPES as shape (shape.kind)}
+							<button
+								class="btn btn-ghost btn-square w-full {tools.shape === shape.kind ? 'btn-active text-primary' : ''}"
+								onclick={() => setShape(shape.kind)}
+								title={m.tools.shapes[shape.kind]}
+								aria-label={m.tools.shapes[shape.kind]}
+								aria-pressed={tools.shape === shape.kind}
+							>
+								<svg viewBox="0 0 24 24" class="size-6" aria-hidden="true">
+									<polyline points={shape.points} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+								</svg>
+							</button>
+						{/each}
+					</div>
+					<p class="text-xs opacity-70">{m.tools.shapeHint}</p>
+				{/if}
 				<ColorField value={ink.color} opaque onchange={(v) => setColor(v)} />
 				<div class="flex items-center gap-1">
 					<span class="w-20 shrink-0 text-xs opacity-70">{m.tools.size}</span>
@@ -141,26 +175,28 @@
 						</button>
 					{/each}
 				</div>
-				<div class="flex items-center gap-1">
-					<span class="w-20 shrink-0 truncate text-xs opacity-70" title={m.tools.smoothingHint}>{m.tools.smoothing}</span>
-					<div class="join min-w-0 flex-1" role="group" aria-label={m.tools.smoothing} title={m.tools.smoothingHint}>
-						{#each SMOOTHING_LEVELS as level, i (level)}
-							<button
-								class="btn btn-sm join-item flex-1 px-1 {tools.smoothing === level ? 'btn-active btn-primary' : ''}"
-								onclick={() => setSmoothing(level)}
-								aria-pressed={tools.smoothing === level}
-							>
-								{m.tools.smoothingLevels[i]}
-							</button>
-						{/each}
+				{#if tools.tool !== 'shape'}
+					<div class="flex items-center gap-1">
+						<span class="w-20 shrink-0 truncate text-xs opacity-70" title={m.tools.smoothingHint}>{m.tools.smoothing}</span>
+						<div class="join min-w-0 flex-1" role="group" aria-label={m.tools.smoothing} title={m.tools.smoothingHint}>
+							{#each SMOOTHING_LEVELS as level, i (level)}
+								<button
+									class="btn btn-sm join-item flex-1 px-1 {tools.smoothing === level ? 'btn-active btn-primary' : ''}"
+									onclick={() => setSmoothing(level)}
+									aria-pressed={tools.smoothing === level}
+								>
+									{m.tools.smoothingLevels[i]}
+								</button>
+							{/each}
+						</div>
 					</div>
-				</div>
+				{/if}
 			{/if}
 		</div>
 	{/if}
 
 	<div
-		class="bg-base-100 border-base-300 rounded-box pointer-events-auto flex items-center border p-1 shadow-lg sm:gap-0.5"
+		class="bg-base-100 border-base-300 rounded-box pointer-events-auto flex items-center border p-1 shadow-lg max-sm:[&>.btn]:w-[2.125rem] sm:gap-0.5"
 		role="toolbar"
 		aria-label={m.tools.label}
 	>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Actions of a lasso selection, floating above it (below when there is no room): color (strokes, icons),
 	// duplicate, delete.
-	import { loadPalette } from '@in-browser/graphics/palette.js';
+	import ColorField from '@in-browser/graphics/ColorField.svelte';
 	import type { Selection } from '#lib/input/selection.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 
@@ -12,7 +12,6 @@
 		void selection.count;
 		return false;
 	});
-	const palette = loadPalette();
 	const rect = $derived(selection.rect);
 	/** Above the frame if there is room, else below it */
 	const top = $derived(rect ? (rect.y > 100 ? rect.y - 12 : rect.y + rect.h + 12) : 0);
@@ -40,16 +39,9 @@
 			</button>
 		</div>
 		{#if colors && selection.colorable}
-			<div class="flex flex-wrap items-center gap-1 px-1 pb-1" role="group" aria-label={m.selection.color}>
-				{#each palette as color (color)}
-					<button
-						class="border-base-content/30 size-7 rounded border"
-						style="background: {color}"
-						onclick={() => selection.recolor(color)}
-						aria-label={color}
-						title={color}
-					></button>
-				{/each}
+			<!-- The suite's color field (palette, recent colors, picker); one undo step per chosen color -->
+			<div class="w-72 max-w-[calc(100vw-2rem)] px-2 pb-2" role="group" aria-label={m.selection.color}>
+				<ColorField value={selection.color} opaque onchange={(v, final) => v && final && selection.recolor(v.slice(0, 7))} />
 			</div>
 		{/if}
 	</div>

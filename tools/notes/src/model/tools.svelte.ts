@@ -1,7 +1,8 @@
-// Tool settings: chosen tool, color and size per ink tool, eraser size, smoothing, "only the pen draws". Remembered in
-// localStorage (`notes:tools`) for the next notebook.
+// Tool settings: chosen tool, color and size per ink tool (shapes use the pen's), eraser size, smoothing, chosen
+// shape, "only the pen draws". Remembered in localStorage (`notes:tools`) for the next notebook.
 
 import type { EraserMode, Tool, ToolState } from '#lib/input/controller.js';
+import { SHAPE_KINDS, type ShapeKind } from '#lib/ink/shapes.js';
 import { SMOOTHING_LEVELS } from '#lib/ink/smooth.js';
 
 const KEY = 'notes:tools';
@@ -20,9 +21,10 @@ interface Saved {
 	eraserMode: EraserMode;
 	penOnly: boolean;
 	smoothing: number;
+	shape: ShapeKind;
 }
 
-const TOOLS: readonly Tool[] = ['pen', 'highlighter', 'eraser', 'lasso', 'laser'];
+const TOOLS: readonly Tool[] = ['pen', 'highlighter', 'shape', 'eraser', 'lasso', 'laser'];
 
 const DEFAULTS: Saved = {
 	tool: 'pen',
@@ -31,7 +33,8 @@ const DEFAULTS: Saved = {
 	eraser: 16,
 	eraserMode: 'stroke',
 	penOnly: false,
-	smoothing: 0.3
+	smoothing: 0.3,
+	shape: 'arrow'
 };
 
 const HEX = /^#[0-9a-f]{6}$/;
@@ -54,7 +57,8 @@ function load(): Saved {
 			eraser: typeof raw.eraser === 'number' && raw.eraser > 0 ? raw.eraser : DEFAULTS.eraser,
 			eraserMode: raw.eraserMode === 'pixel' ? 'pixel' : 'stroke',
 			penOnly: raw.penOnly === true,
-			smoothing: SMOOTHING_LEVELS.includes(raw.smoothing as (typeof SMOOTHING_LEVELS)[number]) ? raw.smoothing! : DEFAULTS.smoothing
+			smoothing: SMOOTHING_LEVELS.includes(raw.smoothing as (typeof SMOOTHING_LEVELS)[number]) ? raw.smoothing! : DEFAULTS.smoothing,
+			shape: SHAPE_KINDS.includes(raw.shape as ShapeKind) ? raw.shape! : DEFAULTS.shape
 		};
 	} catch {
 		return structuredClone(DEFAULTS);
@@ -69,6 +73,7 @@ class Tools {
 	eraserMode = $state<EraserMode>(DEFAULTS.eraserMode);
 	penOnly = $state(false);
 	smoothing = $state(DEFAULTS.smoothing);
+	shape = $state<ShapeKind>(DEFAULTS.shape);
 	/** A pen hovered this session (enables hover previews and the palm rejection hint) */
 	penHover = $state(false);
 
@@ -81,6 +86,7 @@ class Tools {
 		this.eraserMode = saved.eraserMode;
 		this.penOnly = saved.penOnly;
 		this.smoothing = saved.smoothing;
+		this.shape = saved.shape;
 	}
 
 	/** Ink settings of the chosen tool (eraser: those of the pen, for the preview) */
@@ -98,7 +104,8 @@ class Tools {
 			eraser: this.eraser,
 			eraserMode: this.eraserMode,
 			penOnly: this.penOnly,
-			smoothing: this.smoothing
+			smoothing: this.smoothing,
+			shape: this.shape
 		};
 	}
 
@@ -111,7 +118,8 @@ class Tools {
 				eraser: this.eraser,
 				eraserMode: this.eraserMode,
 				penOnly: this.penOnly,
-				smoothing: this.smoothing
+				smoothing: this.smoothing,
+				shape: this.shape
 			};
 			localStorage.setItem(KEY, JSON.stringify(saved));
 		} catch {

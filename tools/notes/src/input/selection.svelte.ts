@@ -12,6 +12,8 @@ export class Selection {
 	count = $state(0);
 	/** Some of them can take a color (strokes, icons) */
 	colorable = $state(false);
+	/** Color of the first colorable item (what the color field shows) */
+	color = $state('#000000');
 	/** Frame on screen (CSS pixels) while nothing is dragged; null hides the menu */
 	rect = $state<{ x: number; y: number; w: number; h: number } | null>(null);
 
@@ -80,7 +82,9 @@ export class Selection {
 		const items = scene ? scene.items.filter((s) => this.ids.has(s.id)) : [];
 		this.ids = new Set(items.map((s) => s.id));
 		this.count = items.length;
-		this.colorable = items.some((i) => isStroke(i) || i.type === 'icon');
+		const colored = items.find((i) => isStroke(i) || i.type === 'icon');
+		this.colorable = !!colored;
+		if (colored && 'color' in colored) this.color = colored.color;
 		if (!scene || !items.length) {
 			this.stage.setSelection(null);
 			this.rect = null;

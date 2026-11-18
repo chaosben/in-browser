@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Stroke } from '#lib/model/types.js';
 import { pointInPolygon, itemsInLasso, transformItem, transformStroke } from './lasso';
-import { recognize, shapePoints } from './recognize';
+import { recognize } from './recognize';
+import { shapePoints } from './shapes';
 import { eraseFromStroke } from './split';
 
 const stroke = (id: string, pts: number[], size = 2): Stroke => ({ id, tool: 'pen', color: '#000000', size, points: new Float32Array(pts) });

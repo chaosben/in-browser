@@ -1,12 +1,8 @@
 // Shape recognition for "hold to straighten": after the pen rests at the end of a stroke, the stroke is replaced by
-// the line, triangle, rectangle, quadrilateral or ellipse it resembles.
+// the line, arrow, triangle, rectangle, quadrilateral or ellipse it resembles (points: `shapePoints` in `shapes.ts`).
+// More polygons are left to the shape tool: a sloppy circle would otherwise often become a hexagon.
 
-import { strokesOf } from '@in-browser/graphics/shapes.js';
-
-export type ShapeFit =
-	| { kind: 'line'; x0: number; y0: number; x1: number; y1: number }
-	| { kind: 'polygon'; points: number[] }
-	| { kind: 'ellipse'; x: number; y: number; w: number; h: number };
+import type { ShapeFit } from './shapes.js';
 
 /** Ramer–Douglas–Peucker: indices of the points kept */
 function simplify(xs: number[], ys: number[], eps: number): number[] {
@@ -39,6 +35,39 @@ function simplify(xs: number[], ys: number[], eps: number): number[] {
 const angle = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
 	Math.abs(Math.atan2((ax - bx) * (cy - by) - (ay - by) * (cx - bx), (ax - bx) * (cx - bx) + (ay - by) * (cy - by)));
 
+/**
+ * An arrow drawn in one go: a long shaft, then the head near its end – a "V" through the tip or a single hook. All
+ * points after the shaft stay close to the tip and behind it; the wing reaches back at an angle of 10–75°.
+ */
+function arrow(xs: number[], ys: number[], diag: number): ShapeFit | null {
+	const idx = simplify(xs, ys, diag * 0.05);
+	if (idx.length < 3) return null;
+	const t = idx[1];
+	const [x0, y0, x1, y1] = [xs[0], ys[0], xs[t], ys[t]];
+	const shaft = Math.hypot(x1 - x0, y1 - y0);
+	if (shaft < diag * 0.55) return null;
+	// Unit vector from the tip back along the shaft
+	const ux = (x0 - x1) / shaft;
+	const uy = (y0 - y1) / shaft;
+	let wing = 0;
+	let wingAngle = 0;
+	for (let i = t + 1; i < xs.length; i++) {
+		const dx = xs[i] - x1;
+		const dy = ys[i] - y1;
+		const d = Math.hypot(dx, dy);
+		if (d > shaft * 0.45) return null;
+		// Not ahead of the tip (a little overshoot is fine)
+		if (dx * ux + dy * uy < -shaft * 0.08) return null;
+		if (d > wing) {
+			wing = d;
+			wingAngle = Math.acos(Math.min(1, Math.max(-1, (dx * ux + dy * uy) / d)));
+		}
+	}
+	if (wing < shaft * 0.1) return null;
+	if (wingAngle < (10 * Math.PI) / 180 || wingAngle > (75 * Math.PI) / 180) return null;
+	return { kind: 'arrow', x0, y0, x1, y1, double: false };
+}
+
 /** The shape a stroke (x, y, pressure) resembles, or null */
 export function recognize(points: Float32Array): ShapeFit | null {
 	const n = points.length / 3;
@@ -60,7 +89,8 @@ export function recognize(points: Float32Array): ShapeFit | null {
 	if (gap > diag * 0.25) {
 		// Open: a straight line if no point strays far from the chord
 		const corners = simplify(xs, ys, gap * 0.08);
-		return corners.length === 2 ? { kind: 'line', x0: xs[0], y0: ys[0], x1: xs[n - 1], y1: ys[n - 1] } : null;
+		if (corners.length === 2) return { kind: 'line', x0: xs[0], y0: ys[0], x1: xs[n - 1], y1: ys[n - 1] };
+		return arrow(xs, ys, diag);
 	}
 
 	// Closed: corners of the loop (the start/end point is a corner candidate too)
@@ -90,28 +120,4 @@ export function recognize(points: Float32Array): ShapeFit | null {
 		return { kind: 'ellipse', x: (x0 + x1 - d) / 2, y: (y0 + y1 - d) / 2, w: d, h: d };
 	}
 	return { kind: 'ellipse', x: x0, y: y0, w, h };
-}
-
-/** Points of the shape (x, y, pressure 0.5), dense enough for the eraser and selection */
-export function shapePoints(fit: ShapeFit): Float32Array {
-	let path: { x: number; y: number }[];
-	if (fit.kind === 'ellipse') path = strokesOf({ kind: 'ellipse', seed: '', sketch: false, x: fit.x, y: fit.y, w: fit.w, h: fit.h })[0];
-	else if (fit.kind === 'line') path = [{ x: fit.x0, y: fit.y0 }, { x: fit.x1, y: fit.y1 }];
-	else {
-		path = [];
-		for (let i = 0; i < fit.points.length; i += 2) path.push({ x: fit.points[i], y: fit.points[i + 1] });
-		path.push(path[0]);
-	}
-	// Straight edges: points every few points of length, so erasing cuts precisely
-	const out: number[] = [];
-	for (let i = 0; i < path.length; i++) {
-		if (i > 0) {
-			const a = path[i - 1];
-			const b = path[i];
-			const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4));
-			for (let k = 1; k < steps; k++) out.push(a.x + ((b.x - a.x) * k) / steps, a.y + ((b.y - a.y) * k) / steps, 0.5);
-		}
-		out.push(path[i].x, path[i].y, 0.5);
-	}
-	return new Float32Array(out);
 }

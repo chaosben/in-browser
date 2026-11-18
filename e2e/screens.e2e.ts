@@ -115,3 +115,41 @@ for (const scheme of ['light', 'dark'] as const) {
 		await context.close();
 	});
 }
+
+// Notes' shape tool: its panel on the desktop and the palette at 360 px (touch), then a lasso selection's colors
+for (const scheme of ['light', 'dark'] as const) {
+	test(`notes shapes ${scheme}`, async ({ browser }) => {
+		for (const [name, options] of [
+			['notes-shapes', { viewport: { width: 1280, height: 720 } }],
+			['phone-notes-shapes', { ...devices['Pixel 7'], viewport: { width: 360, height: 740 } }]
+		] as const) {
+			const context = await browser.newContext({ ...options, colorScheme: scheme });
+			const page = await context.newPage();
+			await page.goto('/notes');
+			await page.getByRole('button', { name: 'New notebook' }).click();
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+			await page.getByTestId('surface').waitFor();
+			await page.getByRole('button', { name: 'Shapes' }).click();
+			await page.getByRole('button', { name: 'Shapes' }).click();
+			await page.waitForTimeout(300);
+			await page.screenshot({ path: `${DIR}/${name}-${scheme}.png` });
+			// A dragged rectangle, selected with the lasso, its color field open
+			await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+			await page.getByRole('button', { name: 'Shapes' }).click();
+			const box = (await page.getByTestId('surface').boundingBox())!;
+			const [x, y] = [box.x + box.width / 2 - 60, box.y + 200];
+			await page.mouse.move(x, y);
+			await page.mouse.down();
+			await page.mouse.move(x + 120, y + 70, { steps: 5 });
+			await page.mouse.up();
+			await page.getByRole('button', { name: 'Lasso' }).click();
+			await page.mouse.move(x - 30, y - 30);
+			await page.mouse.down();
+			for (const [dx, dy] of [[180, 0], [180, 130], [0, 130], [0, 0]]) await page.mouse.move(x - 30 + dx, y - 30 + dy, { steps: 4 });
+			await page.mouse.up();
+			await page.getByRole('toolbar', { name: '1 item selected' }).getByRole('button', { name: 'Color', exact: true }).click();
+			await page.screenshot({ path: `${DIR}/${name}-selection-${scheme}.png` });
+			await context.close();
+		}
+	});
+}

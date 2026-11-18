@@ -5,19 +5,21 @@
 // - palm rejection: once a pen was used, touch only pans and zooms (also with the setting "only the pen draws").
 //   A second finger shortly after the first turns a just-started finger stroke into a pinch.
 // - a hovering pen (pen, no buttons) shows a preview of the brush; hover is never required for anything.
-// - holding the pen still at the end of a stroke replaces it by the recognized shape (line, triangle, rectangle,
-//   ellipse); a line then follows the pen until it is lifted.
+// - holding the pen still at the end of a stroke replaces it by the recognized shape (line, arrow, triangle,
+//   rectangle, ellipse); a line then follows the pen until it is lifted.
+// - shape tool: dragging draws the chosen shape from the start point to the pointer (a pen stroke, see `shapes.ts`).
 // - lasso: a loop selects; dragging the selection (or a corner) moves/scales it. Laser: a fading trail, not stored.
 
 import { debug } from '@in-browser/brand/debug.js';
 import { hasRealPressure, penPressure, PressureSimulator } from '#lib/ink/pressure.js';
 import { diameter } from '#lib/ink/outline.js';
-import { recognize, shapePoints, type ShapeFit } from '#lib/ink/recognize.js';
+import { recognize } from '#lib/ink/recognize.js';
+import { fitFromDrag, shapePoints, type ShapeFit, type ShapeKind } from '#lib/ink/shapes.js';
 import type { InkTool } from '#lib/model/types.js';
 import type { Stage } from '#lib/render/stage.js';
 import type { Selection } from './selection.svelte.js';
 
-export type Tool = InkTool | 'eraser' | 'lasso' | 'laser';
+export type Tool = InkTool | 'shape' | 'eraser' | 'lasso' | 'laser';
 export type EraserMode = 'stroke' | 'pixel';
 
 export interface ToolState {
@@ -33,6 +35,8 @@ export interface ToolState {
 	penOnly: boolean;
 	/** Smoothing level 0…1 */
 	smoothing: number;
+	/** What the shape tool draws */
+	shape: ShapeKind;
 }
 
 export interface InputHandlers {
@@ -48,7 +52,7 @@ export interface InputHandlers {
 	hover?(): void;
 }
 
-type Mode = 'draw' | 'erase' | 'nav' | 'lasso' | 'select' | 'laser';
+type Mode = 'draw' | 'shape' | 'erase' | 'nav' | 'lasso' | 'select' | 'laser';
 
 interface Active {
 	id: number;
@@ -83,6 +87,8 @@ export class InputController {
 	/** Recognized shape of the current stroke */
 	private shape: ShapeFit | null = null;
 	private lassoPoints: number[] = [];
+	/** Shape tool: what is dragged, from where (page points of the live stroke's page) and with which pen size */
+	private drag = { kind: 'line' as ShapeKind, page: 0, x: 0, y: 0, size: 1, moved: false };
 
 	constructor(
 		private readonly root: HTMLElement,
@@ -185,6 +191,13 @@ export class InputController {
 			this.stage.laserPoint(x, y);
 			return 'laser';
 		}
+		if (s.tool === 'shape') {
+			const hit = this.stage.pageAt(x, y);
+			if (!hit || !this.stage.begin(x, y, 0.5, 'pen', s.color, s.size, 0)) return null;
+			this.drawId = e.pointerId;
+			this.drag = { kind: s.shape, page: hit.index, x: hit.x, y: hit.y, size: s.size, moved: false };
+			return 'shape';
+		}
 		this.realPressure = hasRealPressure(e.pointerType, e.pressure);
 		this.pressure.reset();
 		const p = this.realPressure ? penPressure(e.pressure) : this.pressure.next(x, y, e.timeStamp, 1);
@@ -224,7 +237,7 @@ export class InputController {
 		this.stopHold();
 		if (!fit) return;
 		this.shape = fit;
-		this.stage.replaceLive(shapePoints(fit));
+		this.stage.replaceLive(shapePoints(fit, this.h.tool().size));
 		if (import.meta.hot) debug(`[notes] shape ${fit.kind}`);
 	}
 
@@ -242,6 +255,15 @@ export class InputController {
 		}
 		if (raw) return;
 		const [x, y] = this.stage.local(e.clientX, e.clientY);
+		if (a.mode === 'shape') {
+			const d = this.drag;
+			const [px, py] = this.stage.toPage(d.page, x, y);
+			// A tap or a tiny wiggle draws nothing
+			if (!d.moved && Math.hypot(px - d.x, py - d.y) * this.stage.view.zoom < 6) return;
+			d.moved = true;
+			this.stage.replaceLive(shapePoints(fitFromDrag(d.kind, d.x, d.y, px, py), d.size));
+			return;
+		}
 		if (a.mode === 'lasso') {
 			for (const ev of coalesced(e)) this.lassoPoints.push(...this.stage.local(ev.clientX, ev.clientY));
 			this.stage.setLasso(this.lassoPoints);
@@ -316,6 +338,13 @@ export class InputController {
 					const s = this.h.tool();
 					debug(`[notes] stroke ${a.type}${this.realPressure ? ' with pressure' : ', pressure simulated'}, smoothing ${s.smoothing}: ${this.stage.strokeReport()}`);
 				}
+			}
+		} else if (a.mode === 'shape' && this.drawId === e.pointerId) {
+			this.drawId = null;
+			if (cancelled || !this.drag.moved) this.stage.cancel();
+			else {
+				const stroke = this.stage.end();
+				if (stroke) this.h.commit(stroke);
 			}
 		} else if (a.mode === 'lasso' && this.drawId === e.pointerId) {
 			this.drawId = null;
@@ -437,7 +466,7 @@ export class InputController {
 		const s = this.h.tool();
 		if (!this.stage.view.pageAt(this.stage.rects, x, y) || s.tool === 'lasso' || s.tool === 'laser') return this.stage.hideCursor();
 		if (s.tool === 'eraser') this.stage.showCursor(x, y, s.eraser * 2, null);
-		else this.stage.showCursor(x, y, diameter(s.tool, s.size, 0.5) * this.stage.view.zoom, s.color);
+		else this.stage.showCursor(x, y, diameter(s.tool === 'highlighter' ? 'highlighter' : 'pen', s.size, 0.5) * this.stage.view.zoom, s.color);
 	}
 }
 

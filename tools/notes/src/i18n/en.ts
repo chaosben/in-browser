@@ -65,6 +65,7 @@ const en = {
 		label: 'Tools',
 		pen: 'Pen',
 		highlighter: 'Highlighter',
+		shape: 'Shapes',
 		eraser: 'Eraser',
 		lasso: 'Lasso',
 		laser: 'Laser pointer',
@@ -76,7 +77,22 @@ const en = {
 		options: 'Color, thickness and smoothing',
 		smoothing: 'Smoothing',
 		smoothingLevels: ['Off', 'Light', 'Medium', 'Strong'] as string[],
-		smoothingHint: 'Smoother lines that follow the pen with a small delay'
+		smoothingHint: 'Smoother lines that follow the pen with a small delay',
+		shapes: {
+			line: 'Line',
+			arrow: 'Arrow',
+			doubleArrow: 'Double arrow',
+			rect: 'Rectangle',
+			roundedRect: 'Rounded rectangle',
+			ellipse: 'Ellipse',
+			triangle: 'Triangle',
+			diamond: 'Diamond',
+			parallelogram: 'Parallelogram',
+			pentagon: 'Pentagon',
+			hexagon: 'Hexagon',
+			star: 'Star'
+		},
+		shapeHint: 'Drag on the page. Nearly square shapes become a square or circle, lines snap to 15° steps.'
 	},
 
 	selection: {

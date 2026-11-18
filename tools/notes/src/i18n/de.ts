@@ -65,6 +65,7 @@ const de: Messages = {
 		label: 'Werkzeuge',
 		pen: 'Stift',
 		highlighter: 'Textmarker',
+		shape: 'Formen',
 		eraser: 'Radierer',
 		lasso: 'Lasso',
 		laser: 'Laserpointer',
@@ -76,7 +77,22 @@ const de: Messages = {
 		options: 'Farbe, Stärke und Glättung',
 		smoothing: 'Glättung',
 		smoothingLevels: ['Aus', 'Leicht', 'Mittel', 'Stark'],
-		smoothingHint: 'Glattere Linien, die dem Stift mit kleiner Verzögerung folgen'
+		smoothingHint: 'Glattere Linien, die dem Stift mit kleiner Verzögerung folgen',
+		shapes: {
+			line: 'Linie',
+			arrow: 'Pfeil',
+			doubleArrow: 'Doppelpfeil',
+			rect: 'Rechteck',
+			roundedRect: 'Abgerundetes Rechteck',
+			ellipse: 'Ellipse',
+			triangle: 'Dreieck',
+			diamond: 'Raute',
+			parallelogram: 'Parallelogramm',
+			pentagon: 'Fünfeck',
+			hexagon: 'Sechseck',
+			star: 'Stern'
+		},
+		shapeHint: 'Zieh die Form auf der Seite auf. Fast quadratische Formen werden zu Quadrat oder Kreis, Linien rasten in 15°-Schritten ein.'
 	},
 
 	selection: {
