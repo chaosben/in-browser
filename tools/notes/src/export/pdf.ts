@@ -9,7 +9,8 @@
 
 import type { PDFDocument, PDFImage, PDFName, PDFOperator, PDFPage } from 'pdf-lib';
 import { diameter } from '#lib/ink/outline.js';
-import { isStroke, type Background, type PageMeta, type Picture, type Stroke } from '#lib/model/types.js';
+import { fillOutline, inkStrokes } from '#lib/ink/shapes.js';
+import { isInk, isShape, type Background, type PageMeta, type Picture, type ShapeItem, type Stroke } from '#lib/model/types.js';
 import { pictureKey } from '#lib/render/pictures.js';
 import { GRID_SPACING, LINE_SPACING, PAPER_INK } from '#lib/render/paper.js';
 import type { ExportSource, Progress } from './source.js';
@@ -67,8 +68,9 @@ class Writer {
 
 		const scene = this.source.scene(meta.id);
 		for (const item of scene?.items ?? []) {
-			if (isStroke(item)) {
-				run.push(...this.stroke(item, highlight));
+			if (isInk(item)) {
+				if (isShape(item)) run.push(...this.fill(page, item));
+				for (const s of inkStrokes(item)) run.push(...this.stroke(s, highlight));
 				continue;
 			}
 			flush();
@@ -128,6 +130,34 @@ class Writer {
 	}
 
 	// --- Strokes ---
+
+	/** See-through fills: one graphics state per opacity and page */
+	private readonly opacities = new Map<PDFPage, Map<number, PDFName>>();
+
+	private opacity(page: PDFPage, alpha: number): PDFName {
+		let names = this.opacities.get(page);
+		if (!names) this.opacities.set(page, (names = new Map()));
+		let name = names.get(alpha);
+		if (!name) {
+			const state = this.out.context.register(this.out.context.obj({ Type: 'ExtGState', ca: alpha }));
+			names.set(alpha, (name = page.node.newExtGState('Fill', state)));
+		}
+		return name;
+	}
+
+	/** The fill of a shape (under its outline) */
+	private fill(page: PDFPage, s: ShapeItem): PDFOperator[] {
+		const outline = fillOutline(s);
+		if (!outline || !s.fill) return [];
+		const o = this.lib;
+		const alpha = Math.round((parseInt(s.fill.slice(7, 9), 16) / 255) * 100) / 100;
+		const ops: PDFOperator[] = [o.pushGraphicsState()];
+		if (alpha < 1) ops.push(o.setGraphicsState(this.opacity(page, alpha)));
+		ops.push(o.setFillingRgbColor(...rgbOf(s.fill)), o.moveTo(round(outline[0]), round(outline[1])));
+		for (let i = 2; i < outline.length; i += 2) ops.push(o.lineTo(round(outline[i]), round(outline[i + 1])));
+		ops.push(o.closePath(), o.fill(), o.popGraphicsState());
+		return ops;
+	}
 
 	private stroke(s: Stroke, highlight: PDFName): PDFOperator[] {
 		const o = this.lib;

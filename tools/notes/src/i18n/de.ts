@@ -67,7 +67,8 @@ const de: Messages = {
 		highlighter: 'Textmarker',
 		shape: 'Formen',
 		eraser: 'Radierer',
-		lasso: 'Lasso',
+		lasso: 'Auswählen',
+		lassoHint: 'Auswählen – tippe ein Element an oder umkreise mehrere',
 		laser: 'Laserpointer',
 		eraserMode: 'Radiert',
 		eraserModes: { stroke: 'Ganze Striche', pixel: 'Pixel' },
@@ -92,12 +93,43 @@ const de: Messages = {
 			hexagon: 'Sechseck',
 			star: 'Stern'
 		},
-		shapeHint: 'Zieh die Form auf der Seite auf. Fast quadratische Formen werden zu Quadrat oder Kreis, Linien rasten in 15°-Schritten ein.'
+		shapeHint: 'Zieh die Form auf der Seite auf. Fast quadratische Formen werden zu Quadrat oder Kreis.',
+		snap: 'Einrasten',
+		snapHint: 'Linien in 15°-Schritten; Kanten und Mitten an Seite, Formen und Bildern; gleiche Abstände. Halte beim Ziehen Alt gedrückt für das Gegenteil.'
+	},
+
+	shapeStyle: {
+		fill: 'Füllung',
+		noFill: 'Keine',
+		line: 'Linie',
+		dashes: { solid: 'Durchgezogen', dashed: 'Gestrichelt', dotted: 'Gepunktet' },
+		sketch: 'Handgezeichnet',
+		heads: 'Pfeilspitzen',
+		headOptions: { none: 'Keine', end: 'Am Ende', start: 'Am Anfang', both: 'An beiden Enden' }
+	},
+
+	suggest: {
+		label: (shape) => `In ${shape} umwandeln`,
+		hint: 'Ersetzt den Strich durch eine Form, deren Punkte du verschieben kannst',
+		names: {
+			line: 'Linie',
+			arrow: 'Pfeil',
+			doubleArrow: 'Doppelpfeil',
+			triangle: 'Dreieck',
+			rectangle: 'Rechteck',
+			quadrilateral: 'Viereck',
+			polygon: 'Vieleck',
+			roundedRect: 'abgerundetes Rechteck',
+			circle: 'Kreis',
+			ellipse: 'Ellipse'
+		}
 	},
 
 	selection: {
 		label: (n) => (n === 1 ? '1 Element ausgewählt' : `${n} Elemente ausgewählt`),
 		color: 'Farbe',
+		size: 'Stärke',
+		style: 'Stil',
 		duplicate: 'Duplizieren',
 		delete: 'Löschen'
 	},

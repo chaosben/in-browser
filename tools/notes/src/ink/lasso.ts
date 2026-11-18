@@ -1,6 +1,7 @@
-// Lasso selection on vector data: which items a drawn loop encloses, and moving/scaling them.
+// Selection on vector data: which items a drawn loop encloses, and moving/scaling them.
 
-import { isStroke, type Item, type Stroke } from '#lib/model/types.js';
+import { isInk, isShape, isStroke, type Item, type Stroke } from '#lib/model/types.js';
+import { inkPoints, transformFit } from './shapes.js';
 
 /** Is (x, y) inside the polygon (x, y pairs)? Even-odd rule, the loop closes itself */
 export function pointInPolygon(x: number, y: number, poly: ArrayLike<number>): boolean {
@@ -21,13 +22,14 @@ export function itemsInLasso(items: Iterable<Item>, poly: ArrayLike<number>): It
 	if (poly.length < 6) return [];
 	const found: Item[] = [];
 	for (const s of items) {
-		if (!isStroke(s)) {
+		if (!isInk(s)) {
 			if (pointInPolygon(s.x + s.w / 2, s.y + s.h / 2, poly)) found.push(s);
 			continue;
 		}
+		const pts = inkPoints(s);
 		let inside = 0;
-		const n = s.points.length / 3;
-		for (let i = 0; i < s.points.length; i += 3) if (pointInPolygon(s.points[i], s.points[i + 1], poly)) inside++;
+		const n = pts.length / 3;
+		for (let i = 0; i < pts.length; i += 3) if (pointInPolygon(pts[i], pts[i + 1], poly)) inside++;
 		if (inside * 2 >= n) found.push(s);
 	}
 	return found;
@@ -60,5 +62,6 @@ export function transformStroke(s: Stroke, t: Transform): Stroke {
 /** Any item moved/scaled */
 export function transformItem<T extends Item>(item: T, t: Transform): T {
 	if (isStroke(item)) return transformStroke(item, t) as T;
+	if (isShape(item)) return { ...item, fit: transformFit(item.fit, t), size: item.size * t.scale };
 	return { ...item, x: t.ox + (item.x - t.ox) * t.scale + t.dx, y: t.oy + (item.y - t.oy) * t.scale + t.dy, w: item.w * t.scale, h: item.h * t.scale };
 }

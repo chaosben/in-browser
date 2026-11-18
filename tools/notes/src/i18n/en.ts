@@ -67,7 +67,8 @@ const en = {
 		highlighter: 'Highlighter',
 		shape: 'Shapes',
 		eraser: 'Eraser',
-		lasso: 'Lasso',
+		lasso: 'Select',
+		lassoHint: 'Select – tap an item, or draw a loop around several',
 		laser: 'Laser pointer',
 		eraserMode: 'Erases',
 		eraserModes: { stroke: 'Whole strokes', pixel: 'Pixels' },
@@ -92,12 +93,43 @@ const en = {
 			hexagon: 'Hexagon',
 			star: 'Star'
 		},
-		shapeHint: 'Drag on the page. Nearly square shapes become a square or circle, lines snap to 15° steps.'
+		shapeHint: 'Drag on the page. Nearly square shapes become a square or circle.',
+		snap: 'Snap',
+		snapHint: 'Lines in 15° steps; edges and centers to the page, shapes and pictures; equal spacing. Hold Alt while dragging for the opposite.'
+	},
+
+	shapeStyle: {
+		fill: 'Fill',
+		noFill: 'None',
+		line: 'Line',
+		dashes: { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted' },
+		sketch: 'Hand-drawn',
+		heads: 'Arrowheads',
+		headOptions: { none: 'None', end: 'At the end', start: 'At the start', both: 'At both ends' }
+	},
+
+	suggest: {
+		label: (shape: string) => `Convert to ${shape}`,
+		hint: 'Replaces the stroke with a shape whose points you can move',
+		names: {
+			line: 'line',
+			arrow: 'arrow',
+			doubleArrow: 'double arrow',
+			triangle: 'triangle',
+			rectangle: 'rectangle',
+			quadrilateral: 'quadrilateral',
+			polygon: 'polygon',
+			roundedRect: 'rounded rectangle',
+			circle: 'circle',
+			ellipse: 'ellipse'
+		}
 	},
 
 	selection: {
 		label: (n: number) => (n === 1 ? '1 item selected' : `${n} items selected`),
 		color: 'Color',
+		size: 'Thickness',
+		style: 'Style',
 		duplicate: 'Duplicate',
 		delete: 'Delete'
 	},

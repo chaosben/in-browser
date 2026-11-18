@@ -16,6 +16,8 @@ export type Shape = { seed: string; sketch: boolean } & (
 	| { kind: 'arrow'; from: Point; to: Point; width: number; minHead: number }
 	| { kind: 'rect'; x: number; y: number; w: number; h: number; radius: number }
 	| { kind: 'ellipse'; x: number; y: number; w: number; h: number }
+	/** Closed polygon through its corners */
+	| { kind: 'polygon'; points: Point[] }
 );
 
 /** Arrowhead size for a line width and shaft length, at least `minHead` (pixels) */
@@ -84,6 +86,20 @@ function roundRectStroke(x: number, y: number, w: number, h: number, r: number):
 	return points;
 }
 
+/** One stroke per edge of a closed polygon, each reaching a little over the corners */
+function sketchedEdges(corners: Point[], jitter: number, between: (lo: number, hi: number) => number): Stroke[] {
+	return corners.map((a, i) => {
+		const b = corners[(i + 1) % corners.length];
+		const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+		const ux = (b.x - a.x) / length;
+		const uy = (b.y - a.y) / length;
+		const over = length * between(0.02, 0.06);
+		const start = { x: a.x - ux * over * 0.5 + between(-jitter, jitter), y: a.y - uy * over * 0.5 + between(-jitter, jitter) };
+		const end = { x: b.x + ux * over + between(-jitter, jitter), y: b.y + uy * over + between(-jitter, jitter) };
+		return bowed(start, end, between(-0.015, 0.015));
+	});
+}
+
 /** The shape's strokes in drawing order; for an exact arrow only the shaft (its filled head is drawn separately) */
 export function strokesOf(a: Shape): Stroke[] {
 	const random = seeded(a.seed);
@@ -111,24 +127,23 @@ export function strokesOf(a: Shape): Stroke[] {
 		case 'rect': {
 			const { x, y, w, h } = a;
 			if (!a.sketch) return [roundRectStroke(x, y, w, h, Math.min(a.radius, w / 2, h / 2))];
-			// Four strokes, each reaching a little over the corners
-			const corners = [
-				{ x, y },
-				{ x: x + w, y },
-				{ x: x + w, y: y + h },
-				{ x, y: y + h }
-			];
-			const jitter = Math.min(w, h) * 0.02;
-			return corners.map((a, i) => {
-				const b = corners[(i + 1) % 4];
-				const length = Math.hypot(b.x - a.x, b.y - a.y);
-				const ux = (b.x - a.x) / length;
-				const uy = (b.y - a.y) / length;
-				const over = length * between(0.02, 0.06);
-				const start = { x: a.x - ux * over * 0.5 + between(-jitter, jitter), y: a.y - uy * over * 0.5 + between(-jitter, jitter) };
-				const end = { x: b.x + ux * over + between(-jitter, jitter), y: b.y + uy * over + between(-jitter, jitter) };
-				return bowed(start, end, between(-0.015, 0.015));
-			});
+			return sketchedEdges(
+				[
+					{ x, y },
+					{ x: x + w, y },
+					{ x: x + w, y: y + h },
+					{ x, y: y + h }
+				],
+				Math.min(w, h) * 0.02,
+				between
+			);
+		}
+		case 'polygon': {
+			const { points } = a;
+			if (!a.sketch) return [[...points, points[0]]];
+			let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+			for (const p of points) [x0, y0, x1, y1] = [Math.min(x0, p.x), Math.min(y0, p.y), Math.max(x1, p.x), Math.max(y1, p.y)];
+			return sketchedEdges(points, Math.min(x1 - x0, y1 - y0) * 0.02, between);
 		}
 		case 'ellipse': {
 			const rx = a.w / 2;

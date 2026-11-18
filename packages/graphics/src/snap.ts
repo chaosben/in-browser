@@ -1,10 +1,17 @@
-// Snapping in the preview: edges and centers of the dragged item snap to the canvas edges and center and to the
-// edges and centers of the other visible items; moved items also snap to equal spacing between them. All values
-// in normalized content coordinates.
+// Snapping while dragging: edges and centers of the dragged item snap to the edges and center of the frame (canvas,
+// page) and to the edges and centers of other items; moved items also snap to equal spacing between them. Any unit
+// (Screen Capture: normalized content coordinates, Notes: page points).
 
-import type { Point, Rect } from '#lib/project/types.js';
+import type { Point } from './shapes.js';
 
-/** A line to snap to and where it comes from: `box` indexes `SnapTargets.boxes`, `null` is the canvas */
+export interface Rect {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+/** A line to snap to and where it comes from: `box` indexes `SnapTargets.boxes`, `null` is the frame */
 export interface SnapLine {
 	at: number;
 	box: number | null;
@@ -38,11 +45,11 @@ export interface Guides {
 	gaps: Gap[];
 }
 
-/** Canvas edges and center plus edges and centers of `boxes`; the canvas first, so it wins a tie */
-export function snapTargets(boxes: Rect[]): SnapTargets {
-	const canvas = (at: number): SnapLine => ({ at, box: null });
-	const xs = [0, 0.5, 1].map(canvas);
-	const ys = [0, 0.5, 1].map(canvas);
+/** Edges and center of the frame (default: the unit square) plus edges and centers of `boxes`; the frame first, so it wins a tie */
+export function snapTargets(boxes: Rect[], frame: Rect = { x: 0, y: 0, w: 1, h: 1 }): SnapTargets {
+	const edge = (at: number): SnapLine => ({ at, box: null });
+	const xs = [frame.x, frame.x + frame.w / 2, frame.x + frame.w].map(edge);
+	const ys = [frame.y, frame.y + frame.h / 2, frame.y + frame.h].map(edge);
 	boxes.forEach((b, box) => {
 		xs.push(...[b.x, b.x + b.w / 2, b.x + b.w].map((at) => ({ at, box })));
 		ys.push(...[b.y, b.y + b.h / 2, b.y + b.h].map((at) => ({ at, box })));

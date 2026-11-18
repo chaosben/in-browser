@@ -5,20 +5,24 @@
 //   a copy of `base`, is only shown while drawing and hidden once the stroke is in the tiles
 // - marker: a highlighter stroke (transparent, normal canvas; painted opaque, opacity + multiply on the layer)
 // - ghost: predicted points, cleared every frame
-// - overlay: lasso loop, selection frame and the selection while it is dragged, laser pointer (redrawn per frame)
+// - overlay: lasso loop, selection frame (with the points of a selected shape) and the selection while it is
+//   dragged, laser pointer (redrawn per frame)
 // Everything here is plain objects and numbers – no Svelte reactivity on the hot path.
 
 import { debug } from '@in-browser/brand/debug.js';
 import { PointBuffer } from '#lib/ink/buffer.js';
 import { Smoother } from '#lib/ink/smooth.js';
 import { hitsStroke, intersects, type Box } from '#lib/ink/geometry.js';
-import { diameter, inkAlpha, pathOf } from '#lib/ink/outline.js';
-import type { Transform } from '#lib/ink/lasso.js';
-import { isStroke, type InkTool, type Item, type PageMeta, type Stroke } from '#lib/model/types.js';
+import { diameter, inkAlpha, inkPath } from '#lib/ink/outline.js';
+import { pointInPolygon, type Transform } from '#lib/ink/lasso.js';
+import { fillOutline, inkStrokes } from '#lib/ink/shapes.js';
+import { pageTargets, toMm } from '#lib/ink/align.js';
+import type { Guides, Rect, SnapTargets } from '@in-browser/graphics/snap.js';
+import { isInk, isPicture, isShape, type Ink, type InkTool, type Item, type PageMeta } from '#lib/model/types.js';
 import type { PdfBackgrounds } from './backgrounds.js';
 import { PAPER_COLOR } from './paper.js';
 import { drawPicture } from './pictures.js';
-import type { PageScene } from './scene.js';
+import { drawInk, type PageScene } from './scene.js';
 import { TILE, TileCache, tileRange, type Tile, type TilePage } from './tiles.js';
 import { layoutPages, Viewport, type PageRect } from './viewport.js';
 
@@ -42,7 +46,7 @@ interface LiveStroke {
 	/** Last point in screen pixels (CSS) */
 	sx: number;
 	sy: number;
-	/** Replaced by a recognized shape: no catching up with the pen at the end */
+	/** Replaced by a shape: no catching up with the pen at the end */
 	shaped: boolean;
 }
 
@@ -53,9 +57,19 @@ export interface StageSelection {
 	t: Transform;
 	/** Items taken out of the page while dragged (drawn here instead) */
 	lifted: Item[] | null;
+	/** Points of a single selected shape that can be dragged (page points), instead of the corner handles */
+	handles: [number, number][] | null;
 }
 
-export type SelectionHandle = 'move' | 'nw' | 'ne' | 'se' | 'sw';
+/** Corner handles scale the selection, `{ point }` moves a point of a shape (index into `handles`) */
+export type SelectionHandle = 'move' | 'nw' | 'ne' | 'se' | 'sw' | { point: number };
+
+/** Lines and equal gaps snapped to while dragging; `boxes`: the targets' boxes (`SnapLine.box` indexes them) */
+export interface StageGuides {
+	page: number;
+	guides: Guides;
+	boxes: Rect[];
+}
 
 /** Laser pointer: points fade out after this time */
 const LASER_MS = 1200;
@@ -109,11 +123,15 @@ export class Stage {
 	private readonly markerCtx: CanvasRenderingContext2D;
 	private readonly overlayCtx: CanvasRenderingContext2D;
 	private selectionColor = '#3b82f6';
+	private guideColor = '#4f46e5';
+	private guideText = '#ffffff';
+	/** Guides of the running drag (page points of `page`), with the boxes they come from */
+	private guides: StageGuides | null = null;
 	/** Lasso loop being drawn (screen pixels, x/y pairs) */
 	private lasso: number[] | null = null;
 	selection: StageSelection | null = null;
 	/** Outlines of dragged strokes (computed once per lift) */
-	private readonly liftedPaths = new WeakMap<Stroke, Path2D>();
+	private readonly liftedPaths = new WeakMap<Ink, Path2D>();
 	/** Laser trail: document points with time */
 	private laser: { x: number; y: number; t: number }[] = [];
 	private readonly ghostCtx: CanvasRenderingContext2D;
@@ -206,7 +224,7 @@ export class Stage {
 		this.originY = rect.top;
 		const style = getComputedStyle(this.el.root);
 		this.desk = style.backgroundColor || this.desk;
-		this.selectionColor = style.getPropertyValue('--color-selection').trim() || this.selectionColor;
+		this.readColors(style);
 		if (first) this.view.fitWidth(this.docWidth);
 		this.view.clamp(this.docWidth, this.docHeight);
 		this.scale = this.targetScale();
@@ -217,8 +235,16 @@ export class Stage {
 	themeChanged() {
 		const style = getComputedStyle(this.el.root);
 		this.desk = style.backgroundColor || this.desk;
-		this.selectionColor = style.getPropertyValue('--color-selection').trim() || this.selectionColor;
+		this.readColors(style);
 		this.request();
+	}
+
+	/** Role colors of the theme drawn on the overlay */
+	private readColors(style: CSSStyleDeclaration) {
+		const get = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+		this.selectionColor = get('--color-selection', this.selectionColor);
+		this.guideColor = get('--color-guide', this.guideColor);
+		this.guideText = get('--color-guide-content', this.guideText);
 	}
 
 	/** Screen position (CSS pixels relative to the stage) of a client point */
@@ -589,21 +615,7 @@ export class Stage {
 		ctx.stroke();
 	}
 
-	get drawing() {
-		return this.live !== null;
-	}
-
-	/** Points of the stroke being drawn (page points of its page) */
-	livePoints(): Float32Array | null {
-		return this.live ? this.live.buf.toArray() : null;
-	}
-
-	/** Pen position of the stroke being drawn (page points) */
-	livePen(): [number, number] {
-		return [this.penX, this.penY];
-	}
-
-	/** Replaces the stroke being drawn by other points (a recognized shape), painted at once */
+	/** Replaces the stroke being drawn by other points (the shape tool's shape), painted at once */
 	replaceLive(points: Float32Array) {
 		const live = this.live;
 		if (!live) return;
@@ -652,7 +664,7 @@ export class Stage {
 	}
 
 	/** A finished stroke is in the page: draw it into the tiles, the live layer goes with the next frame */
-	committed(pageId: string, scene: PageScene, stroke: Stroke) {
+	committed(pageId: string, scene: PageScene, stroke: Ink) {
 		this.tiles.drawStroke(pageId, scene, stroke, scene.bounds(stroke));
 		this.clearLiveOnFrame = true;
 		this.request();
@@ -669,33 +681,51 @@ export class Stage {
 
 	// --- Erasing ---
 
-	/** Strokes under a circle of `radius` screen pixels at (sx, sy), with their page */
-	strokesAt(sx: number, sy: number, radius: number): { page: number; strokes: Stroke[] } | null {
+	/** Strokes and shapes under a circle of `radius` screen pixels at (sx, sy), with their page */
+	strokesAt(sx: number, sy: number, radius: number): { page: number; strokes: Ink[] } | null {
 		const hit = this.view.pageAt(this.rects, sx, sy);
 		if (!hit) return null;
 		const scene = this.sceneOf(this.pages[hit.index].id);
 		if (!scene) return null;
 		const r = radius / this.view.zoom;
 		const box = { x0: hit.x - r, y0: hit.y - r, x1: hit.x + r, y1: hit.y + r };
-		const strokes: Stroke[] = [];
-		for (const s of scene.index.query(box)) if (isStroke(s) && intersects(scene.bounds(s), box) && hitsStroke(s, hit.x, hit.y, r)) strokes.push(s);
+		const strokes: Ink[] = [];
+		for (const s of scene.index.query(box)) if (isInk(s) && intersects(scene.bounds(s), box) && inkStrokes(s).some((piece) => hitsStroke(piece, hit.x, hit.y, r))) strokes.push(s);
 		return { page: hit.index, strokes };
 	}
 
-	/** The topmost picture at a screen point, with its page */
-	pictureAt(sx: number, sy: number): { page: number; id: string } | null {
+	/** The topmost item at a screen point (pictures by their box, ink within `reach` screen pixels), with its page */
+	itemAt(sx: number, sy: number, reach: number): { page: number; id: string } | null {
 		const hit = this.view.pageAt(this.rects, sx, sy);
 		const scene = hit && this.sceneOf(this.pages[hit.index].id);
 		if (!hit || !scene) return null;
-		const items = scene.itemsIn({ x0: hit.x, y0: hit.y, x1: hit.x, y1: hit.y });
+		const r = reach / this.view.zoom;
+		const items = scene.itemsIn({ x0: hit.x - r, y0: hit.y - r, x1: hit.x + r, y1: hit.y + r });
 		for (let i = items.length - 1; i >= 0; i--) {
 			const p = items[i];
-			if (!isStroke(p) && hit.x >= p.x && hit.x <= p.x + p.w && hit.y >= p.y && hit.y <= p.y + p.h) return { page: hit.index, id: p.id };
+			const fill = isShape(p) && fillOutline(p);
+			const found = isInk(p)
+				? inkStrokes(p).some((piece) => hitsStroke(piece, hit.x, hit.y, r)) || (!!fill && pointInPolygon(hit.x, hit.y, fill))
+				: hit.x >= p.x && hit.x <= p.x + p.w && hit.y >= p.y && hit.y <= p.y + p.h;
+			if (found) return { page: hit.index, id: p.id };
 		}
 		return null;
 	}
 
-	// --- Overlay: lasso, selection, laser ---
+	// --- Overlay: lasso, selection, guides, laser ---
+
+	/** What to snap to on a page: its edges and center, its shapes and pictures except `exclude` */
+	snapTargets(page: number, exclude: ReadonlySet<string>): SnapTargets | null {
+		const meta = this.pages[page];
+		const scene = meta && this.sceneOf(meta.id);
+		return scene ? pageTargets(scene.items, exclude, meta.w, meta.h) : null;
+	}
+
+	setGuides(guides: StageGuides | null) {
+		if (!guides && !this.guides) return;
+		this.guides = guides && (guides.guides.x || guides.guides.y || guides.guides.gaps.length) ? guides : null;
+		this.request();
+	}
 
 	setLasso(points: number[] | null) {
 		this.lasso = points;
@@ -705,6 +735,15 @@ export class Stage {
 	setSelection(selection: StageSelection | null) {
 		this.selection = selection;
 		this.request();
+	}
+
+	/** A box of a page (page points) on screen (CSS pixels) */
+	boxRect(page: number, box: Box): { x: number; y: number; w: number; h: number } | null {
+		const rect = this.rects[page];
+		if (!rect) return null;
+		const x = this.view.toScreenX(rect.x + box.x0);
+		const y = this.view.toScreenY(rect.y + box.y0);
+		return { x, y, w: this.view.toScreenX(rect.x + box.x1) - x, h: this.view.toScreenY(rect.y + box.y1) - y };
 	}
 
 	/** Bounds of the selection on screen (CSS pixels), with its current move/scale */
@@ -722,11 +761,39 @@ export class Stage {
 		return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 	}
 
-	/** Which part of the selection is at a screen point: a corner handle, the inside, or nothing */
+	/** Points of a selected shape on screen (CSS pixels), with the selection's current move/scale */
+	private handlePoints(): [number, number][] {
+		const s = this.selection;
+		const rect = s && this.rects[s.page];
+		if (!s?.handles || !rect) return [];
+		const { t } = s;
+		return s.handles.map(([x, y]) => [
+			this.view.toScreenX(rect.x + t.ox + (x - t.ox) * t.scale + t.dx),
+			this.view.toScreenY(rect.y + t.oy + (y - t.oy) * t.scale + t.dy)
+		]);
+	}
+
+	/** Which part of the selection is at a screen point: a point of a shape, a corner handle, the inside, or nothing */
 	selectionHandle(sx: number, sy: number, touch: boolean): SelectionHandle | null {
 		const r = this.selectionRect();
 		if (!r) return null;
 		const reach = touch ? 22 : 12;
+		if (this.selection?.handles) {
+			// Nearest point within reach (points of small shapes lie close together)
+			let best = -1;
+			let dist = reach;
+			this.handlePoints().forEach(([x, y], i) => {
+				const d = Math.hypot(sx - x, sy - y);
+				if (d <= dist) {
+					dist = d;
+					best = i;
+				}
+			});
+			if (best >= 0) return { point: best };
+			// Thin shapes (a horizontal line) still need room to be grabbed
+			const pad = touch ? 12 : 6;
+			return sx >= r.x - pad && sx <= r.x + r.w + pad && sy >= r.y - pad && sy <= r.y + r.h + pad ? 'move' : null;
+		}
 		const corners: [SelectionHandle, number, number][] = [
 			['nw', r.x, r.y],
 			['ne', r.x + r.w, r.y],
@@ -790,16 +857,13 @@ export class Stage {
 				ctx.translate(-s.t.ox, -s.t.oy);
 				const pictures = this.sceneOf(this.pages[s.page].id)?.pictures ?? null;
 				for (const item of s.lifted) {
-					if (!isStroke(item)) {
+					if (isPicture(item)) {
 						drawPicture(ctx, item, pictures);
 						continue;
 					}
-					ctx.fillStyle = item.color;
-					ctx.globalAlpha = inkAlpha(item.tool);
 					let path = this.liftedPaths.get(item);
-					if (!path) this.liftedPaths.set(item, (path = pathOf(item)));
-					ctx.fill(path);
-					ctx.globalAlpha = 1;
+					if (!path) this.liftedPaths.set(item, (path = inkPath(item)));
+					drawInk(ctx, item, path);
 				}
 				ctx.restore();
 			}
@@ -810,13 +874,18 @@ export class Stage {
 			ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
 			ctx.setLineDash([]);
 			ctx.fillStyle = '#ffffff';
-			for (const [x, y] of [[r.x - 4, r.y - 4], [r.x + r.w + 4, r.y - 4], [r.x + r.w + 4, r.y + r.h + 4], [r.x - 4, r.y + r.h + 4]]) {
+			const handles = s.handles
+				? this.handlePoints()
+				: [[r.x - 4, r.y - 4], [r.x + r.w + 4, r.y - 4], [r.x + r.w + 4, r.y + r.h + 4], [r.x - 4, r.y + r.h + 4]];
+			for (const [x, y] of handles) {
 				ctx.beginPath();
 				ctx.arc(x, y, 6, 0, Math.PI * 2);
 				ctx.fill();
 				ctx.stroke();
 			}
 		}
+
+		if (this.guides) this.drawGuides(ctx, this.guides);
 
 		if (this.lasso && this.lasso.length >= 4) {
 			const l = this.lasso;
@@ -854,6 +923,66 @@ export class Stage {
 			return true;
 		}
 		return false;
+	}
+
+	/** Snap lines across the page, equal gaps with their size, outlines of what is snapped to */
+	private drawGuides(ctx: CanvasRenderingContext2D, { page, guides, boxes }: StageGuides) {
+		const rect = this.rects[page];
+		if (!rect) return;
+		const { view } = this;
+		const sx = (x: number) => view.toScreenX(rect.x + x);
+		const sy = (y: number) => view.toScreenY(rect.y + y);
+		ctx.save();
+		ctx.strokeStyle = this.guideColor;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		if (guides.x) {
+			const x = Math.round(sx(guides.x.at)) + 0.5;
+			ctx.moveTo(x, sy(0));
+			ctx.lineTo(x, sy(rect.h));
+		}
+		if (guides.y) {
+			const y = Math.round(sy(guides.y.at)) + 0.5;
+			ctx.moveTo(sx(0), y);
+			ctx.lineTo(sx(rect.w), y);
+		}
+		for (const box of new Set([guides.x?.box, guides.y?.box])) {
+			if (box == null || !boxes[box]) continue;
+			const b = boxes[box];
+			ctx.rect(sx(b.x), sy(b.y), sx(b.x + b.w) - sx(b.x), sy(b.y + b.h) - sy(b.y));
+		}
+		ctx.stroke();
+		// Equal gaps: a measure with end ticks and its length
+		ctx.font = '10px system-ui, sans-serif';
+		ctx.textBaseline = 'middle';
+		for (const gap of guides.gaps) {
+			const along = gap.axis === 'x';
+			const [a, b, c] = along ? [sx(gap.from), sx(gap.to), sy(gap.at)] : [sy(gap.from), sy(gap.to), sx(gap.at)];
+			ctx.beginPath();
+			const line = (x0: number, y0: number, x1: number, y1: number) => {
+				if (along) {
+					ctx.moveTo(x0, y0);
+					ctx.lineTo(x1, y1);
+				} else {
+					ctx.moveTo(y0, x0);
+					ctx.lineTo(y1, x1);
+				}
+			};
+			line(a, c, b, c);
+			line(a, c - 4, a, c + 4);
+			line(b, c - 4, b, c + 4);
+			ctx.stroke();
+			const label = `${toMm(gap.to - gap.from)} mm`;
+			const w = ctx.measureText(label).width + 6;
+			const [lx, ly] = along ? [(a + b) / 2 - w / 2, c + 6] : [c + 6, (a + b) / 2 - 8];
+			ctx.fillStyle = this.guideColor;
+			ctx.beginPath();
+			ctx.roundRect(lx, ly, w, 16, 3);
+			ctx.fill();
+			ctx.fillStyle = this.guideText;
+			ctx.fillText(label, lx + 3, ly + 8);
+		}
+		ctx.restore();
 	}
 
 	// --- Cursor preview (pen hover, eraser) ---

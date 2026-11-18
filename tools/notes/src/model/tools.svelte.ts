@@ -1,8 +1,8 @@
 // Tool settings: chosen tool, color and size per ink tool (shapes use the pen's), eraser size, smoothing, chosen
-// shape, "only the pen draws". Remembered in localStorage (`notes:tools`) for the next notebook.
+// shape and its style (fill, dashes, hand-drawn), snapping, "only the pen draws". Remembered in localStorage (`notes:tools`) for the next notebook.
 
 import type { EraserMode, Tool, ToolState } from '#lib/input/controller.js';
-import { SHAPE_KINDS, type ShapeKind } from '#lib/ink/shapes.js';
+import { DASHES, PLAIN, SHAPE_KINDS, type Dash, type ShapeKind, type ShapeStyle } from '#lib/ink/shapes.js';
 import { SMOOTHING_LEVELS } from '#lib/ink/smooth.js';
 
 const KEY = 'notes:tools';
@@ -22,6 +22,9 @@ interface Saved {
 	penOnly: boolean;
 	smoothing: number;
 	shape: ShapeKind;
+	shapeStyle: ShapeStyle;
+	/** Shapes and selections snap (15° steps, edges and centers, equal spacing) */
+	snap: boolean;
 }
 
 const TOOLS: readonly Tool[] = ['pen', 'highlighter', 'shape', 'eraser', 'lasso', 'laser'];
@@ -34,10 +37,13 @@ const DEFAULTS: Saved = {
 	eraserMode: 'stroke',
 	penOnly: false,
 	smoothing: 0.3,
-	shape: 'arrow'
+	shape: 'arrow',
+	shapeStyle: PLAIN,
+	snap: true
 };
 
 const HEX = /^#[0-9a-f]{6}$/;
+const FILL = /^#[0-9a-f]{8}$/;
 
 function load(): Saved {
 	try {
@@ -58,7 +64,13 @@ function load(): Saved {
 			eraserMode: raw.eraserMode === 'pixel' ? 'pixel' : 'stroke',
 			penOnly: raw.penOnly === true,
 			smoothing: SMOOTHING_LEVELS.includes(raw.smoothing as (typeof SMOOTHING_LEVELS)[number]) ? raw.smoothing! : DEFAULTS.smoothing,
-			shape: SHAPE_KINDS.includes(raw.shape as ShapeKind) ? raw.shape! : DEFAULTS.shape
+			shape: SHAPE_KINDS.includes(raw.shape as ShapeKind) ? raw.shape! : DEFAULTS.shape,
+			shapeStyle: {
+				fill: typeof raw.shapeStyle?.fill === 'string' && FILL.test(raw.shapeStyle.fill) ? raw.shapeStyle.fill : null,
+				dash: DASHES.includes(raw.shapeStyle?.dash as Dash) ? raw.shapeStyle!.dash : 'solid',
+				sketch: raw.shapeStyle?.sketch === true
+			},
+			snap: raw.snap !== false
 		};
 	} catch {
 		return structuredClone(DEFAULTS);
@@ -74,6 +86,8 @@ class Tools {
 	penOnly = $state(false);
 	smoothing = $state(DEFAULTS.smoothing);
 	shape = $state<ShapeKind>(DEFAULTS.shape);
+	shapeStyle = $state<ShapeStyle>({ ...DEFAULTS.shapeStyle });
+	snap = $state(true);
 	/** A pen hovered this session (enables hover previews and the palm rejection hint) */
 	penHover = $state(false);
 
@@ -87,6 +101,8 @@ class Tools {
 		this.penOnly = saved.penOnly;
 		this.smoothing = saved.smoothing;
 		this.shape = saved.shape;
+		this.shapeStyle = { ...saved.shapeStyle };
+		this.snap = saved.snap;
 	}
 
 	/** Ink settings of the chosen tool (eraser: those of the pen, for the preview) */
@@ -105,7 +121,9 @@ class Tools {
 			eraserMode: this.eraserMode,
 			penOnly: this.penOnly,
 			smoothing: this.smoothing,
-			shape: this.shape
+			shape: this.shape,
+			shapeStyle: { ...this.shapeStyle },
+			snap: this.snap
 		};
 	}
 
@@ -119,7 +137,9 @@ class Tools {
 				eraserMode: this.eraserMode,
 				penOnly: this.penOnly,
 				smoothing: this.smoothing,
-				shape: this.shape
+				shape: this.shape,
+				shapeStyle: { ...this.shapeStyle },
+				snap: this.snap
 			};
 			localStorage.setItem(KEY, JSON.stringify(saved));
 		} catch {

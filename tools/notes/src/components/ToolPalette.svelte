@@ -7,7 +7,8 @@
 	import type { IconData } from '@in-browser/graphics/icons/types.js';
 	import type { Tool } from '#lib/input/controller.js';
 	import { m } from '#lib/i18n/index.js';
-	import { fitFromDrag, SHAPE_KINDS, shapePoints, type ShapeKind } from '#lib/ink/shapes.js';
+	import { fitFromDrag, SHAPE_KINDS, shapePoints, type ShapeKind, type ShapeStyle } from '#lib/ink/shapes.js';
+	import ShapeStyleFields from './ShapeStyleFields.svelte';
 	import { SMOOTHING_LEVELS } from '#lib/ink/smooth.js';
 	import { ERASER_SIZES, HIGHLIGHTER_SIZES, PEN_SIZES, tools } from '#lib/model/tools.svelte.js';
 
@@ -23,16 +24,16 @@
 
 	let { open = $bindable(), icons = $bindable(), onicon, oninsertmenu, onpagemenu }: Props = $props();
 
-	const TOOLS: { id: Tool; icon: string; label: string }[] = [
+	const TOOLS: { id: Tool; icon: string; label: string; hint?: string }[] = [
 		{ id: 'pen', icon: 'icon-[material-symbols-light--ink-pen-outline]', label: m.tools.pen },
 		{ id: 'highlighter', icon: 'icon-[material-symbols-light--ink-highlighter]', label: m.tools.highlighter },
 		{ id: 'shape', icon: 'icon-[material-symbols-light--shapes-outline]', label: m.tools.shape },
 		{ id: 'eraser', icon: 'icon-[material-symbols-light--ink-eraser-outline]', label: m.tools.eraser },
-		{ id: 'lasso', icon: 'icon-[material-symbols-light--lasso-select]', label: m.tools.lasso },
+		{ id: 'lasso', icon: 'icon-[material-symbols-light--arrow-selector-tool-outline]', label: m.tools.lasso, hint: m.tools.lassoHint },
 		{ id: 'laser', icon: 'icon-[material-symbols-light--stylus-laser-pointer-outline]', label: m.tools.laser }
 	];
 	/** Tools with options (color, thickness …) */
-	const hasOptions = $derived(tools.tool !== 'lasso' && tools.tool !== 'laser');
+	const hasOptions = $derived(tools.tool !== 'laser');
 
 	const ink = $derived(tools.tool === 'highlighter' ? tools.highlighter : tools.pen);
 	const sizes = $derived(tools.tool === 'highlighter' ? HIGHLIGHTER_SIZES : PEN_SIZES);
@@ -87,9 +88,29 @@
 		tools.store();
 	}
 
+	function setShapeStyle(style: Partial<ShapeStyle>) {
+		tools.shapeStyle = { ...tools.shapeStyle, ...style };
+		tools.store();
+	}
+
 	/** Dot size of a thickness choice in the panel (pixels) */
 	const dot = (size: number, max: number) => 4 + (size / max) * 20;
 </script>
+
+{#snippet snapToggle()}
+	<label class="flex cursor-pointer items-center gap-1" title={m.tools.snapHint}>
+		<span class="w-20 shrink-0 truncate text-xs opacity-70">{m.tools.snap}</span>
+		<input
+			type="checkbox"
+			class="toggle toggle-sm toggle-primary"
+			checked={tools.snap}
+			onchange={(e) => {
+				tools.snap = e.currentTarget.checked;
+				tools.store();
+			}}
+		/>
+	</label>
+{/snippet}
 
 <div class="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-2 px-3">
 	{#if icons}
@@ -110,11 +131,14 @@
 		</div>
 	{:else if open}
 		<div
-			class="bg-base-100 border-base-300 rounded-box pointer-events-auto flex w-full max-w-sm flex-col gap-3 border p-3 shadow-lg"
+			class="bg-base-100 border-base-300 rounded-box pointer-events-auto flex max-h-[70vh] w-full max-w-sm flex-col gap-3 overflow-y-auto border p-3 shadow-lg"
 			role="group"
 			aria-label={m.tools.options}
 		>
-			{#if tools.tool === 'eraser'}
+			{#if tools.tool === 'lasso'}
+				{@render snapToggle()}
+				<p class="text-xs opacity-70">{m.tools.lassoHint}</p>
+			{:else if tools.tool === 'eraser'}
 				<div class="flex items-center gap-1">
 					<span class="w-20 shrink-0 truncate text-xs opacity-70">{m.tools.eraserMode}</span>
 					<div class="join min-w-0 flex-1" role="group" aria-label={m.tools.eraserMode}>
@@ -175,7 +199,10 @@
 						</button>
 					{/each}
 				</div>
-				{#if tools.tool !== 'shape'}
+				{#if tools.tool === 'shape'}
+					<ShapeStyleFields style={tools.shapeStyle} fillable={tools.shape !== 'line' && tools.shape !== 'arrow' && tools.shape !== 'doubleArrow'} onchange={setShapeStyle} />
+					{@render snapToggle()}
+				{:else}
 					<div class="flex items-center gap-1">
 						<span class="w-20 shrink-0 truncate text-xs opacity-70" title={m.tools.smoothingHint}>{m.tools.smoothing}</span>
 						<div class="join min-w-0 flex-1" role="group" aria-label={m.tools.smoothing} title={m.tools.smoothingHint}>
@@ -204,7 +231,7 @@
 			<button
 				class="btn btn-ghost btn-square {tools.tool === t.id ? 'btn-active text-primary' : ''}"
 				onclick={() => choose(t.id)}
-				title={t.label}
+				title={t.hint ?? t.label}
 				aria-label={t.label}
 				aria-pressed={tools.tool === t.id}
 			>

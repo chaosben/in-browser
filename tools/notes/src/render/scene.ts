@@ -1,9 +1,10 @@
-// Drawable state of one page: its items (strokes, pictures) in draw order, stroke outlines (Path2D, computed once)
+// Drawable state of one page: its items (strokes, shapes, pictures) in draw order, ink outlines (Path2D, computed once)
 // and a grid index.
 
-import { isStroke, type Item, type PageContent, type Stroke } from '#lib/model/types.js';
+import { isInk, isShape, type Ink, type Item, type PageContent, type ShapeItem } from '#lib/model/types.js';
 import { GridIndex, itemBounds, type Box } from '#lib/ink/geometry.js';
-import { inkAlpha, pathOf } from '#lib/ink/outline.js';
+import { inkAlpha, inkPath } from '#lib/ink/outline.js';
+import { fillOutline } from '#lib/ink/shapes.js';
 import { drawPicture, type PictureSource } from './pictures.js';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -50,9 +51,9 @@ export class PageScene {
 		return this.index.box(s.id) ?? itemBounds(s);
 	}
 
-	path(s: Stroke): Path2D {
+	path(s: Ink): Path2D {
 		let path = this.paths.get(s.id);
-		if (!path) this.paths.set(s.id, (path = pathOf(s)));
+		if (!path) this.paths.set(s.id, (path = inkPath(s)));
 		return path;
 	}
 
@@ -64,15 +65,41 @@ export class PageScene {
 	/** Draws items (page points; the context's transform maps them) */
 	draw(ctx: Ctx, items: Iterable<Item>) {
 		for (const s of items) {
-			if (isStroke(s)) drawStroke(ctx, s, this.path(s));
+			if (isInk(s)) drawInk(ctx, s, this.path(s));
 			else drawPicture(ctx, s, this.pictures);
 		}
 	}
 }
 
-export function drawStroke(ctx: Ctx, s: Stroke, path: Path2D) {
+const fills = new WeakMap<ShapeItem, Path2D | null>();
+
+/** Area of a filled shape (computed once per object), null without fill */
+function fillPath(s: ShapeItem): Path2D | null {
+	let path = fills.get(s);
+	if (path === undefined) {
+		const outline = fillOutline(s);
+		if (outline) {
+			path = new Path2D();
+			path.moveTo(outline[0], outline[1]);
+			for (let i = 2; i < outline.length; i += 2) path.lineTo(outline[i], outline[i + 1]);
+			path.closePath();
+		} else path = null;
+		fills.set(s, path);
+	}
+	return path;
+}
+
+/** Draws a stroke or shape (`path`: its outline, `inkPath`); a shape's fill goes under it */
+export function drawInk(ctx: Ctx, s: Ink, path: Path2D) {
+	if (isShape(s) && s.fill) {
+		const fill = fillPath(s);
+		if (fill) {
+			ctx.fillStyle = s.fill;
+			ctx.fill(fill);
+		}
+	}
 	ctx.fillStyle = s.color;
-	if (s.tool === 'highlighter') {
+	if (!isShape(s) && s.tool === 'highlighter') {
 		// Multiply: text and lines below stay readable, overlapping marker parts don't get darker
 		ctx.globalCompositeOperation = 'multiply';
 		ctx.globalAlpha = inkAlpha('highlighter');

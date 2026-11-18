@@ -3,11 +3,11 @@
 // re-render strokes. A new stroke is drawn into the cached tiles it touches; erasing re-renders only those tiles.
 // Tiles of a former scale stay as a stretched fallback until the sharp ones are there; least recently used go first.
 
-import type { Stroke } from '#lib/model/types.js';
+import type { Ink } from '#lib/model/types.js';
 import type { Box } from '#lib/ink/geometry.js';
 import type { Piece } from './backgrounds.js';
 import { drawPaper } from './paper.js';
-import { drawStroke, type PageScene } from './scene.js';
+import { drawInk, type PageScene } from './scene.js';
 import type { Paper } from '#lib/model/types.js';
 
 export const TILE = 512;
@@ -106,14 +106,14 @@ export class TileCache {
 	}
 
 	/** Draws a new stroke into every cached tile of the page it touches (all scales) */
-	drawStroke(page: string, scene: PageScene, s: Stroke, box: Box) {
+	drawStroke(page: string, scene: PageScene, s: Ink, box: Box) {
 		for (const tile of this.tiles.values()) {
 			if (tile.page !== page) continue;
 			const t = tileBox(tile.scale, tile.tx, tile.ty);
 			if (box.x1 < t.x0 || box.x0 > t.x1 || box.y1 < t.y0 || box.y0 > t.y1) continue;
 			const ctx = tile.canvas.getContext('2d')!;
 			ctx.setTransform(tile.scale, 0, 0, tile.scale, -t.x0 * tile.scale, -t.y0 * tile.scale);
-			drawStroke(ctx, s, scene.path(s));
+			drawInk(ctx, s, scene.path(s));
 		}
 	}
 

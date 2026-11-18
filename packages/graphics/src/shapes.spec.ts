@@ -23,6 +23,15 @@ describe('strokesOf', () => {
 	it('draws a hand-drawn rectangle as four strokes', () => {
 		expect(strokesOf(rect(true))).toHaveLength(4);
 	});
+	it('draws a polygon as one closed stroke, hand-drawn as one stroke per edge', () => {
+		const points = [
+			{ x: 0, y: 0 },
+			{ x: 100, y: 0 },
+			{ x: 50, y: 80 }
+		];
+		expect(strokesOf({ kind: 'polygon', seed: 'p', sketch: false, points })).toEqual([[...points, points[0]]]);
+		expect(strokesOf({ kind: 'polygon', seed: 'p', sketch: true, points })).toHaveLength(3);
+	});
 	it('keeps an exact arrow shaft short of the tip, so the filled head covers it', () => {
 		const arrow: Shape = { kind: 'arrow', seed: 'a', sketch: false, from: { x: 0, y: 0 }, to: { x: 100, y: 0 }, width: 4, minHead: 10 };
 		const [[, end]] = strokesOf(arrow);

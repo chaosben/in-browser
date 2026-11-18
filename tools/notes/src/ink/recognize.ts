@@ -1,6 +1,7 @@
-// Shape recognition for "hold to straighten": after the pen rests at the end of a stroke, the stroke is replaced by
-// the line, arrow, triangle, rectangle, quadrilateral or ellipse it resembles (points: `shapePoints` in `shapes.ts`).
-// More polygons are left to the shape tool: a sloppy circle would otherwise often become a hexagon.
+// Shape recognition: after a pen stroke, the line, arrow, triangle, rectangle, quadrilateral or ellipse it resembles
+// is offered as a suggestion (tap → the stroke becomes that shape, `ShapeSuggestion`). Only for strokes large enough
+// not to be handwriting. More polygons are left to the shape tool: a sloppy circle would otherwise often become a
+// hexagon.
 
 import type { ShapeFit } from './shapes.js';
 
@@ -65,7 +66,7 @@ function arrow(xs: number[], ys: number[], diag: number): ShapeFit | null {
 	}
 	if (wing < shaft * 0.1) return null;
 	if (wingAngle < (10 * Math.PI) / 180 || wingAngle > (75 * Math.PI) / 180) return null;
-	return { kind: 'arrow', x0, y0, x1, y1, double: false };
+	return { kind: 'line', x0, y0, x1, y1, end: true };
 }
 
 /** The shape a stroke (x, y, pressure) resembles, or null */
@@ -120,4 +121,49 @@ export function recognize(points: Float32Array): ShapeFit | null {
 		return { kind: 'ellipse', x: (x0 + x1 - d) / 2, y: (y0 + y1 - d) / 2, w: d, h: d };
 	}
 	return { kind: 'ellipse', x: x0, y: y0, w, h };
+}
+
+/** Strokes smaller than this (diagonal of their bounds) get no suggestion: page points … */
+const SUGGEST_MIN = 40;
+/** … and screen pixels (handwriting zoomed in) */
+const SUGGEST_MIN_SCREEN = 60;
+
+/** The shape to suggest for a finished pen stroke at a zoom (screen pixels per point), or null */
+export function suggestShape(points: Float32Array, zoom: number): ShapeFit | null {
+	let x0 = Infinity;
+	let y0 = Infinity;
+	let x1 = -Infinity;
+	let y1 = -Infinity;
+	for (let i = 0; i < points.length; i += 3) {
+		x0 = Math.min(x0, points[i]);
+		x1 = Math.max(x1, points[i]);
+		y0 = Math.min(y0, points[i + 1]);
+		y1 = Math.max(y1, points[i + 1]);
+	}
+	const diag = Math.hypot(x1 - x0, y1 - y0);
+	if (diag < SUGGEST_MIN || diag * zoom < SUGGEST_MIN_SCREEN) return null;
+	return recognize(points);
+}
+
+export type ShapeName = 'line' | 'arrow' | 'doubleArrow' | 'triangle' | 'rectangle' | 'quadrilateral' | 'polygon' | 'roundedRect' | 'circle' | 'ellipse';
+
+/** What to call a shape (the suggestion's label) */
+export function shapeName(fit: ShapeFit): ShapeName {
+	switch (fit.kind) {
+		case 'line':
+			return fit.start && fit.end ? 'doubleArrow' : fit.start || fit.end ? 'arrow' : 'line';
+		case 'roundedRect':
+			return 'roundedRect';
+		case 'ellipse':
+			return Math.abs(fit.w - fit.h) < 0.01 * Math.max(fit.w, fit.h) ? 'circle' : 'ellipse';
+		case 'polygon': {
+			const p = fit.points;
+			if (p.length === 6) return 'triangle';
+			if (p.length !== 8) return 'polygon';
+			// Edges alternately horizontal and vertical
+			const axis = (i: number, j: number) => Math.abs(p[i] - p[j]) < 0.01;
+			const rect = (axis(1, 3) && axis(2, 4) && axis(5, 7) && axis(6, 0)) || (axis(0, 2) && axis(3, 5) && axis(4, 6) && axis(7, 1));
+			return rect ? 'rectangle' : 'quadrilateral';
+		}
+	}
 }

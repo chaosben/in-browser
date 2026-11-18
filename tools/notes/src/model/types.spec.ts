@@ -47,6 +47,33 @@ describe('page files', () => {
 		});
 		expect(page.items).toEqual([]);
 	});
+	it('round-trip shapes (geometry, rounded to 0.01) and drop broken ones', () => {
+		const shape = {
+			id: 'a',
+			type: 'shape' as const,
+			fit: { kind: 'line' as const, x0: 1.234, y0: 2, x1: 50, y1: 60, start: true, end: true },
+			color: '#ff0000',
+			size: 3,
+			dash: 'dotted' as const,
+			sketch: true as const
+		};
+		const page = parsePage(JSON.parse(serializePage({ items: [shape] })));
+		expect(page.items).toEqual([{ ...shape, fit: { ...shape.fit, x0: 1.23 } }]);
+		const filled = { id: 'f', type: 'shape' as const, fit: { kind: 'ellipse' as const, x: 0, y: 0, w: 10, h: 5 }, color: '#000000', size: 2, fill: '#00ff0040' };
+		expect(parsePage(JSON.parse(serializePage({ items: [filled] }))).items).toEqual([filled]);
+		// Unknown styles are dropped, the shape stays
+		expect(parsePage({ version: 1, items: [{ ...filled, fill: 'green', dash: 'wavy', sketch: 'yes' }] }).items).toEqual([{ ...filled, fill: undefined }].map(({ fill: _, ...s }) => s));
+		const broken = parsePage({
+			version: 1,
+			items: [
+				{ id: 'b', type: 'shape', fit: { kind: 'polygon', points: [1, 2, 3, 4] } },
+				{ id: 'c', type: 'shape', fit: { kind: 'ellipse', x: 0, y: 0, w: 0, h: 5 } },
+				{ id: 'd', type: 'shape', fit: { kind: 'spiral' } },
+				{ id: 'e', type: 'shape', fit: { kind: 'roundedRect', x: 0, y: 0, w: 10, h: 5 } }
+			]
+		});
+		expect(broken.items.map((i) => i.id)).toEqual(['e']);
+	});
 	it('rejects newer page versions', () => {
 		expect(() => parsePage({ version: 99, items: [] })).toThrow(FormatError);
 	});

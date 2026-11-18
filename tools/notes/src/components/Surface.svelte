@@ -4,14 +4,15 @@
 	import { untrack } from 'svelte';
 	import { InputController, type EraserMode } from '#lib/input/controller.js';
 	import { Selection } from '#lib/input/selection.svelte.js';
+	import { ShapeSuggestion } from '#lib/input/suggestion.svelte.js';
 	import type { NotebookDoc } from '#lib/model/notebook.svelte.js';
 	import { tools } from '#lib/model/tools.svelte.js';
 	import { Stage } from '#lib/render/stage.js';
 
 	interface Props {
 		doc: NotebookDoc;
-		/** The stage is ready (zoom, current page …), with the lasso selection */
-		onready: (stage: Stage, selection: Selection) => void;
+		/** The stage is ready (zoom, current page …), with the selection and the shape suggestion */
+		onready: (stage: Stage, selection: Selection, suggestion: ShapeSuggestion) => void;
 		/** View moved or zoomed (at most once per frame) */
 		onview: () => void;
 		/** Any press on the surface (closes open panels) */
@@ -35,6 +36,7 @@
 		return untrack(() => {
 			const stage = new Stage(elements, (id) => notebook.scene(id), (id) => void notebook.load(id), notebook.backgrounds);
 			const selection = new Selection(stage, notebook);
+			const suggestion = new ShapeSuggestion(stage, notebook);
 			notebook.listener = {
 				pages: (pages) => {
 					stage.setPages(pages);
@@ -43,6 +45,7 @@
 				content: (id) => {
 					stage.contentChanged(id);
 					selection.refresh();
+					suggestion.updateRect();
 				},
 				stroke: (id, scene, stroke) => stage.committed(id, scene, stroke),
 				region: (id, box) => stage.regionChanged(id, box),
@@ -55,6 +58,7 @@
 					viewFrame = requestAnimationFrame(() => {
 						viewFrame = 0;
 						selection.updateRect();
+						suggestion.updateRect();
 						onview();
 					});
 			};
@@ -62,6 +66,8 @@
 			const input = new InputController(elements.root, stage, {
 				tool: () => tools.state(),
 				commit: (s) => notebook.addStroke(s.page, s),
+				commitShape: (page, fit, color, size, style) => notebook.addShape(page, fit, color, size, style),
+				suggest: (s) => suggestion.show(s),
 				erase: (sx, sy, radius, mode) => erase(sx, sy, radius, mode),
 				eraseEnd: () => {
 					lastErase = null;
@@ -114,7 +120,7 @@
 			themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
 
 			resize();
-			onready(stage, selection);
+			onready(stage, selection, suggestion);
 			return () => {
 				detach();
 				elements.root.removeEventListener('pointerdown', press);
@@ -125,6 +131,7 @@
 				themeObserver.disconnect();
 				cancelAnimationFrame(viewFrame);
 				selection.clear();
+				suggestion.clear();
 				notebook.listener = null;
 				stage.destroy();
 			};

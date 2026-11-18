@@ -1,6 +1,6 @@
 // One page as a PNG image: paper, PDF page, strokes and pictures – drawn like on screen, at about 216 dpi.
 
-import { isStroke, type PageMeta } from '#lib/model/types.js';
+import { isPicture, type PageMeta } from '#lib/model/types.js';
 import { drawPaper } from '#lib/render/paper.js';
 import type { ExportSource } from './source.js';
 
@@ -21,7 +21,7 @@ export async function exportPng(source: ExportSource, page: PageMeta): Promise<B
 		ctx.drawImage(pdf, 0, 0, page.w, page.h);
 	}
 	// Pictures are drawn from the cache: wait until all of them are there
-	await Promise.all(scene.items.flatMap((i) => (isStroke(i) ? [] : [source.pictures.load(i)])));
+	await Promise.all(scene.items.flatMap((i) => (isPicture(i) ? [source.pictures.load(i)] : [])));
 	ctx.save();
 	ctx.beginPath();
 	ctx.rect(0, 0, page.w, page.h);

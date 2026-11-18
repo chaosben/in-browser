@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { degrees, PDFDocument, rgb } from 'pdf-lib';
-import type { ImageItem, PageMeta, Stroke } from '#lib/model/types.js';
+import type { ImageItem, PageMeta, ShapeItem, Stroke } from '#lib/model/types.js';
 import { PdfBackgrounds } from '#lib/render/backgrounds.js';
 import { readPdfPages } from '#lib/render/pdf.js';
 import { PictureCache } from '#lib/render/pictures.js';
@@ -47,10 +47,11 @@ async function notebook(): Promise<ExportSource> {
 		{ id: 'p2', w: 100, h: 200, paper: 'blank', background: { asset: 'a.pdf', page: 2 } },
 		{ id: 'p3', w: 200, h: 100, paper: 'lined' }
 	];
+	const shape: ShapeItem = { id: 'r', type: 'shape', fit: { kind: 'line', x0: 10, y0: 180, x1: 90, y1: 180 }, color: '#0000ff', size: 6 };
 	const image: ImageItem = { id: 'i', type: 'image', asset: 'g.png', x: 20, y: 20, w: 40, h: 40 };
 	const scenes: Record<string, PageScene> = {
 		p1: new PageScene({ items: [line('s', 110, 190, 80, '#0000ff')] }, pictures),
-		p2: new PageScene({ items: [] }, pictures),
+		p2: new PageScene({ items: [shape] }, pictures),
 		p3: new PageScene({ items: [image, line('h', 100, 180, 50, '#ffff00', 'highlighter')] }, pictures)
 	};
 	return { pages, scene: (id) => scenes[id], pictures, backgrounds: new PdfBackgrounds(readAsset, () => {}), readAsset };
@@ -67,7 +68,7 @@ async function rendered(pdf: Blob, n: number) {
 const near = (actual: number[], expected: number[]) => actual.every((v, i) => Math.abs(v - expected[i]) <= 40);
 
 describe('PDF export', () => {
-	it('embeds PDF pages (rotation applied), strokes, paper and images in place', async () => {
+	it('embeds PDF pages (rotation applied), strokes, shapes, paper and images in place', async () => {
 		const pdf = await exportPdf(await notebook());
 		expect(await readPdfPages(pdf)).toEqual([
 			{ w: 200, h: 100 },
@@ -83,6 +84,7 @@ describe('PDF export', () => {
 		const p2 = await rendered(pdf, 2);
 		expect(near(p2(50, 50), [255, 0, 0])).toBe(true);
 		expect(near(p2(50, 150), [255, 255, 255])).toBe(true);
+		expect(near(p2(50, 180), [0, 0, 255])).toBe(true);
 
 		const p3 = await rendered(pdf, 3);
 		expect(near(p3(40, 40), [0, 255, 0])).toBe(true);

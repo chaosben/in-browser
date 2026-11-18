@@ -5,16 +5,19 @@
 // - palm rejection: once a pen was used, touch only pans and zooms (also with the setting "only the pen draws").
 //   A second finger shortly after the first turns a just-started finger stroke into a pinch.
 // - a hovering pen (pen, no buttons) shows a preview of the brush; hover is never required for anything.
-// - holding the pen still at the end of a stroke replaces it by the recognized shape (line, arrow, triangle,
-//   rectangle, ellipse); a line then follows the pen until it is lifted.
-// - shape tool: dragging draws the chosen shape from the start point to the pointer (a pen stroke, see `shapes.ts`).
-// - lasso: a loop selects; dragging the selection (or a corner) moves/scales it. Laser: a fading trail, not stored.
+// - a large pen stroke that resembles a shape (line, arrow, triangle, rectangle, ellipse) gets a suggestion to turn
+//   it into that shape (`recognize.ts`, shown by `ShapeSuggestion`), checked once when the pen is lifted.
+// - shape tool: dragging draws the chosen shape from the start point to the pointer (a shape item, see `shapes.ts`).
+// - select ("lasso"): a tap selects the item there, a loop selects what it encloses; dragging the selection (a
+//   corner, a point of a shape) moves/scales/reshapes it. Laser: a fading trail, not stored.
 
 import { debug } from '@in-browser/brand/debug.js';
 import { hasRealPressure, penPressure, PressureSimulator } from '#lib/ink/pressure.js';
 import { diameter } from '#lib/ink/outline.js';
-import { recognize } from '#lib/ink/recognize.js';
-import { fitFromDrag, shapePoints, type ShapeFit, type ShapeKind } from '#lib/ink/shapes.js';
+import { suggestShape } from '#lib/ink/recognize.js';
+import { fitFromDrag, shapePoints, type ShapeFit, type ShapeKind, type ShapeStyle } from '#lib/ink/shapes.js';
+import { SNAP_PX } from '#lib/ink/align.js';
+import { snapPoint, type SnapTargets } from '@in-browser/graphics/snap.js';
 import type { InkTool } from '#lib/model/types.js';
 import type { Stage } from '#lib/render/stage.js';
 import type { Selection } from './selection.svelte.js';
@@ -35,14 +38,22 @@ export interface ToolState {
 	penOnly: boolean;
 	/** Smoothing level 0…1 */
 	smoothing: number;
-	/** What the shape tool draws */
+	/** What the shape tool draws, and how */
 	shape: ShapeKind;
+	shapeStyle: ShapeStyle;
+	/** Shapes and selections snap (Alt while dragging: the opposite) */
+	snap: boolean;
 }
 
 export interface InputHandlers {
 	/** Current tool settings (read at the start of a stroke) */
 	tool(): ToolState;
-	commit(stroke: { page: number; points: Float32Array; tool: InkTool; color: string; size: number }): void;
+	/** A finished stroke; its id */
+	commit(stroke: { page: number; points: Float32Array; tool: InkTool; color: string; size: number }): string | null;
+	/** A shape drawn with the shape tool */
+	commitShape(page: number, fit: ShapeFit, color: string, size: number, style: ShapeStyle): void;
+	/** A finished pen stroke resembles a shape (null: drop the suggestion shown, a new action starts) */
+	suggest(suggestion: { page: number; id: string; fit: ShapeFit } | null): void;
 	/** The eraser at a screen point with a radius in screen pixels (called repeatedly during one gesture) */
 	erase(sx: number, sy: number, radius: number, mode: EraserMode): void;
 	/** End of an erase gesture (one undo step) */
@@ -65,9 +76,6 @@ interface Active {
 
 /** A finger stroke younger than this becomes a pinch when a second finger comes */
 const PINCH_GRACE_MS = 250;
-/** Holding the pen this long (moving less than HOLD_SLOP px) straightens the stroke into a shape */
-const HOLD_MS = 600;
-const HOLD_SLOP = 4;
 
 export class InputController {
 	private readonly active = new Map<number, Active>();
@@ -82,13 +90,20 @@ export class InputController {
 	private pinch: { dist: number; cx: number; cy: number } | null = null;
 	private fling: { vx: number; vy: number; t: number; raf: number } | null = null;
 	private track: { x: number; y: number; t: number }[] = [];
-	/** Hold detection: where and when the pen last moved noticeably */
-	private hold = { x: 0, y: 0, t: 0, timer: 0 as ReturnType<typeof setInterval> | 0 };
-	/** Recognized shape of the current stroke */
-	private shape: ShapeFit | null = null;
 	private lassoPoints: number[] = [];
 	/** Shape tool: what is dragged, from where (page points of the live stroke's page) and with which pen size */
-	private drag = { kind: 'line' as ShapeKind, page: 0, x: 0, y: 0, size: 1, moved: false };
+	private drag = {
+		kind: 'line' as ShapeKind,
+		style: null as ShapeStyle | null,
+		page: 0,
+		x: 0,
+		y: 0,
+		size: 1,
+		moved: false,
+		fit: null as ShapeFit | null,
+		snap: true,
+		targets: null as SnapTargets | null
+	};
 
 	constructor(
 		private readonly root: HTMLElement,
@@ -120,7 +135,6 @@ export class InputController {
 		return () => {
 			offs.forEach((off) => off());
 			this.stopFling();
-			this.stopHold();
 		};
 	}
 
@@ -168,6 +182,7 @@ export class InputController {
 
 	private startTool(e: PointerEvent, x: number, y: number, s: ToolState): Mode | null {
 		const selection = this.h.selection;
+		this.h.suggest(null);
 		if (s.tool !== 'lasso' && selection.active) selection.clear();
 		if (s.tool === 'eraser') {
 			this.drawId = e.pointerId;
@@ -195,7 +210,14 @@ export class InputController {
 			const hit = this.stage.pageAt(x, y);
 			if (!hit || !this.stage.begin(x, y, 0.5, 'pen', s.color, s.size, 0)) return null;
 			this.drawId = e.pointerId;
-			this.drag = { kind: s.shape, page: hit.index, x: hit.x, y: hit.y, size: s.size, moved: false };
+			const targets = this.stage.snapTargets(hit.index, new Set());
+			this.drag = { kind: s.shape, style: s.shapeStyle, page: hit.index, x: hit.x, y: hit.y, size: s.size, moved: false, fit: null, snap: s.snap, targets };
+			// The start point snaps too (shown once the drag moves)
+			if (targets && s.snap !== e.altKey) {
+				const p = this.snapped(hit.x, hit.y).point;
+				this.drag.x = p.x;
+				this.drag.y = p.y;
+			}
 			return 'shape';
 		}
 		this.realPressure = hasRealPressure(e.pointerType, e.pressure);
@@ -204,41 +226,7 @@ export class InputController {
 		if (!this.stage.begin(x, y, p, s.tool, s.color, s.size, s.smoothing)) return null;
 		this.lastPoint = e.timeStamp;
 		this.drawId = e.pointerId;
-		this.shape = null;
-		this.startHold(x, y, e.timeStamp);
 		return 'draw';
-	}
-
-	// --- Hold to straighten ---
-
-	private startHold(x: number, y: number, t: number) {
-		this.stopHold();
-		this.hold = { x, y, t, timer: setInterval(() => this.checkHold(), 100) };
-	}
-
-	private stopHold() {
-		if (this.hold.timer) clearInterval(this.hold.timer);
-		this.hold.timer = 0;
-	}
-
-	/** Called per point: a noticeable move restarts the hold time */
-	private moved(x: number, y: number, t: number) {
-		if (Math.hypot(x - this.hold.x, y - this.hold.y) > HOLD_SLOP) {
-			this.hold.x = x;
-			this.hold.y = y;
-			this.hold.t = t;
-		}
-	}
-
-	private checkHold() {
-		if (this.shape || !this.stage.drawing || performance.now() - this.hold.t < HOLD_MS) return;
-		const points = this.stage.livePoints();
-		const fit = points && recognize(points);
-		this.stopHold();
-		if (!fit) return;
-		this.shape = fit;
-		this.stage.replaceLive(shapePoints(fit, this.h.tool().size));
-		if (import.meta.hot) debug(`[notes] shape ${fit.kind}`);
 	}
 
 	private move(e: PointerEvent, raw: boolean) {
@@ -261,7 +249,13 @@ export class InputController {
 			// A tap or a tiny wiggle draws nothing
 			if (!d.moved && Math.hypot(px - d.x, py - d.y) * this.stage.view.zoom < 6) return;
 			d.moved = true;
-			this.stage.replaceLive(shapePoints(fitFromDrag(d.kind, d.x, d.y, px, py), d.size));
+			const snap = d.snap !== e.altKey;
+			const end = snap && d.targets ? this.snapped(px, py) : null;
+			const onGuide = !!(end?.guides.x || end?.guides.y);
+			// An end on a guide stays there; otherwise lines snap to 15° steps
+			d.fit = fitFromDrag(d.kind, d.x, d.y, end?.point.x ?? px, end?.point.y ?? py, snap && !onGuide);
+			this.stage.setGuides(end ? { page: d.page, guides: end.guides, boxes: d.targets!.boxes } : null);
+			this.stage.replaceLive(shapePoints(d.fit, d.size));
 			return;
 		}
 		if (a.mode === 'lasso') {
@@ -270,7 +264,7 @@ export class InputController {
 			return;
 		}
 		if (a.mode === 'select') {
-			this.h.selection.move(x, y);
+			this.h.selection.move(x, y, this.h.tool().snap !== e.altKey);
 			return;
 		}
 		if (a.mode === 'laser') {
@@ -291,26 +285,19 @@ export class InputController {
 		this.navMove(a, x, y, e.timeStamp);
 	}
 
+	/** A point of the shape being dragged (page points), snapped to the page and the shapes and pictures on it */
+	private snapped(x: number, y: number) {
+		const tol = SNAP_PX / this.stage.view.zoom;
+		return snapPoint({ x, y }, this.drag.targets!, { x: tol, y: tol });
+	}
+
 	private drawPoints(e: PointerEvent) {
 		const list = coalesced(e);
-		if (this.shape) {
-			// A recognized line follows the pen with its end; other shapes stay as they are
-			if (this.shape.kind === 'line') {
-				const [x, y] = this.stage.local(e.clientX, e.clientY);
-				const page = this.stage.pageAt(x, y);
-				if (page) {
-					this.shape = { ...this.shape, x1: page.x, y1: page.y };
-					this.stage.replaceLive(shapePoints(this.shape));
-				}
-			}
-			return;
-		}
 		for (let i = 0; i < list.length; i++) {
 			const ev = list[i];
 			if (ev.timeStamp <= this.lastPoint) continue;
 			this.lastPoint = ev.timeStamp;
 			const [x, y] = this.stage.local(ev.clientX, ev.clientY);
-			this.moved(x, y, ev.timeStamp);
 			const p = this.realPressure ? penPressure(ev.pressure) : this.pressure.next(x, y, ev.timeStamp, 1);
 			// The trusted parent event feeds the OS ink trail
 			this.stage.add(x, y, p, i === list.length - 1 ? e : null, ev.timeStamp);
@@ -329,11 +316,13 @@ export class InputController {
 		if (!a) return;
 		if (a.mode === 'draw' && this.drawId === e.pointerId) {
 			this.drawId = null;
-			this.stopHold();
 			if (cancelled) this.stage.cancel();
 			else {
 				const stroke = this.stage.end();
-				if (stroke) this.h.commit(stroke);
+				const id = stroke && this.h.commit(stroke);
+				// Checked once, after the stroke is on the page (not while drawing)
+				const fit = id && stroke.tool === 'pen' ? suggestShape(stroke.points, this.stage.view.zoom) : null;
+				if (fit) this.h.suggest({ page: stroke!.page, id: id!, fit });
 				if (import.meta.hot) {
 					const s = this.h.tool();
 					debug(`[notes] stroke ${a.type}${this.realPressure ? ' with pressure' : ', pressure simulated'}, smoothing ${s.smoothing}: ${this.stage.strokeReport()}`);
@@ -341,15 +330,17 @@ export class InputController {
 			}
 		} else if (a.mode === 'shape' && this.drawId === e.pointerId) {
 			this.drawId = null;
-			if (cancelled || !this.drag.moved) this.stage.cancel();
+			const d = this.drag;
+			this.stage.setGuides(null);
+			if (cancelled || !d.moved || !d.fit) this.stage.cancel();
 			else {
 				const stroke = this.stage.end();
-				if (stroke) this.h.commit(stroke);
+				if (stroke && d.style) this.h.commitShape(d.page, d.fit, stroke.color, d.size, d.style);
 			}
 		} else if (a.mode === 'lasso' && this.drawId === e.pointerId) {
 			this.drawId = null;
 			this.stage.setLasso(null);
-			if (!cancelled) this.h.selection.lasso(this.lassoPoints);
+			if (!cancelled) this.h.selection.lasso(this.lassoPoints, a.type !== 'mouse');
 		} else if (a.mode === 'select' && this.drawId === e.pointerId) {
 			this.drawId = null;
 			this.h.selection.end();

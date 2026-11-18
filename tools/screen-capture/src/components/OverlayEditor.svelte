@@ -22,7 +22,7 @@
 		type SnapLine,
 		type SnapTargets,
 		type Tolerance
-	} from '#lib/preview/snap.js';
+	} from '@in-browser/graphics/snap.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
 

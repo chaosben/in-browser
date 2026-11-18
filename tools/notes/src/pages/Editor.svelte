@@ -20,7 +20,9 @@
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import PerfOverlay from '#lib/components/PerfOverlay.svelte';
 	import SelectionMenu from '#lib/components/SelectionMenu.svelte';
+	import ShapeSuggestionButton from '#lib/components/ShapeSuggestion.svelte';
 	import type { Selection } from '#lib/input/selection.svelte.js';
+	import type { ShapeSuggestion } from '#lib/input/suggestion.svelte.js';
 	import Surface from '#lib/components/Surface.svelte';
 	import ToolPalette from '#lib/components/ToolPalette.svelte';
 	import { m } from '#lib/i18n/index.js';
@@ -36,6 +38,7 @@
 	let error = $state<string | null>(null);
 	let stage = $state.raw<Stage | null>(null);
 	let selection = $state.raw<Selection | null>(null);
+	let suggestion = $state.raw<ShapeSuggestion | null>(null);
 	let paletteOpen = $state(false);
 	let iconsOpen = $state(false);
 	let fileInput = $state<HTMLInputElement>();
@@ -114,26 +117,40 @@
 
 	onDestroy(() => doc?.flush());
 
-	function ready(s: Stage, sel: Selection) {
+	function ready(s: Stage, sel: Selection, sug: ShapeSuggestion) {
 		stage = s;
 		selection = sel;
+		suggestion = sug;
 		updateView();
 	}
 
 	function undo() {
+		suggestion?.clear();
 		doc?.undo();
 		selection?.refresh();
 	}
 
 	function redo() {
+		suggestion?.clear();
 		doc?.redo();
 		selection?.refresh();
 	}
 
-	// Another tool ends the selection
+	// Another tool ends the selection and the shape suggestion
 	$effect(() => {
-		if (tools.tool !== 'lasso') untrack(() => selection?.clear());
+		const tool = tools.tool;
+		untrack(() => {
+			suggestion?.clear();
+			if (tool !== 'lasso') selection?.clear();
+		});
 	});
+
+	/** A stroke became a shape: select it, so its points can be moved right away */
+	function shapeAccepted(shape: { page: number; id: string }) {
+		tools.tool = 'lasso';
+		tools.store();
+		selection?.select(shape.page, new Set([shape.id]));
+	}
 
 	function updateView() {
 		if (!stage) return;
@@ -521,6 +538,7 @@
 		<input bind:this={pdfInput} type="file" accept="application/pdf,.pdf" multiple class="hidden" onchange={pdfsFromDevice} />
 		{#if exportOpen}<ExportDialog {doc} page={current} onclose={() => (exportOpen = false)} />{/if}
 		{#if selection}<SelectionMenu {selection} />{/if}
+		{#if suggestion}<ShapeSuggestionButton {suggestion} onaccept={shapeAccepted} />{/if}
 		{#if perf && stage}<PerfOverlay {stage} />{/if}
 	{:else}
 		<div class="flex h-full items-center justify-center">

@@ -1,10 +1,11 @@
 // A notebook is a package in the shared file system (see @in-browser/files):
 //   <folder>/<Name>.note/project.json      notebook: page order, sizes, paper, PDF page under it (small, rewritten)
-//   <folder>/<Name>.note/pages/<id>.json   content of one page: strokes and pictures in draw order (rewritten as a whole)
+//   <folder>/<Name>.note/pages/<id>.json   content of one page: strokes, shapes and pictures in draw order (rewritten as a whole)
 //   <folder>/<Name>.note/assets/<file>     images and imported PDFs (only ever added under new names, never overwritten)
 // Coordinates are PDF points (1/72 inch, A4 = 595 × 842) with the origin at the page's top left.
 
 import type { IconData } from '@in-browser/graphics/icons/types.js';
+import { DASHES, parseFit, type Dash, type ShapeFit } from '#lib/ink/shapes.js';
 
 export const FORMAT = 'notes';
 export const VERSION = 1;
@@ -75,6 +76,23 @@ export interface Stroke {
 	points: Float32Array;
 }
 
+/** A geometric shape (line, arrow, polygon, ellipse …), drawn like pen strokes along its outline (`inkStrokes`) */
+export interface ShapeItem {
+	id: string;
+	type: 'shape';
+	fit: ShapeFit;
+	/** `#rrggbb` */
+	color: string;
+	/** Pen diameter in points */
+	size: number;
+	/** `#rrggbbaa` inside (closed shapes only); none when missing */
+	fill?: string;
+	/** Solid when missing */
+	dash?: Exclude<Dash, 'solid'>;
+	/** Hand-drawn instead of exact */
+	sketch?: true;
+}
+
 /** A picture on a page: a box in page points (top left, size), drawn stretched into it */
 interface PictureBase {
 	id: string;
@@ -101,9 +119,15 @@ export interface IconItem extends PictureBase {
 export type Picture = ImageItem | IconItem;
 
 /** Everything on a page, in draw order (later on top) */
-export type Item = Stroke | Picture;
+export type Item = Stroke | ShapeItem | Picture;
+
+/** What is drawn with a pen: erasable, drawn as strokes (`inkOf` in `ink/shapes.ts`) */
+export type Ink = Stroke | ShapeItem;
 
 export const isStroke = (item: Item): item is Stroke => 'points' in item;
+export const isShape = (item: Item): item is ShapeItem => 'type' in item && item.type === 'shape';
+export const isInk = (item: Item): item is Ink => isStroke(item) || isShape(item);
+export const isPicture = (item: Item): item is Picture => !isInk(item);
 
 export interface PageContent {
 	items: Item[];
@@ -225,10 +249,11 @@ export function decodePoints(pts: readonly number[]): Float32Array {
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-/** Strokes are stored without `type` (compact), pictures with it */
+/** Strokes are stored without `type` (compact), shapes and pictures with it */
 export function serializePage(content: PageContent): string {
-	const items = content.items.map((item): RawStroke | Picture => {
+	const items = content.items.map((item): RawStroke | ShapeItem | Picture => {
 		if (isStroke(item)) return { id: item.id, tool: item.tool, color: item.color, size: round(item.size), pts: encodePoints(item.points) };
+		if (isShape(item)) return { ...item, fit: parseFit(item.fit)!, size: round(item.size) };
 		const box = { x: round(item.x), y: round(item.y), w: round(item.w), h: round(item.h) };
 		return item.type === 'image'
 			? { id: item.id, type: 'image', asset: item.asset, ...box }
@@ -238,11 +263,21 @@ export function serializePage(content: PageContent): string {
 }
 
 const HEX = /^#[0-9a-f]{6}$/;
+const FILL = /^#[0-9a-f]{8}$/;
 
 function parseItem(raw: unknown): Item | null {
 	const r = raw as Record<string, unknown> | null;
 	if (!r || typeof r !== 'object' || typeof r.id !== 'string') return null;
 	const color = typeof r.color === 'string' && HEX.test(r.color) ? r.color : '#000000';
+	if (r.type === 'shape') {
+		const fit = parseFit(r.fit);
+		if (!fit) return null;
+		const shape: ShapeItem = { id: r.id, type: 'shape', fit, color, size: Number(r.size) > 0 ? Number(r.size) : 2 };
+		if (typeof r.fill === 'string' && FILL.test(r.fill) && fit.kind !== 'line') shape.fill = r.fill;
+		if (r.dash !== 'solid' && DASHES.includes(r.dash as Dash)) shape.dash = r.dash as ShapeItem['dash'];
+		if (r.sketch === true) shape.sketch = true;
+		return shape;
+	}
 	if (r.type === 'image' || r.type === 'icon') {
 		const [x, y, w, h] = [r.x, r.y, r.w, r.h].map(Number);
 		if (![x, y].every(Number.isFinite) || !(w > 0) || !(h > 0)) return null;
@@ -282,4 +317,4 @@ export function parsePage(raw: unknown): PageContent {
 export const backgroundAssets = (notebook: Notebook): string[] => notebook.pages.flatMap((p) => (p.background ? [p.background.asset] : []));
 
 /** Asset files a page uses */
-export const assetsOf = (content: PageContent): string[] => content.items.flatMap((i) => (!isStroke(i) && i.type === 'image' ? [i.asset] : []));
+export const assetsOf = (content: PageContent): string[] => content.items.flatMap((i) => (isPicture(i) && i.type === 'image' ? [i.asset] : []));

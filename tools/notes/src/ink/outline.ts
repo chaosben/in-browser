@@ -4,7 +4,8 @@
 // fill and see-through ink doesn't get darker where the pieces overlap. Nothing is smoothed or simplified here:
 // smoothing happens while drawing (`smooth.ts`). Computed once per stroke when finished or loaded.
 
-import type { InkTool, Stroke } from '#lib/model/types.js';
+import type { Ink, InkTool, Stroke } from '#lib/model/types.js';
+import { inkStrokes } from './shapes.js';
 
 /** How much the pressure changes the width (0: constant) */
 const THINNING: Record<InkTool, number> = { pen: 0.6, highlighter: 0 };
@@ -47,5 +48,14 @@ export function pathOf(s: Stroke): Path2D {
 		}
 		dot(path, bx, by, r);
 	}
+	return path;
+}
+
+/** Outline of an ink item: a stroke's, or the union of a shape's strokes (dashes, edges, arrowheads) */
+export function inkPath(item: Ink): Path2D {
+	const strokes = inkStrokes(item);
+	if (strokes.length === 1) return pathOf(strokes[0]);
+	const path = new Path2D();
+	for (const s of strokes) path.addPath(pathOf(s));
 	return path;
 }

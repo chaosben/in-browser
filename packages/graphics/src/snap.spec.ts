@@ -4,6 +4,14 @@ import { snapAspect, snapMove, snapPoint, snapSpacing, snapTargets, type SnapLin
 const tol = { x: 0.01, y: 0.01 };
 
 describe('snapTargets', () => {
+	it('takes the edges and center of any frame (e.g. a page in points)', () => {
+		const t = snapTargets([], { x: 0, y: 0, w: 600, h: 800 });
+		expect(t.xs.map((l) => l.at)).toEqual([0, 300, 600]);
+		expect(t.ys.map((l) => l.at)).toEqual([0, 400, 800]);
+	});
+});
+
+describe('snapTargets', () => {
 	it('has the canvas edges and center plus edges and centers of the items', () => {
 		const t = snapTargets([{ x: 0.2, y: 0.1, w: 0.2, h: 0.4 }]);
 		const round = (ls: SnapLine[]) => ls.map((l) => Math.round(l.at * 1000) / 1000);

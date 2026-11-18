@@ -2,8 +2,8 @@ import type { Page } from '@playwright/test';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 
-// Notes in one flow: create, draw, undo/redo, erase, drag a shape, saved across a reload, insert an image and a PDF,
-// export. The drawing logic itself (lasso, pixel
+// Notes in one flow: create, draw, undo/redo, erase, drag a shape, move its tip and dash it, turn a freehand arrow into a
+// shape, saved across a reload, insert an image and a PDF, export. The drawing logic itself (lasso, pixel
 // eraser, shapes, formats) is covered by the unit and browser specs in tools/notes.
 
 /** Items (strokes, pictures) saved in `Notebook.note` (OPFS) */
@@ -16,6 +16,19 @@ function savedItems(page: Page): Promise<number> {
 			count += JSON.parse(await (await handle.getFile()).text()).items.length;
 		}
 		return count;
+	});
+}
+
+/** Shapes saved in `Notebook.note`: their geometry, with their line style as `dash` */
+function savedShapes(page: Page): Promise<Record<string, number | boolean | string>[]> {
+	return page.evaluate(async () => {
+		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files');
+		const pages = await (await root.getDirectoryHandle('Notebook.note')).getDirectoryHandle('pages');
+		const fits = [];
+		for await (const handle of (pages as unknown as { values(): AsyncIterable<FileSystemFileHandle> }).values()) {
+			for (const item of JSON.parse(await (await handle.getFile()).text()).items) if (item.type === 'shape') fits.push({ ...item.fit, dash: item.dash ?? 'solid' });
+		}
+		return fits;
 	});
 }
 
@@ -78,18 +91,48 @@ test('draws, undoes, erases, keeps strokes, inserts an image and a PDF, exports'
 	await draw(page);
 	await expect.poll(() => savedItems(page)).toBe(1);
 
-	// The shape tool drags an arrow (the default shape) as one stroke
+	// The shape tool drags an arrow (the default shape) as a shape
 	await page.getByRole('button', { name: 'Shapes' }).click();
 	const box = (await page.getByTestId('surface').boundingBox())!;
-	await page.mouse.move(box.x + box.width / 2 - 100, box.y + 360);
+	const cx = box.x + box.width / 2;
+	await page.mouse.move(cx - 100, box.y + 360);
 	await page.mouse.down();
-	await page.mouse.move(box.x + box.width / 2, box.y + 340, { steps: 5 });
+	await page.mouse.move(cx, box.y + 340, { steps: 5 });
 	await page.mouse.up();
 	await expect.poll(() => savedItems(page)).toBe(2);
+	const [drawn] = await savedShapes(page);
+	expect(drawn).toMatchObject({ kind: 'line', end: true });
+
+	// Select: a tap on the arrow selects it, its tip can be dragged elsewhere
+	await page.getByRole('button', { name: 'Select', exact: true }).click();
+	await page.mouse.click(cx - 50, box.y + 350);
+	await expect(page.getByRole('toolbar', { name: '1 item selected' })).toBeVisible();
+	await page.mouse.move(cx, box.y + 340);
+	await page.mouse.down();
+	await page.mouse.move(cx + 20, box.y + 440, { steps: 5 });
+	await page.mouse.up();
+	await expect.poll(async () => ((await savedShapes(page))[0].y1 as number) > (drawn.y1 as number) + 40).toBe(true);
+	expect((await savedShapes(page))[0]).toMatchObject({ x0: drawn.x0, y0: drawn.y0 });
+	// Its style can be changed afterwards
+	await page.getByRole('button', { name: 'Style' }).click();
+	await page.getByRole('button', { name: 'Dashed' }).click();
+	await expect.poll(async () => (await savedShapes(page))[0].dash).toBe('dashed');
+
+	// A large freehand arrow gets a suggestion that turns it into a shape (selected right away)
+	await page.getByRole('button', { name: 'Pen', exact: true }).click();
+	const ay = box.y + 520;
+	await page.mouse.move(cx - 100, ay);
+	await page.mouse.down();
+	for (const [x, y] of [[100, 0], [75, -18], [100, 0], [75, 18]]) await page.mouse.move(cx + x, ay + y, { steps: 10 });
+	await page.mouse.up();
+	await page.getByRole('button', { name: 'Convert to arrow' }).click();
+	await expect(page.getByRole('toolbar', { name: '1 item selected' })).toBeVisible();
+	await expect.poll(async () => (await savedShapes(page)).length).toBe(2);
+	expect(await savedItems(page)).toBe(3);
 
 	await page.reload();
 	await expect(page.getByTestId('surface')).toBeVisible();
-	await expect.poll(() => savedItems(page)).toBe(2);
+	await expect.poll(() => savedItems(page)).toBe(3);
 
 	// The image goes into the assets and is selected right away
 	await page.getByRole('button', { name: 'Insert' }).click();
@@ -97,7 +140,7 @@ test('draws, undoes, erases, keeps strokes, inserts an image and a PDF, exports'
 	await page.getByRole('menuitem', { name: 'Image from this device …' }).click();
 	await (await chooser).setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: PNG });
 	await expect(page.getByRole('toolbar', { name: '1 item selected' })).toBeVisible();
-	await expect.poll(() => savedItems(page)).toBe(3);
+	await expect.poll(() => savedItems(page)).toBe(4);
 	expect(await savedAssets(page)).toBe(1);
 
 	// A PDF becomes pages after the current one, rendered by PDF.js workers (under the real CSP)

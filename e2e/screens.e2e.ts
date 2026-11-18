@@ -142,7 +142,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			await page.mouse.down();
 			await page.mouse.move(x + 120, y + 70, { steps: 5 });
 			await page.mouse.up();
-			await page.getByRole('button', { name: 'Lasso' }).click();
+			await page.getByRole('button', { name: 'Select', exact: true }).click();
 			await page.mouse.move(x - 30, y - 30);
 			await page.mouse.down();
 			for (const [dx, dy] of [[180, 0], [180, 130], [0, 130], [0, 0]]) await page.mouse.move(x - 30 + dx, y - 30 + dy, { steps: 4 });

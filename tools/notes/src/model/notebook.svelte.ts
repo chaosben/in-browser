@@ -7,13 +7,29 @@ import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 import { isInside } from '@in-browser/files/path.js';
 import { itemBounds, union, type Box } from '#lib/ink/geometry.js';
 import { isIdentity, transformItem, type Transform } from '#lib/ink/lasso.js';
+import { inkStrokes, withStyle, type ShapeFit, type ShapeStyle } from '#lib/ink/shapes.js';
 import { eraseFromStroke } from '#lib/ink/split.js';
 import { m } from '#lib/i18n/index.js';
 import { PdfBackgrounds } from '#lib/render/backgrounds.js';
 import { PictureCache, pictureKey } from '#lib/render/pictures.js';
 import { PageScene } from '#lib/render/scene.js';
 import { addAsset, cleanupAssets, deletePageFile, manifestPath, pagePath, readAsset, readNotebook, readPage, writeNotebook, writePage } from './store.js';
-import { backgroundAssets, isStroke, newPage, type InkTool, type Item, type Notebook, type PageMeta, type Paper, type Picture, type Stroke } from './types.js';
+import {
+	backgroundAssets,
+	isInk,
+	isPicture,
+	isStroke,
+	newPage,
+	type Ink,
+	type InkTool,
+	type Item,
+	type Notebook,
+	type PageMeta,
+	type Paper,
+	type Picture,
+	type ShapeItem,
+	type Stroke
+} from './types.js';
 
 /** What the drawing surface needs to know */
 export interface NotebookListener {
@@ -21,8 +37,8 @@ export interface NotebookListener {
 	pages(pages: PageMeta[]): void;
 	/** A page's content arrived or was replaced */
 	content(id: string): void;
-	/** A finished stroke was added */
-	stroke(id: string, scene: PageScene, stroke: Stroke): void;
+	/** A finished stroke or shape was added */
+	stroke(id: string, scene: PageScene, stroke: Ink): void;
 	/** Items in a region of a page were added, removed, changed or restored */
 	region(id: string, box: Box | null): void;
 	/** A piece of a PDF page under the notes was rendered */
@@ -167,11 +183,21 @@ export class NotebookDoc {
 		this.updateHistory();
 	}
 
-	addStroke(pageIndex: number, data: { points: Float32Array; tool: InkTool; color: string; size: number }) {
+	/** Adds a finished stroke on top (one undo step); its id */
+	addStroke(pageIndex: number, data: { points: Float32Array; tool: InkTool; color: string; size: number }): string | null {
+		if (data.points.length < 3) return null;
+		return this.addInk(pageIndex, { id: crypto.randomUUID(), ...data });
+	}
+
+	/** Adds a shape drawn with the shape tool on top (one undo step); its id */
+	addShape(pageIndex: number, fit: ShapeFit, color: string, size: number, style: ShapeStyle): string | null {
+		return this.addInk(pageIndex, withStyle({ id: crypto.randomUUID(), type: 'shape', fit, color, size }, style));
+	}
+
+	private addInk(pageIndex: number, stroke: Ink): string | null {
 		const page = this.pages[pageIndex];
 		const scene = page && this.scene(page.id);
-		if (!scene || data.points.length < 3) return;
-		const stroke: Stroke = { id: crypto.randomUUID(), ...data };
+		if (!scene) return null;
 		const add = (at?: number) => {
 			scene.add(stroke, at);
 			this.listener?.stroke(page.id, scene, stroke);
@@ -187,25 +213,42 @@ export class NotebookDoc {
 			},
 			redo: () => add()
 		});
+		return stroke.id;
+	}
+
+	/** Replaces a stroke by a shape (a recognized one, one undo step); the shape's id, null if the stroke is gone */
+	toShape(pageIndex: number, strokeId: string, fit: ShapeFit): string | null {
+		const page = this.pages[pageIndex];
+		const scene = page && this.scene(page.id);
+		const stroke = scene?.items.find((i) => i.id === strokeId);
+		if (!scene || !stroke || !isStroke(stroke)) return null;
+		const shape: ShapeItem = { id: crypto.randomUUID(), type: 'shape', fit, color: stroke.color, size: stroke.size };
+		this.applyOps(page.id, [{ removed: stroke, at: scene.items.indexOf(stroke), added: [shape] }]);
+		return shape.id;
 	}
 
 	/** Removes strokes during an erase gesture; `eraseEnd` makes the gesture one undo step */
-	erase(pageIndex: number, strokes: Stroke[]) {
+	erase(pageIndex: number, strokes: Ink[]) {
 		this.replace(pageIndex, strokes.map((stroke) => ({ stroke, pieces: [] })));
 	}
 
-	/** Pixel eraser: cuts the circle (page points) out of the strokes it touches, during an erase gesture */
-	erasePixels(pageIndex: number, strokes: Stroke[], x: number, y: number, r: number) {
-		const cuts: { stroke: Stroke; pieces: Float32Array[] }[] = [];
+	/**
+	 * Pixel eraser: cuts the circle (page points) out of the strokes it touches, during an erase gesture. A shape
+	 * becomes ordinary strokes then (the pieces of its outline).
+	 */
+	erasePixels(pageIndex: number, strokes: Ink[], x: number, y: number, r: number) {
+		const cuts: { stroke: Ink; pieces: Float32Array[] }[] = [];
 		for (const stroke of strokes) {
-			const pieces = eraseFromStroke(stroke, x, y, r);
-			if (pieces) cuts.push({ stroke, pieces });
+			// A shape is cut as a whole: touched strokes in pieces, the others (dashes, edges, arrowheads) as they are
+			const own = inkStrokes(stroke);
+			const cut = own.map((s) => eraseFromStroke(s, x, y, r));
+			if (cut.some(Boolean)) cuts.push({ stroke, pieces: cut.flatMap((p, i) => p ?? [own[i].points]) });
 		}
 		if (cuts.length) this.replace(pageIndex, cuts);
 	}
 
 	/** Replaces strokes by pieces of them (none = removed) at their place in the draw order */
-	private replace(pageIndex: number, cuts: { stroke: Stroke; pieces: Float32Array[] }[]) {
+	private replace(pageIndex: number, cuts: { stroke: Ink; pieces: Float32Array[] }[]) {
 		const page = this.pages[pageIndex];
 		const scene = page && this.scene(page.id);
 		if (!scene) return;
@@ -216,7 +259,8 @@ export class NotebookDoc {
 			const bounds = scene.bounds(stroke);
 			const at = scene.remove(stroke);
 			if (at < 0) continue;
-			const added = pieces.map((points): Stroke => ({ ...stroke, id: crypto.randomUUID(), points }));
+			const pen = inkStrokes(stroke)[0];
+			const added = pieces.map((points): Stroke => ({ id: crypto.randomUUID(), tool: pen.tool, color: pen.color, size: pen.size, points }));
 			added.forEach((piece, i) => scene.add(piece, at + i));
 			this.erasing.ops.push({ removed: stroke, at, added });
 			box = union(box, bounds);
@@ -287,7 +331,7 @@ export class NotebookDoc {
 	/** A picture finished loading: redraw it wherever it is shown */
 	private pictureLoaded(key: string) {
 		for (const [id, scene] of this.scenes) {
-			const box = scene.items.reduce<Box | null>((b, i) => (!isStroke(i) && pictureKey(i) === key ? union(b, scene.bounds(i)) : b), null);
+			const box = scene.items.reduce<Box | null>((b, i) => (isPicture(i) && pictureKey(i) === key ? union(b, scene.bounds(i)) : b), null);
 			if (box) this.listener?.region(id, box);
 		}
 	}
@@ -321,11 +365,20 @@ export class NotebookDoc {
 
 	/** Puts lifted items back, moved/scaled (one undo step); unchanged when the transform is none */
 	drop(lifted: Lifted, t: Transform) {
+		this.putBack(lifted, (item) => transformItem(item, t), isIdentity(t));
+	}
+
+	/** Puts a single lifted item back as `changed` (a shape with moved points; one undo step) */
+	reshape(lifted: Lifted, changed: Item) {
+		this.putBack(lifted, () => changed, false);
+	}
+
+	private putBack(lifted: Lifted, change: (item: Item) => Item, unchanged: boolean) {
 		const scene = this.scene(lifted.page);
 		if (!scene) return;
-		const ops: ReplaceOp[] = lifted.items.map(({ item, at }) => ({ removed: item, at, added: [transformItem(item, t)] }));
+		const ops: ReplaceOp[] = lifted.items.map(({ item, at }) => ({ removed: item, at, added: [change(item)] }));
 		for (const { item, at } of lifted.items) scene.add(item, at);
-		if (isIdentity(t)) {
+		if (unchanged) {
 			this.listener?.region(lifted.page, ops.reduce<Box | null>((b, op) => union(b, itemBounds(op.removed)), null));
 			return;
 		}
@@ -342,14 +395,20 @@ export class NotebookDoc {
 		this.applyOps(page.id, this.itemsById(pageIndex, ids).map((item) => ({ removed: item, at: scene.items.indexOf(item), added: [] })));
 	}
 
-	/** Gives strokes and icons another color (one undo step); images stay as they are */
+	/** Gives strokes, shapes and icons another color (one undo step); images stay as they are */
 	recolor(pageIndex: number, ids: ReadonlySet<string>, color: string) {
+		this.change(pageIndex, ids, (item) => (isInk(item) || item.type === 'icon' ? { ...item, color } : null));
+	}
+
+	/** Changes items (one undo step): `change` gives the new version of an item, or null to leave it */
+	change(pageIndex: number, ids: ReadonlySet<string>, change: (item: Item) => Item | null) {
 		const page = this.pages[pageIndex];
 		if (!page) return;
 		const scene = this.scene(page.id)!;
-		const ops = this.itemsById(pageIndex, ids)
-			.filter((item) => isStroke(item) || item.type === 'icon')
-			.map((item) => ({ removed: item, at: scene.items.indexOf(item), added: [{ ...item, color }] }));
+		const ops = this.itemsById(pageIndex, ids).flatMap((item) => {
+			const changed = change(item);
+			return changed ? [{ removed: item, at: scene.items.indexOf(item), added: [changed] }] : [];
+		});
 		this.applyOps(page.id, ops);
 	}
 
