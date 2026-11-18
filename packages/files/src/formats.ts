@@ -18,6 +18,11 @@ export interface Format {
 	open: string;
 	/** Icon of the tool (its favicon) */
 	icon: string;
+	/**
+	 * Only offered under "Open with …": the file belongs to another kind (e.g. SVG is an image, previewed in Files)
+	 * and is never opened by double-click, nor does it give the file its icon or kind
+	 */
+	fallback?: boolean;
 }
 
 /** Control file at the root of every package */
@@ -58,14 +63,19 @@ export const FORMATS: readonly Format[] = [
 			open: '/text-editor',
 			icon: '/text-editor/favicon.svg'
 		})
-	)
+	),
+	// An image whose text can be edited
+	{ ext: '.svg', kind: 'file', tool: 'text-editor', toolName: 'Text Editor', open: '/text-editor', icon: '/text-editor/favicon.svg', fallback: true }
 ];
 
-/** Formats (and so tools) that open an entry of that name and kind; several mean "Open with …" */
-export function formatsOf(name: string, kind: 'file' | 'directory'): Format[] {
+/**
+ * Formats (and so tools) that open an entry of that name and kind; several mean "Open with …". Fallback formats only
+ * with `{ fallback: true }` (they are offered, but never the way the entry opens).
+ */
+export function formatsOf(name: string, kind: 'file' | 'directory', { fallback = false } = {}): Format[] {
 	const ext = extname(name);
 	if (!ext) return [];
-	return FORMATS.filter((f) => f.ext === ext && (f.kind === 'package') === (kind === 'directory'));
+	return FORMATS.filter((f) => f.ext === ext && (f.kind === 'package') === (kind === 'directory') && (fallback || !f.fallback));
 }
 
 /** Folder that a tool treats as one document */

@@ -11,6 +11,10 @@ describe('toItem', () => {
 		expect(file('a.zip').formats).toEqual([]);
 		expect(file('a.txt').formats.map((f) => f.tool)).toEqual(['text-editor']);
 	});
+	it('offers the Text Editor for SVG images only under "Open with"', () => {
+		expect(file('a.svg').formats).toEqual([]);
+		expect(file('a.svg').openWith.map((f) => f.tool)).toEqual(['text-editor']);
+	});
 });
 
 describe('sortItems', () => {

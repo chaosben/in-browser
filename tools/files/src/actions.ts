@@ -1,5 +1,5 @@
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { openUrl } from '@in-browser/files/formats.js';
+import { openUrl, type Format } from '@in-browser/files/formats.js';
 import { copy, list, mkdir, move, write } from '@in-browser/files/fs.js';
 import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
@@ -122,8 +122,7 @@ export async function duplicate(manager: Manager, items: Item[]) {
 	await manager.refresh();
 }
 
-/** Address that opens the item in its tool, `null` if no tool opens it */
-export function toolUrl(item: Item, index = 0): string | null {
-	const format = item.formats[index];
+/** Address that opens the item in its tool (or in `format`, from "Open with …"), `null` if no tool opens it */
+export function toolUrl(item: Item, format: Format | undefined = item.formats[0]): string | null {
 	return format ? openUrl(format, item.path) : null;
 }

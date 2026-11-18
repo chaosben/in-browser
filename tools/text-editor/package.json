@@ -33,7 +33,11 @@
 		"@codemirror/view": "6.43.15",
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
+		"@lezer/common": "1.5.5",
 		"@lezer/highlight": "1.2.5",
+		"@lezer/json": "1.0.3",
+		"@lezer/xml": "1.0.6",
+		"@lezer/yaml": "1.0.4",
 		"marked": "18.2.1"
 	}
 }

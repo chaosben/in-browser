@@ -36,7 +36,7 @@ const help = {
 		items: {
 			open: {
 				title: 'Opening',
-				text: 'Double-click an entry, or select it and press Enter. A folder opens in Files. A document of a tool (e.g. a Screen Capture project or a text file) opens in that tool – if several tools can open it, the menu of the entry offers “Open with …” for each. Other files open in the preview. On touch screens a tap opens.'
+				text: 'Double-click an entry, or select it and press Enter. A folder opens in Files. A document of a tool (e.g. a Screen Capture project or a text file) opens in that tool – if several tools can open it, the menu of the entry offers “Open with …” for each. Other files open in the preview. Some of them can also be edited as text: the menu of an SVG image offers “Open with Text Editor”, while a double-click shows the picture. On touch screens a tap opens.'
 			},
 			select: {
 				title: 'Selecting',

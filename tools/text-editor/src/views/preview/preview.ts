@@ -1,7 +1,7 @@
 import { marked } from 'marked';
 
-// Markdown preview as a complete document for a sandboxed `<iframe srcdoc>`. All tools share one origin, so the
-// HTML must never run in the page itself: the frame has no scripts and an opaque origin, and its own CSP allows
+// Markdown and HTML previews as complete documents for a sandboxed `<iframe srcdoc>`. All tools share one origin, so
+// the HTML must never run in the page itself: the frame has no scripts and an opaque origin, and its own CSP allows
 // nothing but inline styles and data: images (no external requests either).
 
 export interface PreviewColors {
@@ -14,11 +14,23 @@ export interface PreviewColors {
 }
 
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:";
+const LOCK = `<meta http-equiv="Content-Security-Policy" content="${CSP}">`;
+
+/**
+ * An HTML file as it is, locked down: our CSP comes first (a page can only add stricter ones), links open in a new
+ * tab, and `<meta http-equiv="refresh">` is taken out (it would navigate the frame away).
+ */
+export function htmlDocument(html: string): string {
+	const body = html.replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh[^>]*>/gi, '');
+	// After a doctype, which must stay first (otherwise the page renders in quirks mode)
+	const doctype = /^\s*<!doctype[^>]*>/i.exec(body)?.[0] ?? '';
+	return `${doctype}${LOCK}<base target="_blank">${body.slice(doctype.length)}`;
+}
 
 export function previewDocument(markdown: string, colors: PreviewColors, lang: string): string {
 	const body = marked.parse(markdown, { async: false, gfm: true });
 	return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="${CSP}">
+${LOCK}
 <base target="_blank">
 <style>
 :root { color-scheme: light dark; }

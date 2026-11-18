@@ -1,5 +1,5 @@
-import { redoDepth, undoDepth } from '@codemirror/commands';
-import { EditorSelection, EditorState, Text, type StateEffect, type TransactionSpec, type Transaction } from '@codemirror/state';
+import { isolateHistory, redoDepth, undoDepth } from '@codemirror/commands';
+import { EditorSelection, EditorState, Text, type ChangeSpec, type StateEffect, type TransactionSpec, type Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { resolve } from '$app/paths';
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
@@ -7,13 +7,15 @@ import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
 import { move, read, stat, write, type Entry } from '@in-browser/files/fs.js';
 import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-import { TEXT_EXTENSIONS } from '@in-browser/files/kinds.js';
+import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 import { basename, isInside, join, parent } from '@in-browser/files/path.js';
 import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Decoded, type Encoding, type LineEnding } from '#lib/document.js';
 import { loadDraft, pruneDrafts, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
 import { markdownKeymap } from '#lib/editor/commands.js';
 import { isMarkdown, languageOf } from '#lib/editor/languages.js';
 import { createState, languageSlot, wrapping, wrapSlot } from '#lib/editor/setup.js';
+import type { ViewId } from '#lib/views/registry.js';
+import type { ViewUi } from '#lib/views/types.js';
 import { intlLocale, m } from '#lib/i18n/index.js';
 
 // Open files as tabs: one CodeMirror state per tab, shown by the one `EditorView` of the page. Files with a place in
@@ -25,12 +27,21 @@ import { intlLocale, m } from '#lib/i18n/index.js';
 const TABS_KEY = 'text-editor:tabs';
 const RECENT_KEY = 'text-editor:recent';
 const WRAP_KEY = 'text-editor:wrap';
-const PREVIEW_KEY = 'text-editor:preview';
+/** Until layouts existed: whether the Markdown preview was shown */
+const OLD_PREVIEW_KEY = 'text-editor:preview';
+const LAYOUT_KEY = 'text-editor:layout';
+const SPLIT_KEY = 'text-editor:split';
+const VIEWS_KEY = 'text-editor:views';
+const HEADER_KEY = 'text-editor:table-header';
 const FONT_KEY = 'text-editor:font-size';
 const MAX_RECENT = 10;
 /** Pause after typing before saving automatically */
 const SAVE_DELAY = 1000;
 export const FONT_SIZES = { min: 10, default: 14, max: 28 };
+/** Text only, text and view side by side, or the view only (files that have a view) */
+export type Layout = 'text' | 'split' | 'view';
+/** Share of the width the text gets side by side */
+export const SPLIT = { min: 0.2, default: 0.5, max: 0.8 };
 
 function load<T>(key: string, fallback: T): T {
 	try {
@@ -96,6 +107,8 @@ export class Tab {
 	saving = $state(false);
 	history = $state({ undo: 0, redo: 0 });
 	cursor = $state({ line: 1, column: 1, selected: 0 });
+	/** Offset of the cursor in the text (the views mark what it is on) */
+	head = $state(0);
 	language = $state<string | null>(null);
 	/** Scroll position while another tab is shown */
 	scroll: StateEffect<unknown> | null = null;
@@ -148,7 +161,14 @@ export class Workspace {
 	active = $derived(this.tabs.find((t) => t.id === this.activeId) ?? null);
 	/** Wrapped by default on phones and narrow windows (no horizontal scrolling there) */
 	wrap = $state(load(WRAP_KEY, typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 47.99rem)').matches));
-	preview = $state(load(PREVIEW_KEY, true));
+	layout = $state<Layout>(load<Layout | null>(LAYOUT_KEY, null) ?? (load(OLD_PREVIEW_KEY, true) ? 'split' : 'text'));
+	split = $state(load(SPLIT_KEY, SPLIT.default));
+	/** View chosen per file type, where there are several (e.g. JSON Lines: table or tree) */
+	views = $state<Record<string, ViewId>>(load(VIEWS_KEY, {}));
+	/** The first row of CSV files holds the column names */
+	tableHeader = $state(load(HEADER_KEY, true));
+	/** Menus and status of the view that is shown */
+	viewUi = $state.raw<ViewUi | null>(null);
 	recent = $state<string[]>(load(RECENT_KEY, []));
 	fontSize = $state(load(FONT_KEY, FONT_SIZES.default));
 	/** Folder of the last open/save dialog */
@@ -184,6 +204,7 @@ export class Workspace {
 		}
 		tab.history = { undo: undoDepth(view.state), redo: redoDepth(view.state) };
 		const main = view.state.selection.main;
+		tab.head = main.head;
 		const line = view.state.doc.lineAt(main.head);
 		tab.cursor = {
 			line: line.number,
@@ -214,12 +235,24 @@ export class Workspace {
 		this.#view?.focus();
 	}
 
-	/** Runs an editor command (toolbar, menus) on the active tab */
-	run(command: (view: EditorView) => boolean) {
+	/** Runs an editor command (toolbar, menus) on the active tab; `focus: false` leaves the focus where it is (views) */
+	run(command: (view: EditorView) => boolean, { focus = true } = {}) {
 		const view = this.#view;
 		if (!view || !this.active) return;
 		command(view);
-		view.focus();
+		if (focus) view.focus();
+	}
+
+	/** A change from a view (table, tree): one undo step like typing, the focus stays in the view */
+	edit(tab: Tab, changes: ChangeSpec) {
+		this.#apply(tab, { changes, userEvent: 'input.view', annotations: isolateHistory.of('full') });
+	}
+
+	/** Puts the cursor of the text on a place chosen in a view; `scroll` brings it into sight */
+	reveal(tab: Tab, from: number, to = from, scroll = true) {
+		const length = tab.state.doc.length;
+		const selection = EditorSelection.single(Math.min(from, length), Math.min(to, length));
+		this.#apply(tab, { selection, scrollIntoView: scroll });
 	}
 
 	// --- Tabs ---
@@ -303,7 +336,7 @@ export class Workspace {
 			mode: 'open',
 			multiple: true,
 			folder: this.#dialogFolder(),
-			accept: TEXT_EXTENSIONS,
+			accept: EDITABLE_EXTENSIONS,
 			title: m.dialogs.open
 		});
 		if (!paths?.length) return;
@@ -357,7 +390,7 @@ export class Workspace {
 			path = await chooseFile({
 				mode: 'save',
 				folder: tab.path ? parent(tab.path) : this.folder,
-				accept: TEXT_EXTENSIONS,
+				accept: EDITABLE_EXTENSIONS,
 				name: tab.suggestedName,
 				title: m.dialogs.saveAs,
 				overwrite: true
@@ -690,9 +723,25 @@ export class Workspace {
 		for (const tab of this.tabs) this.#apply(tab, { effects: wrapSlot.reconfigure(wrapping(wrap)) });
 	}
 
-	setPreview(preview: boolean) {
-		this.preview = preview;
-		store(PREVIEW_KEY, preview);
+	setLayout(layout: Layout) {
+		this.layout = layout;
+		store(LAYOUT_KEY, layout);
+		this.#view?.requestMeasure();
+	}
+
+	setSplit(share: number) {
+		this.split = Math.min(SPLIT.max, Math.max(SPLIT.min, share));
+		store(SPLIT_KEY, this.split);
+	}
+
+	setView(type: string, id: ViewId) {
+		this.views = { ...this.views, [type]: id };
+		store(VIEWS_KEY, this.views);
+	}
+
+	setTableHeader(on: boolean) {
+		this.tableHeader = on;
+		store(HEADER_KEY, on);
 	}
 
 	/** Text size in px (`null`: default) */

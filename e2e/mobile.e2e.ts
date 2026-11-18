@@ -79,20 +79,26 @@ test('Files: tap opens, long press and ⋯ show the actions, move, delete into t
 	await expect(page.getByRole('option', { name: 'Archive' })).toBeVisible();
 });
 
-test('Text Editor: wraps lines and switches between editor and Markdown preview', async ({ page, problems }) => {
+test('Text Editor: wraps lines, switches to the Markdown preview, edits a CSV as a table', async ({ page, problems }) => {
 	await page.goto('/files');
 	await page.evaluate(async () => {
 		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files', { create: true });
-		const writable = await (await root.getFileHandle('note.md', { create: true })).createWritable();
-		await writable.write('# Hello\n\nA line long enough to need wrapping on a phone screen, so nothing scrolls sideways.');
-		await writable.close();
+		const files = {
+			'note.md': '# Hello\n\nA line long enough to need wrapping on a phone screen, so nothing scrolls sideways.',
+			'people.csv': 'name,age\nAnna,31\nBen,4\n'
+		};
+		for (const [name, text] of Object.entries(files)) {
+			const writable = await (await root.getFileHandle(name, { create: true })).createWritable();
+			await writable.write(text);
+			await writable.close();
+		}
 	});
 	await page.goto('/text-editor?path=%2Fnote.md');
 	const content = page.locator('.cm-content');
 	await expect(content).toContainText('Hello');
 	await expect(content).toHaveClass(/cm-lineWrapping/);
 
-	const preview = page.getByRole('button', { name: 'Markdown preview' });
+	const preview = page.getByRole('button', { name: 'Show Markdown preview' });
 	await preview.tap();
 	// (Not looked into: the frame is sandboxed without scripts, Playwright can't query inside it)
 	const frame = page.locator('iframe[title="Markdown preview"]');
@@ -101,6 +107,30 @@ test('Text Editor: wraps lines and switches between editor and Markdown preview'
 	await expect(content).toBeHidden();
 	await preview.tap();
 	await expect(content).toBeVisible();
+
+	// The table instead of the text; a tap selects a cell, a second one edits it – the text follows and is saved
+	await page.goto('/text-editor?path=%2Fpeople.csv');
+	await page.getByRole('button', { name: 'Show Table' }).tap();
+	const cell = page.getByRole('gridcell', { name: 'Ben' });
+	await cell.tap();
+	await cell.tap();
+	// By touch Enter starts a new line in the cell, ✓ saves it
+	await page.keyboard.type('Bea');
+	await page.keyboard.press('Enter');
+	await page.keyboard.type('B.');
+	await page.getByRole('button', { name: 'Apply' }).tap();
+	await expect(page.getByRole('gridcell', { name: 'Bea ⏎ B.' })).toBeVisible();
+	await page.getByRole('button', { name: 'Row 1: insert, move, delete …' }).tap();
+	await page.getByRole('menuitem', { name: 'Delete row' }).tap();
+	await expect(page.getByRole('gridcell', { name: 'Anna' })).toBeHidden();
+	await expect(page.getByTitle('Saved')).toBeVisible();
+	const saved = await page.evaluate(async () => {
+		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files');
+		return (await (await root.getFileHandle('people.csv')).getFile()).text();
+	});
+	expect(saved).toBe('name,age\n"Bea\nB.",4\n');
+	await page.getByRole('button', { name: 'Show Table' }).tap();
+	await expect(content).toContainText('B.",4');
 
 	// Playwright's own helper scripts are blocked in the script-less sandbox frame (that's the point of it)
 	const own = (p: string) => p.includes("Blocked script execution in 'about:srcdoc'");

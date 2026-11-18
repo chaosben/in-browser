@@ -4,10 +4,11 @@
 	import { m } from '#lib/i18n/index.js';
 	import { encodingName, type Tab, type Workspace } from '#lib/workspace.svelte.js';
 
-	// Position, language, line ending and encoding of the active tab (left in the BrandFooter); the last two can be
-	// changed here.
+	// Position, language, status of the view (rows, path of the selected node), line ending and encoding of the active
+	// tab (left in the BrandFooter); the last two can be changed here.
 
 	let { workspace, tab }: { workspace: Workspace; tab: Tab } = $props();
+	const viewStatus = $derived(workspace.viewUi?.status?.());
 
 	const CHECK = 'icon-[material-symbols-light--check]';
 	const ENCODINGS = CHARSETS.flatMap((charset): Encoding[] =>
@@ -46,6 +47,7 @@
 <span class="opacity-70">{m.status.position(tab.cursor.line, tab.cursor.column)}</span>
 {#if tab.cursor.selected}<span class="ml-2 opacity-70">{m.status.selected(tab.cursor.selected)}</span>{/if}
 <span class="ml-2 opacity-70">{tab.language ?? m.status.plainText}</span>
+{#if viewStatus}<span class="ml-2 max-w-64 truncate opacity-70">{viewStatus}</span>{/if}
 <button class="btn btn-ghost btn-xs font-normal" title={m.status.lineEnding} onclick={eolMenu}>
 	{tab.eol === '\r\n' ? 'CRLF' : 'LF'}
 </button>

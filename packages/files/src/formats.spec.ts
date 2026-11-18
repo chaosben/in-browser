@@ -19,6 +19,11 @@ describe('formats', () => {
 		const [format] = formatsOf('a b.txt', 'file');
 		expect(openUrl(format, '/Notes/a b.txt')).toBe('/text-editor?path=%2FNotes%2Fa%20b.txt');
 	});
+	it('offers fallback formats only under "Open with"', () => {
+		expect(formatsOf('logo.svg', 'file')).toEqual([]);
+		expect(formatsOf('logo.svg', 'file', { fallback: true }).map((f) => f.tool)).toEqual(['text-editor']);
+		expect(formatsOf('notes.md', 'file', { fallback: true }).map((f) => f.tool)).toEqual(['text-editor']);
+	});
 	it('builds the open address with the encoded path', () => {
 		const [format] = formatsOf('Demo.screencapture', 'directory');
 		expect(openUrl(format, '/Screen Capture/Demo.screencapture')).toBe(

@@ -11,11 +11,14 @@ export interface Item extends Entry {
 	folder: boolean;
 	/** Tools that open it (package or file format); the first one opens on double-click */
 	formats: Format[];
+	/** Tools offered under "Open with …": the formats plus fallbacks (e.g. the Text Editor for SVG images) */
+	openWith: Format[];
 }
 
 export function toItem(entry: Entry): Item {
 	const formats = formatsOf(entry.name, entry.kind);
-	return { ...entry, folder: entry.kind === 'directory' && formats.length === 0, formats };
+	const openWith = formatsOf(entry.name, entry.kind, { fallback: true });
+	return { ...entry, folder: entry.kind === 'directory' && formats.length === 0, formats, openWith };
 }
 
 export type SortKey = 'name' | 'kind' | 'size' | 'modified';

@@ -34,7 +34,7 @@ const help: typeof enHelp = {
 		items: {
 			open: {
 				title: 'Öffnen',
-				text: 'Doppelklicke einen Eintrag oder wähle ihn aus und drücke Enter. Ein Ordner öffnet sich in Files. Ein Dokument eines Tools (z. B. ein Screen-Capture-Projekt oder eine Textdatei) öffnet sich in diesem Tool – können es mehrere Tools öffnen, bietet das Menü des Eintrags für jedes „Mit … öffnen“ an. Andere Dateien öffnen sich in der Vorschau. Auf Touchscreens öffnet ein Tippen.'
+				text: 'Doppelklicke einen Eintrag oder wähle ihn aus und drücke Enter. Ein Ordner öffnet sich in Files. Ein Dokument eines Tools (z. B. ein Screen-Capture-Projekt oder eine Textdatei) öffnet sich in diesem Tool – können es mehrere Tools öffnen, bietet das Menü des Eintrags für jedes „Mit … öffnen“ an. Andere Dateien öffnen sich in der Vorschau. Manche davon lassen sich auch als Text bearbeiten: Das Menü eines SVG-Bilds bietet „Mit Text Editor öffnen“ an, ein Doppelklick zeigt das Bild. Auf Touchscreens öffnet ein Tippen.'
 			},
 			select: {
 				title: 'Auswählen',

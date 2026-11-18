@@ -6,10 +6,16 @@ export type PreviewKind = 'image' | 'video' | 'audio' | 'text' | null;
 
 /** Plain text files: previewed as text in Files, opened by the Text Editor */
 export const TEXT_EXTENSIONS: readonly string[] = [
-	'.txt', '.md', '.markdown', '.json', '.csv', '.tsv', '.log', '.xml', '.yml', '.yaml', '.ini', '.cfg', '.conf',
+	'.txt', '.md', '.markdown', '.json', '.jsonl', '.ndjson', '.csv', '.tsv', '.log', '.xml', '.yml', '.yaml', '.ini', '.cfg', '.conf',
 	'.properties', '.toml', '.html', '.htm', '.css', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx',
 	'.svelte', '.py', '.sh', '.bash', '.zsh'
 ];
+
+/**
+ * What the Text Editor can open and save: plain text plus formats that belong to another kind but are text inside
+ * (SVG is an image; Files previews it as one and offers the Text Editor only under "Open with").
+ */
+export const EDITABLE_EXTENSIONS: readonly string[] = [...TEXT_EXTENSIONS, '.svg'];
 
 const PREVIEW: Record<Exclude<PreviewKind, null>, readonly string[]> = {
 	// SVG only ever as <img>: scripts in it do not run there

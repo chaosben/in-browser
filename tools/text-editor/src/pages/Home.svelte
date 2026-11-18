@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { redo, undo } from '@codemirror/commands';
 	import { gotoLine, openSearchPanel } from '@codemirror/search';
@@ -13,17 +13,20 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { supported, watch } from '@in-browser/files/fs.js';
-	import { TEXT_EXTENSIONS } from '@in-browser/files/kinds.js';
+	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 	import { basename, normalize, parent } from '@in-browser/files/path.js';
 	import { BRAND } from '#lib/brand.js';
 	import Editor from '#lib/components/Editor.svelte';
-	import MarkdownPreview from '#lib/components/MarkdownPreview.svelte';
 	import StatusBar from '#lib/components/StatusBar.svelte';
 	import TabBar from '#lib/components/TabBar.svelte';
 	import { bold, codeBlock, inlineCode, insertLink, italic, openReplace, toggleLinePrefix } from '#lib/editor/commands.js';
 	import { isMarkdown } from '#lib/editor/languages.js';
 	import { m } from '#lib/i18n/index.js';
-	import { encodingName, FONT_SIZES, Workspace, type Tab } from '#lib/workspace.svelte.js';
+	import DataView from '#lib/views/DataView.svelte';
+	import { viewsOf, type ViewId } from '#lib/views/registry.js';
+	import SplitView from '#lib/views/SplitView.svelte';
+	import type { ViewHost } from '#lib/views/types.js';
+	import { encodingName, FONT_SIZES, Workspace, type Layout, type Tab } from '#lib/workspace.svelte.js';
 
 	const workspace = new Workspace();
 	const active = $derived(workspace.active);
@@ -31,14 +34,70 @@
 	let ready = $state(false);
 	let dropping = $state(false);
 	let fileInput = $state<HTMLInputElement>();
-	/** Below `md` there is no room for editor and preview side by side: one of them fills the page */
+	/** Below `md` there is no room for text and view side by side: one of them fills the page */
 	const narrow = new MediaQuery('max-width: 47.99rem', false);
-	let previewOnly = $state(false);
-	const previewShown = $derived(markdown && (narrow.current ? previewOnly : workspace.preview));
-	function togglePreview() {
-		if (narrow.current) previewOnly = !previewOnly;
-		else workspace.setPreview(!workspace.preview);
+	/** Phones: the view instead of the text */
+	let viewOnPhone = $state(false);
+
+	// The views of the active file (table, tree, preview …) and the one chosen for its type
+	const fileViews = $derived(active ? viewsOf(active.name, () => active.state.doc.toString()) : null);
+	const spec = $derived(fileViews && (fileViews.views.find((v) => v.id === workspace.views[fileViews.type]) ?? fileViews.views[0]));
+	const layout = $derived<Layout>(!spec ? 'text' : narrow.current ? (viewOnPhone ? 'view' : 'text') : workspace.layout);
+	const textShown = $derived(layout !== 'view');
+	const viewShown = $derived(layout !== 'text');
+
+	const VIEW_ICONS: Record<ViewId, string> = {
+		markdown: 'icon-[material-symbols-light--preview]',
+		html: 'icon-[material-symbols-light--preview]',
+		svg: 'icon-[material-symbols-light--image-outline]',
+		table: 'icon-[material-symbols-light--table-outline]',
+		tree: 'icon-[material-symbols-light--account-tree-outline]'
+	};
+	const viewName = (id: ViewId) => m.views[id];
+
+	/** The button in the bar: view on or off (desktop: side by side, phones: instead of the text) */
+	function toggleView() {
+		if (narrow.current) viewOnPhone = !viewOnPhone;
+		else workspace.setLayout(viewShown ? 'text' : 'split');
 	}
+
+	function setLayout(next: Layout) {
+		if (narrow.current) viewOnPhone = next === 'view';
+		else workspace.setLayout(next);
+	}
+
+	/** What a view may do with the text of the active tab */
+	function hostFor(tab: Tab): ViewHost {
+		return {
+			edit: (changes) => workspace.edit(tab, changes),
+			reveal: (from, to) => workspace.reveal(tab, from, to, textShown),
+			undo: () => workspace.run(undo, { focus: false }),
+			redo: () => workspace.run(redo, { focus: false }),
+			register(ui) {
+				workspace.viewUi = ui;
+				return () => {
+					if (workspace.viewUi === ui) workspace.viewUi = null;
+				};
+			},
+			async showText(pos) {
+				if (narrow.current) viewOnPhone = false;
+				else if (workspace.layout === 'view') workspace.setLayout('split');
+				await tick();
+				workspace.reveal(tab, pos);
+				workspace.focus();
+			},
+			get textVisible() {
+				return textShown;
+			},
+			get tableHeader() {
+				return workspace.tableHeader;
+			},
+			set tableHeader(on) {
+				workspace.setTableHeader(on);
+			}
+		};
+	}
+	const host = $derived(active ? hostFor(active) : null);
 
 	onMount(() => {
 		if (!supported()) return;
@@ -125,9 +184,37 @@
 	];
 
 	const CHECK = 'icon-[material-symbols-light--check]';
+	const layoutEntries = $derived<MenuEntry[]>(
+		!spec || !fileViews
+			? []
+			: [
+					...(narrow.current
+						? [{ label: m.view.toggle(viewName(spec.id)), icon: viewShown ? CHECK : undefined, run: toggleView }]
+						: (['text', 'split', 'view'] as const).map((l) => ({
+								label: { text: m.view.textOnly, split: m.view.split, view: m.view.viewOnly }[l],
+								icon: layout === l ? CHECK : undefined,
+								run: () => setLayout(l)
+							}))),
+					...(fileViews.views.length > 1
+						? [
+								{ separator: true } as const,
+								...fileViews.views.map((v) => ({
+									label: viewName(v.id),
+									icon: v === spec ? CHECK : VIEW_ICONS[v.id],
+									run: () => {
+										workspace.setView(fileViews.type, v.id);
+										if (!viewShown) setLayout(narrow.current ? 'view' : 'split');
+									}
+								}))
+							]
+						: []),
+					...(viewShown && workspace.viewUi?.view?.length ? [{ separator: true } as const, ...workspace.viewUi.view] : []),
+					{ separator: true }
+				]
+	);
 	const viewEntries = $derived<MenuEntry[]>([
+		...layoutEntries,
 		{ label: m.view.wrap, icon: workspace.wrap ? CHECK : undefined, run: () => workspace.setWrap(!workspace.wrap) },
-		...(markdown ? [{ label: m.view.preview, icon: previewShown ? CHECK : undefined, run: togglePreview }] : []),
 		{ separator: true },
 		{
 			label: m.view.fontLarger,
@@ -171,6 +258,7 @@
 		}
 		const { name, path } = tab;
 		const md = markdown;
+		const viewActions = viewShown ? (workspace.viewUi?.actions ?? []) : [];
 		return untrack(() => {
 			const c = cmd;
 			const menu: MenuEntry[] = [
@@ -184,6 +272,7 @@
 				c.replace,
 				c.gotoLine,
 				...(md ? [{ separator: true } as const, { heading: m.format.title }, c.bold, c.italic, c.link, ...paragraph] : []),
+				...(viewActions.length ? [{ separator: true } as const, ...viewActions] : []),
 				{ separator: true },
 				...(path ? [c.rename] : []),
 				c.download,
@@ -304,15 +393,16 @@
 		</button>
 		{@render menuButton(m.actions.open, 'icon-[material-symbols-light--folder-open-outline]', openEntries, true)}
 	</div>
-	{#if markdown && narrow.current}
+	{#if spec}
+		{@const label = m.view.toggle(viewName(spec.id))}
 		<button
-			class={['btn btn-ghost btn-sm btn-square', previewOnly && 'btn-active']}
-			onclick={togglePreview}
-			title={m.view.preview}
-			aria-label={m.view.preview}
-			aria-pressed={previewOnly}
+			class={['btn btn-ghost btn-sm btn-square', viewShown && 'btn-active']}
+			onclick={toggleView}
+			title={label}
+			aria-label={label}
+			aria-pressed={viewShown}
 		>
-			<span class="icon-[material-symbols-light--preview] size-5" aria-hidden="true"></span>
+			<span class="{VIEW_ICONS[spec.id]} size-5" aria-hidden="true"></span>
 		</button>
 	{/if}
 	{#if active}
@@ -327,7 +417,7 @@
 	type="file"
 	multiple
 	hidden
-	accept={TEXT_EXTENSIONS.join(',')}
+	accept={EDITABLE_EXTENSIONS.join(',')}
 	onchange={(e) => {
 		workspace.openLocal([...(e.currentTarget.files ?? [])]);
 		e.currentTarget.value = '';
@@ -408,17 +498,19 @@
 						<button class="btn btn-sm" onclick={() => workspace.saveAsUtf8(active)}>{m.problem.asUtf8}</button>
 					</div>
 				{/if}
-				<div class="flex min-h-0 flex-1">
-					<!-- Narrow: the preview replaces the editor (which stays mounted) -->
-					<div class={['min-w-0 flex-1', narrow.current && previewShown && 'hidden']} style:--editor-font-size="{workspace.fontSize}px">
-						<Editor {workspace} />
-					</div>
-					{#if active && previewShown}
-						<div class="border-base-300 min-w-0 flex-1 md:border-l">
-							<MarkdownPreview tab={active} />
+				<!-- The editor stays mounted while only the view is shown -->
+				<SplitView share={workspace.split} onshare={(share) => workspace.setSplit(share)} showText={textShown} showView={viewShown}>
+					{#snippet text()}
+						<div class="size-full" style:--editor-font-size="{workspace.fontSize}px">
+							<Editor {workspace} />
 						</div>
-					{/if}
-				</div>
+					{/snippet}
+					{#snippet view()}
+						{#if active && spec && host && viewShown}
+							<DataView tab={active} {spec} {host} />
+						{/if}
+					{/snippet}
+				</SplitView>
 			</div>
 		{/if}
 		{#if dropping}

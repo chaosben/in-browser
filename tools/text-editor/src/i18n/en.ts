@@ -9,11 +9,12 @@ const en = {
 
 	brand: {
 		description:
-			'Edit text, Markdown, JSON, YAML, CSV and code with tabs, syntax highlighting and a Markdown preview – free and entirely in the browser.'
+			'Edit text, Markdown, JSON, YAML, CSV and code with tabs and syntax highlighting – CSV as a table, JSON, YAML and XML as a tree, both editable – free and entirely in the browser.'
 	},
 
 	home: {
-		tagline: 'Text, Markdown, JSON, YAML and code – with tabs, syntax highlighting and preview. Your files stay in your browser.',
+		tagline:
+			'Text, Markdown, JSON, YAML, CSV and code – with tabs, syntax highlighting, preview, tables and trees. Your files stay in your browser.',
 		unsupported: 'This browser has no file system for websites (OPFS). Please use a current browser.',
 		recent: 'Recently opened',
 		noRecent: 'Files you open will appear here.',
@@ -63,7 +64,11 @@ const en = {
 	view: {
 		title: 'View',
 		wrap: 'Word wrap',
-		preview: 'Markdown preview',
+		textOnly: 'Text only',
+		split: 'Text and view',
+		viewOnly: 'View only',
+		/** Phones: switch between text and view */
+		toggle: (view: string) => `Show ${view}`,
 		fontLarger: 'Larger text',
 		fontSmaller: 'Smaller text',
 		fontReset: 'Default text size'
@@ -163,8 +168,103 @@ const en = {
 		unfold: 'unfold'
 	},
 
-	preview: {
-		title: 'Markdown preview'
+	/** Views next to the text */
+	views: {
+		markdown: 'Markdown preview',
+		html: 'HTML preview',
+		svg: 'Image',
+		table: 'Table',
+		tree: 'Tree',
+		divider: 'Divider between text and view',
+		loadFailed: 'The view could not be loaded.',
+		svgBroken: 'The image can’t be shown – check the SVG text.',
+		error: (line: number) => `The text has an error in line ${line}. Fix it to edit here again.`,
+		errorStale: (line: number) =>
+			`The text has an error in line ${line}. This shows the last version without errors; fix it to edit here again.`,
+		showError: 'Show in text',
+		apply: 'Apply'
+	},
+
+	table: {
+		title: 'Table',
+		column: 'Column',
+		rowTitle: (n: number) => `Row ${n}`,
+		columnMenu: (name: string) => `Column “${name}”: sort, filter, insert …`,
+		rowMenu: (n: number) => `Row ${n}: insert, move, delete …`,
+		cellLabel: (column: string, row: number) => `${column}, row ${row}`,
+		edit: 'Edit cell',
+		sortUp: 'Sort ascending',
+		sortDown: 'Sort descending',
+		filter: 'Filter …',
+		filterPlaceholder: 'contains …',
+		filterLabel: (column: string) => `Filter column “${column}”`,
+		removeFilter: 'Remove filter',
+		rename: 'Rename column',
+		insertLeft: 'Insert column left',
+		insertRight: 'Insert column right',
+		moveLeft: 'Move left',
+		moveRight: 'Move right',
+		removeColumn: 'Delete column',
+		insertAbove: 'Insert row above',
+		insertBelow: 'Insert row below',
+		moveUp: 'Move up',
+		moveDown: 'Move down',
+		removeRow: 'Delete row',
+		addRow: 'Add row',
+		addColumn: 'Add column',
+		newColumn: 'Column',
+		header: 'First row as column names',
+		delimiter: 'Delimiter',
+		delimiterAuto: 'Detect automatically',
+		delimiters: { ',': 'Comma', ';': 'Semicolon', '\t': 'Tab', '|': 'Vertical bar' } as Record<string, string>,
+		empty: 'The table is empty.',
+		size: (rows: number, columns: number) => `${rows} ${rows === 1 ? 'row' : 'rows'} × ${columns} ${columns === 1 ? 'column' : 'columns'}`,
+		filtered: (shown: number, rows: number) => `${shown} of ${rows} rows`
+	},
+
+	tree: {
+		title: 'Tree',
+		menu: 'Actions',
+		expand: 'Open',
+		collapse: 'Close',
+		edit: 'Edit value',
+		rename: 'Rename',
+		addEntry: 'Add entry',
+		addItem: 'Add item',
+		addElement: 'Add element',
+		addAttribute: 'Add attribute',
+		addText: 'Add text',
+		addSection: 'Add section',
+		newSection: 'section',
+		add: 'Add entry',
+		insertBefore: 'Insert before',
+		insertAfter: 'Insert after',
+		duplicate: 'Duplicate',
+		moveUp: 'Move up',
+		moveDown: 'Move down',
+		type: 'Type',
+		types: { string: 'Text', number: 'Number', boolean: 'Yes/no (boolean)', null: 'Empty (null)', object: 'Object', array: 'List' },
+		remove: 'Delete',
+		deleteKey: 'Del',
+		newKey: 'key',
+		newElement: 'element',
+		newAttribute: 'name',
+		newText: 'text',
+		keyLabel: 'Key',
+		valueLabel: 'Value',
+		emptyValue: '(empty)',
+		document: (n: number) => `Document ${n}`,
+		entries: (n: number) => `{${n}}`,
+		items: (n: number) => `[${n}]`,
+		children: (n: number) => (n === 1 ? '1 child' : `${n} children`),
+		expandAll: 'Open all',
+		collapseAll: 'Close all',
+		filter: 'Filter …',
+		filterPlaceholder: 'Key or value contains …',
+		removeFilter: 'Remove filter',
+		matches: (n: number) => (n === 1 ? '1 row' : `${n} rows`),
+		noMatches: 'Nothing matches the filter.',
+		empty: 'Nothing here yet.'
 	},
 
 	/** Help window and the page `/help/text-editor` (topics in help.en.ts) */

@@ -18,7 +18,7 @@ const help = {
 			},
 			fileMenu: {
 				title: 'The file name in the top bar',
-				text: 'The name of the shown file stands in the top bar. Click it to rename the file (only files with a place in the browser storage). The arrow next to it opens the menu with every action for this file: saving, undo, search, formatting (Markdown), “Rename”, “Download”, “Show in Files”, “New”, opening and “Close”. The most used ones also sit as buttons next to the name; on narrow screens they are only in this menu.'
+				text: 'The name of the shown file stands in the top bar. Click it to rename the file (only files with a place in the browser storage). The arrow next to it opens the menu with every action for this file: saving, undo, search, formatting (Markdown), the actions of the table or tree (“Add row”, “Add column”, “Add entry”), “Rename”, “Download”, “Show in Files”, “New”, opening and “Close”. The most used ones also sit as buttons next to the name; on narrow screens they are only in this menu.'
 			},
 			restore: {
 				title: 'Coming back',
@@ -74,15 +74,33 @@ const help = {
 		items: {
 			types: {
 				title: 'File types',
-				text: 'The editor opens plain text files: .txt, .log, .csv, .tsv, Markdown, JSON, YAML, TOML, INI and other settings files, HTML, CSS, XML, JavaScript, TypeScript, Svelte, Python and shell scripts. The ending of the file name decides how the text is colored; the bottom bar shows the language (“Plain text” without one). CSV and TSV open as plain text – the editor does not show them as a table.'
+				text: 'The editor opens plain text files: .txt, .log, .csv, .tsv, Markdown, JSON, JSON Lines (.jsonl, .ndjson), YAML, TOML, INI and other settings files, HTML, CSS, XML, JavaScript, TypeScript, Svelte, Python and shell scripts. The ending of the file name decides how the text is colored and which view it gets next to the text: a table, a tree or a preview (see below); the bottom bar shows the language (“Plain text” without one). SVG images open in Files as a picture – choose “Open with Text Editor” in the menu of the file to edit their text here, with the picture next to it. Settings files called .env (also .env.local …) are hidden in Files; open them with “Open from computer …”.'
+			},
+			table: {
+				title: 'Table (CSV, TSV, JSON Lines)',
+				text: 'CSV and TSV files show as a table next to the text, JSON Lines files (one JSON object per line) too – their columns are the keys of the objects. Click a cell to select it, double-click it (or press Enter, F2, or just start typing) to change it; Enter saves and goes down, Tab goes right, Esc cancels. A cell may have several lines: Shift+Enter or Alt+Enter starts a new one (on touch screens Enter does, and ✓ below the field saves); in the table its lines are joined by ⏎. The column title opens the menu of the column: “Sort ascending” and “Sort descending” put the rows in that order in the file – numbers by their value (also with a decimal comma), text alphabetically with “2” before “10”, empty cells last; the column names stay on top. “Filter …” only hides rows: a field above the table keeps rows whose cell contains the text (capital or small letters don’t matter); the × removes the filter, the bottom bar says “3 of 40 rows”. The same menu renames, inserts, moves and deletes columns; the row number opens the menu of the row (insert above or below, move, delete). A right click on a cell (on touch screens a long press) offers both. “Add row” and “Add column” are also in the menu at the file name.',
+				options: {
+					header: { label: 'First row as column names (default)', text: 'In the menu “View”: the first row of a CSV file is the title of each column. Turned off, the columns are called A, B, C … and the first row is data like all others.' },
+					delimiter: { label: 'Delimiter', text: 'Also in “View”: “Detect automatically” (default) reads the first lines and picks comma, semicolon, tab or vertical bar; choose one yourself if the table looks wrong. TSV files always use the tab. This only changes how the file is read, not the file.' }
+				},
+				tip: 'A table with one column where you expect several? Pick the delimiter in “View” – German Excel, for example, writes semicolons. Lines of a JSON Lines file that aren’t objects show in italics and can only be changed in the text.'
+			},
+			tree: {
+				title: 'Tree (JSON, YAML, TOML, INI, XML …)',
+				text: 'JSON, YAML, TOML, XML, INI and .properties files and .env files show as a tree next to the text (JSON Lines and SVG can switch to one in “View”). The arrows open and close a level; the first level starts open. Double-click a value (or select it and press Enter) to change it, double-click a key or name (or press F2) to rename it; Enter saves, Esc cancels, Shift+Enter or Alt+Enter starts a new line in a value (on touch screens Enter does, and ✓ saves). Text values stay text; in other values numbers, true/false and null are recognized as such. The ⋯ button of a row (or a right click, on touch screens a long press) opens its menu: add an entry, item, element, attribute or text inside it, “Insert before”, “Insert after”, “Duplicate”, “Move up”, “Move down”, change the “Type” (text, number, yes/no, empty, object, list) and “Delete”. In INI files the menu at the file name adds a section. “Open all”, “Close all” and “Filter …” are in “View”; the filter shows rows whose key or value contains the text, with the levels above them.',
+				tip: 'What a format can’t do is not offered: TOML has no “empty” value, INI values are always text, XML comments, YAML aliases (*name) and the order of TOML tables can only be changed in the text.'
+			},
+			bothSides: {
+				title: 'Editing on both sides',
+				text: 'The text and the table or tree are the same file: whatever you change on one side shows on the other right away, and saving, “Undo” and the sync work the same for both – every change in the table or tree is one undo step. A change there only rewrites the place it concerns; the rest of the text, with its indentation, comments, quotes and empty lines, stays exactly as it was. Clicking a cell or row in the view puts the cursor of the text there, and moving the cursor in the text marks the cell or row. If the text has an error (a missing quote or bracket), a yellow bar names the line and the view shows the last version without errors, unchanged, until the text is fixed; “Show in text” jumps there.'
 			},
 			highlighting: {
 				title: 'Syntax highlighting and code help',
 				text: 'In code and data files keywords, strings, numbers and comments get their own colors. Brackets and quotes close themselves, the matching bracket is marked, and new lines keep the indentation. The arrows next to the line numbers fold a block (a function, a section) away and back.'
 			},
 			preview: {
-				title: 'Markdown preview',
-				text: 'For Markdown files (.md, .markdown) the preview shows the formatted text next to the editor and follows your typing. Tables, task lists and strikethrough are shown as well. Links open in a new browser tab. For safety the preview runs nothing and loads nothing from outside: pictures from the web or next to the file are not shown, only pictures embedded in the text itself. Turn it on or off with “Markdown preview” in the menu “View”.'
+				title: 'Previews: Markdown, HTML, SVG',
+				text: 'Markdown files (.md, .markdown) show their formatted text next to the editor, HTML files the page, SVG files the picture – each follows your typing and can only be read there; you write in the text. Markdown tables, task lists and strikethrough are shown as well. Links open in a new browser tab. For safety the previews run nothing and load nothing from outside: scripts of an HTML page don’t run, and pictures, styles or fonts from the web or next to the file are not shown – only what is in the text itself. Transparent parts of an SVG show a checkerboard.'
 			},
 			encoding: {
 				title: 'Encoding',
@@ -168,12 +186,18 @@ const help = {
 				text: '“Larger text” and “Smaller text” in the menu “View” change the size of the text in the editor step by step; “Default text size” goes back. The setting applies to all tabs and is remembered in this browser.'
 			},
 			preview: {
-				title: 'Preview side by side',
-				text: 'On wide screens the Markdown preview stands to the right of the text; “Markdown preview” in the menu “View” turns it on and off – remembered for next time. On narrow screens there is no room for both: the preview button in the top bar switches between text and preview.'
+				title: 'Text, view or both',
+				text: 'Files with a table, tree or preview choose in the menu “View” what is shown – remembered for next time and for all files. The button with the symbol of the view (a table, a tree, a preview) in the top bar turns the view on and off. Where a file type has several views (JSON Lines: table or tree, SVG: picture or tree), choose it below in the same menu.',
+				options: {
+					text: { label: 'Text only', text: 'Only the text, as for every other file.' },
+					split: { label: 'Text and view (default)', text: 'Text on the left, view on the right. Drag the line between them (or select it and use the arrow keys) to share the width differently; a double-click shares it half and half.' },
+					view: { label: 'View only', text: 'The whole width for the table or tree – good for wide tables. The text stays open in the background; undo works as usual.' }
+				},
+				tip: 'Working mostly with the table or tree? Choose “View only” and switch back with the button when you need the text. On narrow screens there is no room for both: the button switches between text and view.'
 			},
 			statusBar: {
 				title: 'Bottom bar',
-				text: 'At the left of the bottom bar: the save state, the cursor position (line and column), how many characters are selected, the language, the line ending and the encoding. Line ending and encoding are buttons that change them. At the right the state of the sync with your other devices.',
+				text: 'At the left of the bottom bar: the save state, the cursor position (line and column), how many characters are selected, the language, what the view shows (“12 rows × 4 columns”, “3 of 40 rows” while filtering, or the path of the selected entry such as “server.ports[0]”), the line ending and the encoding. Line ending and encoding are buttons that change them. At the right the state of the sync with your other devices.',
 				link: { href: '/help/sync', label: 'Syncing your devices' }
 			}
 		}
@@ -220,6 +244,16 @@ const help = {
 				title: 'Markdown',
 				text: 'Bold, italic, link (only in Markdown files)',
 				keys: [['Ctrl', 'B'], ['Ctrl', 'I'], ['Ctrl', 'K']]
+			},
+			table: {
+				title: 'Table',
+				text: 'Move between cells (also by page), edit the cell (or just type), save and go down or right, new line in the cell, cancel, empty the cell',
+				keys: [['↑'], ['↓'], ['←'], ['→'], ['Page ↑'], ['Page ↓'], ['Enter'], ['F2'], ['Tab'], ['Shift', 'Enter'], ['Alt', 'Enter'], ['Esc'], ['Del']]
+			},
+			tree: {
+				title: 'Tree',
+				text: 'Move between rows, open/close (or go to the level above/below), edit the value, rename, move the entry, delete',
+				keys: [['↑'], ['↓'], ['→'], ['←'], ['Space'], ['Enter'], ['F2'], ['Alt', '↑'], ['Alt', '↓'], ['Del']]
 			}
 		}
 	},
@@ -228,11 +262,11 @@ const help = {
 		items: {
 			touch: {
 				title: 'Using it by touch',
-				text: 'Everything works without a keyboard. Tap the arrow next to the file name in the top bar: its menu holds every action for the file, including those that are buttons on wide screens (undo, search, formatting) and “New” and opening. Hold a finger on a tab for its menu (“Close others”, “Show in Files”). In the bottom bar tap the line ending or encoding to change it.'
+				text: 'Everything works without a keyboard. Tap the arrow next to the file name in the top bar: its menu holds every action for the file, including those that are buttons on wide screens (undo, search, formatting) and “New” and opening. Hold a finger on a tab for its menu (“Close others”, “Show in Files”). In the bottom bar tap the line ending or encoding to change it. In a table or tree a tap selects, a second tap on the same cell, key or value edits it; a long press (or the ⋯ button, the column title, the row number) opens the menu.'
 			},
 			mobileView: {
 				title: 'Reading and writing on a small screen',
-				text: 'Word wrap is on by default, so nothing scrolls sideways. In Markdown files the preview button in the top bar switches between text and preview, as there is no room for both. “View” makes the text larger if it is hard to read.'
+				text: 'Word wrap is on by default, so nothing scrolls sideways. In files with a view (Markdown, CSV, JSON …) the button with the symbol of the view in the top bar switches between text and preview, table or tree, as there is no room for both. Wide tables scroll sideways with the row numbers staying in place. “View” makes the text larger if it is hard to read.'
 			},
 			fromPhone: {
 				title: 'Files from the phone',

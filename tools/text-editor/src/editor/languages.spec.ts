@@ -10,6 +10,11 @@ describe('languageOf', () => {
 		expect(languageOf('deploy.sh')?.name).toBe('Shell');
 		expect(languageOf('notes.txt')).toBeNull();
 		expect(languageOf('Makefile')).toBeNull();
+		expect(languageOf('data.csv')?.name).toBe('CSV');
+		expect(languageOf('log.ndjson')?.name).toBe('JSON Lines');
+		expect(languageOf('icon.svg')?.name).toBe('SVG');
+		expect(languageOf('.env')?.name).toBe('.env');
+		expect(languageOf('.env.local')?.name).toBe('.env');
 	});
 	it('only for files the editor opens', () => {
 		for (const ext of TEXT_EXTENSIONS) expect(() => languageOf(`a${ext}`)).not.toThrow();

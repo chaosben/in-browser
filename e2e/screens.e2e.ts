@@ -18,6 +18,33 @@ for (const path of ['/', '/files', '/text-editor', '/screen-capture', '/notes'])
 	}
 }
 
+// Text Editor: a CSV as a table and a JSON file as a tree, next to their text
+for (const scheme of ['light', 'dark'] as const) {
+	test(`text editor views ${scheme}`, async ({ page }) => {
+		await page.emulateMedia({ colorScheme: scheme });
+		await page.setViewportSize({ width: 1280, height: 720 });
+		await page.goto('/files');
+		await page.evaluate(async () => {
+			const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files', { create: true });
+			const files = {
+				'people.csv': 'name,age,city\nAnna,31,"Berlin, Mitte"\nBen,4,Köln\nCarl,10,Hamburg\n',
+				'config.json': '{\n  "name": "demo",\n  "list": [1, 2, 3],\n  "nested": {\n    "on": true,\n    "off": null\n  }\n}\n'
+			};
+			for (const [name, text] of Object.entries(files)) {
+				const writable = await (await root.getFileHandle(name, { create: true })).createWritable();
+				await writable.write(text);
+				await writable.close();
+			}
+		});
+		for (const [file, role] of [['people.csv', 'grid'], ['config.json', 'tree']] as const) {
+			await page.goto(`/text-editor?path=%2F${file}`);
+			await page.getByRole(role).waitFor();
+			await page.waitForTimeout(300);
+			await page.screenshot({ path: `${DIR}/text-editor-${role === 'grid' ? 'table' : 'tree'}-${scheme}.png` });
+		}
+	});
+}
+
 // The launcher on a phone, with recently used tools and Screen Capture's badge (phones have no screen capture)
 for (const scheme of ['light', 'dark'] as const) {
 	test(`phone launcher ${scheme}`, async ({ browser }) => {
@@ -120,7 +147,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await page.locator('.cm-content').waitFor();
 		await page.waitForTimeout(300);
 		await page.screenshot({ path: `${DIR}/phone-editor-${scheme}.png` });
-		await page.getByRole('button', { name: 'Markdown preview' }).tap();
+		await page.getByRole('button', { name: 'Show Markdown preview' }).tap();
 		await page.waitForTimeout(300);
 		await page.screenshot({ path: `${DIR}/phone-preview-${scheme}.png` });
 		// Phones have no screen capture (Chromium on the desktop does)

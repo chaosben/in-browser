@@ -229,10 +229,10 @@
 			? [
 					...(one?.folder ? [{ label: m.menu.open, icon: 'icon-[material-symbols-light--folder-open-outline]', run: () => open(one) }] : []),
 					...(one && !one.folder
-						? one.formats.map((format, i) => ({
+						? one.openWith.map((format) => ({
 								label: m.menu.openWith(format.toolName),
 								icon: 'icon-[material-symbols-light--open-in-new]',
-								run: () => location.assign(toolUrl(one, i)!)
+								run: () => location.assign(toolUrl(one, format)!)
 							}))
 						: []),
 					...(one && one.kind === 'file'

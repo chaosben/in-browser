@@ -29,11 +29,20 @@ const script = (name: string, options: { typescript?: boolean; jsx?: boolean }):
 const SHELL = legacy('Shell', async () => (await import('@codemirror/legacy-modes/mode/shell')).shell);
 const TOML = legacy('TOML', async () => (await import('@codemirror/legacy-modes/mode/toml')).toml);
 const INI = legacy('INI', async () => (await import('@codemirror/legacy-modes/mode/properties')).properties);
+const ENV = legacy('.env', async () => (await import('@codemirror/legacy-modes/mode/properties')).properties);
+/** Named only (no highlighting) */
+const plain = (name: string): Language => ({ name, load: async () => [] });
+const JSON_LINES: Language = { name: 'JSON Lines', load: JSON_DATA.load };
+const SVG: Language = { name: 'SVG', load: XML.load };
 
 const BY_EXTENSION: Record<string, Language> = {
 	'.md': MARKDOWN,
 	'.markdown': MARKDOWN,
 	'.json': JSON_DATA,
+	'.jsonl': JSON_LINES,
+	'.ndjson': JSON_LINES,
+	'.csv': plain('CSV'),
+	'.tsv': plain('TSV'),
 	'.yml': YAML,
 	'.yaml': YAML,
 	'.html': HTML,
@@ -41,6 +50,7 @@ const BY_EXTENSION: Record<string, Language> = {
 	'.svelte': HTML,
 	'.css': CSS,
 	'.xml': XML,
+	'.svg': SVG,
 	'.py': PYTHON,
 	'.js': script('JavaScript', {}),
 	'.mjs': script('JavaScript', {}),
@@ -62,6 +72,7 @@ const BY_EXTENSION: Record<string, Language> = {
 
 /** Language of a file; `null` for plain text */
 export function languageOf(name: string): Language | null {
+	if (/^\.env(\..+)?$/i.test(name)) return ENV;
 	return BY_EXTENSION[extname(name)] ?? null;
 }
 

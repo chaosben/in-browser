@@ -2,31 +2,19 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { theme } from '@in-browser/brand/theme.svelte.js';
 	import { locale, m } from '#lib/i18n/index.js';
-	import { previewDocument, type PreviewColors } from '#lib/preview.js';
-	import type { Tab } from '#lib/workspace.svelte.js';
+	import { follow } from '../follow.svelte.js';
+	import type { ViewProps } from '../types.js';
+	import { previewDocument, type PreviewColors } from './preview.js';
 
 	// Markdown of the tab, rendered in a sandboxed frame (see preview.ts); follows typing with a short delay.
 
-	let { tab }: { tab: Tab } = $props();
+	let { tab }: ViewProps = $props();
 
+	const markdown = follow(
+		() => tab,
+		(text) => text
+	);
 	const dark = new MediaQuery('(prefers-color-scheme: dark)');
-	let markdown = $state('');
-
-	/** Tab shown last: another tab appears at once, typing is debounced */
-	let shown: string | null = null;
-
-	$effect(() => {
-		void tab.version;
-		const current = tab;
-		const timer = setTimeout(
-			() => {
-				shown = current.id;
-				markdown = current.state.doc.toString();
-			},
-			shown === current.id ? 250 : 0
-		);
-		return () => clearTimeout(timer);
-	});
 
 	// The frame can't see the page's CSS variables: hand over the theme's current colors
 	const colors = $derived.by((): PreviewColors => {
@@ -45,11 +33,11 @@
 		};
 	});
 
-	const srcdoc = $derived(previewDocument(markdown, colors, locale));
+	const srcdoc = $derived(previewDocument(markdown.current, colors, locale));
 </script>
 
 <iframe
-	title={m.preview.title}
+	title={m.views.markdown}
 	sandbox="allow-popups allow-popups-to-escape-sandbox"
 	{srcdoc}
 	class="bg-base-100 size-full border-0"

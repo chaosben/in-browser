@@ -14,7 +14,7 @@ const help: typeof enHelp = {
 			},
 			fileMenu: {
 				title: 'Der Dateiname in der oberen Leiste',
-				text: 'Der Name der gezeigten Datei steht in der oberen Leiste. Klicke darauf, um die Datei umzubenennen (nur Dateien mit einem Ort im Browserspeicher). Der Pfeil daneben öffnet das Menü mit allen Aktionen für diese Datei: Speichern, Rückgängig, Suchen, Formatierung (Markdown), „Umbenennen“, „Herunterladen“, „In Files zeigen“, „Neu“, Öffnen und „Schließen“. Die häufigsten stehen auch als Knöpfe neben dem Namen; auf schmalen Bildschirmen nur in diesem Menü.'
+				text: 'Der Name der gezeigten Datei steht in der oberen Leiste. Klicke darauf, um die Datei umzubenennen (nur Dateien mit einem Ort im Browserspeicher). Der Pfeil daneben öffnet das Menü mit allen Aktionen für diese Datei: Speichern, Rückgängig, Suchen, Formatierung (Markdown), die Aktionen der Tabelle oder des Baums („Zeile hinzufügen“, „Spalte hinzufügen“, „Eintrag hinzufügen“), „Umbenennen“, „Herunterladen“, „In Files zeigen“, „Neu“, Öffnen und „Schließen“. Die häufigsten stehen auch als Knöpfe neben dem Namen; auf schmalen Bildschirmen nur in diesem Menü.'
 			},
 			restore: {
 				title: 'Wiederkommen',
@@ -70,15 +70,33 @@ const help: typeof enHelp = {
 		items: {
 			types: {
 				title: 'Dateitypen',
-				text: 'Der Editor öffnet reine Textdateien: .txt, .log, .csv, .tsv, Markdown, JSON, YAML, TOML, INI und andere Einstellungsdateien, HTML, CSS, XML, JavaScript, TypeScript, Svelte, Python und Shell-Skripte. Die Endung des Dateinamens bestimmt, wie der Text eingefärbt wird; die untere Leiste zeigt die Sprache („Nur Text“ ohne). CSV und TSV öffnen sich als reiner Text – als Tabelle zeigt der Editor sie nicht.'
+				text: 'Der Editor öffnet reine Textdateien: .txt, .log, .csv, .tsv, Markdown, JSON, JSON Lines (.jsonl, .ndjson), YAML, TOML, INI und andere Einstellungsdateien, HTML, CSS, XML, JavaScript, TypeScript, Svelte, Python und Shell-Skripte. Die Endung des Dateinamens bestimmt, wie der Text eingefärbt wird und welche Ansicht er neben dem Text bekommt: eine Tabelle, einen Baum oder eine Vorschau (siehe unten); die untere Leiste zeigt die Sprache („Nur Text“ ohne). SVG-Bilder öffnen sich in Files als Bild – wähle „Mit Text Editor öffnen“ im Menü der Datei, um ihren Text hier zu bearbeiten, mit dem Bild daneben. Einstellungsdateien namens .env (auch .env.local …) sind in Files versteckt; öffne sie mit „Vom Rechner öffnen …“.'
+			},
+			table: {
+				title: 'Tabelle (CSV, TSV, JSON Lines)',
+				text: 'CSV- und TSV-Dateien erscheinen als Tabelle neben dem Text, JSON-Lines-Dateien (ein JSON-Objekt pro Zeile) ebenso – ihre Spalten sind die Schlüssel der Objekte. Klicke eine Zelle an, um sie auszuwählen, doppelklicke sie (oder drücke Enter, F2 oder tippe einfach los), um sie zu ändern; Enter speichert und geht nach unten, Tab nach rechts, Esc bricht ab. Eine Zelle darf mehrere Zeilen haben: Umschalt+Enter oder Alt+Enter beginnt eine neue (auf Touchscreens Enter, und ✓ unter dem Feld speichert); in der Tabelle stehen ihre Zeilen mit ⏎ verbunden. Der Spaltentitel öffnet das Menü der Spalte: „Aufsteigend sortieren“ und „Absteigend sortieren“ bringen die Zeilen in der Datei in diese Reihenfolge – Zahlen nach ihrem Wert (auch mit Dezimalkomma), Text alphabetisch mit „2“ vor „10“, leere Zellen zuletzt; die Spaltennamen bleiben oben. „Filtern …“ blendet nur Zeilen aus: Ein Feld über der Tabelle behält die Zeilen, deren Zelle den Text enthält (Groß- und Kleinschreibung egal); das × entfernt den Filter, die untere Leiste zeigt „3 von 40 Zeilen“. Im selben Menü benennst du Spalten um, fügst sie ein, verschiebst und löschst sie; die Zeilennummer öffnet das Menü der Zeile (oberhalb oder unterhalb einfügen, verschieben, löschen). Ein Rechtsklick auf eine Zelle (auf Touchscreens langes Drücken) bietet beides. „Zeile hinzufügen“ und „Spalte hinzufügen“ stehen auch im Menü am Dateinamen.',
+				options: {
+					header: { label: 'Erste Zeile als Spaltennamen (Standard)', text: 'Im Menü „Ansicht“: Die erste Zeile einer CSV-Datei ist der Titel jeder Spalte. Ausgeschaltet heißen die Spalten A, B, C … und die erste Zeile ist eine Datenzeile wie alle anderen.' },
+					delimiter: { label: 'Trennzeichen', text: 'Ebenfalls in „Ansicht“: „Automatisch erkennen“ (Standard) liest die ersten Zeilen und wählt Komma, Semikolon, Tabulator oder senkrechten Strich; wähle selbst eins, wenn die Tabelle falsch aussieht. TSV-Dateien nutzen immer den Tabulator. Das ändert nur, wie die Datei gelesen wird, nicht die Datei.' }
+				},
+				tip: 'Nur eine Spalte, wo du mehrere erwartest? Wähle das Trennzeichen in „Ansicht“ – deutsches Excel schreibt zum Beispiel Semikolons. Zeilen einer JSON-Lines-Datei, die keine Objekte sind, stehen kursiv da und lassen sich nur im Text ändern.'
+			},
+			tree: {
+				title: 'Baum (JSON, YAML, TOML, INI, XML …)',
+				text: 'JSON-, YAML-, TOML-, XML-, INI- und .properties-Dateien sowie .env-Dateien erscheinen als Baum neben dem Text (JSON Lines und SVG lassen sich in „Ansicht“ auf einen umschalten). Die Pfeile öffnen und schließen eine Ebene; die erste Ebene ist anfangs offen. Doppelklicke einen Wert (oder wähle ihn aus und drücke Enter), um ihn zu ändern, doppelklicke einen Schlüssel oder Namen (oder drücke F2), um ihn umzubenennen; Enter speichert, Esc bricht ab, Umschalt+Enter oder Alt+Enter beginnt in einem Wert eine neue Zeile (auf Touchscreens Enter, und ✓ speichert). Textwerte bleiben Text; in anderen Werten werden Zahlen, true/false und null als solche erkannt. Der ⋯-Knopf einer Zeile (oder ein Rechtsklick, auf Touchscreens langes Drücken) öffnet ihr Menü: darin einen Eintrag, Listeneintrag, ein Element, Attribut oder einen Text hinzufügen, „Davor einfügen“, „Danach einfügen“, „Duplizieren“, „Nach oben verschieben“, „Nach unten verschieben“, den „Typ“ ändern (Text, Zahl, Ja/Nein, Leer, Objekt, Liste) und „Löschen“. In INI-Dateien fügt das Menü am Dateinamen einen Abschnitt hinzu. „Alle öffnen“, „Alle schließen“ und „Filtern …“ stehen in „Ansicht“; der Filter zeigt Zeilen, deren Schlüssel oder Wert den Text enthält, mit den Ebenen darüber.',
+				tip: 'Was ein Format nicht kann, wird nicht angeboten: TOML kennt keinen leeren Wert, INI-Werte sind immer Text, XML-Kommentare, YAML-Aliase (*name) und die Reihenfolge von TOML-Tabellen änderst du nur im Text.'
+			},
+			bothSides: {
+				title: 'Auf beiden Seiten bearbeiten',
+				text: 'Text und Tabelle oder Baum sind dieselbe Datei: Was du auf einer Seite änderst, erscheint sofort auf der anderen, und Speichern, „Rückgängig“ und die Synchronisierung funktionieren für beide gleich – jede Änderung in Tabelle oder Baum ist ein Rückgängig-Schritt. Eine Änderung dort schreibt nur die Stelle neu, um die es geht; der restliche Text mit Einrückung, Kommentaren, Anführungszeichen und Leerzeilen bleibt genau, wie er war. Ein Klick auf eine Zelle oder Zeile der Ansicht setzt den Cursor im Text dorthin, und wenn du den Cursor im Text bewegst, wird die Zelle oder Zeile markiert. Hat der Text einen Fehler (ein fehlendes Anführungszeichen oder eine fehlende Klammer), nennt ein gelber Balken die Zeile, und die Ansicht zeigt unverändert den letzten Stand ohne Fehler, bis der Text wieder stimmt; „Im Text zeigen“ springt hin.'
 			},
 			highlighting: {
 				title: 'Syntax-Hervorhebung und Code-Hilfen',
 				text: 'In Code- und Datendateien bekommen Schlüsselwörter, Zeichenketten, Zahlen und Kommentare eigene Farben. Klammern und Anführungszeichen schließen sich selbst, die passende Klammer wird markiert, und neue Zeilen behalten die Einrückung. Die Pfeile neben den Zeilennummern klappen einen Block (eine Funktion, einen Abschnitt) ein und wieder aus.'
 			},
 			preview: {
-				title: 'Markdown-Vorschau',
-				text: 'Bei Markdown-Dateien (.md, .markdown) zeigt die Vorschau den formatierten Text neben dem Editor und folgt deinem Tippen. Tabellen, Aufgabenlisten und Durchgestrichenes erscheinen ebenfalls. Links öffnen sich in einem neuen Browser-Tab. Aus Sicherheitsgründen führt die Vorschau nichts aus und lädt nichts von außen: Bilder aus dem Web oder neben der Datei erscheinen nicht, nur Bilder, die im Text selbst eingebettet sind. Ein- und ausschalten kannst du sie mit „Markdown-Vorschau“ im Menü „Ansicht“.'
+				title: 'Vorschauen: Markdown, HTML, SVG',
+				text: 'Markdown-Dateien (.md, .markdown) zeigen ihren formatierten Text neben dem Editor, HTML-Dateien die Seite, SVG-Dateien das Bild – jede folgt deinem Tippen und ist dort nur zum Lesen; du schreibst im Text. Markdown-Tabellen, Aufgabenlisten und Durchgestrichenes erscheinen ebenfalls. Links öffnen sich in einem neuen Browser-Tab. Aus Sicherheitsgründen führen die Vorschauen nichts aus und laden nichts von außen: Skripte einer HTML-Seite laufen nicht, und Bilder, Stile oder Schriften aus dem Web oder neben der Datei erscheinen nicht – nur, was im Text selbst steht. Durchsichtige Stellen eines SVG zeigen ein Schachbrett.'
 			},
 			encoding: {
 				title: 'Kodierung',
@@ -164,12 +182,18 @@ const help: typeof enHelp = {
 				text: '„Schrift größer“ und „Schrift kleiner“ im Menü „Ansicht“ ändern die Größe des Texts im Editor schrittweise; „Standard-Schriftgröße“ stellt sie zurück. Die Einstellung gilt für alle Tabs und bleibt in diesem Browser gespeichert.'
 			},
 			preview: {
-				title: 'Vorschau daneben',
-				text: 'Auf breiten Bildschirmen steht die Markdown-Vorschau rechts neben dem Text; „Markdown-Vorschau“ im Menü „Ansicht“ schaltet sie ein und aus – das bleibt fürs nächste Mal gespeichert. Auf schmalen Bildschirmen ist für beides kein Platz: Der Vorschau-Knopf in der oberen Leiste wechselt zwischen Text und Vorschau.'
+				title: 'Text, Ansicht oder beides',
+				text: 'Bei Dateien mit Tabelle, Baum oder Vorschau wählst du im Menü „Ansicht“, was zu sehen ist – das bleibt fürs nächste Mal und für alle Dateien gespeichert. Der Knopf mit dem Symbol der Ansicht (Tabelle, Baum, Vorschau) in der oberen Leiste schaltet die Ansicht ein und aus. Hat ein Dateityp mehrere Ansichten (JSON Lines: Tabelle oder Baum, SVG: Bild oder Baum), wählst du sie weiter unten im selben Menü.',
+				options: {
+					text: { label: 'Nur Text', text: 'Nur der Text, wie bei jeder anderen Datei.' },
+					split: { label: 'Text und Ansicht (Standard)', text: 'Links der Text, rechts die Ansicht. Ziehe die Linie dazwischen (oder wähle sie aus und nutze die Pfeiltasten), um die Breite anders zu teilen; ein Doppelklick teilt sie halb und halb.' },
+					view: { label: 'Nur Ansicht', text: 'Die ganze Breite für Tabelle oder Baum – gut für breite Tabellen. Der Text bleibt im Hintergrund offen; Rückgängig funktioniert wie gewohnt.' }
+				},
+				tip: 'Arbeitest du vor allem mit Tabelle oder Baum? Wähle „Nur Ansicht“ und wechsle mit dem Knopf zurück, wenn du den Text brauchst. Auf schmalen Bildschirmen ist für beides kein Platz: Der Knopf wechselt zwischen Text und Ansicht.'
 			},
 			statusBar: {
 				title: 'Untere Leiste',
-				text: 'Links in der unteren Leiste: der Speicherstand, die Cursorposition (Zeile und Spalte), wie viele Zeichen ausgewählt sind, die Sprache, das Zeilenende und die Kodierung. Zeilenende und Kodierung sind Knöpfe, mit denen du sie änderst. Rechts der Stand des Abgleichs mit deinen anderen Geräten.',
+				text: 'Links in der unteren Leiste: der Speicherstand, die Cursorposition (Zeile und Spalte), wie viele Zeichen ausgewählt sind, die Sprache, was die Ansicht zeigt („12 Zeilen × 4 Spalten“, beim Filtern „3 von 40 Zeilen“ oder den Pfad des ausgewählten Eintrags wie „server.ports[0]“), das Zeilenende und die Kodierung. Zeilenende und Kodierung sind Knöpfe, mit denen du sie änderst. Rechts der Stand des Abgleichs mit deinen anderen Geräten.',
 				link: { href: '/help/sync', label: 'Deine Geräte abgleichen' }
 			}
 		}
@@ -216,6 +240,16 @@ const help: typeof enHelp = {
 				title: 'Markdown',
 				text: 'Fett, kursiv, Link (nur in Markdown-Dateien)',
 				keys: [['Strg', 'B'], ['Strg', 'I'], ['Strg', 'K']]
+			},
+			table: {
+				title: 'Tabelle',
+				text: 'Zwischen Zellen wechseln (auch seitenweise), Zelle bearbeiten (oder einfach lostippen), speichern und nach unten oder rechts gehen, neue Zeile in der Zelle, abbrechen, Zelle leeren',
+				keys: [['↑'], ['↓'], ['←'], ['→'], ['Bild ↑'], ['Bild ↓'], ['Enter'], ['F2'], ['Tab'], ['Umschalt', 'Enter'], ['Alt', 'Enter'], ['Esc'], ['Entf']]
+			},
+			tree: {
+				title: 'Baum',
+				text: 'Zwischen Zeilen wechseln, öffnen/schließen (oder zur Ebene darüber/darunter), Wert bearbeiten, umbenennen, Eintrag verschieben, löschen',
+				keys: [['↑'], ['↓'], ['→'], ['←'], ['Leertaste'], ['Enter'], ['F2'], ['Alt', '↑'], ['Alt', '↓'], ['Entf']]
 			}
 		}
 	},
@@ -224,11 +258,11 @@ const help: typeof enHelp = {
 		items: {
 			touch: {
 				title: 'Mit dem Finger bedienen',
-				text: 'Alles geht ohne Tastatur. Tippe auf den Pfeil neben dem Dateinamen in der oberen Leiste: Sein Menü enthält jede Aktion für die Datei, auch die, die auf breiten Bildschirmen Knöpfe sind (Rückgängig, Suchen, Formatierung), sowie „Neu“ und Öffnen. Halte den Finger auf einem Tab für sein Menü („Andere schließen“, „In Files zeigen“). Tippe in der unteren Leiste auf Zeilenende oder Kodierung, um sie zu ändern.'
+				text: 'Alles geht ohne Tastatur. Tippe auf den Pfeil neben dem Dateinamen in der oberen Leiste: Sein Menü enthält jede Aktion für die Datei, auch die, die auf breiten Bildschirmen Knöpfe sind (Rückgängig, Suchen, Formatierung), sowie „Neu“ und Öffnen. Halte den Finger auf einem Tab für sein Menü („Andere schließen“, „In Files zeigen“). Tippe in der unteren Leiste auf Zeilenende oder Kodierung, um sie zu ändern. In Tabelle oder Baum wählt ein Tippen aus, ein zweites Tippen auf dieselbe Zelle, denselben Schlüssel oder Wert bearbeitet ihn; langes Drücken (oder der ⋯-Knopf, der Spaltentitel, die Zeilennummer) öffnet das Menü.'
 			},
 			mobileView: {
 				title: 'Lesen und schreiben auf kleinem Bildschirm',
-				text: 'Der Zeilenumbruch ist von Anfang an an, nichts scrollt seitlich. In Markdown-Dateien wechselt der Vorschau-Knopf in der oberen Leiste zwischen Text und Vorschau, da für beides kein Platz ist. „Ansicht“ macht die Schrift größer, wenn sie schwer zu lesen ist.'
+				text: 'Der Zeilenumbruch ist von Anfang an an, nichts scrollt seitlich. In Dateien mit einer Ansicht (Markdown, CSV, JSON …) wechselt der Knopf mit dem Symbol der Ansicht in der oberen Leiste zwischen Text und Vorschau, Tabelle oder Baum, da für beides kein Platz ist. Breite Tabellen scrollen seitlich, die Zeilennummern bleiben stehen. „Ansicht“ macht die Schrift größer, wenn sie schwer zu lesen ist.'
 			},
 			fromPhone: {
 				title: 'Dateien vom Telefon',

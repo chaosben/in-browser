@@ -11,11 +11,12 @@ const de: Messages = {
 
 	brand: {
 		description:
-			'Text, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Tabs, Syntax-Hervorhebung und Markdown-Vorschau, kostenlos und komplett im Browser.'
+			'Text, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Tabs und Syntax-Hervorhebung, CSV als Tabelle, JSON, YAML und XML als Baum, beides bearbeitbar – kostenlos und komplett im Browser.'
 	},
 
 	home: {
-		tagline: 'Text, Markdown, JSON, YAML und Code – mit Tabs, Syntax-Hervorhebung und Vorschau. Deine Dateien bleiben in deinem Browser.',
+		tagline:
+			'Text, Markdown, JSON, YAML, CSV und Code – mit Tabs, Syntax-Hervorhebung, Vorschau, Tabellen und Bäumen. Deine Dateien bleiben in deinem Browser.',
 		unsupported: 'Dieser Browser hat kein Dateisystem für Webseiten (OPFS). Bitte nutze einen aktuellen Browser.',
 		recent: 'Zuletzt geöffnet',
 		noRecent: 'Dateien, die du öffnest, erscheinen hier.',
@@ -65,7 +66,10 @@ const de: Messages = {
 	view: {
 		title: 'Ansicht',
 		wrap: 'Zeilenumbruch',
-		preview: 'Markdown-Vorschau',
+		textOnly: 'Nur Text',
+		split: 'Text und Ansicht',
+		viewOnly: 'Nur Ansicht',
+		toggle: (view) => `${view} zeigen`,
 		fontLarger: 'Schrift größer',
 		fontSmaller: 'Schrift kleiner',
 		fontReset: 'Standard-Schriftgröße'
@@ -164,8 +168,102 @@ const de: Messages = {
 		unfold: 'Ausklappen'
 	},
 
-	preview: {
-		title: 'Markdown-Vorschau'
+	views: {
+		markdown: 'Markdown-Vorschau',
+		html: 'HTML-Vorschau',
+		svg: 'Bild',
+		table: 'Tabelle',
+		tree: 'Baum',
+		divider: 'Trennlinie zwischen Text und Ansicht',
+		loadFailed: 'Die Ansicht konnte nicht geladen werden.',
+		svgBroken: 'Das Bild lässt sich nicht anzeigen – prüfe den SVG-Text.',
+		error: (line) => `Der Text hat einen Fehler in Zeile ${line}. Behebe ihn, um hier wieder zu bearbeiten.`,
+		errorStale: (line) =>
+			`Der Text hat einen Fehler in Zeile ${line}. Hier steht der letzte Stand ohne Fehler; behebe ihn, um hier wieder zu bearbeiten.`,
+		showError: 'Im Text zeigen',
+		apply: 'Übernehmen'
+	},
+
+	table: {
+		title: 'Tabelle',
+		column: 'Spalte',
+		rowTitle: (n) => `Zeile ${n}`,
+		columnMenu: (name) => `Spalte „${name}“: sortieren, filtern, einfügen …`,
+		rowMenu: (n) => `Zeile ${n}: einfügen, verschieben, löschen …`,
+		cellLabel: (column, row) => `${column}, Zeile ${row}`,
+		edit: 'Zelle bearbeiten',
+		sortUp: 'Aufsteigend sortieren',
+		sortDown: 'Absteigend sortieren',
+		filter: 'Filtern …',
+		filterPlaceholder: 'enthält …',
+		filterLabel: (column) => `Spalte „${column}“ filtern`,
+		removeFilter: 'Filter entfernen',
+		rename: 'Spalte umbenennen',
+		insertLeft: 'Spalte links einfügen',
+		insertRight: 'Spalte rechts einfügen',
+		moveLeft: 'Nach links verschieben',
+		moveRight: 'Nach rechts verschieben',
+		removeColumn: 'Spalte löschen',
+		insertAbove: 'Zeile oberhalb einfügen',
+		insertBelow: 'Zeile unterhalb einfügen',
+		moveUp: 'Nach oben verschieben',
+		moveDown: 'Nach unten verschieben',
+		removeRow: 'Zeile löschen',
+		addRow: 'Zeile hinzufügen',
+		addColumn: 'Spalte hinzufügen',
+		newColumn: 'Spalte',
+		header: 'Erste Zeile als Spaltennamen',
+		delimiter: 'Trennzeichen',
+		delimiterAuto: 'Automatisch erkennen',
+		delimiters: { ',': 'Komma', ';': 'Semikolon', '\t': 'Tabulator', '|': 'Senkrechter Strich' },
+		empty: 'Die Tabelle ist leer.',
+		size: (rows, columns) => `${rows} ${rows === 1 ? 'Zeile' : 'Zeilen'} × ${columns} ${columns === 1 ? 'Spalte' : 'Spalten'}`,
+		filtered: (shown, rows) => `${shown} von ${rows} Zeilen`
+	},
+
+	tree: {
+		title: 'Baum',
+		menu: 'Aktionen',
+		expand: 'Öffnen',
+		collapse: 'Schließen',
+		edit: 'Wert bearbeiten',
+		rename: 'Umbenennen',
+		addEntry: 'Eintrag hinzufügen',
+		addItem: 'Listeneintrag hinzufügen',
+		addElement: 'Element hinzufügen',
+		addAttribute: 'Attribut hinzufügen',
+		addText: 'Text hinzufügen',
+		addSection: 'Abschnitt hinzufügen',
+		newSection: 'abschnitt',
+		add: 'Eintrag hinzufügen',
+		insertBefore: 'Davor einfügen',
+		insertAfter: 'Danach einfügen',
+		duplicate: 'Duplizieren',
+		moveUp: 'Nach oben verschieben',
+		moveDown: 'Nach unten verschieben',
+		type: 'Typ',
+		types: { string: 'Text', number: 'Zahl', boolean: 'Ja/Nein (Boolean)', null: 'Leer (null)', object: 'Objekt', array: 'Liste' },
+		remove: 'Löschen',
+		deleteKey: 'Entf',
+		newKey: 'schlüssel',
+		newElement: 'element',
+		newAttribute: 'name',
+		newText: 'Text',
+		keyLabel: 'Schlüssel',
+		valueLabel: 'Wert',
+		emptyValue: '(leer)',
+		document: (n) => `Dokument ${n}`,
+		entries: (n) => `{${n}}`,
+		items: (n) => `[${n}]`,
+		children: (n) => (n === 1 ? '1 Kind' : `${n} Kinder`),
+		expandAll: 'Alle öffnen',
+		collapseAll: 'Alle schließen',
+		filter: 'Filtern …',
+		filterPlaceholder: 'Schlüssel oder Wert enthält …',
+		removeFilter: 'Filter entfernen',
+		matches: (n) => (n === 1 ? '1 Zeile' : `${n} Zeilen`),
+		noMatches: 'Nichts passt zum Filter.',
+		empty: 'Noch leer.'
 	},
 
 	help
