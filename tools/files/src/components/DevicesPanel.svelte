@@ -16,6 +16,7 @@
 	import { selfStale } from '@in-browser/files/p2p/staleness.js';
 	import { openDevicesDialog } from '#lib/devices.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
+	import { sourceUrl } from '@in-browser/brand/build.js';
 
 	// The devices this one syncs with: status, hints on devices that are probably not up to date, actions.
 	// Part of the sync dialog of Files.
@@ -213,6 +214,9 @@
 				{m.devices.leave}
 			</button>
 		</div>
-		<p class="text-xs opacity-60">{m.devices.runsWhileOpen}</p>
+		<p class="text-xs opacity-60">
+			{m.devices.runsWhileOpen}
+			<a class="link" href={sourceUrl('packages/p2p-node/README.md')} target="_blank" rel="noopener">{m.devices.p2pNode}</a>
+		</p>
 	{/if}
 </section>

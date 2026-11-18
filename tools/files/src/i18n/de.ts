@@ -157,7 +157,8 @@ const de: Messages = {
 		excludedCount: (n) => (n === 1 ? '1 Ordner wird auf diesem Gerät nicht abgeglichen' : `${n} Ordner werden auf diesem Gerät nicht abgeglichen`),
 		pendingDeletes: (n) => `${n} Dateien wurden auf einem anderen Gerät gelöscht. Hier auch löschen?`,
 		applyDeletes: 'Hier auch löschen',
-		runsWhileOpen: 'Abgeglichen wird, solange in-browser auf mindestens zwei Geräten geöffnet ist.',
+		runsWhileOpen: 'Abgeglichen wird, solange in-browser auf mindestens zwei Geräten geöffnet ist – oder ständig mit einer p2p-node auf einem Rechner oder Heimserver.',
+		p2pNode: 'p2p-node einrichten',
 		removeTitle: (name) => `„${name}“ entfernen?`,
 		removeMessage:
 			'Es kann sich nicht mehr mit deinen Geräten verbinden und bekommt nichts Neues mehr. Was es schon hat, bleibt dort – aus der Ferne löschen geht nicht.',
@@ -214,7 +215,7 @@ const de: Messages = {
 		expert: 'Für Experten',
 		points: [
 			'Deine Geräte tauschen Dateien **direkt** miteinander aus – verschlüsselt, ohne Cloud.',
-			'Abgeglichen wird, **solange mindestens zwei Geräte in-browser geöffnet haben**. Ein Tab mit einem beliebigen Tool genügt, auch im Hintergrund. Am Handy nur, solange die Seite vorne ist. Verpasstes wird nachgeholt.',
+			'Abgeglichen wird, **solange mindestens zwei Geräte in-browser geöffnet haben**. Ein Tab mit einem beliebigen Tool genügt, auch im Hintergrund. Am Handy nur, solange die Seite vorne ist. Verpasstes wird nachgeholt. Eine **p2p-node** auf einem Rechner oder Heimserver gleicht auch ab, wenn kein Browser offen ist.',
 			'**Jedes Gerät hat seinen eigenen Schlüssel.** Ein neues Gerät kommt nur mit einem Einmal-Schlüssel dazu, den eines deiner Geräte ausstellt. Ein verlorenes Gerät kannst du jederzeit entfernen.',
 			'Pro Gerät kannst du Ordner ausnehmen. Sie bleiben dann nur dort, wo sie sind.'
 		],
@@ -228,8 +229,9 @@ const de: Messages = {
 			['Abgleich', 'Drei-Wege-Vergleich pro Gerätepaar gegen den gespeicherten Stand des letzten Abgleichs; das Gerät mit der kleineren ID steuert. Die neuere Fassung gewinnt, die andere wird zur Konfliktkopie; SHA-256 vermeidet unnötige Übertragungen; viele Löschungen auf einmal warten auf Bestätigung. Ordnerauswahl = Schnittmenge beider Geräte, löst nie ein Löschen aus.'],
 			['Wissensstand', 'Änderungsprotokoll mit laufenden Nummern pro Gerät und Versionsvektoren: Grundlage der Hinweise auf Geräte, die wahrscheinlich nicht aktuell sind, auch wenn sie Änderungen indirekt bekommen haben.'],
 			['Speicher', 'Dateien im OPFS (dauerhafte Speicherung angefordert); Schlüssel, Mitgliederliste, Abgleichstand und Vektoren in IndexedDB.'],
-			['Grenzen', 'Läuft nur in einem offenen Tab, am Handy nur im Vordergrund. Was ein entferntes Gerät schon hat, behält es.']
+			['Grenzen', 'Läuft nur in einem offenen Tab, am Handy nur im Vordergrund. Was ein entferntes Gerät schon hat, behält es. Eine p2p-node hebt die erste Grenze auf: ein Node-Prozess (WebRTC über werift), der als Gerät mitmacht und die Dateien in einem Ordner auf der Festplatte hält.']
 		],
+		p2pNode: 'p2p-node: ein ständig laufendes Gerät für deinen Rechner oder Heimserver',
 		source: 'Quellcode des P2P-Moduls',
 		diagnostics: 'Diagnose',
 		ownFingerprint: 'Dieses Gerät',

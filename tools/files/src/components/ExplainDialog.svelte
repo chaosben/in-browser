@@ -5,6 +5,7 @@
 	import { groupBase32 } from '@in-browser/files/p2p/base32.js';
 	import { boldParts } from '#lib/devices.svelte.js';
 	import { m } from '#lib/i18n/index.js';
+	import { sourceUrl } from '@in-browser/brand/build.js';
 
 	// “How it works” in two versions: simple (four points and a picture) and for experts (the techniques, plus live
 	// diagnostics). The chosen version is remembered. `onnext`: shown before connecting, with a button to go on.
@@ -107,6 +108,7 @@
 					</li>
 				{/each}
 			</ol>
+			<a class="link text-sm" href={sourceUrl('packages/p2p-node/README.md')} target="_blank" rel="noopener">{m.explain.p2pNode}</a>
 		{:else}
 			<dl class="flex flex-col gap-3 text-sm">
 				{#each m.explain.expertSections as [title, text] (title)}

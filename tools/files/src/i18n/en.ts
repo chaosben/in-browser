@@ -157,7 +157,8 @@ const en = {
 		excludedCount: (n: number) => (n === 1 ? '1 folder not synced on this device' : `${n} folders not synced on this device`),
 		pendingDeletes: (n: number) => `${n} files were deleted on another device. Delete them here as well?`,
 		applyDeletes: 'Delete here too',
-		runsWhileOpen: 'Syncing runs while in-browser is open on at least two devices.',
+		runsWhileOpen: 'Syncing runs while in-browser is open on at least two devices – or all the time with a p2p-node on a computer or home server.',
+		p2pNode: 'Set up a p2p-node',
 		removeTitle: (name: string) => `Remove “${name}”?`,
 		removeMessage:
 			'It can no longer connect to your devices and gets nothing new. What it already has stays there – remote deleting isn’t possible.',
@@ -214,7 +215,7 @@ const en = {
 		expert: 'For experts',
 		points: [
 			'Your devices exchange files **directly** with each other – encrypted, without a cloud.',
-			'Syncing happens **while at least two devices have in-browser open**. One tab with any tool is enough, even in the background. On a phone only while the page is in front. What was missed is caught up.',
+			'Syncing happens **while at least two devices have in-browser open**. One tab with any tool is enough, even in the background. On a phone only while the page is in front. What was missed is caught up. A **p2p-node** on a computer or home server keeps syncing even when no browser is open.',
 			'**Every device has its own key.** A new device only joins with a one-time key one of your devices issues. You can remove a lost device at any time.',
 			'For each device you can leave out folders. They then stay only where they are.'
 		],
@@ -228,8 +229,9 @@ const en = {
 			['Sync', 'Three-way comparison per pair of devices against the stored state of the last sync; the device with the smaller ID drives. Newer wins, the other version becomes a conflict copy; SHA-256 avoids needless transfers; many deletions at once wait for confirmation. Folder choice = intersection of both devices, never causes deletions.'],
 			['Knowledge', 'Change log with running numbers per device and version vectors: the basis of the hints on devices that are probably not up to date, also when they got changes indirectly.'],
 			['Storage', 'Files in the OPFS (persistence requested); keys, member log, sync state and vectors in IndexedDB.'],
-			['Limits', 'Runs only in an open tab, on phones only in the foreground. What a removed device already has, it keeps.']
+			['Limits', 'Runs only in an open tab, on phones only in the foreground. What a removed device already has, it keeps. A p2p-node lifts the first limit: a Node process (WebRTC via werift) that joins as a device and keeps the files in a folder on disk.']
 		] as [string, string][],
+		p2pNode: 'p2p-node: an always-on device for your computer or home server',
 		source: 'Source code of the P2P module',
 		diagnostics: 'Diagnostics',
 		ownFingerprint: 'This device',
