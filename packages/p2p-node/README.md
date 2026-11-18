@@ -52,6 +52,25 @@ Files (or a notebook or project in its tool) lands there on every device, one fo
 `.trashinfo.json`. The node removes entries after the retention chosen in Files (the setting syncs too); `status`
 shows its size. Files you delete in the folder yourself are synced as deletions – your system's trash keeps them.
 
+## Reaching the node from outside your home network
+
+Devices connect directly to each other, without a relay server. Inside your home network that always works. From
+outside (a phone on mobile data, a laptop on hotel Wi-Fi) the connection only gets through your router if the node can
+be reached there:
+
+- The node always uses the **UDP ports 29400–29449** and asks your router to forward them (UPnP). The log shows the
+  outcome: `Router: UDP 29400-29449 forwarded to 192.168.178.20 via UPnP (public 203.0.113.7)`.
+- **FRITZ!Box:** under Home Network → Network, open this computer and check “Permit independent port sharing”. Other
+  routers: turn on UPnP (port forwarding by devices).
+- Without UPnP, forward UDP 29400–29449 to this computer by hand; the log names its address. If the computer has a
+  firewall of its own, allow the range there too (e.g. `sudo ufw allow 29400:29449/udp`).
+- This needs a public IPv4 address at home. Behind DS-Lite or carrier-grade NAT, forwarding can't help (the log says
+  so); devices with IPv6 on both ends may still connect.
+- `IN_BROWSER_ICE_PORTS=off` in the environment of the service turns this off (random ports, no forwarding).
+
+To see why a device doesn't connect, set `IN_BROWSER_DEBUG=1` (`systemctl --user edit in-browser-p2p-node@home`,
+`[Service]` `Environment=IN_BROWSER_DEBUG=1`) and watch the log for `peer.unreachable`.
+
 ## Updates and security
 
 The starter loads the sync process from the site and keeps it up to date: it looks for a new version every hour,
@@ -63,6 +82,8 @@ and right away when another device runs a newer protocol. It switches between tw
 - **Sandboxed:** the sync process runs in Node's permission model. It can only read and write its own state and the
   synced folder, plus use the network. Node disables `fsync` there, so writes rely on the file system's own ordering
   (state files and received files are still written to a temporary name first and renamed into place).
+- **Router:** the node only forwards its own UDP range (29400–29449) to itself, for an hour at a time and renewed
+  while it runs; routers that don't take a lease keep it until removed there.
 - **Fallback:** if a new version keeps crashing, the node goes back to the previous one and skips the broken one.
 - Files are stored unencrypted in the folder, like any other file on that computer. Use the disk encryption of your
   system if needed.
@@ -74,7 +95,7 @@ The package is consumed as source like the others, but Node can't run it that wa
 
 - `src/peer.ts`: the sync process: `Device` from `@in-browser/files` with a folder (`tree.ts`), JSON state
   (`store.ts`) and Trystero with [werift](https://github.com/shinyoshiaki/werift-webrtc) as WebRTC (pure JavaScript, no
-  native modules).
+  native modules); `upnp.ts` keeps its fixed UDP range forwarded by the router.
 - `src/starter.ts`: instances, updates (`updates.ts`), service setup (`service.ts`), sandbox (`sandbox.ts`).
 - `src/release.ts`: manifest and signature. The private release key is never in the repository. The build reads it
   from `P2P_NODE_SIGNING_KEY` or `~/.config/in-browser/p2p-node-signing-key.json`. Without it the build is

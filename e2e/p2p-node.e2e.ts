@@ -29,7 +29,7 @@ test('a p2p-node passes changes on while the other devices are offline', async (
 	const output: string[] = [];
 	const node = (...args: string[]) => {
 		const child = spawn(process.execPath, [...sandboxArgs(bundle, sync, folder), bundle, args[0], sync, folder, ...args.slice(1)], {
-			env: { ...process.env, IN_BROWSER_RELAYS: relayUrl }
+			env: { ...process.env, IN_BROWSER_RELAYS: relayUrl, IN_BROWSER_ICE_PORTS: 'off' }
 		});
 		child.stdout.on('data', (chunk) => output.push(String(chunk)));
 		child.stderr.on('data', (chunk) => output.push(String(chunk)));

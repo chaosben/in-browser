@@ -12,6 +12,7 @@ import en from '@in-browser/files/i18n/en.js';
 import { EXIT_REMOVED, type FromPeer, type ToPeer } from './ipc.js';
 import { fileStore } from './store.js';
 import { fsTree } from './tree.js';
+import { ICE_PORTS, keepForwarded } from './upnp.js';
 import { watchTree } from './watch.js';
 
 // The sync process of one p2p-node instance (the bundle the site serves as `/p2p-node/peer-<commit>.js`). The
@@ -28,12 +29,14 @@ const messages = german ? de : en;
 const tree = fsTree(folder);
 /** Expired entries of the trash go this often (the retention chosen in Files is synced into this folder too) */
 const TRASH_INTERVAL = 60 * 60 * 1000;
+/** Fixed WebRTC ports forwarded by the router (`IN_BROWSER_ICE_PORTS=off`: random ports, no forwarding – tests) */
+const icePorts = process.env.IN_BROWSER_ICE_PORTS === 'off' ? undefined : ICE_PORTS;
 
 async function device(onChange?: (view: P2pView) => void) {
 	await mkdir(folder, { recursive: true });
 	const relays = process.env.IN_BROWSER_RELAYS?.split(',').filter(Boolean);
 	// werift's polyfill implements what Trystero uses, not every static member of the DOM type
-	const rtcPolyfill = createPolyfillRTCPeerConnection() as unknown as typeof RTCPeerConnection;
+	const rtcPolyfill = createPolyfillRTCPeerConnection(icePorts ? { icePortRange: icePorts } : undefined) as unknown as typeof RTCPeerConnection;
 	return new Device({
 		store: await fileStore(instanceDir),
 		tree,
@@ -82,6 +85,7 @@ async function run() {
 		process.exit(EXIT_REMOVED);
 	}
 	const unwatch = watchTree(folder, (paths) => void d.localChange(paths));
+	if (icePorts) keepForwarded(icePorts, (line) => log(line));
 	void cleanTrash(tree);
 	setInterval(() => void cleanTrash(tree), TRASH_INTERVAL);
 	let stopping = false;

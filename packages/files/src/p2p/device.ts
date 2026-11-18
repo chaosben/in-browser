@@ -371,6 +371,7 @@ export class Device {
 			const room = this.options.network.join(id, secret);
 			room.onLink((link) => this.attach(link));
 			room.onUnreachable?.((peerId) => {
+				this.log('peer.unreachable', { peer: this.nameOf(peerId) });
 				this.unreachable.add(peerId);
 				this.emit();
 			});

@@ -216,7 +216,7 @@ const en = {
 		],
 		diagram: 'Three devices connected directly with each other, no server in between',
 		expertSections: [
-			['Transport', 'WebRTC data channels (SCTP over DTLS), directly between the devices, each with each. STUN via stun.cloudflare.com, no TURN – so strict NATs (symmetric NAT, CGNAT on mobile networks) often prevent a connection.'],
+			['Transport', 'WebRTC data channels (SCTP over DTLS), directly between the devices, each with each. STUN via stun.cloudflare.com, no TURN – so strict NATs (symmetric NAT, CGNAT on mobile networks) often prevent a connection. A p2p-node uses the fixed UDP ports 29400–29449 and has the router forward them (UPnP), so it is reachable from anywhere.'],
 			['Signaling', 'Trystero over public Nostr relays. They see IP addresses, timing and a hash of the room; offers and ICE candidates are encrypted with a key derived from the room secret. Every removal brings a new room secret.'],
 			['Identity', 'Ed25519 key pair per device (WebCrypto, not extractable, IndexedDB). The device ID is the fingerprint of the public key. Signing in signs a nonce together with the DTLS fingerprints of the connection, so no relay can sit in between.'],
 			['Members', 'Hash-chained log of signed entries (create, add, remove, rename), merged on every contact. A removal beats concurrent entries of the removed device; mutual concurrent removals remove both. A device that was offline learns about a removal from any member – if it meets the removed device first, that one can still sync with it until then.'],

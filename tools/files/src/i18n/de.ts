@@ -216,7 +216,7 @@ const de: Messages = {
 		],
 		diagram: 'Drei Geräte, direkt miteinander verbunden, kein Server dazwischen',
 		expertSections: [
-			['Transport', 'WebRTC-DataChannels (SCTP über DTLS), direkt zwischen den Geräten, jedes mit jedem. STUN über stun.cloudflare.com, kein TURN – strenge NATs (symmetrisches NAT, CGNAT im Mobilfunk) verhindern deshalb oft eine Verbindung.'],
+			['Transport', 'WebRTC-DataChannels (SCTP über DTLS), direkt zwischen den Geräten, jedes mit jedem. STUN über stun.cloudflare.com, kein TURN – strenge NATs (symmetrisches NAT, CGNAT im Mobilfunk) verhindern deshalb oft eine Verbindung. Ein p2p-node nutzt die festen UDP-Ports 29400–29449 und lässt sie vom Router weiterleiten (UPnP), damit er von überall erreichbar ist.'],
 			['Signaling', 'Trystero über öffentliche Nostr-Relays. Sie sehen IP-Adressen, Zeitpunkte und einen Hash des Raums; Angebote und ICE-Kandidaten sind mit einem Schlüssel aus dem Raumgeheimnis verschlüsselt. Jedes Entfernen bringt ein neues Raumgeheimnis.'],
 			['Identität', 'Ed25519-Schlüsselpaar pro Gerät (WebCrypto, nicht exportierbar, IndexedDB). Die Geräte-ID ist der Fingerabdruck des öffentlichen Schlüssels. Die Anmeldung signiert eine Zufallszahl zusammen mit den DTLS-Fingerabdrücken der Verbindung, damit kein Relay dazwischen sitzen kann.'],
 			['Mitglieder', 'Hash-verkettetes Protokoll signierter Einträge (create, add, remove, rename), bei jedem Kontakt zusammengeführt. Entfernen schlägt gleichzeitige Einträge des entfernten Geräts; gegenseitiges gleichzeitiges Entfernen entfernt beide. Ein Gerät, das offline war, erfährt vom Entfernen über jedes Mitglied – trifft es zuerst das entfernte Gerät, kann dieses bis dahin noch mit ihm abgleichen.'],
