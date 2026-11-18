@@ -59,7 +59,8 @@ outside (a phone on mobile data, a laptop on hotel Wi-Fi) the connection only ge
 be reached there:
 
 - The node always uses the **UDP ports 29400–29449** and asks your router to forward them (UPnP). The log shows the
-  outcome: `Router: UDP 29400-29449 forwarded to 192.168.178.20 via UPnP (public 203.0.113.7)`.
+  outcome: `Router: UDP 29400-29449 forwarded to 192.168.178.20 via UPnP (public 203.0.113.7) – if this computer has a
+  firewall, allow UDP 29400-29449 there too`.
 - **FRITZ!Box:** under Home Network → Network, open this computer and check “Permit independent port sharing”. Other
   routers: turn on UPnP (port forwarding by devices).
 - Without UPnP, forward UDP 29400–29449 to this computer by hand; the log names its address. If the computer has a

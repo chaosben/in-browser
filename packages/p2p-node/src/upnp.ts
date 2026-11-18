@@ -225,7 +225,9 @@ export async function forward([from, to]: [number, number], find: () => Promise<
 		external ? ` (public ${external})` : '',
 		result.permanent ? ', kept by the router until removed there' : '',
 		result.taken.length ? `; forwarded to another computer: ${result.taken.join(', ')}` : '',
-		external && isPrivateIpv4(external) ? ` – but the router has no public IPv4 (${external}), so this won't help from outside` : ''
+		external && isPrivateIpv4(external)
+			? ` – but the router has no public IPv4 (${external}), so this won't help from outside`
+			: ` – if this computer has a firewall, allow ${range} there too`
 	].join('');
 }
 

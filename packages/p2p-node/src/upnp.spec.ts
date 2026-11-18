@@ -93,7 +93,7 @@ describe('addMappings', () => {
 describe('forward', () => {
 	it('reports the forwarded range with the public address', async () => {
 		const { gateway } = await fakeRouter(() => undefined);
-		expect(await forward([29400, 29401], async () => gateway)).toBe('Router: UDP 29400-29401 forwarded to 127.0.0.1 via UPnP (public 203.0.113.7)');
+		expect(await forward([29400, 29401], async () => gateway)).toBe('Router: UDP 29400-29401 forwarded to 127.0.0.1 via UPnP (public 203.0.113.7) – if this computer has a firewall, allow UDP 29400-29401 there too');
 	});
 
 	it('says what to forward by hand when the router refuses or is missing', async () => {
