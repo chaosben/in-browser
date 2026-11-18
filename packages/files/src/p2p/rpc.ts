@@ -169,6 +169,8 @@ export class Rpc {
 			} else if (k === 'd' && pending.download) {
 				const data = body.slice();
 				pending.writes = pending.writes.then(() => pending.download!.write(data));
+				// A lost connection aborts the download: the call fails through `shutDown`, not through this chain
+				pending.writes.catch(() => {});
 				pending.received += data.length;
 				pending.onProgress?.(pending.received);
 			} else if (k === 'D') {

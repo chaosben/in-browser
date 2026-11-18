@@ -144,6 +144,41 @@ describe('P2P session', () => {
 		expect(await paths(a)).toEqual(['/keep.txt']);
 	});
 
+	it('lets held deletions through when the answering device confirmed them, and tells it what waits', async () => {
+		for (let i = 0; i < 25; i++) await writeText(a, `/f${i}.txt`, `${i}`);
+		await sync();
+		for (let i = 0; i < 25; i++) await b.remove(`/f${i}.txt`);
+		await writeText(b, '/keep.txt', 'x');
+		// B (answering) is where the user sees and confirms the held deletions
+		const [linkA, linkB] = await linkedPair();
+		rpcA.close();
+		rpcA = new Rpc(linkA);
+		let allow = false;
+		const summaries: unknown[] = [];
+		serve(new Rpc(linkB), { tree: b, gate: new Gate(), allowDeletes: () => allow, onEnd: (summary) => summaries.push(summary) });
+		expect((await sync()).pendingDeletes).toBe(25);
+		await until(() => summaries.length === 1, 2000, 'end of session');
+		expect(summaries[0]).toMatchObject({ pendingDeletes: 25, usedAllowDeletes: false });
+		allow = true;
+		expect((await sync()).pendingDeletes).toBe(0);
+		expect(await paths(a)).toEqual(['/keep.txt']);
+	});
+
+	it('applies deletions and replacements of the other device, and carries the trash like any folder', async () => {
+		await writeText(a, '/gone.txt', 'deleted on B');
+		await writeText(a, '/old.txt', 'version 1');
+		await sync();
+		// On B the user deletes into the trash (`trash-browser.ts` does this through fs.ts), and replaces a file
+		const entry = '/.in-browser-trash/20261118-102233-123-abcd';
+		await writeText(b, `${entry}/.trashinfo.json`, JSON.stringify({ path: '/gone.txt', kind: 'file', deleted: 1 }));
+		await b.move('/gone.txt', `${entry}/gone.txt`);
+		await writeText(b, '/old.txt', 'version 2');
+		await sync();
+		expect(await paths(a)).toEqual(['/.in-browser-trash', entry, `${entry}/.trashinfo.json`, `${entry}/gone.txt`, '/old.txt']);
+		expect(await readText(a, `${entry}/gone.txt`)).toBe('deleted on B');
+		expect(await readText(a, '/old.txt')).toBe('version 2');
+	});
+
 	it('frees the answering device when the driver vanishes mid-session', async () => {
 		const gate = new Gate();
 		const [linkA, linkB] = await linkedPair();
@@ -151,7 +186,7 @@ describe('P2P session', () => {
 		const answering = new Rpc(linkB);
 		const release = serve(answering, { tree: b, gate });
 		linkB.onClose(release);
-		expect(await driver.call('begin')).toBe(true);
+		expect(await driver.call('begin')).toMatchObject({ accepted: true });
 		expect(gate.busy).toBe(true);
 		driver.close();
 		await new Promise((r) => setTimeout(r, 300));

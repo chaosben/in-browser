@@ -47,6 +47,11 @@ Logs: `journalctl --user -u in-browser-p2p-node@home -f`, and `<data>/instances/
 
 To remove the computer from your devices, remove it in Files; the instance then stops by itself.
 
+The trash of your devices is the hidden folder `.in-browser-trash/` inside the synced folder: what you delete in
+Files (or a notebook or project in its tool) lands there on every device, one folder per deleted item with a
+`.trashinfo.json`. The node removes entries after the retention chosen in Files (the setting syncs too); `status`
+shows its size. Files you delete in the folder yourself are synced as deletions – your system's trash keeps them.
+
 ## Updates and security
 
 The starter loads the sync process from the site and keeps it up to date: it looks for a new version every hour,
@@ -56,7 +61,8 @@ and right away when another device runs a newer protocol. It switches between tw
   signed checksum. Whoever controls the hosting alone can't run code on your computer. The installer itself is
   trusted on first use, like any `curl … | sh`.
 - **Sandboxed:** the sync process runs in Node's permission model. It can only read and write its own state and the
-  synced folder, plus use the network.
+  synced folder, plus use the network. Node disables `fsync` there, so writes rely on the file system's own ordering
+  (state files and received files are still written to a temporary name first and renamed into place).
 - **Fallback:** if a new version keeps crashing, the node goes back to the previous one and skips the broken one.
 - Files are stored unencrypted in the folder, like any other file on that computer. Use the disk encryption of your
   system if needed.

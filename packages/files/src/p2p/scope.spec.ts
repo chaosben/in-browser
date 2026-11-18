@@ -13,6 +13,14 @@ describe('scope', () => {
 		expect(canExclude('/.apps/x')).toBe(false);
 		expect(canExclude('/Docs')).toBe(true);
 	});
+	it('counts items in the trash by where they were', () => {
+		const entry = '/.in-browser-trash/20261118-102233-123-abcd';
+		expect(inScope(`${entry}/Videos/a.mp4`, ['/Videos'])).toBe(false);
+		expect(inScope(`${entry}/Docs/a.md`, ['/Videos'])).toBe(true);
+		expect(inScope(`${entry}/.trashinfo.json`, ['/Videos'])).toBe(true);
+		expect(inScope(entry, ['/Videos'])).toBe(true);
+		expect(inScope('/.in-browser-trash', ['/Videos'])).toBe(true);
+	});
 	it('keeps only what both devices take part in', () => {
 		const snap = new Map([
 			['/a', f],

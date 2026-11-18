@@ -34,6 +34,8 @@
 	import PropertiesDialog from '#lib/components/PropertiesDialog.svelte';
 	import SyncDialog from '#lib/components/SyncDialog.svelte';
 	import SyncEntry from '#lib/components/SyncEntry.svelte';
+	import TrashDialog from '#lib/components/TrashDialog.svelte';
+	import TrashEntry from '#lib/components/TrashEntry.svelte';
 	import ExcludeFolderDialog from '#lib/components/ExcludeFolderDialog.svelte';
 	import ExplainDialog from '#lib/components/ExplainDialog.svelte';
 	import FolderScopeDialog from '#lib/components/FolderScopeDialog.svelte';
@@ -95,7 +97,10 @@
 				: { label: m.toolbar.list, icon: 'icon-[material-symbols-light--view-list-outline]', run: () => manager.setView('list') },
 			{ separator: true },
 			{ label: m.menu.downloadZip, icon: 'icon-[material-symbols-light--folder-zip-outline]', run: () => downloadItems([folder]) },
-			{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', run: () => (properties = folder) }
+			{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', run: () => (properties = folder) },
+			{ separator: true },
+			// Also in the sidebar, which is hidden on small screens
+			{ label: m.trash.title, icon: 'icon-[material-symbols-light--delete-outline]', run: () => openDevicesDialog('trash') }
 		];
 		// The tool name stands for the top level: the levels start with the first folder, the menu of the top level
 		// hangs at the tool name
@@ -429,7 +434,8 @@
 					ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
 				/>
 			</ul>
-			<div class="mt-auto flex flex-col gap-4">
+			<div class="mt-auto flex flex-col gap-2">
+				<TrashEntry />
 				<SyncEntry />
 			</div>
 		</aside>
@@ -503,6 +509,8 @@
 	<JoinDialog code={devicesUi.joinCode} onclose={() => ((devicesUi.joinCode = ''), closeDevicesDialog())} />
 {:else if devicesUi.dialog === 'scope'}
 	<FolderScopeDialog onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'trash'}
+	<TrashDialog onclose={closeDevicesDialog} />
 {/if}
 {#if devicesUi.exclude}
 	<ExcludeFolderDialog path={devicesUi.exclude} onclose={() => (devicesUi.exclude = null)} />

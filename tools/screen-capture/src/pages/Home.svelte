@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
@@ -23,7 +24,6 @@
 		requestPersistence,
 		storageEstimate
 	} from '#lib/storage/store.js';
-	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
@@ -136,15 +136,9 @@
 		if (path) await goto(editorUrl(path));
 	}
 
+	/** Into the trash (the message offers to undo it) */
 	async function remove(project: Project) {
-		const ok = await ask({
-			title: m.home.deleteTitle,
-			message: m.home.confirmDelete(project.name),
-			confirm: m.common.delete,
-			danger: true
-		});
-		if (!ok) return;
-		await deleteProject(project.id);
+		await deleteToTrash([project.id], () => void refresh());
 		await refresh();
 	}
 </script>

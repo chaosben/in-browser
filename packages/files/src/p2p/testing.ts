@@ -1,57 +1,16 @@
-import { basename, parent, segments } from '../path.js';
-import type { FileState } from '../sync/plan.js';
-import { scan, stateOf } from '../sync/scan.js';
+import { handleTree } from '../sync/handle-tree.js';
+import type { Tree } from '../sync/tree.js';
 import { channelLink, type Link } from './link.js';
-import type { Tree } from './session.js';
 
-// Helpers for the browser specs (never imported by the app): a Tree over its own OPFS folder per simulated device,
+// Helpers for the browser specs (never imported by the app): a Tree over its own OPFS folder per simulated device
+// (the same kind of tree as a folder on disk, with its trash inside),
 // and two devices connected by a real WebRTC data channel inside the page.
 
 export async function folderTree(name: string): Promise<Tree & { clear(): Promise<void> }> {
 	const opfs = await navigator.storage.getDirectory();
 	await opfs.removeEntry(name, { recursive: true }).catch(() => {});
 	const root = await opfs.getDirectoryHandle(name, { create: true });
-	const dir = async (path: string, create = false) => {
-		let handle = root;
-		for (const part of segments(path)) handle = await handle.getDirectoryHandle(part, { create });
-		return handle;
-	};
-	const file = async (path: string, create = false) => (await dir(parent(path), create)).getFileHandle(basename(path), { create });
-	return {
-		scan: () => scan(root),
-		async stat(path): Promise<FileState | null> {
-			try {
-				return stateOf(await (await file(path)).getFile());
-			} catch {
-				try {
-					await dir(path);
-					return { kind: 'directory', size: 0, modified: 0 };
-				} catch {
-					return null;
-				}
-			}
-		},
-		read: async (path) => (await file(path)).getFile(),
-		write: async (path) => (await file(path, true)).createWritable(),
-		mkdir: async (path) => void (await dir(path, true)),
-		remove: async (path) => (await dir(parent(path))).removeEntry(basename(path), { recursive: true }),
-		async move(from, to) {
-			const source = await (await file(from)).getFile();
-			const target = await (await file(to, true)).createWritable();
-			await source.stream().pipeTo(target);
-			await (await dir(parent(from))).removeEntry(basename(from));
-		},
-		async names(folder) {
-			try {
-				const names: string[] = [];
-				for await (const key of (await dir(folder)).keys()) names.push(key);
-				return names;
-			} catch {
-				return [];
-			}
-		},
-		clear: () => opfs.removeEntry(name, { recursive: true }).catch(() => {})
-	};
+	return { ...handleTree(root), clear: () => opfs.removeEntry(name, { recursive: true }).catch(() => {}) };
 }
 
 /** Two ends of a real RTCPeerConnection pair inside this page */

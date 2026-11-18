@@ -93,7 +93,7 @@ async function lead() {
 	const [{ Device }, { idbStore }, { opfsTree }, { trysteroNetwork }] = await Promise.all([
 		import('./device.js'),
 		import('./store.js'),
-		import('./tree.js'),
+		import('../sync/opfs-tree.js'),
 		import('./trystero.js')
 	]);
 	device = new Device({

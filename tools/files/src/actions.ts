@@ -1,7 +1,7 @@
-import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { openUrl } from '@in-browser/files/formats.js';
-import { copy, list, mkdir, move, remove, write } from '@in-browser/files/fs.js';
+import { copy, list, mkdir, move, write } from '@in-browser/files/fs.js';
+import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 import { basename, join, nameProblem, parent, uniqueName } from '@in-browser/files/path.js';
 import { m } from '#lib/i18n/index.js';
@@ -66,21 +66,16 @@ export async function rename(manager: Manager, path: string, name: string): Prom
 	}
 }
 
+/** Into the trash (no question: the message offers to undo it, and the trash keeps it) */
 export async function removeItems(manager: Manager, items: Item[]) {
 	if (items.length === 0) return;
-	const ok = await ask({
-		title: m.confirm.deleteTitle,
-		message: items.length === 1 ? m.confirm.deleteOne(items[0].name) : m.confirm.deleteMany(items.length),
-		confirm: m.common.delete,
-		danger: true
-	});
-	if (!ok) return;
-	for (const item of items) {
-		try {
-			await remove(item.path);
-		} catch (e) {
-			fail(e);
-		}
+	try {
+		await deleteToTrash(
+			items.map((item) => item.path),
+			() => void manager.refresh()
+		);
+	} catch (e) {
+		fail(e);
 	}
 	await manager.refresh();
 }

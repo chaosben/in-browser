@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deletedLocalFiles, holdDeletes, ignored, plan, type Base, type FileState, type Snapshot } from './plan';
+import { caseRenames, deletedLocalFiles, holdDeletes, ignored, plan, type Base, type FileState, type Snapshot } from './plan';
 
 const file = (modified: number, size = 10): FileState => ({ kind: 'file', size, modified });
 const dir: FileState = { kind: 'directory', size: 0, modified: 0 };
@@ -42,6 +42,10 @@ describe('plan: later runs', () => {
 		expect(ops(snap({ '/a': file(9) }), snap({ '/a': file(8) }), synced)).toEqual(['toDisk /a']);
 		expect(ops(snap({ '/a': file(8) }), snap({ '/a': file(9) }), synced)).toEqual(['toLocal /a']);
 	});
+	it('both changed at the same time: the same file only with the same size, otherwise both are kept', () => {
+		expect(ops(snap({ '/a': file(9) }), snap({ '/a': file(9) }), synced)).toEqual(['remember /a']);
+		expect(plan(snap({ '/a': file(9, 11) }), snap({ '/a': file(9, 12) }), synced)).toEqual([{ type: 'toLocal', path: '/a', both: true }]);
+	});
 	it('deleted on one side, unchanged on the other: deleted there too', () => {
 		expect(ops(snap({}), snap({ '/a': file(2) }), synced)).toEqual(['deleteDisk /a']);
 		expect(ops(snap({ '/a': file(1) }), snap({}), synced)).toEqual(['deleteLocal /a']);
@@ -66,6 +70,9 @@ describe('ignored', () => {
 	it('skips temporary and system files anywhere in the path', () => {
 		for (const path of ['/a/.DS_Store', '/Thumbs.db', '/x/desktop.ini', '/~$Report.docx', '/a.crswap', '/video.mp4.part', '/.stversions/a', '/.syncthing.a.tmp', '/.moving-123/a'])
 			expect(ignored(path), path).toBe(true);
+	});
+	it('syncs the trash like everything else', () => {
+		expect(ignored('/.in-browser-trash/20261118-102233-123-abcd/a.txt')).toBe(false);
 	});
 	it('keeps normal and hidden app data', () => {
 		for (const path of ['/Screen Capture/Demo.screencapture/project.json', '/.apps/screen-capture/library/library.json'])
@@ -109,5 +116,42 @@ describe('holdDeletes', () => {
 		const few = snap(Object.fromEntries(Object.entries(files(40)).slice(2)));
 		expect(holdDeletes(plan(local, many, b), many, b)).toBe(true);
 		expect(holdDeletes(plan(local, few, b), few, b)).toBe(false);
+	});
+	it('never holds the removal of expired trash entries', () => {
+		const entry = (i: number) => `/.in-browser-trash/20261118-102233-123-ab${String(i).padStart(2, '0')}/f.txt`;
+		const trash = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [entry(i), file(1)]));
+		const b = base({ ...Object.fromEntries(Object.keys(trash).map((p) => [p, [file(1), file(1)]])), '/keep.txt': [file(1), file(1)] });
+		const local = snap({ ...trash, '/keep.txt': file(1) });
+		const cleaned = snap({ '/keep.txt': file(1) });
+		expect(holdDeletes(plan(local, cleaned, b), cleaned, b)).toBe(false);
+	});
+});
+
+describe('caseRenames', () => {
+	it('renames on the other side what was renamed here in upper/lower case only', () => {
+		const b = base({ '/a.txt': [file(1), file(1)] });
+		const result = caseRenames(snap({ '/A.txt': file(1) }), snap({ '/a.txt': file(1) }), b);
+		expect(result.renames).toEqual([{ type: 'renameDisk', path: '/A.txt', from: '/a.txt', kind: 'file' }]);
+		// Planned as if done: nothing left to copy or delete
+		expect(plan(result.local, result.disk, result.base)).toEqual([]);
+	});
+	it('works the other way round, and for folders with everything inside', () => {
+		const b = base({ '/docs': [dir, dir], '/docs/x': [file(1), file(1)] });
+		const result = caseRenames(snap({ '/docs': dir, '/docs/x': file(1) }), snap({ '/Docs': dir, '/Docs/x': file(1) }), b);
+		expect(result.renames).toEqual([{ type: 'renameLocal', path: '/Docs', from: '/docs', kind: 'directory' }]);
+		expect([...result.local.keys()]).toEqual(['/Docs', '/Docs/x']);
+		expect(plan(result.local, result.disk, result.base)).toEqual([]);
+	});
+	it('also renames a changed file (the change is copied afterwards)', () => {
+		const b = base({ '/a.txt': [file(1), file(1)] });
+		const result = caseRenames(snap({ '/A.txt': file(5) }), snap({ '/a.txt': file(1) }), b);
+		expect(result.renames).toHaveLength(1);
+		expect(ops(result.local, result.disk, result.base)).toEqual(['toDisk /A.txt']);
+	});
+	it('leaves everything else to the plan: no base, both spellings present, ambiguous', () => {
+		expect(caseRenames(snap({ '/A.txt': file(1) }), snap({ '/a.txt': file(1) }), base({})).renames).toEqual([]);
+		const b = base({ '/a.txt': [file(1), file(1)] });
+		expect(caseRenames(snap({ '/A.txt': file(1), '/a.txt': file(1) }), snap({ '/a.txt': file(1) }), b).renames).toEqual([]);
+		expect(caseRenames(snap({ '/A.txt': file(1), '/a.TXT': file(1) }), snap({ '/a.txt': file(1) }), b).renames).toEqual([]);
 	});
 });

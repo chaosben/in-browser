@@ -53,6 +53,20 @@ const en = {
 		manage: 'Manage in Files'
 	},
 
+	/** Moving what the user deletes into the trash (every tool) */
+	trash: {
+		moved: (name: string) => `“${name}” is in the trash.`,
+		movedMany: (n: number) => `${n} items are in the trash.`,
+		undo: 'Undo'
+	},
+
+	/** Sync with a folder on disk */
+	folderSync: {
+		/** Whose version a conflict copy holds: `Notes (conflict browser).md` */
+		browser: 'browser',
+		folder: 'folder'
+	},
+
 	/** Sync with your other devices (footer of every tool, toasts) */
 	p2p: {
 		/** Part of the name of a conflict copy: `Notes (conflict Laptop).md` */

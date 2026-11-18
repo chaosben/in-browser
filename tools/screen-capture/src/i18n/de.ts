@@ -43,8 +43,6 @@ const de: Messages = {
 		storage: (used, quota) => `${used} GB von ${quota} GB belegt`,
 		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien, lege ein leeres Projekt an oder zieh Videos, Ton oder Bilder hierher.',
 		changed: (date) => `geändert ${date}`,
-		deleteTitle: 'Projekt löschen?',
-		confirmDelete: (name) => `Projekt „${name}“ mit allen Aufnahmen löschen?`,
 		footer:
 			'Projekte sind Dateien in deinem Browserspeicher, in jedem Ordner, den du willst. Verwalte sie in Files – dort kannst du sie auch mit einem Ordner auf deinem Rechner abgleichen.',
 		dropToCreate: 'Loslassen, um ein neues Projekt aus den Dateien zu erstellen'

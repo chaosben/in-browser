@@ -151,10 +151,6 @@ export async function chooseNotebook(): Promise<string | null> {
 	return path;
 }
 
-export async function deleteNotebook(path: string): Promise<void> {
-	await remove(path);
-}
-
 /** Renames the package; the new path */
 export async function renameNotebook(path: string, name: string): Promise<string> {
 	const target = join(parent(path), safeName(name, m.home.untitled) + NOTEBOOK_EXT);

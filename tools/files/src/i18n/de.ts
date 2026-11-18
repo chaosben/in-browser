@@ -69,11 +69,6 @@ const de: Messages = {
 		hint: 'Doppelklick öffnet, Rechtsklick zeigt alle Aktionen. Zieh Elemente auf einen Ordner, um sie zu verschieben; mit Strg kopierst du sie.'
 	},
 
-	confirm: {
-		deleteTitle: 'Endgültig löschen?',
-		deleteOne: (name) => `„${name}“ wird mit allem, was darin liegt, gelöscht. Das lässt sich nicht rückgängig machen.`,
-		deleteMany: (n) => `${n} Elemente werden mit allem, was darin liegt, gelöscht. Das lässt sich nicht rückgängig machen.`
-	},
 
 	properties: {
 		title: 'Eigenschaften',
@@ -226,7 +221,7 @@ const de: Messages = {
 			['Identität', 'Ed25519-Schlüsselpaar pro Gerät (WebCrypto, nicht exportierbar, IndexedDB). Die Geräte-ID ist der Fingerabdruck des öffentlichen Schlüssels. Die Anmeldung signiert eine Zufallszahl zusammen mit den DTLS-Fingerabdrücken der Verbindung, damit kein Relay dazwischen sitzen kann.'],
 			['Mitglieder', 'Hash-verkettetes Protokoll signierter Einträge (create, add, remove, rename), bei jedem Kontakt zusammengeführt. Entfernen schlägt gleichzeitige Einträge des entfernten Geräts; gegenseitiges gleichzeitiges Entfernen entfernt beide. Ein Gerät, das offline war, erfährt vom Entfernen über jedes Mitglied – trifft es zuerst das entfernte Gerät, kann dieses bis dahin noch mit ihm abgleichen.'],
 			['Einmal-Schlüssel', '100 Bit, einmal und 24 Stunden gültig, nur solange das ausstellende Gerät online ist. Nachweis per HMAC über die DTLS-Fingerabdrücke in beide Richtungen.'],
-			['Abgleich', 'Drei-Wege-Vergleich pro Gerätepaar gegen den gespeicherten Stand des letzten Abgleichs; das Gerät mit der kleineren ID steuert. Die neuere Fassung gewinnt, die andere wird zur Konfliktkopie; SHA-256 vermeidet unnötige Übertragungen; viele Löschungen auf einmal warten auf Bestätigung. Ordnerauswahl = Schnittmenge beider Geräte, löst nie ein Löschen aus.'],
+			['Abgleich', 'Drei-Wege-Vergleich pro Gerätepaar gegen den gespeicherten Stand des letzten Abgleichs; das Gerät mit der kleineren ID steuert. Die neuere Fassung gewinnt, die andere wird zur Konfliktkopie; SHA-256 vermeidet unnötige Übertragungen; viele Löschungen auf einmal warten auf Bestätigung (auf jedem der beiden Geräte). Direkt vor dem Überschreiben oder Löschen wird der Stand mit dem geplanten verglichen – was sich inzwischen geändert hat, bleibt unangetastet. Löschungen und Ersetzungen anderer Geräte werden übernommen (wie bei Syncthing); was du löschst, kommt in den Papierkorb-Ordner, der wie jeder andere abgeglichen wird. Umbenennungen nur in Groß-/Kleinschreibung bleiben Umbenennungen. Ordnerauswahl = Schnittmenge beider Geräte, löst nie ein Löschen aus.'],
 			['Wissensstand', 'Änderungsprotokoll mit laufenden Nummern pro Gerät und Versionsvektoren: Grundlage der Hinweise auf Geräte, die wahrscheinlich nicht aktuell sind, auch wenn sie Änderungen indirekt bekommen haben.'],
 			['Speicher', 'Dateien im OPFS (dauerhafte Speicherung angefordert); Schlüssel, Mitgliederliste, Abgleichstand und Vektoren in IndexedDB.'],
 			['Grenzen', 'Läuft nur in einem offenen Tab, am Handy nur im Vordergrund. Was ein entferntes Gerät schon hat, behält es. Eine p2p-node hebt die erste Grenze auf: ein Node-Prozess (WebRTC über werift), der als Gerät mitmacht und die Dateien in einem Ordner auf der Festplatte hält.']
@@ -282,6 +277,30 @@ const de: Messages = {
 		applyDeletes: 'Auch hier löschen',
 		restoreInstead: 'Stattdessen wiederherstellen',
 		runsWhileOpen: 'Der Abgleich läuft, solange ein Tool von in-browser in diesem Browser offen ist.'
+	},
+
+	trash: {
+		title: 'Papierkorb',
+		intro: 'Was du löschst, landet zuerst hier – auf all deinen Geräten, so kannst du es auf jedem zurückholen.',
+		elsewhere: 'In einem verbundenen Ordner auf deinem Rechner und beim p2p-node ist es der versteckte Ordner „.in-browser-trash“.',
+		summary: (n, size) => (n === 1 ? `1 Element, ${size}` : `${n} Elemente, ${size}`),
+		nothing: 'Der Papierkorb ist leer.',
+		keep: 'Aufbewahren',
+		days: (n) => (n === 1 ? '1 Tag' : `${n} Tage`),
+		forever: 'Bis ich ihn leere',
+		keepHint: 'Gilt für alle deine Geräte.',
+		from: (folder) => `aus ${folder}`,
+		when: (time, size) => `gelöscht ${time} · ${size}`,
+		restore: 'Wiederherstellen',
+		restored: (path) => `Als „${path}“ wiederhergestellt.`,
+		remove: 'Endgültig löschen',
+		removeTitle: 'Endgültig löschen?',
+		removeMessage: (name) => `„${name}“ lässt sich danach nicht mehr wiederherstellen – auf keinem deiner Geräte.`,
+		empty: 'Papierkorb leeren',
+		emptyTitle: 'Papierkorb leeren?',
+		emptyMessage: (n) => (n === 1 ? '1 Element wird endgültig gelöscht, auf all deinen Geräten.' : `${n} Elemente werden endgültig gelöscht, auf all deinen Geräten.`),
+		more: (n) => `${n} weitere – stelle zuerst einige wieder her oder lösche sie.`,
+		close: 'Schließen'
 	}
 };
 

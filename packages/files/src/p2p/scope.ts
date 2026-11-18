@@ -1,4 +1,5 @@
 import { isInside } from '../path.js';
+import { inTrash, originalPath } from '../trash.js';
 import type { Base, Snapshot } from '../sync/plan.js';
 
 // Which folders a device takes part in: every device keeps a list of excluded folders (default: none, so new folders
@@ -8,8 +9,16 @@ import type { Base, Snapshot } from '../sync/plan.js';
 /** Folders that can't be excluded */
 const ALWAYS = '/.apps';
 
-/** Whether `path` takes part for a device with these excluded folders */
+/**
+ * Whether `path` takes part for a device with these excluded folders. In the trash, an item counts by where it was:
+ * what was deleted in an excluded folder doesn't come to that device through the trash either.
+ */
 export function inScope(path: string, excluded: readonly string[]): boolean {
+	if (inTrash(path)) {
+		const original = originalPath(path);
+		if (!original) return true;
+		path = original;
+	}
 	if (path === ALWAYS || isInside(path, ALWAYS)) return true;
 	return !excluded.some((folder) => path === folder || isInside(path, folder));
 }

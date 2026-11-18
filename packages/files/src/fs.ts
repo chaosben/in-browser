@@ -284,9 +284,33 @@ export async function move(from: string, to: string): Promise<void> {
 	}
 	if (!moved) {
 		const target = caseOnly ? `${parent(to)}/.moving-${crypto.randomUUID()}` : to;
-		await copyHandle(source, target);
+		await moveHandle(source, target);
 		await remove(from);
 		if (caseOnly) await move(target, to);
 	}
 	changed(from, to);
+}
+
+/**
+ * Moves file by file where folders can't be moved natively (Chromium): files move natively (fast, no copy), only
+ * what can't is copied. The source folders are removed by the caller once empty.
+ */
+async function moveHandle(source: FileSystemHandle, to: string): Promise<void> {
+	if (source.kind === 'file') {
+		const native = (source as FileSystemHandle & { move?: (dir: FileSystemDirectoryHandle, name: string) => Promise<void> }).move;
+		if (native) {
+			try {
+				await native.call(source, await dirHandle(parent(to), true), basename(to));
+				return;
+			} catch (e) {
+				if (!(e instanceof DOMException) && !(e instanceof TypeError)) throw e;
+			}
+		}
+		await copyHandle(source, to);
+		return;
+	}
+	await mkdir(to);
+	const children: [string, FileSystemHandle][] = [];
+	for await (const entry of (source as FileSystemDirectoryHandle).entries()) children.push(entry);
+	for (const [name, child] of children) await moveHandle(child, `${to}/${name}`);
 }

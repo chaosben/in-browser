@@ -1,6 +1,10 @@
-// Planning of a sync run between the browser (OPFS, “local”) and a folder on disk (“disk”): pure logic.
-// Rule: the newer version wins. What changed is decided against the state after the last run (`base`), so
-// deletions propagate too. A change always beats a deletion. Nothing is compared by content.
+import { nameKey, segments } from '../path.js';
+import { inTrash } from '../trash.js';
+
+// Planning of a sync run between this side (“local”) and the other one (“disk”: a folder on disk or another
+// device): pure logic. Rule: the newer version wins. What changed is decided against the state after the last run
+// (`base`), so deletions propagate too. A change always beats a deletion. Nothing is compared by content here; the
+// losing version of a change on both sides is kept as a conflict copy when it really differs (`sync/apply.ts`).
 
 export interface FileState {
 	kind: 'file' | 'directory';
@@ -23,6 +27,8 @@ export type Base = Map<string, BaseEntry>;
 export type Op =
 	/** `both`: changed on both sides since the base (the other version is lost unless kept as a conflict copy) */
 	| { type: 'toDisk' | 'toLocal'; path: string; both?: true }
+	/** Renamed on the other side in upper/lower case only (`from` → `path`): renamed here too, before anything else */
+	| { type: 'renameDisk' | 'renameLocal'; path: string; from: string; kind: FileState['kind'] }
 	/** Folder missing on one side */
 	| { type: 'mkdirDisk' | 'mkdirLocal'; path: string }
 	| { type: 'deleteDisk' | 'deleteLocal'; path: string; kind: FileState['kind'] }
@@ -82,9 +88,10 @@ export function plan(local: Snapshot, disk: Snapshot, base: Base): Op[] {
 			else if (l.kind === 'directory') {
 				if (!b) files.push({ type: 'remember', path });
 			} else if (localChanged && diskChanged) {
-				// Both new or both changed: the newer one wins (equal times: the same file)
+				// Both new or both changed: the newer one wins (equal time and size: taken for the same file; equal time
+				// but another size: the other side's version, this one is kept as a conflict copy)
 				if (l.modified > d.modified) files.push({ type: 'toDisk', path, both: true });
-				else if (d.modified > l.modified) files.push({ type: 'toLocal', path, both: true });
+				else if (d.modified > l.modified || l.size !== d.size) files.push({ type: 'toLocal', path, both: true });
 				else files.push({ type: 'remember', path });
 			} else if (localChanged) files.push({ type: 'toDisk', path });
 			else if (diskChanged) files.push({ type: 'toLocal', path });
@@ -108,9 +115,57 @@ export function plan(local: Snapshot, disk: Snapshot, base: Base): Op[] {
 	return [...mkdirs, ...files, ...deletes];
 }
 
-/** Files the plan deletes in the browser because they were deleted in the folder on disk */
+/** Path with every name in its case-insensitive form (two paths that clash on Windows/macOS get the same key) */
+export const pathKey = (path: string) => segments(path).map(nameKey).join('/');
+
+/** The entries with `from` and everything below it under `to` */
+export const renameKeys = <T>(entries: Map<string, T>, from: string, to: string): Map<string, T> =>
+	new Map([...entries].map(([path, value]) => [path === from || path.startsWith(from + '/') ? to + path.slice(from.length) : path, value]));
+
+/**
+ * Renames in upper/lower case only. Planned as a copy plus a deletion they would destroy the file on systems that
+ * don't tell the two names apart (the copy lands in the old file, then the deletion removes it). So they become a
+ * rename on the other side, and the plan then works on snapshots and base as if the rename were done already.
+ * Only when the old name was synced before (in the base) and the new one is unknown there.
+ */
+export function caseRenames(local: Snapshot, disk: Snapshot, base: Base): { renames: Op[]; local: Snapshot; disk: Snapshot; base: Base } {
+	const renames: Op[] = [];
+	for (let round = 0; round < 64; round++) {
+		const found = findRename(local, disk, base, 'disk') ?? findRename(disk, local, base, 'local');
+		if (!found) break;
+		const { from, to, side } = found;
+		if (side === 'disk') disk = renameKeys(disk, from, to);
+		else local = renameKeys(local, from, to);
+		base = renameKeys(base, from, to);
+		renames.push({ type: side === 'disk' ? 'renameDisk' : 'renameLocal', path: to, from, kind: (side === 'disk' ? local : disk).get(to)!.kind });
+	}
+	return { renames, local, disk, base };
+}
+
+/** The topmost path renamed on side `renamed` that `stale` (the side named `side`) still has under its old name */
+function findRename(renamed: Snapshot, stale: Snapshot, base: Base, side: 'disk' | 'local') {
+	const byKey = new Map<string, string[]>();
+	for (const path of renamed.keys()) {
+		if (stale.has(path) || base.has(path)) continue;
+		const key = pathKey(path);
+		byKey.set(key, [...(byKey.get(key) ?? []), path]);
+	}
+	if (!byKey.size) return null;
+	const candidates = [...stale.keys()]
+		.filter((path) => !renamed.has(path) && base.has(path))
+		.sort((a, b) => segments(a).length - segments(b).length);
+	for (const from of candidates) {
+		const matches = byKey.get(pathKey(from)) ?? [];
+		// Exactly one new spelling of the same kind, otherwise it's not clear what happened
+		if (matches.length === 1 && renamed.get(matches[0])!.kind === stale.get(from)!.kind) return { from, to: matches[0], side };
+	}
+	return null;
+}
+
+/** Files the plan deletes in the browser because they were deleted in the folder on disk (not counting the trash:
+ * expired entries are removed on every device and must never wait for confirmation) */
 export function deletedLocalFiles(ops: Op[]): number {
-	return ops.filter((op) => op.type === 'deleteLocal' && op.kind === 'file').length;
+	return ops.filter((op) => op.type === 'deleteLocal' && op.kind === 'file' && !inTrash(op.path)).length;
 }
 
 /** From this many files deleted on the other side (and a quarter of all synced ones) deletions wait for confirmation */
@@ -123,7 +178,7 @@ export const MANY_DELETES = 20;
 export function holdDeletes(ops: Op[], other: Snapshot, base: Base): boolean {
 	const deletes = deletedLocalFiles(ops);
 	if (!deletes) return false;
-	const otherFiles = [...other.values()].filter((s) => s.kind === 'file').length;
-	const baseFiles = [...base.values()].filter((b) => b.local.kind === 'file').length;
+	const otherFiles = [...other].filter(([path, s]) => s.kind === 'file' && !inTrash(path)).length;
+	const baseFiles = [...base].filter(([path, b]) => b.local.kind === 'file' && !inTrash(path)).length;
 	return otherFiles === 0 || (deletes >= MANY_DELETES && deletes * 4 > baseFiles);
 }

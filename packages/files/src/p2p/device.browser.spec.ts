@@ -58,6 +58,31 @@ describe('P2P devices', () => {
 		expect(await readText(b.tree, '/hello.txt')).toBe('from A');
 	});
 
+	it('held deletions show and can be confirmed on both devices, whichever drives', async () => {
+		const network = hub();
+		const [a, b] = await pairedGroup(network, 'A', 'B');
+		// A scan may meet a file a running sync just moves: try again then
+		const count = (d: TestDevice) => d.tree.scan().then((s) => s.size, () => -1);
+		await until(() => online(a, 'B') && online(b, 'A'), 8000, 'both online');
+		for (let i = 0; i < 25; i++) await writeText(a.tree, `/f${i}.txt`, `${i}`);
+		await writeText(a.tree, '/keep.txt', 'x');
+		a.device.syncNow();
+		await until(async () => (await count(b)) === 26, 15000, 'files on B');
+		// Deleting many files at once on the device that does not drive: both see that it waits
+		const driver = a.device.identity.id < b.device.identity.id ? a : b;
+		const other = driver === a ? b : a;
+		for (let i = 0; i < 25; i++) await other.tree.remove(`/f${i}.txt`);
+		other.device.syncNow();
+		await until(() => driver.view().pendingDeletes === 25 && other.view().pendingDeletes === 25, 15000, 'deletions held on both');
+		expect(await count(driver)).toBe(26);
+		// Confirmed where the user deleted them (not the driving device)
+		other.device.applyDeletes();
+		await until(async () => (await count(driver)) === 1, 15000, 'deletions applied');
+		await until(() => driver.view().pendingDeletes === 0 && other.view().pendingDeletes === 0, 8000, 'nothing waits');
+		// Deletions from another device are applied like Syncthing does: no archive of them
+		expect(await driver.tree.names('/.in-browser-trash')).toEqual([]);
+	}, 60_000);
+
 	it('a one-time key works only once', async () => {
 		const network = hub();
 		const [a] = await pairedGroup(network, 'A');

@@ -44,8 +44,6 @@ const en = {
 		storage: (used: string, quota: string) => `${used} GB of ${quota} GB used`,
 		empty: 'No projects yet. Start a recording, import media, create an empty project or drop videos, audio or images here.',
 		changed: (date: string) => `modified ${date}`,
-		deleteTitle: 'Delete project?',
-		confirmDelete: (name: string) => `Delete project “${name}” including all recordings?`,
 		footer:
 			'Projects are files in your browser storage, in any folder you like. Manage them in Files – there you can also keep them in sync with a folder on your computer.',
 		dropToCreate: 'Drop to create a new project from the files'

@@ -33,6 +33,8 @@ const HELLO_TIMEOUT = 10_000;
 const INTERVAL = 60_000;
 /** Paths a session wrote are no local changes for this long */
 const OWN_WRITE_FOR = 10_000;
+/** A confirmation of held deletions counts for the sessions within this time (on both devices of a session) */
+const ALLOW_DELETES_FOR = 60_000;
 
 export interface DeviceView {
 	id: string;
@@ -105,8 +107,10 @@ export class Device {
 	private pairRooms = new Map<string, NetworkRoom>();
 	private gate = new Gate();
 	private ownWrites = new Map<string, number>();
-	private allowDeletes = false;
-	private pendingDeletes = 0;
+	/** Until when held deletions may go through (the user confirmed them) */
+	private allowDeletesUntil = 0;
+	/** Deletions held for confirmation, per device (from the last session with it, whoever drove) */
+	private pendingDeletes = new Map<string, number>();
 	private failed = 0;
 	private interval?: ReturnType<typeof setInterval>;
 	private saving: Promise<void> = Promise.resolve();
@@ -302,8 +306,20 @@ export class Device {
 	}
 
 	applyDeletes() {
-		this.allowDeletes = true;
+		this.allowDeletesUntil = this.now() + ALLOW_DELETES_FOR;
+		this.log('deletes.allowed');
 		this.syncNow();
+	}
+
+	private deletesAllowed() {
+		return this.now() < this.allowDeletesUntil;
+	}
+
+	/** What the last session with `peer` held back; the confirmation ends once nothing waits anymore */
+	private setPending(peer: string, count: number) {
+		if (count) this.pendingDeletes.set(peer, count);
+		else this.pendingDeletes.delete(peer);
+		if (!this.pendingDeletes.size) this.allowDeletesUntil = 0;
 	}
 
 	/** Changes of the local file system (from `watch`); those a session wrote itself are skipped */
@@ -420,6 +436,12 @@ export class Device {
 				gate: this.gate,
 				onWrite: (path) => this.ownWrite(path),
 				scope: () => this.state.scope,
+				allowDeletes: () => this.deletesAllowed(),
+				onEnd: (summary) => {
+					if (!peerId) return;
+					this.setPending(peerId, summary.pendingDeletes);
+					this.emit();
+				},
 				log: (event, data) => this.log(event, { ...data, from: peerId ? this.nameOf(peerId) : '?' })
 			}
 		);
@@ -515,7 +537,7 @@ export class Device {
 			const info = this.state.devices[peer.id];
 			const base = await this.options.store.loadBase(peer.id);
 			const names = (id: string) => this.group?.members.get(id)?.name ?? '';
-			const allow = this.allowDeletes;
+			const allow = this.deletesAllowed();
 			this.log('session.start', { peer: this.nameOf(peer.id), base: base.size, theirScope: info?.scope ?? [] });
 			result = await drive(peer.rpc, {
 				tree: this.options.tree,
@@ -536,16 +558,15 @@ export class Device {
 				},
 				log: (event, data) => this.log(event, { ...data, peer: this.nameOf(peer.id) })
 			});
-			if (allow && !result.busy) this.allowDeletes = false;
 			if (result.busy) {
 				this.log('session.busy', { peer: this.nameOf(peer.id) });
 				this.schedule(peer, 2000 + Math.random() * 2000);
 				return;
 			}
-			this.pendingDeletes = result.pendingDeletes;
+			this.setPending(peer.id, result.pendingDeletes);
 			this.failed = result.failed;
 			if (result.conflicts.length) this.options.onEvent?.({ type: 'conflicts', paths: result.conflicts });
-			if (!result.failed && !result.pendingDeletes) {
+			if (!result.failed && !result.pendingDeletes && !result.skipped) {
 				const theirs = (await peer.rpc.call('knowledge', { ...this.knowledge(), syncedWith: peer.id } as unknown as Json)) as unknown as Knowledge;
 				await this.takeKnowledge(peer.id, theirs, true);
 			}
@@ -556,10 +577,10 @@ export class Device {
 			peer.running = false;
 			peer.syncing = null;
 			this.emit();
-			// Conflict copies are new files: one more run brings them over
-			if (peer.again || result?.conflicts.length) {
+			// Conflict copies are new files: one more run brings them over; skipped steps (changed meanwhile) as well
+			if (peer.again || result?.conflicts.length || result?.skipped) {
 				peer.again = false;
-				this.schedule(peer, 500);
+				this.schedule(peer, result?.skipped ? 2000 : 500);
 			}
 		}
 	}
@@ -731,7 +752,7 @@ export class Device {
 			devices: [],
 			invite,
 			scope: this.state.scope,
-			pendingDeletes: this.pendingDeletes,
+			pendingDeletes: [...this.pendingDeletes.values()].reduce((sum, n) => sum + n, 0),
 			failed: this.failed,
 			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0
 		};

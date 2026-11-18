@@ -1,10 +1,12 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { hostname } from 'node:os';
 import { createPolyfillRTCPeerConnection } from 'werift/polyfill';
 import { parseInviteCode } from '@in-browser/files/p2p/auth.js';
 import { Device, type P2pView } from '@in-browser/files/p2p/device.js';
 import { resolve } from '@in-browser/files/p2p/members.js';
 import { createTrysteroNetwork } from '@in-browser/files/p2p/trystero.js';
+import { cleanTrash, retentionOf, TRASH_ROOT } from '@in-browser/files/trash.js';
 import de from '@in-browser/files/i18n/de.js';
 import en from '@in-browser/files/i18n/en.js';
 import { EXIT_REMOVED, type FromPeer, type ToPeer } from './ipc.js';
@@ -23,6 +25,10 @@ const log = (...args: unknown[]) => console.log(new Date().toISOString(), ...arg
 const german = /^de\b/i.test(process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || Intl.DateTimeFormat().resolvedOptions().locale);
 const messages = german ? de : en;
 
+const tree = fsTree(folder);
+/** Expired entries of the trash go this often (the retention chosen in Files is synced into this folder too) */
+const TRASH_INTERVAL = 60 * 60 * 1000;
+
 async function device(onChange?: (view: P2pView) => void) {
 	await mkdir(folder, { recursive: true });
 	const relays = process.env.IN_BROWSER_RELAYS?.split(',').filter(Boolean);
@@ -30,7 +36,7 @@ async function device(onChange?: (view: P2pView) => void) {
 	const rtcPolyfill = createPolyfillRTCPeerConnection() as unknown as typeof RTCPeerConnection;
 	return new Device({
 		store: await fileStore(instanceDir),
-		tree: fsTree(folder),
+		tree,
 		network: createTrysteroNetwork({ rtcPolyfill, relays }),
 		conflictLabel: (name) => messages.p2p.conflictLabel(name),
 		onChange,
@@ -76,6 +82,8 @@ async function run() {
 		process.exit(EXIT_REMOVED);
 	}
 	const unwatch = watchTree(folder, (paths) => void d.localChange(paths));
+	void cleanTrash(tree);
+	setInterval(() => void cleanTrash(tree), TRASH_INTERVAL);
 	let stopping = false;
 	const stop = async () => {
 		if (stopping) return;
@@ -111,6 +119,13 @@ async function status() {
 	const group = resolve(state.ops);
 	console.log(`Device ID: ${identity.id}`);
 	console.log(`Folder: ${folder}`);
+	const trashDir = join(folder, ...TRASH_ROOT.split('/').filter(Boolean));
+	const trash = await trashSize(trashDir);
+	const days = await retentionOf(tree).catch(() => undefined);
+	console.log(
+		`Trash: ${trash.files} files, ${(trash.bytes / 1e6).toFixed(1)} MB in ${trashDir}` +
+			(days === undefined ? '' : days === null ? ' (kept until emptied)' : ` (kept ${days} days)`)
+	);
 	if (state.removed) console.log('Removed from its devices – pair it again.');
 	else if (!group) console.log('Not paired yet.');
 	else {
@@ -118,6 +133,18 @@ async function status() {
 		for (const [id, member] of group.members) console.log(`  ${member.name}${id === identity.id ? ' (this one)' : ''}`);
 	}
 	process.exit(0);
+}
+
+/** Files and bytes in the trash (what the user deleted, synced from the other devices) */
+async function trashSize(dir: string): Promise<{ files: number; bytes: number }> {
+	const total = { files: 0, bytes: 0 };
+	const entries = await readdir(dir, { withFileTypes: true, recursive: true }).catch(() => []);
+	for (const entry of entries) {
+		if (!entry.isFile()) continue;
+		total.files++;
+		total.bytes += (await stat(join(entry.parentPath, entry.name)).catch(() => ({ size: 0 }))).size;
+	}
+	return total;
 }
 
 const commands: Record<string, () => Promise<void>> = { run, pair, status };

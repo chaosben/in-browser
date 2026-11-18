@@ -23,7 +23,7 @@ async function newFolder(page: Page, name: string) {
 	await expect(page.getByRole('option', { name })).toBeVisible();
 }
 
-test('Files: tap opens, long press and ⋯ show the actions, move and delete without dragging', async ({ page, problems: _ }) => {
+test('Files: tap opens, long press and ⋯ show the actions, move, delete into the trash and restore without dragging', async ({ page, problems: _ }) => {
 	await page.goto('/files');
 	await newFolder(page, 'Docs');
 	await newFolder(page, 'Inbox');
@@ -60,8 +60,23 @@ test('Files: tap opens, long press and ⋯ show the actions, move and delete wit
 	await expect(page.getByRole('option', { name: 'Archive' })).toHaveAttribute('aria-selected', 'true');
 	await page.getByRole('button', { name: 'Actions for the selection' }).tap();
 	await page.getByRole('menuitem', { name: 'Delete' }).tap();
-	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).tap();
+	// Deleting moves into the trash without a question; the message offers to undo it
 	await expect(page.getByRole('option', { name: 'Archive' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Undo' }).tap();
+	await expect(page.getByRole('option', { name: 'Archive' })).toBeVisible();
+	await page.getByRole('button', { name: 'Actions for “Archive”' }).tap();
+	await page.getByRole('menuitem', { name: 'Delete' }).tap();
+	await expect(page.getByRole('option', { name: 'Archive' })).toHaveCount(0);
+
+	// The trash (in the menu of the open folder on phones) restores it where it was
+	await page.getByRole('button', { name: 'Actions for “Docs”' }).tap();
+	await page.getByRole('menuitem', { name: 'Trash' }).tap();
+	const trash = page.getByRole('dialog');
+	await expect(trash.getByText('Archive', { exact: true })).toBeVisible();
+	await trash.getByRole('button', { name: 'Restore' }).tap();
+	await expect(trash.getByText('The trash is empty.')).toBeVisible();
+	await trash.getByRole('button', { name: 'Close' }).tap();
+	await expect(page.getByRole('option', { name: 'Archive' })).toBeVisible();
 });
 
 test('Text Editor: wraps lines and switches between editor and Markdown preview', async ({ page, problems }) => {

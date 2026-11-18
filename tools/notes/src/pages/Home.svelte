@@ -7,16 +7,16 @@
 	import { page } from '$app/state';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { debug } from '@in-browser/brand/debug.js';
-	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 	import { read, supported, watch } from '@in-browser/files/fs.js';
+	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { basename, isInside, normalize, parent, stem } from '@in-browser/files/path.js';
 	import { editorUrl } from '#lib/brand.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
-	import { chooseNotebook, createNotebook, createNotebookFromPdf, deleteNotebook, lastFolder, listNotebooks, type NotebookEntry } from '#lib/model/store.js';
+	import { chooseNotebook, createNotebook, createNotebookFromPdf, lastFolder, listNotebooks, type NotebookEntry } from '#lib/model/store.js';
 	import { PdfError, readPdfPages } from '#lib/render/pdf.js';
 	import { NOTEBOOK_EXT } from '#lib/model/types.js';
 
@@ -112,11 +112,10 @@
 		if (path) await open(path);
 	}
 
+	/** Into the trash (the message offers to undo it) */
 	async function remove(entry: NotebookEntry) {
-		const ok = await ask({ ...m.home.deleteQuestion, message: m.home.deleteQuestion.message(entry.name), danger: true });
-		if (!ok) return;
 		try {
-			await deleteNotebook(entry.path);
+			await deleteToTrash([entry.path], () => void refresh());
 			notebooks = notebooks?.filter((n) => !isInside(n.path, entry.path)) ?? null;
 		} catch (e) {
 			toast(m.home.failed(filesErrorText(e)), 'error', 8000);

@@ -69,11 +69,6 @@ const en = {
 		hint: 'Double-click opens, right-click shows all actions. Drag items onto a folder to move them, hold Ctrl to copy.'
 	},
 
-	confirm: {
-		deleteTitle: 'Delete for good?',
-		deleteOne: (name: string) => `“${name}” will be deleted with everything in it. This cannot be undone.`,
-		deleteMany: (n: number) => `${n} items will be deleted with everything in them. This cannot be undone.`
-	},
 
 	properties: {
 		title: 'Properties',
@@ -226,7 +221,7 @@ const en = {
 			['Identity', 'Ed25519 key pair per device (WebCrypto, not extractable, IndexedDB). The device ID is the fingerprint of the public key. Signing in signs a nonce together with the DTLS fingerprints of the connection, so no relay can sit in between.'],
 			['Members', 'Hash-chained log of signed entries (create, add, remove, rename), merged on every contact. A removal beats concurrent entries of the removed device; mutual concurrent removals remove both. A device that was offline learns about a removal from any member – if it meets the removed device first, that one can still sync with it until then.'],
 			['One-time key', '100 bits, valid once and for 24 hours, only while the issuing device is online. Proven by HMAC over the DTLS fingerprints in both directions.'],
-			['Sync', 'Three-way comparison per pair of devices against the stored state of the last sync; the device with the smaller ID drives. Newer wins, the other version becomes a conflict copy; SHA-256 avoids needless transfers; many deletions at once wait for confirmation. Folder choice = intersection of both devices, never causes deletions.'],
+			['Sync', 'Three-way comparison per pair of devices against the stored state of the last sync; the device with the smaller ID drives. Newer wins, the other version becomes a conflict copy; SHA-256 avoids needless transfers; many deletions at once wait for confirmation (on either device). Right before overwriting or deleting, the state is compared with the one planned on – what changed meanwhile is left alone. Deletions and replacements from other devices are applied (like Syncthing); what you delete goes into the trash folder, which syncs like any other. Renames in upper/lower case only stay renames. Folder choice = intersection of both devices, never causes deletions.'],
 			['Knowledge', 'Change log with running numbers per device and version vectors: the basis of the hints on devices that are probably not up to date, also when they got changes indirectly.'],
 			['Storage', 'Files in the OPFS (persistence requested); keys, member log, sync state and vectors in IndexedDB.'],
 			['Limits', 'Runs only in an open tab, on phones only in the foreground. What a removed device already has, it keeps. A p2p-node lifts the first limit: a Node process (WebRTC via werift) that joins as a device and keeps the files in a folder on disk.']
@@ -282,6 +277,31 @@ const en = {
 		applyDeletes: 'Delete here too',
 		restoreInstead: 'Restore them instead',
 		runsWhileOpen: 'Syncing runs while any in-browser tool is open in this browser.'
+	},
+
+	/** The trash: what the user deleted, on every device (sidebar, menu at the tool name) */
+	trash: {
+		title: 'Trash',
+		intro: 'What you delete lands here first – on all your devices, so you can get it back on any of them.',
+		elsewhere: 'In a connected folder on your computer and with a p2p-node it is the hidden folder “.in-browser-trash”.',
+		summary: (n: number, size: string) => (n === 1 ? `1 item, ${size}` : `${n} items, ${size}`),
+		nothing: 'The trash is empty.',
+		keep: 'Keep for',
+		days: (n: number) => (n === 1 ? '1 day' : `${n} days`),
+		forever: 'Until I empty it',
+		keepHint: 'Applies to all your devices.',
+		from: (folder: string) => `from ${folder}`,
+		when: (time: string, size: string) => `deleted ${time} · ${size}`,
+		restore: 'Restore',
+		restored: (path: string) => `Restored as “${path}”.`,
+		remove: 'Delete for good',
+		removeTitle: 'Delete for good?',
+		removeMessage: (name: string) => `“${name}” cannot be restored afterwards – on none of your devices.`,
+		empty: 'Empty trash',
+		emptyTitle: 'Empty the trash?',
+		emptyMessage: (n: number) => (n === 1 ? '1 item is deleted for good, on all your devices.' : `${n} items are deleted for good, on all your devices.`),
+		more: (n: number) => `${n} more – restore or delete some first.`,
+		close: 'Close'
 	}
 };
 

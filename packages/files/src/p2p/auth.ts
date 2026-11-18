@@ -13,7 +13,8 @@ import { mergeOps, resolve, verifyOps, type Group, type Op } from './members.js'
 // HMAC over the fingerprints, the inviting device answers with its own, then signs the `add` entry.
 
 /** Version of the P2P protocol; devices with another one show “please update” instead of syncing */
-export const PROTOCOL = 1;
+/** 2: sessions check the expected state before overwriting or deleting, renames, deletions confirmed on either side */
+export const PROTOCOL = 2;
 
 export interface HelloAnswer {
 	v: number;

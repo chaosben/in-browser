@@ -1,8 +1,9 @@
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { identityOf, type Identity } from '@in-browser/files/p2p/identity.js';
 import { emptyState, type P2pState, type Store } from '@in-browser/files/p2p/store.js';
 import type { Base, BaseEntry } from '@in-browser/files/sync/plan.js';
+import { canFlush, syncDir } from './durable.js';
 
 // What the p2p-node keeps about the sync, as JSON files in its instance folder (readable by its user only):
 // `identity.json` (key pair), `state.json`, `bases/<device>.json`. Unlike the browser, the private key must be
@@ -20,11 +21,13 @@ async function readJson<T>(file: string): Promise<T | undefined> {
 	}
 }
 
-/** Written to a temporary file first, so a crash never leaves half a file */
+/** Written to a temporary file first (and flushed where allowed), so a crash never leaves half a file */
 async function writeJson(file: string, value: unknown) {
 	const temp = `${file}.${process.pid}.tmp`;
-	await writeFile(temp, JSON.stringify(value), { mode: 0o600 });
+	await writeFile(temp, JSON.stringify(value), { mode: 0o600, flush: await canFlush(dirname(file)) });
 	await rename(temp, file);
+	// The rename itself reaches the disk only with its folder
+	await syncDir(dirname(file));
 }
 
 interface StoredIdentity {

@@ -52,6 +52,17 @@ const de: FilesMessages = {
 		manage: 'In Files verwalten'
 	},
 
+	trash: {
+		moved: (name) => `„${name}“ liegt im Papierkorb.`,
+		movedMany: (n) => `${n} Elemente liegen im Papierkorb.`,
+		undo: 'Rückgängig'
+	},
+
+	folderSync: {
+		browser: 'Browser',
+		folder: 'Ordner'
+	},
+
 	p2p: {
 		conflictLabel: (device) => `Konflikt ${device}`,
 		connected: (online, total) => `${online} von ${total} Geräten verbunden`,

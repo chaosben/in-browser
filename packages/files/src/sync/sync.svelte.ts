@@ -1,8 +1,11 @@
-import { mkdir, remove, rootHandle, watch, writable } from '../fs.js';
-import { basename, nameProblem, parent, segments } from '../path.js';
+import { watch } from '../fs.js';
+import { filesMessages } from '../i18n/index.svelte.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
-import { deletedLocalFiles, holdDeletes, plan, type Base, type BaseEntry, type Op, type Snapshot } from './plan.js';
-import { DIR, scan, stateOf } from './scan.js';
+import { runSync, treeSide } from './apply.js';
+import { handleTree } from './handle-tree.js';
+import { opfsTree } from './opfs-tree.js';
+import type { Base, BaseEntry, Op } from './plan.js';
+import { cleanTrash } from '../trash.js';
 import { journal } from './journal.svelte.js';
 import type { LogFn } from './log.js';
 import { startP2p } from '../p2p/p2p.svelte.js';
@@ -14,6 +17,9 @@ import { startP2p } from '../p2p/p2p.svelte.js';
 //   after changes in the browser (`watch`), when the folder changes (`FileSystemObserver`, where available) and
 //   every 30 s. The other tabs show its status (BroadcastChannel `files:sync`) and send it their requests.
 // - It only runs while the browser grants access (`queryPermission`); asking again needs a click (`renewAccess`).
+// - Planning and carrying out is shared with the P2P sync (`apply.ts`): nothing that changed since the plan is
+//   overwritten or deleted, the losing version of a change on both sides becomes a conflict copy. The trash
+//   (`/.in-browser-trash/`, `trash.ts`) is synced into the folder like any other folder.
 // - Deletions in the browser (Files, tools) always reach the folder. Deletions in the folder reach the browser
 //   right away only when they are few; many at once, or a folder emptied completely, wait for confirmation
 //   (`applyDeletes`/`restoreDeleted`) – it could also be a sync tool or drive acting up. No check is needed for the
@@ -50,6 +56,8 @@ export function syncSupported() {
 const HANDLE = 'handle';
 const BASE = 'base';
 const INTERVAL = 30_000;
+/** Expired trash entries are removed this often */
+const TRASH_INTERVAL = 60 * 60 * 1000;
 
 type Request = 'run' | 'applyDeletes' | 'restoreDeleted' | 'status?';
 type Message = { status: SyncStatus } | { request: Request };
@@ -70,6 +78,7 @@ function send(request: Request) {
 /** Starts the sync machinery in this tab (once per tab; call in the layout of every tool). */
 export function startSync() {
 	startP2p();
+	startTrashCleaning();
 	if (started || !syncSupported()) return;
 	started = true;
 	channel = new BroadcastChannel('files:sync');
@@ -87,6 +96,17 @@ export function startSync() {
 		// Hold the lock as long as the tab lives
 		return new Promise<never>(() => {});
 	});
+}
+
+let cleaning = false;
+
+/** Expired trash entries go, in one tab at a time (every browser, also without a folder or other devices) */
+function startTrashCleaning() {
+	if (cleaning || typeof navigator === 'undefined' || !navigator.locks || !navigator.storage?.getDirectory) return;
+	cleaning = true;
+	const clean = () => navigator.locks.request('files:trash-clean', { ifAvailable: true }, async (lock) => lock && cleanTrash(opfsTree));
+	setTimeout(clean, 5000);
+	setInterval(clean, TRASH_INTERVAL);
 }
 
 // --- Requests from the UI (any tab) ---
@@ -196,51 +216,34 @@ async function run(): Promise<void> {
 		}
 		publish({ folder: folder.name, state: 'syncing' });
 		observe(folder);
+		const disk = handleTree(folder);
 		const base: Base = new Map((await idbGet<[string, BaseEntry][]>(BASE)) ?? []);
-		const local = await scan(await rootHandle());
-		const disk = await scan(folder);
+		const local = await opfsTree.scan();
+		const remote = await disk.scan();
+		log('folder.start', { folder: folder.name, local: local.size, disk: remote.size, base: base.size });
 
-		let ops = plan(local, disk, base);
-		log('folder.start', { folder: folder.name, local: local.size, disk: disk.size, base: base.size });
-		for (const op of ops) {
-			if (op.type === 'remember' && base.has(op.path)) continue;
-			const b = base.get(op.path);
-			log('folder.plan', { ...op, local: local.get(op.path) ?? null, disk: disk.get(op.path) ?? null, baseLocal: b?.local ?? null, baseDisk: b?.disk ?? null });
-		}
-		const deletes = deletedLocalFiles(ops);
-		let pendingDeletes = 0;
-		if (!deletesAllowed && holdDeletes(ops, disk, base)) {
-			pending = ops.filter(isLocalDelete);
-			log('folder.deletesHeld', { count: pending.length });
-			ops = ops.filter((op) => !isLocalDelete(op));
-			pendingDeletes = deletes;
-		} else pending = [];
+		const m = filesMessages();
+		const allowDeletes = deletesAllowed;
 		deletesAllowed = false;
-
-		let failed = 0;
 		applying = true;
+		let result;
 		try {
-			for (const [i, op] of ops.entries()) {
-				try {
-					await apply(op, folder, local, disk, base);
-				} catch (e) {
-					failed++;
-					console.error('[Sync]', op, e);
-					log('folder.failed', { ...op, error: e instanceof Error ? e.message : String(e) });
-				}
-				if (i % 50 === 49) await saveBase(base);
-			}
+			result = await runSync(opfsTree, treeSide(disk), local, remote, {
+				base,
+				saveBase,
+				conflictLabel: (side) => m.p2p.conflictLabel(side === 'mine' ? m.folderSync.browser : m.folderSync.folder),
+				hold: ['deleteLocal'],
+				allowDeletes,
+				// The log of the folder sync names its events `folder.…`
+				log: (event, data) => log(event.replace(/^sync\./, 'folder.'), data)
+			});
 		} finally {
 			applying = false;
 		}
-		await saveBase(base);
-		log('folder.done', { applied: ops.length - failed, failed, pendingDeletes });
-		publish({
-			state: 'idle',
-			lastSync: Date.now(),
-			failed: failed + ops.filter((op) => op.type === 'conflict').length,
-			pendingDeletes
-		});
+		pending = result.held;
+		publish({ state: 'idle', lastSync: Date.now(), failed: result.failed, pendingDeletes: result.pendingDeletes });
+		// Something changed while the run went on: plan again soon instead of waiting for the interval
+		if (result.skipped) schedule(2000);
 	} finally {
 		running = false;
 		if (again) {
@@ -249,8 +252,6 @@ async function run(): Promise<void> {
 		}
 	}
 }
-
-const isLocalDelete = (op: Op) => op.type === 'deleteLocal';
 
 /** Instead of deleting: drop the pending paths from the base, so the next run copies them back as new */
 async function restorePending() {
@@ -262,70 +263,3 @@ async function restorePending() {
 }
 
 const saveBase = (base: Base) => idbSet(BASE, [...base]);
-
-async function diskDir(root: FileSystemDirectoryHandle, path: string, create = false) {
-	let dir = root;
-	for (const name of segments(path)) dir = await dir.getDirectoryHandle(name, { create });
-	return dir;
-}
-
-async function apply(op: Op, folder: FileSystemDirectoryHandle, local: Snapshot, disk: Snapshot, base: Base) {
-	const { path } = op;
-	switch (op.type) {
-		case 'toDisk': {
-			const source = await (await fileIn(await rootHandle(), path)).getFile();
-			const target = await (await diskDir(folder, parent(path), true)).getFileHandle(basename(path), { create: true });
-			await source.stream().pipeTo(await target.createWritable());
-			base.set(path, { local: stateOf(source), disk: stateOf(await target.getFile()) });
-			break;
-		}
-		case 'toLocal': {
-			// Names that are fine on this disk but not everywhere (e.g. `a:b` on Linux) stay out of the browser
-			if (segments(path).some((name) => nameProblem(name))) throw new Error(`Invalid name: ${path}`);
-			const source = await (await fileIn(folder, path)).getFile();
-			await source.stream().pipeTo(await writable(path));
-			const target = await (await fileIn(await rootHandle(), path)).getFile();
-			base.set(path, { local: stateOf(target), disk: stateOf(source) });
-			break;
-		}
-		case 'mkdirDisk':
-			await diskDir(folder, path, true);
-			base.set(path, { local: DIR, disk: DIR });
-			break;
-		case 'mkdirLocal':
-			if (segments(path).some((name) => nameProblem(name))) throw new Error(`Invalid name: ${path}`);
-			await mkdir(path);
-			base.set(path, { local: DIR, disk: DIR });
-			break;
-		case 'deleteLocal':
-			// Folders only when empty: files that are new inside them stay (and get copied to the other side)
-			if (op.kind === 'file' || (await isEmpty(await diskDir(await rootHandle(), path)))) await remove(path);
-			base.delete(path);
-			break;
-		case 'deleteDisk': {
-			const dir = await diskDir(folder, parent(path)).catch(() => null);
-			if (dir && (op.kind === 'file' || (await isEmpty(await dir.getDirectoryHandle(basename(path)))))) {
-				await dir.removeEntry(basename(path));
-			}
-			base.delete(path);
-			break;
-		}
-		case 'remember':
-			base.set(path, { local: local.get(path)!, disk: disk.get(path)! });
-			break;
-		case 'forget':
-			base.delete(path);
-			break;
-		case 'conflict':
-			break;
-	}
-}
-
-async function fileIn(root: FileSystemDirectoryHandle, path: string) {
-	return (await diskDir(root, parent(path))).getFileHandle(basename(path));
-}
-
-async function isEmpty(dir: FileSystemDirectoryHandle) {
-	for await (const _ of dir.keys()) return false;
-	return true;
-}

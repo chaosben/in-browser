@@ -23,6 +23,12 @@ Your devices sync their files directly with each other over WebRTC, without a se
 connection offers pass through public Nostr relays. A device syncs while in-browser is open on it; to keep the
 files moving while no browser is open, run a [p2p-node](packages/p2p-node/README.md) on a computer or home server.
 
+Both syncs (devices and a folder on disk) share one way of applying changes (`packages/files/src/sync/apply.ts`):
+the newer version wins and the other one becomes a conflict copy; nothing that changed after a sync planned it is
+overwritten or deleted; deletions and replacements from the other side are applied (like Syncthing). What the user
+deletes goes into the trash, the hidden folder `/.in-browser-trash/` (`packages/files/src/trash.ts`), which syncs to
+every device like any other folder and is emptied after a retention picked in Files (7, 30, 90 days or never).
+
 Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest, Playwright. The UI is
 available in English and German (following the browser language).
 

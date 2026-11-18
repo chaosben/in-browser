@@ -24,11 +24,6 @@ const de: Messages = {
 		pages: (n) => (n === 1 ? '1 Seite' : `${n} Seiten`),
 		loadFailed: (error) => `Die Notizbücher konnten nicht aufgelistet werden: ${error}`,
 		actions: (name) => `Aktionen für ${name}`,
-		deleteQuestion: {
-			title: 'Notizbuch löschen?',
-			message: (name) => `„${name}“ wird mit allen Seiten gelöscht.`,
-			confirm: 'Löschen'
-		},
 		failed: (error) => `Das hat nicht geklappt: ${error}`,
 		importPdf: 'PDF importieren',
 		importing: 'PDF wird gelesen …'

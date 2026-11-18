@@ -24,11 +24,6 @@ const en = {
 		pages: (n: number) => (n === 1 ? '1 page' : `${n} pages`),
 		loadFailed: (error: string) => `The notebooks could not be listed: ${error}`,
 		actions: (name: string) => `Actions for ${name}`,
-		deleteQuestion: {
-			title: 'Delete notebook?',
-			message: (name: string) => `“${name}” and all its pages will be deleted.`,
-			confirm: 'Delete'
-		},
 		failed: (error: string) => `That did not work: ${error}`,
 		importPdf: 'Import PDF',
 		importing: 'Reading the PDF …'
