@@ -5,7 +5,7 @@
 	import { formatsOf } from './formats.js';
 	import { list, mkdir, type Entry } from './fs.js';
 	import { filesErrorText, filesMessages } from './i18n/index.svelte.js';
-	import { extname, isConnected, join, nameKey, nameProblem, parent, placeRoot, segments } from './path.js';
+	import { extname, join, nameKey, nameProblem, parent, placeRoot, segments } from './path.js';
 	import { FilesError } from './fs.js';
 	import { accessAction, connectionLabel, connections } from './sources/connections.svelte.js';
 
@@ -75,14 +75,13 @@
 		anchor = null;
 		entries = null;
 		try {
-			// Folders of My files the tool asks for are created; connected folders are only read
-			if (!isConnected(path)) await mkdir(path);
 			const result = await list(path);
 			folder = path;
 			entries = result;
 			return null;
 		} catch (e) {
-			console.error(e);
+			// A gone folder is expected (e.g. the start folder deleted meanwhile)
+			if (!(e instanceof FilesError && e.code === 'notFound')) console.error(e);
 			error = filesErrorText(e);
 			access = accessAction(e, () => void load(path));
 			entries = [];
@@ -96,11 +95,13 @@
 			if (!options) return;
 			name = options.name ?? '';
 			newFolder = null;
-			// A connected folder that is gone: My files instead
-			const start = options.folder;
-			void load(start).then((e) => {
-				if (e instanceof FilesError && e.code === 'notFound' && isConnected(start)) void load('/');
-			});
+			// The start folder is never created: one that is gone opens the next folder above it (above a connection
+			// that is gone: My files)
+			const from = async (path: string): Promise<void> => {
+				const e = await load(path);
+				if (e instanceof FilesError && e.code === 'notFound' && path !== '/') return from(path === placeRoot(path) ? '/' : parent(path));
+			};
+			void from(options.folder);
 		});
 		node.showModal();
 	}

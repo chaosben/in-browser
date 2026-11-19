@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 
-// Notes in one flow: create, draw, undo/redo, erase, drag a shape, move its tip and dash it, turn a freehand arrow into a
+// Notes in one flow: create (the file dialog not recreating a gone start folder), draw, undo/redo, erase, drag a shape, move its tip and dash it, turn a freehand arrow into a
 // shape, saved across a reload, insert an image and a PDF, export. The drawing logic itself (lasso, pixel
 // eraser, shapes, formats) is covered by the unit and browser specs in tools/notes.
 
@@ -75,9 +75,16 @@ async function pdf(): Promise<Buffer> {
 
 test('draws, undoes, erases, keeps strokes, inserts an image and a PDF, exports', async ({ page, problems: _ }) => {
 	await page.goto('/notes');
+	// The folder used last is gone: the file dialog opens the one above instead of creating it again
+	await page.evaluate(() => localStorage.setItem('notes:folder', '/Gone/Deeper'));
 	await page.getByRole('button', { name: 'New notebook' }).click();
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByTestId('surface')).toBeVisible();
+	const gone = await page.evaluate(async () => {
+		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files');
+		return root.getDirectoryHandle('Gone').then(() => false, () => true);
+	});
+	expect(gone).toBe(true);
 
 	await draw(page);
 	await draw(page, 80);

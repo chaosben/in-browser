@@ -48,7 +48,7 @@ const help: typeof enHelp = {
 			},
 			saveNew: {
 				title: 'Einen neuen Text speichern',
-				text: '„Unbenannt“-Texte und Dateien vom Rechner haben noch keinen Ort: Der Knopf „Speichern …“ in der oberen Leiste (und Strg+S) fragt nach Ordner und Namen im Browserspeicher. Der Dialog startet im zuletzt benutzten Ordner. Danach speichert sich die Datei selbst wie jede andere. Die Endung des Namens bestimmt die Hervorhebung – „notizen.md“ wird Markdown.'
+				text: '„Unbenannt“-Texte und Dateien vom Rechner haben noch keinen Ort: Der Knopf „Speichern …“ in der oberen Leiste (und Strg+S) fragt nach Ordner und Namen im Browserspeicher. Der Dialog startet im zuletzt benutzten Ordner (gibt es ihn nicht mehr, im nächsten darüber). Danach speichert sich die Datei selbst wie jede andere. Die Endung des Namens bestimmt die Hervorhebung – „notizen.md“ wird Markdown.'
 			},
 			saveAs: {
 				title: 'Speichern unter',

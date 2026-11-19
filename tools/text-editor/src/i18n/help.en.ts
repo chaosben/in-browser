@@ -52,7 +52,7 @@ const help = {
 			},
 			saveNew: {
 				title: 'Saving a new text',
-				text: '“Untitled” texts and files opened from your computer have no place yet: the button “Save …” in the top bar (and Ctrl+S) asks for folder and name in the browser storage. The dialog starts in the folder you used last. After that the file saves itself like any other. The ending of the name decides the highlighting – “notes.md” becomes Markdown.'
+				text: '“Untitled” texts and files opened from your computer have no place yet: the button “Save …” in the top bar (and Ctrl+S) asks for folder and name in the browser storage. The dialog starts in the folder you used last (if it is gone, in the next folder above it). After that the file saves itself like any other. The ending of the name decides the highlighting – “notes.md” becomes Markdown.'
 			},
 			saveAs: {
 				title: 'Save as',
