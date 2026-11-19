@@ -19,6 +19,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest --run",
 		"test:watch": "vitest",
+		"icons": "vitest --run packages/brand/src/tool-icons.spec.ts --update",
 		"deploy": "npm run build && node packages/p2p-node/scripts/check-release.ts && wrangler deploy",
 		"deploy:check": "npm run build && node packages/p2p-node/scripts/check-release.ts && wrangler deploy --dry-run",
 		"preview:cf": "npm run build && wrangler dev",

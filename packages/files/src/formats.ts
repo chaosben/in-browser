@@ -15,8 +15,6 @@ export interface Format {
 	tool: ToolSlug;
 	/** Page that opens it; gets `?path=<path>` */
 	open: string;
-	/** Icon of the tool (its favicon) */
-	icon: string;
 	/**
 	 * Only offered under "Open with …": the file belongs to another kind (e.g. SVG is an image, previewed in Files)
 	 * and is never opened by double-click, nor does it give the file its icon or kind
@@ -58,35 +56,31 @@ export const FORMATS: readonly Format[] = [
 		ext: '.screencapture',
 		kind: 'package',
 		tool: 'screen-capture',
-		open: '/screen-capture/editor',
-		icon: '/screen-capture/favicon.svg'
+		open: '/screen-capture/editor'
 	},
 	{
 		ext: '.note',
 		kind: 'package',
 		tool: 'notes',
-		open: '/notes/editor',
-		icon: '/notes/favicon.svg'
+		open: '/notes/editor'
 	},
 	// A PDF becomes a new notebook to write on (Notes asks where it goes)
 	{
 		ext: '.pdf',
 		kind: 'file',
 		tool: 'notes',
-		open: '/notes',
-		icon: '/notes/favicon.svg'
+		open: '/notes'
 	},
 	...TEXT_EXTENSIONS.map(
 		(ext): Format => ({
 			ext,
 			kind: 'file',
 			tool: 'text-editor',
-			open: '/text-editor',
-			icon: '/text-editor/favicon.svg'
+			open: '/text-editor'
 		})
 	),
 	// An image whose text can be edited
-	{ ext: '.svg', kind: 'file', tool: 'text-editor', open: '/text-editor', icon: '/text-editor/favicon.svg', fallback: true }
+	{ ext: '.svg', kind: 'file', tool: 'text-editor', open: '/text-editor', fallback: true }
 ];
 
 /**

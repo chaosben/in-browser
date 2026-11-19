@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { extname, stem } from '@in-browser/files/path.js';
+	import { stem } from '@in-browser/files/path.js';
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
 	import { acceptsDrag, copyKey, dropOnFolder, startDrag } from '#lib/dnd.js';
-	import type { Item, SortKey } from '#lib/items.js';
+	import { kindLabel, type Item, type SortKey } from '#lib/items.js';
 	import { clipboard, type Manager } from '#lib/manager.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
@@ -29,12 +29,7 @@
 
 	const cut = $derived(clipboard.current?.mode === 'cut' ? new Set(clipboard.current.paths) : new Set<string>());
 
-	function kindOf(item: Item) {
-		if (item.folder) return t.kinds.folder;
-		if (item.formats[0]) return t.kinds.package(toolName(item.formats[0].tool));
-		const ext = extname(item.name).slice(1).toUpperCase();
-		return ext ? t.kinds.fileType(ext) : t.kinds.file;
-	}
+	const kindOf = (item: Item) => kindLabel(item, t.kinds, toolName);
 
 	/** The current press is a finger (or pen): a tap opens, or toggles while something is selected */
 	let touch = false;

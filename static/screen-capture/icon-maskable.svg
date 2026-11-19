@@ -1,13 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
 	<title>Screen Capture</title>
-	<!-- Full-bleed background; motif inside the safe zone (middle 80 %) for round/cropped app icons -->
-	<rect width="64" height="64" fill="#1c1f25"/>
-	<g transform="translate(9.6 9.6) scale(0.7)">
-		<rect x="4" y="10" width="56" height="38" rx="6" fill="#e5e7eb"/>
-		<rect x="8" y="14" width="48" height="30" rx="3" fill="#3b82f6"/>
-		<rect x="24" y="50" width="16" height="4" rx="1" fill="#e5e7eb"/>
-		<rect x="16" y="54" width="32" height="4" rx="2" fill="#e5e7eb"/>
-		<circle cx="32" cy="29" r="9" fill="#fff"/>
-		<circle cx="32" cy="29" r="6" fill="#ef4444"/>
-	</g>
+	<!-- Generated from packages/brand/src/tool-icons.ts by `npm run icons` -->
+	<rect width="24" height="24" fill="#dc2626"/>
+	<g transform="translate(5.4 5.4) scale(.55)"><path fill="#fff" d="M3.95 17.95q-.925-1.25-1.437-2.762T2 12t.5-3.175t1.425-2.75L5.375 7.5q-.65.95-1.012 2.087T4 12t.363 2.425t1.012 2.1zM12 22q-1.675 0-3.175-.5t-2.75-1.425l1.425-1.45q.95.65 2.087 1.013T12 20t2.413-.363t2.087-1.012l1.425 1.45q-1.25.925-2.75 1.425T12 22m8.05-4.05l-1.425-1.425q.65-.95 1.013-2.1T20 12t-.363-2.413T18.626 7.5l1.45-1.425Q21 7.325 21.5 8.825T22 12t-.513 3.188t-1.437 2.762M7.475 5.375L6.05 3.95q1.25-.925 2.763-1.437T12 2q1.7 0 3.2.513t2.75 1.437l-1.425 1.425q-.95-.65-2.1-1.012T12 4t-2.425.363t-2.1 1.012M12 17q-2.075 0-3.537-1.463T7 12t1.463-3.537T12 7t3.538 1.463T17 12t-1.463 3.538T12 17"/></g>
 </svg>

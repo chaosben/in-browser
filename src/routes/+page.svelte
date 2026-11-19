@@ -93,8 +93,9 @@ const lacks = (tool: Tool) => (tool.requires && missing.includes(tool.requires) 
 										<img src={tool.icon} alt="" class="size-14 sm:size-11" width="56" height="56" />
 										{#if need}<span class="absolute -right-1 -bottom-1">{@render badge(need)}</span>{/if}
 									</span>
-									<span class="flex min-w-0 flex-col">
-										<span class="line-clamp-2 text-xs sm:line-clamp-1 sm:text-[15px] sm:font-semibold">
+									<span class="flex max-w-full min-w-0 flex-col">
+										<!-- Long names (German compounds) hyphenate in the narrow phone grid -->
+										<span class="line-clamp-2 hyphens-auto wrap-break-word text-xs sm:line-clamp-1 sm:text-[15px] sm:font-semibold">
 											{text.name}{#if need}<span class="sr-only"> {m.requires[need].label}</span>{/if}
 										</span>
 										<span class="text-base-content/70 hidden truncate text-[13px] sm:block">{text.summary}</span>

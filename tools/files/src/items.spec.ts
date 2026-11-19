@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matches, sortItems, toItem } from './items';
+import { kindLabel, matches, sortItems, toItem } from './items';
 
 const file = (name: string, size = 0, modified = 0) => toItem({ name, path: `/${name}`, kind: 'file', size, modified });
 const folder = (name: string) => toItem({ name, path: `/${name}`, kind: 'directory' });
@@ -39,5 +39,17 @@ describe('matches', () => {
 		expect(matches(file('Projekt Demo.txt'), 'demo proj')).toBe(true);
 		expect(matches(file('Projekt Demo.txt'), 'demo zebra')).toBe(false);
 		expect(matches(file('a.txt'), '  ')).toBe(true);
+	});
+});
+
+describe('kindLabel', () => {
+	const t = { folder: 'Folder', file: 'File', fileType: (ext: string) => `${ext} file`, package: (tool: string) => `${tool} project` };
+	const label = (item: ReturnType<typeof toItem>) => kindLabel(item, t, (slug) => slug);
+
+	it('names projects by their tool, plain files by their extension even if a tool opens them', () => {
+		expect(label(folder('Demo.note'))).toBe('notes project');
+		expect(label(folder('Plain'))).toBe('Folder');
+		expect(label(file('readme.md'))).toBe('MD file');
+		expect(label(file('Makefile'))).toBe('File');
 	});
 });

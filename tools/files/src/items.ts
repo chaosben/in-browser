@@ -21,6 +21,23 @@ export function toItem(entry: Entry): Item {
 	return { ...entry, folder: entry.kind === 'directory' && formats.length === 0, formats, openWith };
 }
 
+/** Texts of the kind column (`filesMessages().kinds`) */
+interface KindTexts {
+	folder: string;
+	file: string;
+	fileType: (ext: string) => string;
+	package: (tool: string) => string;
+}
+
+/** What the entry is, for the kind column and the properties: folder, a tool's project, or "<EXT> file" */
+export function kindLabel(item: Item, t: KindTexts, toolName: (slug: Format['tool']) => string): string {
+	if (item.folder) return t.folder;
+	const pkg = item.formats.find((f) => f.kind === 'package');
+	if (pkg) return t.package(toolName(pkg.tool));
+	const ext = extname(item.name).slice(1).toUpperCase();
+	return ext ? t.fileType(ext) : t.file;
+}
+
 export type SortKey = 'name' | 'kind' | 'size' | 'modified';
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });

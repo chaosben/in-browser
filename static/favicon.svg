@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
 	<title>in-browser</title>
-	<!-- in-browser mark: browser window with cursor brackets (as in the BrandBar) -->
-	<rect x="4" y="9" width="56" height="46" rx="8" fill="#1f2937"/>
-	<rect x="4" y="9" width="56" height="12" rx="8" fill="#3b82f6"/>
-	<rect x="4" y="15" width="56" height="6" fill="#3b82f6"/>
-	<path d="M25 30l-7 7 7 7M39 30l7 7-7 7" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+	<!-- Generated from packages/brand/src/tool-icons.ts by `npm run icons` -->
+	<rect width="24" height="24" rx="5.5" fill="#0284c7"/>
+	<g transform="translate(3 3) scale(.75)"><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M2.5 8.5h19"/><path d="M9.5 11.5l-2.5 2.5 2.5 2.5M14.5 11.5l2.5 2.5-2.5 2.5"/></g></g>
 </svg>

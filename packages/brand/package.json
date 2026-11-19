@@ -11,5 +11,8 @@
 			"default": "./src/*.svelte"
 		},
 		"./*.js": "./src/*.ts"
+	},
+	"devDependencies": {
+		"@iconify-json/material-symbols": "^1.2.100"
 	}
 }

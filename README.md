@@ -42,6 +42,7 @@ npm run check       # type check
 npm test            # unit tests (Node) and browser tests (headless Chromium)
 npm run build       # static build into build/, plus the p2p-node into build/p2p-node/
 npm run test:e2e    # build, then end-to-end tests against the local Worker
+npm run icons       # rewrite favicons and app icons from packages/brand/src/tool-icons.ts
 ```
 
 Browser tests and end-to-end tests need Chromium for Playwright once:

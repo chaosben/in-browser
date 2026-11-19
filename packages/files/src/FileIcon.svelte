@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { TOOL_ICONS } from '@in-browser/brand/tool-icons.js';
 	import { formatsOf } from './formats.js';
 	import { previewKind } from './kinds.js';
 
 	// The one icon of a file, folder or package – in Files, the file dialog and every tool, so they look the same.
-	// Packages show their tool's icon; plain files keep the icon of their kind even if a tool opens them.
+	// Packages show their tool's glyph in its color; plain files keep the icon of their kind even if a tool opens them.
 
 	interface Props {
 		name: string;
@@ -20,7 +21,8 @@
 </script>
 
 {#if format}
-	<img src={format.icon} alt="" class="{size} shrink-0" />
+	{@const icon = TOOL_ICONS[format.tool]}
+	<span class="{icon.class} {size} shrink-0" style:color={icon.color} aria-hidden="true"></span>
 {:else if kind === 'directory' && remote}
 	<span class="icon-[material-symbols-light--cloud-outline] text-folder {size} shrink-0" aria-hidden="true"></span>
 {:else if kind === 'directory'}

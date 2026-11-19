@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { list } from '@in-browser/files/fs.js';
 	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { extname, parent } from '@in-browser/files/path.js';
+	import { parent } from '@in-browser/files/path.js';
 	import { displayPath } from '@in-browser/files/sources/registry.js';
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
-	import type { Item } from '#lib/items.js';
+	import { kindLabel, type Item } from '#lib/items.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 
@@ -14,12 +14,7 @@
 	/** Totals of a folder or package, counted once when the dialog opens */
 	let totals = $state<{ size: number; files: number; folders: number; modified: number } | null>(null);
 
-	const kind = $derived.by(() => {
-		if (item.folder) return t.kinds.folder;
-		if (item.formats[0]) return t.kinds.package(toolName(item.formats[0].tool));
-		const ext = extname(item.name).slice(1).toUpperCase();
-		return ext ? t.kinds.fileType(ext) : t.kinds.file;
-	});
+	const kind = $derived(kindLabel(item, t.kinds, toolName));
 
 	async function count(path: string, into: { size: number; files: number; folders: number; modified: number }) {
 		for (const entry of await list(path)) {
