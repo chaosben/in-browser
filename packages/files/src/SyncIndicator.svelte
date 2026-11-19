@@ -64,7 +64,7 @@
 		if (behind) return { label: p.probablyBehind(behind.name), tone: 'warn' };
 		if (devices && !online.length) return { label: p.waiting, tone: 'idle' };
 		if (devices) return { label: p.connected(online.length, others.length), tone: 'ok' };
-		return { label: t.indicator.synced, tone: 'ok' };
+return { label: t.indicator.synced, tone: 'ok' };
 	});
 
 	function deviceLine(d: DeviceView): string {
@@ -88,7 +88,7 @@
 			for (const d of others) entries.push({ heading: deviceLine(d) });
 			entries.push({ separator: true });
 		}
-		if (syncStatus.folder) {
+if (syncStatus.folder) {
 			entries.push({ heading: t.indicator.folder(syncStatus.folder) });
 			if (syncStatus.state === 'paused') entries.push({ heading: t.indicator.pausedHint });
 			else if (syncStatus.lastSync) entries.push({ heading: t.indicator.lastSync(formatAgo(syncStatus.lastSync, now, lang.current)) });
@@ -126,7 +126,7 @@
 			<span class="icon-[material-symbols-light--devices-outline] size-4 shrink-0 opacity-70" aria-hidden="true"></span>
 		{:else if devices}
 			<span class="icon-[material-symbols-light--devices-outline] text-success size-4 shrink-0" aria-hidden="true"></span>
-		{:else}
+{:else}
 			<span class="icon-[material-symbols-light--cloud-done-outline] text-success size-4 shrink-0" aria-hidden="true"></span>
 		{/if}
 		<span class="hidden truncate sm:inline">{status.label}</span>

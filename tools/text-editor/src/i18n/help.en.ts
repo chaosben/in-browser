@@ -47,7 +47,7 @@ const help = {
 			},
 			connected: {
 				title: 'Texts in a connected folder',
-				text: 'The choice in front of the folder path of the open and save dialog switches between My files and the folders you connected in Files (“Connected”). A text from a connected folder opens and saves right there on your computer, also automatically. When the browser no longer allows access (usually after a restart), the save icon in the bottom bar shows an error, and a message offers “Allow access”; your changes are kept until then and saved after you allow it.',
+				text: 'The choice in front of the folder path of the open and save dialog switches between My files and the folders you connected in Files (“Connected”). A text from a connected folder opens and saves right there on your computer, also automatically. When the browser no longer allows access (usually after a restart), the save icon in the bottom bar shows an error, and a message offers “Allow access”; your changes are kept until then and saved after you allow it. The same goes for folders shown with a cloud (opened live from your other devices) and folders a guest share gives you.',
 				link: { href: '/help/connected', label: 'Connected folders' }
 			},
 			saveNew: {

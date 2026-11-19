@@ -18,6 +18,8 @@ export interface FileDialogOptions {
 	multiple?: boolean;
 	/** Save: an existing file (or package) of an accepted format may be replaced */
 	overwrite?: boolean;
+	/** `false`: only My files, no choice of connected places */
+	places?: false;
 }
 
 interface Open extends FileDialogOptions {

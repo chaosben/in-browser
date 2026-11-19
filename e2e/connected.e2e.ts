@@ -15,10 +15,11 @@ function diskNames(page: Page, path: string[] = []): Promise<string[]> {
 	}, path);
 }
 
-function diskText(page: Page, name: string): Promise<string> {
+/** Text of a file in the folder; `null` while it is being written (reading it then fails) */
+function diskText(page: Page, name: string): Promise<string | null> {
 	return page.evaluate(async (name) => {
 		const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('disk');
-		return (await (await dir.getFileHandle(name)).getFile()).text();
+		return (await (await dir.getFileHandle(name)).getFile()).text().catch(() => null);
 	}, name);
 }
 
@@ -98,4 +99,40 @@ test('connect a folder, work in it live, save from the Text Editor and Notes, de
 	await expect(sidebar.getByRole('treeitem', { name: 'disk' })).toHaveCount(0);
 	await expect(page).toHaveURL(/\/files$/);
 	expect(await diskNames(page)).toEqual(['Mine', 'Notebook.note', 'Photos']);
+});
+
+test('videos play in pieces through the Service Worker, also from My files', async ({ page, problems: _ }) => {
+	await page.goto('/files');
+	// The Service Worker has to control the page (first visit: it installs; the next load is controlled)
+	await page.evaluate(() => navigator.serviceWorker.ready);
+	await page.reload();
+	await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+	// A short real video, recorded from a canvas
+	await page.evaluate(async () => {
+		const canvas = document.createElement('canvas');
+		canvas.width = 160;
+		canvas.height = 90;
+		const ctx = canvas.getContext('2d')!;
+		const recorder = new MediaRecorder(canvas.captureStream(25), { mimeType: 'video/webm' });
+		const parts: Blob[] = [];
+		recorder.ondataavailable = (e) => parts.push(e.data);
+		const done = new Promise((resolve) => (recorder.onstop = resolve));
+		recorder.start();
+		for (let i = 0; i < 20; i++) {
+			ctx.fillStyle = `hsl(${i * 18} 80% 50%)`;
+			ctx.fillRect(0, 0, 160, 90);
+			await new Promise((r) => setTimeout(r, 40));
+		}
+		recorder.stop();
+		await done;
+		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files', { create: true });
+		const writable = await (await root.getFileHandle('clip.webm', { create: true })).createWritable();
+		await writable.write(new Blob(parts, { type: 'video/webm' }));
+		await writable.close();
+	});
+	await page.reload();
+	await page.getByRole('option', { name: 'clip.webm' }).dblclick();
+	const video = page.getByRole('dialog').locator('video');
+	await expect(video).toHaveAttribute('src', /^\/_live\//);
+	await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(1);
 });

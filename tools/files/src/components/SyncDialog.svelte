@@ -2,7 +2,7 @@
 	import { m } from '#lib/i18n/index.js';
 	import DevicesPanel from './DevicesPanel.svelte';
 	import LogSection from './LogSection.svelte';
-	import SyncPanel from './SyncPanel.svelte';
+import SyncPanel from './SyncPanel.svelte';
 
 	// Everything about syncing in one dialog: your other devices and the folder on this computer. Opened from the
 	// sidebar entry, the button on narrow screens and “Manage …” in the footer of every tool (`/files?panel=sync`).
@@ -26,7 +26,7 @@
 		<h3 class="text-lg font-bold">{m.syncHub.title}</h3>
 		<DevicesPanel />
 		<div class="divider my-0"></div>
-		<SyncPanel />
+<SyncPanel />
 		<div class="divider my-0"></div>
 		<LogSection />
 		<div class="modal-action">

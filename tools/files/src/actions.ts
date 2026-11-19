@@ -113,10 +113,12 @@ export async function paste(manager: Manager, folder = manager.folder) {
 	await manager.refresh();
 }
 
+/** Copies next to the originals (all from one folder: the open one, or a folder in the tree) */
 export async function duplicate(manager: Manager, items: Item[]) {
+	if (!items.length) return;
 	await transfer(
 		items.map((i) => i.path),
-		manager.folder,
+		parent(items[0].path),
 		'copy'
 	);
 	await manager.refresh();

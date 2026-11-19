@@ -3,7 +3,8 @@
 	import { thumbnails } from '#lib/media/visuals.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import type { ImageAsset, Source } from '#lib/project/types.js';
-	import { mediaFile } from '#lib/storage/store.js';
+	import { mediaPath } from '#lib/storage/store.js';
+	import { mediaUrl } from '@in-browser/files/media-url.js';
 	import { setDragPayload } from '#lib/tools/drag.js';
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { m } from '#lib/i18n/index.js';
@@ -23,17 +24,20 @@
 
 	/** Shows an own image from the project folder */
 	function imagePreview(img: HTMLImageElement, image: ImageAsset) {
-		let url: string | undefined;
+		let release: (() => void) | undefined;
 		let cancelled = false;
 		const projectId = untrack(() => editor.project.id);
-		mediaFile(projectId, image.file).then((file) => {
-			if (cancelled) return;
-			url = URL.createObjectURL(file);
-			img.src = url;
-		});
+		mediaUrl(mediaPath(projectId, image.file)).then(
+			(media) => {
+				if (cancelled) return media.release();
+				release = media.release;
+				img.src = media.url;
+			},
+			(e) => console.error(e)
+		);
 		return () => {
 			cancelled = true;
-			if (url) URL.revokeObjectURL(url);
+			release?.();
 		};
 	}
 

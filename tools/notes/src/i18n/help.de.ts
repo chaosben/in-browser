@@ -24,7 +24,7 @@ const help: typeof enHelp = {
 			},
 			connected: {
 				title: 'In einem verbundenen Ordner',
-				text: 'In den Dialogen für ein neues Notizbuch, „Öffnen …“ und den PDF-Import wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Notizbuch dort wird direkt in diesem Ordner auf deinem Rechner gespeichert. Die Startseite zeigt solche Notizbücher, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt.',
+				text: 'In den Dialogen für ein neues Notizbuch, „Öffnen …“ und den PDF-Import wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Notizbuch dort wird direkt in diesem Ordner auf deinem Rechner gespeichert. Die Startseite zeigt solche Notizbücher, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt. Ordner mit einer Wolke (live von deinen anderen Geräten) funktionieren genauso.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
 			sync: {

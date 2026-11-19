@@ -1,5 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { list, stat } from '@in-browser/files/fs.js';
+import { FilesError, list, stat } from '@in-browser/files/fs.js';
 import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 import { join, segments } from '@in-browser/files/path.js';
@@ -29,6 +29,8 @@ export class Manager {
 	folder = $state('/');
 	items = $state.raw<Item[] | null>(null);
 	error = $state<string | null>(null);
+	/** Code of a known failure (`FilesError`), e.g. `offline` for a folder of another device or a guest share */
+	errorCode = $state<string | null>(null);
 	selection = new SvelteSet<string>();
 	/** Entry with the keyboard focus (start of Shift ranges) */
 	focus = $state<string | null>(null);
@@ -69,14 +71,17 @@ export class Manager {
 			if (folder !== this.folder) return;
 			this.items = items;
 			this.error = null;
+			this.errorCode = null;
 			// Drop what is gone from the selection
 			const present = new Set(items.map((i) => i.path));
 			for (const path of this.selection) if (!present.has(path)) this.selection.delete(path);
 		} catch (e) {
 			if (folder !== this.folder) return;
-			console.error(e);
+			// Known states (not reachable, no access, gone) are shown in place; anything else is a bug worth logging
+			if (!(e instanceof FilesError)) console.error(e);
 			this.items = [];
 			this.error = filesErrorText(e);
+			this.errorCode = e instanceof FilesError ? e.code : null;
 		}
 	}
 

@@ -16,7 +16,7 @@ const help: typeof enHelp = {
 			},
 			menus: {
 				title: 'Wo die Aktionen sind',
-				text: 'Der Name des geöffneten Ordners in der oberen Leiste (auf oberster Ebene: „Files“ neben „in-browser“) öffnet das Menü dieses Ordners: „Neuer Ordner“, „Neue Textdatei“, Hochladen, „Einfügen“, „Alles auswählen“, die Ansicht, „Als ZIP herunterladen“, „Eigenschaften“ und „Papierkorb“. Es enthält immer alles, auch was die Knöpfe daneben tun. Ein Rechtsklick auf einen Eintrag zeigt alles, was du mit ihm oder der Auswahl tun kannst; ein Rechtsklick auf die freie Fläche zeigt die Aktionen für den Ordner.'
+				text: 'Der Name des geöffneten Ordners in der oberen Leiste (auf oberster Ebene: „Files“ neben „in-browser“) öffnet das Menü dieses Ordners: „Neuer Ordner“, „Neue Textdatei“, Hochladen, „Einfügen“, „Alles auswählen“, die Ansicht, „Als ZIP herunterladen“, „Eigenschaften“ und „Papierkorb“. Es enthält immer alles, auch was die Knöpfe daneben tun. Ein Rechtsklick auf einen Eintrag zeigt alles, was du mit ihm oder der Auswahl tun kannst; ein Rechtsklick auf die freie Fläche zeigt die Aktionen für den Ordner. Ordner im Baum links haben dasselbe Menü wie in der Liste.'
 			},
 			phone: {
 				title: 'Am Handy',
@@ -161,6 +161,16 @@ const help: typeof enHelp = {
 			delete: {
 				title: 'Löschen in einem verbundenen Ordner',
 				text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser: „Löschen“ fragt erst „Endgültig löschen?“ und löscht dann sofort.'
+			},
+			share: {
+				title: 'Einen Ordner mit einem Gast teilen',
+				text: '„Ordner teilen …“ unter „Freigaben“ in der Seitenleiste (oder „Teilen …“ im Menü eines Ordners in Meine Dateien) erzeugt einen Link und QR-Code für einen Browser außerhalb deiner Geräte – z. B. den Rechner eines Freundes, bei dem du zu Besuch bist. Der Gast sieht nur diesen Ordner, live von diesem Gerät; bei ihm bleibt nichts. Wähle „Nur ansehen“ (Standard) oder „Bearbeiten“. Der Link gilt, bis du die Freigabe beendest, jeweils für einen Browser. Deine Freigaben erscheinen unter „Freigaben“ (grüner Punkt: Gast verbunden); ein Klick zeigt den Link wieder, ein Rechtsklick bietet „Freigabe beenden“.',
+				tip: '„Nur ansehen“, um Dateien weiterzugeben; „Bearbeiten“, wenn der Gast im Ordner speichern oder hochladen soll. Lass in-browser hier offen, solange er ihn nutzt.',
+				link: { href: '/help/connected#share', label: 'Mit einem Gast teilen' }
+			},
+			guest: {
+				title: 'Einen geteilten Link öffnen',
+				text: 'Ein Link, den jemand mit dir geteilt hat, öffnet Files mit dem Ordner unter „Verbunden“, benannt nach ihm und dem Gerät, das ihn teilt (ein Schloss heißt nur ansehen). Er lebt nur in diesem Tab: „Trennen“ oder das Schließen des Tabs beendet ihn, in deinem Browser bleibt nichts; der Link öffnet ihn wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Files das und versucht es selbst wieder. Kopiere Dateien nach Meine Dateien, um sie zu behalten. Endet die Freigabe, sagt Files das sofort; „Entfernen“ nimmt sie aus „Verbunden“.'
 			}
 		}
 	},
@@ -213,8 +223,9 @@ const help: typeof enHelp = {
 			},
 			folders: {
 				title: 'Ordner ausnehmen',
-				text: '„Ordner auswählen“ zeigt alle Ordner mit Größe und wo sie liegen; nimm bei einem das Häkchen weg, um ihn auf diesem Gerät nicht mehr abzugleichen. Dasselbe steht im Menü eines Ordners: „Auf diesem Gerät nicht abgleichen“, und zurück mit „Auf diesem Gerät wieder abgleichen“. Du entscheidest dann, ob die Kopie hier bleibt („Kopie hier behalten“) oder hier gelöscht wird („Hier löschen“) – die anderen Geräte behalten den Ordner in beiden Fällen.',
-				tip: 'Behalte die Kopie, wenn du die Dateien hier noch lesen willst. Lösch sie hier, um Platz zu schaffen, z. B. für große Aufnahmen auf dem Handy.'
+				text: '„Ordner auswählen“ zeigt alle Ordner mit Größe und wo sie liegen; nimm bei einem das Häkchen weg, um ihn auf diesem Gerät nicht mehr abzugleichen. Dasselbe steht im Menü eines Ordners: „Auf diesem Gerät nicht abgleichen“, und zurück mit „Auf diesem Gerät wieder abgleichen“. Die Kopie auf diesem Gerät wird gelöscht, die anderen Geräte behalten den Ordner. Er bleibt mit einer Wolke im Baum: Öffnest du ihn, liest dieses Gerät ihn live von einem Gerät, das ihn hat, und du arbeitest darin wie überall (Löschen geht in den Papierkorb jenes Geräts). Ist keins davon verbunden, nennt Files, wo der Ordner liegt.',
+				tip: 'Lass aus, was du hier selten brauchst, z. B. große Aufnahmen auf dem Handy – öffnen kannst du sie trotzdem live. Gleich einen Ordner wieder ab, wenn du ihn brauchst, während deine anderen Geräte aus sind.',
+				link: { href: '/help/sync', label: 'Live von deinen Geräten' }
 			},
 			deletes: {
 				title: 'Löschungen von einem anderen Gerät',

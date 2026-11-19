@@ -42,7 +42,7 @@
 		// A PDF opened in Files: a new notebook next to it
 		const pdf = page.url.searchParams.get('path');
 		if (pdf) {
-			void goto(resolve('/notes'), { replaceState: true });
+			void goto(resolve('/notes'), { replace: true });
 			void importFromFiles(normalize(pdf));
 		}
 		let timer: ReturnType<typeof setTimeout> | undefined;

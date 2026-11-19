@@ -18,7 +18,7 @@ const help = {
 			},
 			menus: {
 				title: 'Where the actions are',
-				text: 'The name of the open folder in the top bar (at the top level: “Files” next to “in-browser”) opens the menu of that folder: “New folder”, “New text file”, uploading, “Paste”, “Select all”, the view, “Download as ZIP”, “Properties” and “Trash”. It always holds the complete list, also what the buttons next to it do. Right-clicking an entry shows everything you can do with it or with the selection; right-clicking the free area shows the actions for the folder.'
+				text: 'The name of the open folder in the top bar (at the top level: “Files” next to “in-browser”) opens the menu of that folder: “New folder”, “New text file”, uploading, “Paste”, “Select all”, the view, “Download as ZIP”, “Properties” and “Trash”. It always holds the complete list, also what the buttons next to it do. Right-clicking an entry shows everything you can do with it or with the selection; right-clicking the free area shows the actions for the folder. Folders in the tree on the left have the same menu as in the list.'
 			},
 			phone: {
 				title: 'On a phone',
@@ -163,6 +163,16 @@ const help = {
 			delete: {
 				title: 'Deleting in a connected folder',
 				text: 'A connected folder has no trash of in-browser: “Delete” asks “Delete for good?” first and then deletes right away.'
+			},
+			share: {
+				title: 'Sharing a folder with a guest',
+				text: '“Share a folder …” under “Shares” in the sidebar (or “Share …” in the menu of a folder in My files) makes a link and QR code for one browser outside your devices – e.g. a friend’s computer you are visiting. The guest sees only that folder, live from this device; nothing stays with them. Choose “View only” (default) or “Edit”. The link works until you end the share, for one browser at a time. Your shares appear under “Shares” (green dot: guest connected); a click shows the link again, right-click offers “End share”.',
+				tip: '“View only” to hand over files; “Edit” when the guest should save or upload into the folder. Keep in-browser open here while they use it.',
+				link: { href: '/help/connected#share', label: 'Sharing with a guest' }
+			},
+			guest: {
+				title: 'Opening a shared link',
+				text: 'A link someone shared with you opens Files with the folder under “Connected”, named after it and the device that shares it (a lock means view only). It lives only in this tab: “Disconnect” or closing the tab ends it, nothing of it stays in your browser; the link opens it again while the share lasts. If another browser is in it right now, Files says so and tries again by itself. Copy files into My files to keep them. When the share ends, Files says so at once; “Remove” takes it out of “Connected”.'
 			}
 		}
 	},
@@ -215,8 +225,9 @@ const help = {
 			},
 			folders: {
 				title: 'Leaving out folders',
-				text: '“Choose folders” shows all folders with their size and where they are; untick one to stop syncing it on this device. The same is in the menu of a folder: “Don’t sync on this device”, and back with “Sync again on this device”. You then decide whether the copy here stays (“Keep copy here”) or is deleted here (“Delete here”) – the other devices keep it in both cases.',
-				tip: 'Keep the copy if you still want to read the files here. Delete it here to free space, e.g. large recordings on a phone.'
+				text: '“Choose folders” shows all folders with their size and where they are; untick one to stop syncing it on this device. The same is in the menu of a folder: “Don’t sync on this device”, and back with “Sync again on this device”. The copy on this device is deleted, the other devices keep the folder. It stays in the tree with a cloud: opening it reads it live from a device that has it, and you can work in it like anywhere else (deleting goes into that device’s trash). If none of them is connected, Files names where the folder is.',
+				tip: 'Leave out what you rarely need here, e.g. large recordings on a phone – you can still open them live. Sync a folder again if you need it while your other devices are off.',
+				link: { href: '/help/sync', label: 'Live from your devices' }
 			},
 			deletes: {
 				title: 'Deletions from another device',

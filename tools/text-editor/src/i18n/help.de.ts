@@ -43,7 +43,7 @@ const help: typeof enHelp = {
 			},
 			connected: {
 				title: 'Texte in einem verbundenen Ordner',
-				text: 'Die Auswahl vor dem Ordnerpfad im Öffnen- und Speichern-Dialog wechselt zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Text aus einem verbundenen Ordner öffnet und speichert sich direkt dort auf deinem Rechner, auch automatisch. Erlaubt der Browser den Zugriff nicht mehr (meist nach einem Neustart), zeigt das Speichern-Symbol in der unteren Leiste einen Fehler, und eine Meldung bietet „Zugriff erlauben“ an; deine Änderungen bleiben bis dahin erhalten und werden gespeichert, sobald du es erlaubst.',
+				text: 'Die Auswahl vor dem Ordnerpfad im Öffnen- und Speichern-Dialog wechselt zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Text aus einem verbundenen Ordner öffnet und speichert sich direkt dort auf deinem Rechner, auch automatisch. Erlaubt der Browser den Zugriff nicht mehr (meist nach einem Neustart), zeigt das Speichern-Symbol in der unteren Leiste einen Fehler, und eine Meldung bietet „Zugriff erlauben“ an; deine Änderungen bleiben bis dahin erhalten und werden gespeichert, sobald du es erlaubst. Dasselbe gilt für Ordner mit einer Wolke (live von deinen anderen Geräten) und Ordner, die dir jemand geteilt hat.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
 			saveNew: {

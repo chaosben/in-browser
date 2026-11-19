@@ -1,7 +1,7 @@
 import { cacheDir } from '@in-browser/files/cache.js';
 import { isPackage, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
-import { FilesError, list, mkdir, read, readText, remove, stat, write, writable } from '@in-browser/files/fs.js';
+import { FilesError, list, mkdir, open, read, readText, remove, stat, write, writable, type RandomAccess } from '@in-browser/files/fs.js';
 import { basename, extname, join, normalize, parent, safeName, stem } from '@in-browser/files/path.js';
 import { connectedDocuments, forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
 import { m } from '#lib/i18n/index.js';
@@ -24,7 +24,8 @@ const LIBRARY = '/.apps/screen-capture/library';
 /** Folder last used for a project (start of the open/save dialogs) */
 const FOLDER_KEY = 'screen-capture:folder';
 
-const mediaPath = (project: string, file: string) => join(project, 'media', file);
+/** Path of a media file of a project */
+export const mediaPath = (project: string, file: string) => join(project, 'media', file);
 
 /** Folder the open/save dialogs start in: the one last used, otherwise the top folder */
 export function lastFolder(): string {
@@ -49,7 +50,8 @@ export function rememberProject(path: string) {
 /** Paths of all projects anywhere in the file system (hidden folders and package contents skipped) */
 async function findProjects(folder: string, into: string[] = []): Promise<string[]> {
 	for (const entry of await list(folder)) {
-		if (entry.kind !== 'directory' || entry.name.startsWith('.')) continue;
+		// Not searched over the network: folders this device doesn't sync (and connected ones) are left out
+		if (entry.kind !== 'directory' || entry.name.startsWith('.') || entry.remote) continue;
 		if (extname(entry.name) === PROJECT_EXT) into.push(entry.path);
 		else if (!isPackage(entry.name, 'directory')) await findProjects(entry.path, into);
 	}
@@ -63,7 +65,7 @@ async function findProjects(folder: string, into: string[] = []): Promise<string
 export async function listProjects(): Promise<Project[]> {
 	const connected = connectedDocuments('screen-capture');
 	const projects = await Promise.all(
-		[...(await findProjects('/')), ...connected].map((path) =>
+		[...new Set([...(await findProjects('/')), ...connected])].map((path) =>
 			loadProject(path).catch((e: unknown) => {
 				if (connected.includes(path) && e instanceof FilesError && e.code === 'notFound') forgetConnected('screen-capture', path);
 				return null;
@@ -130,6 +132,11 @@ export async function deleteProject(path: string): Promise<void> {
 
 export async function mediaFile(project: string, file: string): Promise<File> {
 	return read(mediaPath(project, file));
+}
+
+/** A media file read in pieces (only what is decoded is read – also from another device) */
+export function mediaAccess(project: string, file: string): Promise<RandomAccess> {
+	return open(mediaPath(project, file));
 }
 
 /** Opens a project media file for writing (compatible with Mediabunny's `StreamTarget`). */

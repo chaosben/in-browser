@@ -27,7 +27,7 @@ const help = {
 			},
 			connected: {
 				title: 'In a connected folder',
-				text: 'In the dialogs for a new notebook, “Open …” and importing a PDF, the choice in front of the folder path switches between My files and the folders you connected in Files (“Connected”). A notebook there is saved right in that folder on your computer. The start page lists such notebooks once you have created or opened them here; it doesn’t search connected folders. After a restart the browser may ask again: the start page then shows “Allow access”, and so does a message when saving or opening fails.',
+				text: 'In the dialogs for a new notebook, “Open …” and importing a PDF, the choice in front of the folder path switches between My files and the folders you connected in Files (“Connected”). A notebook there is saved right in that folder on your computer. The start page lists such notebooks once you have created or opened them here; it doesn’t search connected folders. After a restart the browser may ask again: the start page then shows “Allow access”, and so does a message when saving or opening fails. Folders shown with a cloud (opened live from your other devices) work the same way.',
 				link: { href: '/help/connected', label: 'Connected folders' }
 			},
 			sync: {

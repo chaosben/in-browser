@@ -77,8 +77,19 @@ async function hmac(code: string, message: string): Promise<string> {
 
 export const pairProof = (code: string, role: 'new' | 'inviter', fingerprints: string) => hmac(code, `in-browser-pair\n${role}\n${fingerprints}`);
 
+/** Proof of a guest share's key, bound to the connection like `pairProof` */
+export const shareProof = (code: string, role: 'guest' | 'host', fingerprints: string) => hmac(code, `in-browser-share\n${role}\n${fingerprints}`);
+
+/** Normalized key of a guest share from its link (`…#share=KEY`); `null` if there is none */
+export function parseShareCode(text: string): string | null {
+	const fromLink = /[#&?]share=([^&\s]+)/.exec(text)?.[1];
+	if (!fromLink) return null;
+	const code = normalizeBase32(decodeURIComponent(fromLink));
+	return code && code.length === 20 ? code : null;
+}
+
 /** Room of the group, derived from its secret (relays only see a hash) */
-export async function roomId(prefix: 'group' | 'pair', secret: string): Promise<string> {
+export async function roomId(prefix: 'group' | 'pair' | 'share', secret: string): Promise<string> {
 	return [...(await sha256(`in-browser-${prefix}\n${secret}`))]
 		.slice(0, 16)
 		.map((b) => b.toString(16).padStart(2, '0'))

@@ -1,4 +1,7 @@
-import { isInside } from '../path.js';
+import { FilesError } from '../entry.js';
+import { basename, isInside } from '../path.js';
+import { inTrash, trashInTree, untrashInTree } from '../trash.js';
+import { isActive, sharePath, tokenHash, type Share } from './shares.js';
 import {
 	answerHello,
 	checkHello,
@@ -8,6 +11,7 @@ import {
 	nonce,
 	pairProof,
 	PROTOCOL,
+	shareProof,
 	roomId,
 	type HelloAnswer
 } from './auth.js';
@@ -18,7 +22,8 @@ import type { LogFn } from '../sync/log.js';
 import { createOp, heads, mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
-import { Rpc, type Handler, type Json } from './rpc.js';
+import { rpcLiveCall, serveLive } from './live.js';
+import { RemoteError, Rpc, type Handler, type Json } from './rpc.js';
 import { exclude as excludeFolder, include as includeFolder, inScope } from './scope.js';
 import { drive, Gate, serve, type DriveResult, type Tree } from './session.js';
 import { staleness } from './staleness.js';
@@ -63,10 +68,26 @@ export interface P2pView {
 	failed: number;
 	/** Last sync of this device with any other */
 	lastSync: number;
+	/** Folders shared with a guest right now */
+	shares: ShareView[];
+}
+
+export interface ShareView {
+	id: string;
+	folder: string;
+	mode: Share['mode'];
+	code: string;
+	expires: number | null;
+	/** A guest is connected right now */
+	connected: boolean;
+	/** A guest opened it (the link no longer works in another browser) */
+	used: boolean;
 }
 
 export type DeviceEvent =
 	| { type: 'conflicts'; paths: string[] }
+	/** Another device reports changes: views of folders opened live from it reload */
+	| { type: 'remoteChanged' }
 	| { type: 'added'; name: string }
 	| { type: 'removed'; name: string }
 	| { type: 'paired' };
@@ -94,6 +115,8 @@ interface Peer {
 	timer?: ReturnType<typeof setTimeout>;
 	running?: boolean;
 	again?: boolean;
+	/** Answers live requests (`live.ts`) */
+	live?: boolean;
 }
 
 export class Device {
@@ -105,6 +128,9 @@ export class Device {
 	private outdated = new Set<string>();
 	private rooms = new Map<string, NetworkRoom>();
 	private pairRooms = new Map<string, NetworkRoom>();
+	/** Rooms of guest shares and the guests connected to each */
+	private shareRooms = new Map<string, NetworkRoom>();
+	private guests = new Map<string, Map<Rpc, string>>();
 	private gate = new Gate();
 	private ownWrites = new Map<string, number>();
 	/** Until when held deletions may go through (the user confirmed them) */
@@ -138,18 +164,127 @@ export class Device {
 		this.group = resolve(this.state.ops);
 		this.log('device.start', { self: this.nameOf(this.identity.id), members: this.group ? [...this.group.members.keys()].map((id) => this.nameOf(id)) : [], scope: this.state.scope });
 		await this.connect();
-		this.interval = setInterval(() => this.scheduleAll(0), INTERVAL);
+		for (const share of this.activeShares()) await this.listenForShare(share);
+		this.interval = setInterval(() => {
+			this.scheduleAll(0);
+			void this.expireShares();
+		}, INTERVAL);
 		this.emit();
 	}
 
 	stop() {
 		this.stopped = true;
 		clearInterval(this.interval);
-		for (const room of [...this.rooms.values(), ...this.pairRooms.values()]) room.leave();
+		for (const room of [...this.rooms.values(), ...this.pairRooms.values(), ...this.shareRooms.values()]) room.leave();
 		this.rooms.clear();
 		this.pairRooms.clear();
+		this.shareRooms.clear();
 		for (const peer of this.peers.values()) peer.rpc.close();
 		this.peers.clear();
+		for (const rpcs of this.guests.values()) for (const rpc of rpcs.keys()) rpc.close();
+		this.guests.clear();
+	}
+
+	// --- Guest shares (`shares.ts`) ---
+
+	private activeShares(): Share[] {
+		return (this.state.shares ?? []).filter((share) => isActive(share, this.now()));
+	}
+
+	/** Shares `folder` with a guest until ended; the link carries the returned share's code */
+	async share(folder: string, mode: Share['mode']): Promise<Share> {
+		const share: Share = { id: crypto.randomUUID(), folder, mode, code: newInviteCode(), expires: null };
+		this.state.shares = [...this.activeShares(), share];
+		await this.save();
+		await this.listenForShare(share);
+		this.log('share.start', { folder, mode });
+		this.emit();
+		return share;
+	}
+
+	/** Ends a share: the guest is disconnected, the link no longer works */
+	async endShare(id: string) {
+		const share = this.state.shares?.find((s) => s.id === id);
+		this.state.shares = (this.state.shares ?? []).filter((s) => s.id !== id);
+		await this.save();
+		// The guest learns it right away – before the room goes, which ends the connection
+		const guests = [...(this.guests.get(id)?.keys() ?? [])];
+		this.guests.delete(id);
+		await Promise.all(
+			guests.map(async (rpc) => {
+				await Promise.race([rpc.call('share.ended').catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+				rpc.close();
+			})
+		);
+		if (share) {
+			this.shareRooms.get(share.code)?.leave();
+			this.shareRooms.delete(share.code);
+			this.log('share.end', { folder: share.folder });
+		}
+		this.emit();
+	}
+
+	private async expireShares() {
+		for (const share of this.state.shares ?? []) if (!isActive(share, this.now())) await this.endShare(share.id);
+	}
+
+	private async listenForShare(share: Share) {
+		if (this.shareRooms.has(share.code)) return;
+		const room = this.options.network.join(await roomId('share', share.code), share.code);
+		room.onLink((link) => this.attachGuest(share.id, link));
+		this.shareRooms.set(share.code, room);
+	}
+
+	/** A guest's browser connected: sign in with the share's key (one guest at a time), then live access */
+	private attachGuest(id: string, link: Link) {
+		const rpc = new Rpc(link);
+		const current = () => {
+			const share = this.state.shares?.find((s) => s.id === id);
+			return share && isActive(share, this.now()) ? share : null;
+		};
+		let signedIn = false;
+		rpc.handle('share.hello', async (params) => {
+			const { proof, token } = params as { proof: string; token: string };
+			const share = current();
+			const fingerprints = link.fingerprints();
+			if (!share || proof !== (await shareProof(share.code, 'guest', fingerprints))) throw new Error('files:ended');
+			const guest = await tokenHash(token);
+			const rpcs = this.guests.get(id) ?? new Map<Rpc, string>();
+			// One guest at a time: another browser waits; the same one (a reload, another of its tabs) comes in
+			if ([...rpcs.values()].some((other) => other !== guest)) throw new Error('files:taken');
+			if (!share.used) {
+				share.used = true;
+				await this.save();
+			}
+			signedIn = true;
+			rpcs.set(rpc, guest);
+			this.guests.set(id, rpcs);
+			this.emit();
+			const host = this.group?.members.get(this.identity.id)?.name ?? '';
+			return {
+				value: { proof: await shareProof(share.code, 'host', fingerprints), folder: basename(share.folder), host, mode: share.mode }
+			};
+		});
+		const guarded = (method: string, handler: Handler) =>
+			rpc.handle(method, async (params, upload) => {
+				if (!signedIn || !current()) throw new Error('files:ended');
+				return handler(params, upload);
+			});
+		const release = serveLive(guarded, {
+			tree: this.options.tree,
+			resolve: (path) => {
+				const share = current();
+				return share ? sharePath(share, path) : null;
+			},
+			readOnly: () => current()?.mode !== 'edit',
+			trash: (path) => trashInTree(this.options.tree, path, this.now()),
+			untrash: (ref) => untrashInTree(this.options.tree, ref)
+		});
+		link.onClose(() => {
+			release();
+			this.guests.get(id)?.delete(rpc);
+			this.emit();
+		});
 	}
 
 	// --- Group ---
@@ -449,7 +584,18 @@ export class Device {
 		link.onClose(release);
 		handle('changed', async () => {
 			if (peerId) this.scheduleById(peerId, 500);
+			this.options.onEvent?.({ type: 'remoteChanged' });
 		});
+		// Folders the other device doesn't sync: it opens them live from here (only what this device has, never the
+		// trash or files still arriving)
+		link.onClose(
+			serveLive(handle, {
+				tree: this.options.tree,
+				resolve: (path) => (inScope(path, this.state.scope) && !inTrash(path) ? path : null),
+				trash: (path) => trashInTree(this.options.tree, path, this.now()),
+				untrash: (ref) => untrashInTree(this.options.tree, ref)
+			})
+		);
 		handle('members', async (params) => {
 			await this.mergeMembers(await verifyOps(params as unknown as Op[]));
 		});
@@ -627,12 +773,14 @@ export class Device {
 	// --- What devices know ---
 
 	private knowledge(): Knowledge {
-		return { log: this.state.log, vector: this.state.vector, scope: this.state.scope, devices: this.state.devices };
+		return { log: this.state.log, vector: this.state.vector, scope: this.state.scope, devices: this.state.devices, live: true };
 	}
 
 	/** Merges what another device knows; `synced`: right after a sync without failures with it */
 	private async takeKnowledge(peer: string, theirs: Knowledge, synced: boolean) {
 		const now = this.now();
+		const connected = this.peers.get(peer);
+		if (connected) connected.live = !!theirs.live;
 		const log = mergeLogs(this.state.log, theirs.log ?? []);
 		this.state.log = log;
 		this.state.devices = mergeDevices(this.state.devices, theirs.devices ?? {});
@@ -693,6 +841,47 @@ export class Device {
 		);
 	}
 
+	/** Write sessions of live requests: their pieces go to the device that opened them */
+	private liveSessions = new Map<string, Peer>();
+
+	/**
+	 * A live request (`live.ts`) to a connected device that has the path (not excluded there), trying the next one
+	 * if a connection fails; `offline` when none can answer.
+	 */
+	async live(method: string, params: Json, upload?: Uint8Array): Promise<{ value: Json; bytes?: Uint8Array }> {
+		const p = (params ?? {}) as { path?: string; from?: string; id?: string };
+		const session = typeof params === 'string' ? params : p.id;
+		if (session && method !== 'live.open') {
+			const peer = this.liveSessions.get(session);
+			if (!peer || this.peers.get(peer.id) !== peer) throw new FilesError('offline', '/');
+			if (method !== 'live.chunk') this.liveSessions.delete(session);
+			return rpcLiveCall(peer.rpc)(method, params, upload);
+		}
+		const path = p.path ?? p.from ?? '/';
+		const candidates = [...this.peers.values()].filter((peer) => peer.live && inScope(path, this.state.devices[peer.id]?.scope ?? []));
+		let last: unknown = null;
+		for (const peer of candidates) {
+			try {
+				const result = await rpcLiveCall(peer.rpc)(method, params, upload);
+				if (method === 'live.open') this.liveSessions.set(result.value as string, peer);
+				return result;
+			} catch (e) {
+				// Answers of the device (missing file, not allowed …) count; only a lost connection tries the next one
+				if (e instanceof RemoteError) throw e;
+				last = e;
+			}
+		}
+		if (last) console.warn('[P2P] live request failed', last);
+		throw new FilesError('offline', path);
+	}
+
+	/** Devices that have `path` (for the message when none is connected) */
+	holdersOf(path: string): string[] {
+		return Object.entries(this.state.devices)
+			.filter(([id, info]) => id !== this.identity.id && this.group?.members.has(id) && inScope(path, info.scope ?? []))
+			.map(([id]) => this.nameOf(id));
+	}
+
 	/** Sizes of the subfolders of `folder` on every connected device (for choosing folders) */
 	async remoteSizes(folder: string): Promise<Record<string, Record<string, number>>> {
 		const out: Record<string, Record<string, number>> = {};
@@ -715,7 +904,7 @@ export class Device {
 
 	view(): P2pView {
 		const group = this.group;
-		if (!this.identity || !this.state) return { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0 };
+		if (!this.identity || !this.state) return { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0, shares: [] };
 		if (this.state.removed) return { ...this.view0(), state: 'removed' };
 		if (!group) return this.view0();
 		const devices: DeviceView[] = [...group.members].map(([id, member]) => {
@@ -755,7 +944,16 @@ export class Device {
 			scope: this.state.scope,
 			pendingDeletes: [...this.pendingDeletes.values()].reduce((sum, n) => sum + n, 0),
 			failed: this.failed,
-			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0
+			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0,
+			shares: this.activeShares().map((share) => ({
+				id: share.id,
+				folder: share.folder,
+				mode: share.mode,
+				code: share.code,
+				expires: share.expires,
+				connected: (this.guests.get(share.id)?.size ?? 0) > 0,
+				used: !!(share.used || share.guest)
+			}))
 		};
 	}
 
@@ -771,4 +969,6 @@ export interface Knowledge {
 	devices: Record<string, DeviceInfo>;
 	/** Set when sent right after a sync with the receiver */
 	syncedWith?: string;
+	/** Answers live requests: folders another device doesn't sync can be opened from it */
+	live?: boolean;
 }

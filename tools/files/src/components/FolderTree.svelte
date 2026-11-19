@@ -22,9 +22,18 @@
 		connected?: boolean;
 		/** Roots only: menu of the row (right-click / long press) */
 		onmenu?: (e: MouseEvent) => void;
+		/** Menu of every folder below the root (the same actions as in the list) */
+		onfoldermenu?: (e: MouseEvent, path: string) => void;
+		/** Opened live from another device (cloud icon) */
+		remote?: boolean;
+		/** Roots only: a folder another device shares with this browser (guest), possibly only for viewing */
+		shared?: boolean;
+		readOnly?: boolean;
 	}
 
-	let { path, current, onnavigate, ondropitems, ondropfiles, label: rootLabel, connected = false, onmenu }: Props = $props();
+	let { path, current, onnavigate, ondropitems, ondropfiles, label: rootLabel, connected = false, onmenu, onfoldermenu, remote = false, shared = false, readOnly = false }: Props = $props();
+	/** Roots have their own menu; a folder below them gets the folder's actions */
+	const rowMenu = $derived(onmenu ?? (onfoldermenu && !rootLabel && path !== '/' ? (e: MouseEvent) => onfoldermenu(e, path) : undefined));
 
 	let children = $state<Item[] | null>(null);
 	let target = $state(false);
@@ -78,10 +87,10 @@
 		ondragover={dragOver}
 		ondragleave={() => (target = false)}
 		ondrop={drop}
-		oncontextmenu={onmenu &&
+		oncontextmenu={rowMenu &&
 			((e) => {
 				e.preventDefault();
-				onmenu(e);
+				rowMenu(e);
 			})}
 		role="treeitem"
 		tabindex="-1"
@@ -98,18 +107,23 @@
 		<button class="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left" onclick={() => onnavigate(path)}>
 			{#if path === '/'}
 				<span class="icon-[material-symbols-light--hard-drive-outline] size-5 shrink-0" aria-hidden="true"></span>
+			{:else if shared}
+				<span class="icon-[material-symbols-light--share-outline] size-5 shrink-0" aria-hidden="true"></span>
 			{:else if connected}
 				<span class="icon-[material-symbols-light--link] size-5 shrink-0" aria-hidden="true"></span>
 			{:else}
-				<FileIcon name={label} kind="directory" />
+				<FileIcon name={label} kind="directory" {remote} />
 			{/if}
 			<span class="truncate">{label}</span>
+			{#if readOnly}
+				<span class="icon-[material-symbols-light--lock-outline] size-4 shrink-0 opacity-60" title={filesMessages().share.viewOnly} aria-label={filesMessages().share.viewOnly}></span>
+			{/if}
 		</button>
 	</div>
 	{#if open && children?.length}
 		<ul class="ml-3" role="group">
 			{#each children as child (child.path)}
-				<FolderTree path={child.path} {current} {onnavigate} {ondropitems} {ondropfiles} />
+				<FolderTree path={child.path} remote={child.remote} {current} {onnavigate} {ondropitems} {ondropfiles} {onfoldermenu} />
 			{/each}
 		</ul>
 	{/if}

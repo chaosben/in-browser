@@ -2,7 +2,8 @@ import { FilesError, noticed } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import { connectionOf, connectionRoot, join } from '../path.js';
 import { idbGet } from '../sync/idb.js';
-import { listConnections, onConnectionsChanged, saveConnections, type Connection } from './registry.js';
+import { listConnections, onConnectionsChanged, saveConnections, type Connection, type FolderConnection } from './registry.js';
+import { beginShare, endShareSession } from './share.js';
 
 // Connections for the UI (“Connected” in Files, the file dialog): list with access state, connect, rename,
 // disconnect, allow access again. Each tab watches its connected folders itself and announces outside changes
@@ -16,9 +17,23 @@ export interface ConnectionView {
 	path: string;
 	/** `granted`: usable; otherwise “Allow access” needs a click */
 	access: PermissionState;
+	/** Guest share: the device that shares it and whether it can be changed (`null` until signed in) */
+	host?: string;
+	mode?: 'view' | 'edit' | null;
+	/** Guest share: the sharing device ended it */
+	ended?: boolean;
 }
 
+const folders = (list: Connection[]) => list.filter((c): c is FolderConnection => c.kind === 'folder');
+
 export const connections = $state<{ list: ConnectionView[]; loaded: boolean }>({ list: [], loaded: false });
+
+/** Name to show for a connection (a guest share names its folder and the device sharing it) */
+export function connectionLabel(c: ConnectionView): string {
+	const t = filesMessages().share;
+	if (c.kind !== 'share') return c.name;
+	return c.name ? t.connection(c.name, c.host ?? '') : t.pending;
+}
 
 /** Folders on disk can be connected (File System Access API, Chromium) */
 export function connectionsSupported(): boolean {
@@ -57,7 +72,12 @@ export async function refresh(): Promise<void> {
 		return [];
 	});
 	const views = await Promise.all(
-		list.map(async (c): Promise<ConnectionView> => ({ id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.handle) }))
+		list.map(
+			async (c): Promise<ConnectionView> =>
+				c.kind === 'share'
+					? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted', host: c.host, mode: c.mode, ended: c.ended }
+					: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.handle) }
+		)
 	);
 	const changedAccess = views.some((v) => connections.list.find((o) => o.id === v.id)?.access !== v.access);
 	connections.list = views;
@@ -75,7 +95,7 @@ function watchFolders(list: Connection[], views: ConnectionView[]) {
 		}
 	}
 	if (!ObserverClass) return;
-	for (const connection of list) {
+	for (const connection of folders(list)) {
 		if (observers.has(connection.id) || views.find((v) => v.id === connection.id)?.access !== 'granted') continue;
 		const root = connectionRoot(connection.id);
 		const observer = new ObserverClass((records) => {
@@ -105,7 +125,7 @@ export async function connectFolder(): Promise<{ path: string; alsoSynced: boole
 		throw e;
 	}
 	const list = await listConnections();
-	for (const c of list) if (await c.handle.isSameEntry(handle)) return { path: connectionRoot(c.id), alsoSynced: false };
+	for (const c of folders(list)) if (await c.handle.isSameEntry(handle)) return { path: connectionRoot(c.id), alsoSynced: false };
 	const synced = await idbGet<FileSystemDirectoryHandle>('handle');
 	const alsoSynced = !!synced && (await synced.isSameEntry(handle));
 	const id = crypto.randomUUID().slice(0, 8);
@@ -115,7 +135,7 @@ export async function connectFolder(): Promise<{ path: string; alsoSynced: boole
 
 /** Asks the browser for access again (needs a click) */
 export async function allowAccess(id: string): Promise<boolean> {
-	const connection = (await listConnections()).find((c) => c.id === id);
+	const connection = folders(await listConnections()).find((c) => c.id === id);
 	const state = await connection?.handle.requestPermission?.({ mode: 'readwrite' });
 	await refresh();
 	return state === 'granted';
@@ -142,7 +162,15 @@ export async function renameConnection(id: string, name: string): Promise<void> 
 	await saveConnections((await listConnections()).map((c) => (c.id === id ? { ...c, name } : c)));
 }
 
-/** Removes the connection; nothing in the folder is deleted */
+/** Removes the connection; nothing in the folder is deleted (a guest share of this tab ends here) */
 export async function disconnect(id: string): Promise<void> {
+	if (id === 'share') endShareSession();
 	await saveConnections((await listConnections()).filter((c) => c.id !== id));
+}
+
+/** Opens a guest share from its link in this tab; its root path */
+export async function openShare(code: string): Promise<string> {
+	beginShare(code);
+	await saveConnections(await listConnections());
+	return connectionRoot('share');
 }

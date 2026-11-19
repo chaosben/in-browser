@@ -65,6 +65,34 @@ test('two devices pair, sync and can be removed', async ({ browser }) => {
 	await input.press('Enter');
 	await expect(b.getByRole('main').getByText('Projects', { exact: true })).toBeVisible({ timeout: 30_000 });
 
+	// B stops syncing it: the copy on B goes, the folder stays as a cloud and opens live from A
+	await b.getByRole('option', { name: 'Projects' }).click({ button: 'right' });
+	await b.getByRole('menuitem', { name: 'Don’t sync on this device' }).click();
+	await b.getByRole('dialog').getByRole('button', { name: 'Don’t sync on this device' }).click();
+	await expect
+		.poll(() => b.evaluate(async () => (await navigator.storage.getDirectory()).getDirectoryHandle('files').then((d) => d.getDirectoryHandle('Projects')).then(() => true, () => false)))
+		.toBe(false);
+	await b.getByRole('option', { name: 'Projects' }).dblclick();
+	await expect(b).toHaveURL(/path=%2FProjects/);
+	await expect(b.getByText('Live from your other devices')).toBeVisible();
+	// Written on B, lands on A
+	await b.getByRole('button', { name: 'Actions for “Projects”' }).click();
+	await b.getByRole('menuitem', { name: 'New text file' }).click();
+	await b.getByRole('textbox', { name: 'Rename' }).press('Enter');
+	await a.getByRole('option', { name: 'Projects' }).dblclick();
+	await expect(a.getByRole('option', { name: 'New text file.txt' })).toBeVisible({ timeout: 30_000 });
+	await a.goto('/files');
+	// B syncs it again: it comes back with the new file
+	await b.goto('/files');
+	await b.getByRole('option', { name: 'Projects' }).click({ button: 'right' });
+	await b.getByRole('menuitem', { name: 'Sync again on this device' }).click();
+	await expect
+		.poll(
+			() => b.evaluate(async () => (await navigator.storage.getDirectory()).getDirectoryHandle('files').then((d) => d.getDirectoryHandle('Projects')).then((d) => d.getFileHandle('New text file.txt')).then(() => true, () => false)),
+			{ timeout: 30_000 }
+		)
+		.toBe(true);
+
 	// A exports the log: it shows the sync and the folder
 	await a.locator('aside').getByRole('button', { name: /^Sync/ }).click();
 	await a.getByText('Troubleshooting').click();

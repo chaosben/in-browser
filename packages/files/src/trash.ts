@@ -1,4 +1,5 @@
-import { isInside, segments } from './path.js';
+import { FilesError } from './entry.js';
+import { basename, isInside, join, parent, segments, uniqueName } from './path.js';
 import type { Tree } from './sync/tree.js';
 
 // The trash: what the user deletes (in Files, or a notebook or project in its tool) is moved into the hidden folder
@@ -98,4 +99,38 @@ export async function cleanTrash(tree: Pick<Tree, 'stat' | 'read' | 'names' | 'r
 	} catch (e) {
 		console.warn('[Trash] cleanup failed', e);
 	}
+}
+
+/** An item moved into the trash of a tree (for undoing) */
+export interface TrashRef {
+	entry: string;
+	/** Where the item was */
+	path: string;
+}
+
+/**
+ * Moves a file or folder of a tree into its trash – what deleting does when another device or a guest asks (the
+ * browser's own deletions use `moveToTrash` in `trash-browser.ts`, same layout)
+ */
+export async function trashInTree(tree: Pick<Tree, 'stat' | 'write' | 'move'>, path: string, now = Date.now()): Promise<TrashRef> {
+	const state = await tree.stat(path);
+	if (!state) throw new FilesError('notFound', path);
+	const entry = entryName(now);
+	const info: TrashInfo = { path, kind: state.kind, deleted: now };
+	// The info first: an entry without it is not shown, so nothing half-done ever appears
+	const writer = (await tree.write(infoPath(entry))).getWriter();
+	await writer.write(new TextEncoder().encode(JSON.stringify(info)));
+	await writer.close();
+	await tree.move(path, itemPath(entry, path));
+	return { entry, path };
+}
+
+/** Puts an item back where it was (under a free name if that is taken now) and removes its entry */
+export async function untrashInTree(tree: Pick<Tree, 'stat' | 'names' | 'move' | 'remove'>, ref: TrashRef): Promise<string> {
+	const item = itemPath(ref.entry, ref.path);
+	if (!(await tree.stat(item))) throw new FilesError('notFound', ref.path);
+	const target = join(parent(ref.path), uniqueName(basename(ref.path), await tree.names(parent(ref.path))));
+	await tree.move(item, target);
+	await tree.remove(entryPath(ref.entry));
+	return target;
 }

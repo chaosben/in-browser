@@ -12,11 +12,19 @@ interface Connection {
 	subs: Map<string, string[]>;
 }
 
+/** An event someone published: through which relay address, signed by which key, when */
+export interface RelayEvent {
+	relay: string;
+	pubkey: string;
+	at: number;
+}
+
 export function fakeRelay() {
 	const connections = new Set<Connection>();
+	const published: RelayEvent[] = [];
 	let server: WebSocketServer | null = null;
 
-	function connect(send: (text: string) => void) {
+	function connect(send: (text: string) => void, relay = 'local') {
 		const connection: Connection = { send, subs: new Map() };
 		connections.add(connection);
 		return {
@@ -30,7 +38,8 @@ export function fakeRelay() {
 				} else if (message[0] === 'CLOSE') {
 					connection.subs.delete(message[1] as string);
 				} else if (message[0] === 'EVENT') {
-					const event = message[1] as { id: string; tags: string[][] };
+					const event = message[1] as { id: string; pubkey: string; tags: string[][] };
+					published.push({ relay, pubkey: event.pubkey, at: Date.now() });
 					send(JSON.stringify(['OK', event.id, true, '']));
 					const topics = event.tags.filter((t) => t[0] === 'x').map((t) => t[1]);
 					for (const other of connections) {
@@ -46,7 +55,7 @@ export function fakeRelay() {
 	return {
 		async attach(context: BrowserContext) {
 			await context.routeWebSocket(/^wss:\/\//, (ws) => {
-				const connection = connect((text) => ws.send(text));
+				const connection = connect((text) => ws.send(text), ws.url());
 				ws.onClose(() => connection.close());
 				ws.onMessage((raw) => connection.message(String(raw)));
 			});
@@ -62,6 +71,8 @@ export function fakeRelay() {
 			await new Promise((resolve) => server!.once('listening', resolve));
 			return `ws://127.0.0.1:${(server.address() as AddressInfo).port}`;
 		},
+		/** Everything published so far (public relays limit it per key and per IP, e.g. 60 and 120 a minute) */
+		events: () => [...published],
 		close: () => server?.close()
 	};
 }

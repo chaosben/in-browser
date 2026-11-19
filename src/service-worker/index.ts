@@ -4,7 +4,8 @@
 // - Navigations: network first, offline the cached page of that path (every page is prerendered).
 // - A new version waits until a page activates it via the `SKIP_WAITING` message (user clicks "Reload"), or
 //   silently when the page already runs that version (`VERSION` message).
-// Media come from the OPFS or as blob: URLs and do not go through the Service Worker.
+// - `/_live/<token>/<name>`: media read in pieces from wherever they live (`mediaUrl` in @in-browser/files): range
+//   responses whose bytes the page that made the token reads for us.
 
 import { version } from '$app/env';
 import { assets, immutable, prerendered } from '$app/manifest';
@@ -50,6 +51,10 @@ self.addEventListener('fetch', (event) => {
 	const url = new URL(request.url);
 	if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
+	if (url.pathname.startsWith('/_live/')) {
+		event.respondWith(live(event, request, url));
+		return;
+	}
 	if (request.mode === 'navigate') {
 		event.respondWith(navigate(request, url));
 	} else if (PRECACHED.has(url.pathname)) {
@@ -71,4 +76,76 @@ async function navigate(request: Request, url: URL): Promise<Response> {
 async function cacheFirst(path: string, request: Request): Promise<Response> {
 	const cached = await caches.match(path);
 	return cached ?? fetch(request);
+}
+
+// --- Media read in pieces (`/_live/`) ---
+
+/** Bytes per response: video elements ask for open ranges and come back for the rest */
+const LIVE_CHUNK = 4 * 1024 * 1024;
+const LIVE_TIMEOUT = 30_000;
+
+type LiveAnswer = { size: number; type: string } | { bytes: Uint8Array } | { unknown: true } | { error: string };
+
+function askClient(client: Client, message: object): Promise<LiveAnswer> {
+	return new Promise((resolve, reject) => {
+		const channel = new MessageChannel();
+		const timer = setTimeout(() => reject(new Error('No answer from the page')), LIVE_TIMEOUT);
+		channel.port1.onmessage = (event: MessageEvent<LiveAnswer>) => {
+			clearTimeout(timer);
+			resolve(event.data);
+		};
+		client.postMessage({ type: 'in-browser-live', ...message }, [channel.port2]);
+	});
+}
+
+/** The page that made the token: usually the one asking, otherwise any of ours */
+async function liveClient(event: FetchEvent, token: string): Promise<{ client: Client; size: number; type: string } | null> {
+	const own = event.clientId ? await self.clients.get(event.clientId) : undefined;
+	const all = await self.clients.matchAll({ type: 'window' });
+	for (const client of own ? [own, ...all.filter((c) => c.id !== own.id)] : all) {
+		const meta = await askClient(client, { token, op: 'meta' }).catch(() => null);
+		if (meta && 'size' in meta) return { client, size: meta.size, type: meta.type };
+	}
+	return null;
+}
+
+async function readBytes(client: Client, token: string, start: number, end: number): Promise<Uint8Array> {
+	const answer = await askClient(client, { token, op: 'read', start, end });
+	if ('bytes' in answer) return answer.bytes;
+	throw new Error('error' in answer ? answer.error : 'Gone');
+}
+
+async function live(event: FetchEvent, request: Request, url: URL): Promise<Response> {
+	const token = url.pathname.split('/')[2] ?? '';
+	const found = await liveClient(event, token);
+	if (!found) return new Response('Not found', { status: 404 });
+	const { client, size, type } = found;
+	const headers = { 'Content-Type': type || 'application/octet-stream', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+	const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('Range') ?? '');
+	if (range) {
+		let start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+		let end = range[1] && range[2] ? Number(range[2]) + 1 : size;
+		if (!range[1]) end = size;
+		end = Math.min(end, size, start + LIVE_CHUNK);
+		if (start >= size || start >= end) {
+			return new Response(null, { status: 416, headers: { ...headers, 'Content-Range': `bytes */${size}` } });
+		}
+		start = Math.max(0, start);
+		const bytes = await readBytes(client, token, start, end);
+		return new Response(bytes as BodyInit, {
+			status: 206,
+			headers: { ...headers, 'Content-Range': `bytes ${start}-${end - 1}/${size}`, 'Content-Length': String(bytes.length) }
+		});
+	}
+	// Whole file: streamed piece by piece
+	let offset = 0;
+	const body = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			if (offset >= size) return controller.close();
+			const end = Math.min(size, offset + 1024 * 1024);
+			controller.enqueue(await readBytes(client, token, offset, end));
+			offset = end;
+		}
+	});
+	return new Response(body, { status: 200, headers: { ...headers, 'Content-Length': String(size) } });
 }

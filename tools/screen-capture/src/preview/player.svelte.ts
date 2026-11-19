@@ -3,7 +3,8 @@ import type { Clip, Project, Rect } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { frameArea } from '#lib/media/content.js';
 import { onPictureLoaded } from '#lib/render/images.svelte.js';
-import { mediaFile } from '#lib/storage/store.js';
+import { mediaPath } from '#lib/storage/store.js';
+import { mediaUrl, type MediaUrl } from '@in-browser/files/media-url.js';
 import { clipsAt, clipsOf, duration, fadeAlpha, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import { m } from '#lib/i18n/index.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
@@ -26,7 +27,7 @@ export class Player {
 	/** Forced view, e.g. full frame while editing a zoom segment. */
 	forcedView = $state<Rect | null>(null);
 
-	#urls = new Map<string, string>();
+	#urls = new Map<string, MediaUrl>();
 	/** Free video elements per source */
 	#pool = new Map<string, HTMLVideoElement[]>();
 	/** Video element per clip (visible clips and clips about to start) */
@@ -56,16 +57,17 @@ export class Player {
 			for (const [clipId, a] of this.#assigned) if (a.sourceId === sourceId) this.#release(clipId);
 			this.#pool.get(sourceId)?.forEach(unload);
 			this.#pool.delete(sourceId);
-			URL.revokeObjectURL(this.#urls.get(sourceId)!);
+			this.#urls.get(sourceId)!.release();
 			this.#urls.delete(sourceId);
 		}
 		await Promise.all(
 			sources
 				.filter((s) => !this.#urls.has(s.id))
 				.map(async (s) => {
-					const url = URL.createObjectURL(await mediaFile(id, s.file));
-					this.#urls.set(s.id, url);
-					const video = this.#createVideo(url);
+					// Read in pieces through the Service Worker: only what plays is read
+					const media = await mediaUrl(mediaPath(id, s.file));
+					this.#urls.set(s.id, media);
+					const video = this.#createVideo(media.url);
 					this.#pool.set(s.id, [video]);
 					await new Promise<void>((resolve, reject) => {
 						video.addEventListener('loadeddata', () => resolve(), { once: true });
@@ -241,7 +243,7 @@ export class Player {
 	#video(clip: Clip): HTMLVideoElement | null {
 		const assigned = this.#assigned.get(clip.id);
 		if (assigned) return assigned.video;
-		const url = this.#urls.get(clip.sourceId);
+		const url = this.#urls.get(clip.sourceId)?.url;
 		if (!url) return null;
 		let video = this.#pool.get(clip.sourceId)?.pop();
 		if (!video) {
@@ -315,7 +317,7 @@ export class Player {
 		for (const videos of this.#pool.values()) videos.forEach(unload);
 		this.#assigned.clear();
 		this.#pool.clear();
-		this.#urls.forEach((u) => URL.revokeObjectURL(u));
+		this.#urls.forEach((u) => u.release());
 		this.#urls.clear();
 	}
 }

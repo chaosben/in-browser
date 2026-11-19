@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { read } from '@in-browser/files/fs.js';
+	import { mediaUrl } from '@in-browser/files/media-url.js';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { previewKind, type Item } from '#lib/items.js';
 
-	// Preview of a file. Content only ever as blob URL in <img>/<video>/<audio> or as plain text – never as HTML or
-	// inline SVG on the page: all tools share one origin, an uploaded file must not run scripts there.
+	// Preview of a file. Content only ever as a media URL in <img>/<video>/<audio> (read in pieces, so a video from
+	// another device plays right away) or as plain text – never as HTML or inline SVG on the page: all tools share
+	// one origin, an uploaded file must not run scripts there.
 
 	interface Props {
 		item: Item;
@@ -22,18 +24,28 @@
 	let text = $state<string | null>(null);
 	let error = $state<string | null>(null);
 
-	/** Opens the dialog and loads the content; the blob URL goes when it closes */
+	/** Opens the dialog and loads the content; the media URL goes when it closes */
 	function start(dialog: HTMLDialogElement) {
 		dialog.showModal();
-		let created: string | null = null;
-		read(item.path)
-			.then(async (file) => {
-				if (kind === 'text') text = file.size > TEXT_LIMIT ? null : await file.text();
-				else if (kind) url = created = URL.createObjectURL(file);
-			})
-			.catch((e) => (error = filesErrorText(e)));
+		let release: (() => void) | null = null;
+		let closed = false;
+		const load = async () => {
+			if (kind === 'text') {
+				// Too large is shown as such without reading it (it may come from another device)
+				if ((item.size ?? 0) > TEXT_LIMIT) return;
+				const file = await read(item.path);
+				text = file.size > TEXT_LIMIT ? null : await file.text();
+			} else if (kind) {
+				const media = await mediaUrl(item.path);
+				if (closed) return media.release();
+				release = media.release;
+				url = media.url;
+			}
+		};
+		load().catch((e) => (error = filesErrorText(e)));
 		return () => {
-			if (created) URL.revokeObjectURL(created);
+			closed = true;
+			release?.();
 		};
 	}
 </script>

@@ -20,7 +20,7 @@ import type { Project, VideoClip } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { fontsOf, loadFont } from '#lib/render/fonts.svelte.js';
 import { loadPictures, setImageProject } from '#lib/render/images.svelte.js';
-import { clearExports, exportWritable, mediaFile } from '#lib/storage/store.js';
+import { clearExports, exportWritable, mediaAccess } from '#lib/storage/store.js';
 import { clipsAt, clipsOf, duration, fadeAlpha, fadeEdges, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
 import type { GifReply, GifRequest } from './gif';
 import {
@@ -116,7 +116,7 @@ function openMedia(project: Project): Media {
 		if (!input) {
 			const source = sourceOf(project, sourceId);
 			if (!source) throw new Error(m.export.missingSource);
-			input = openInput(await mediaFile(project.id, source.file));
+			input = openInput(await mediaAccess(project.id, source.file));
 			inputs.set(sourceId, input);
 		}
 		return input;

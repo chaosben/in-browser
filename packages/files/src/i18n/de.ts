@@ -39,7 +39,9 @@ const de: FilesMessages = {
 		root: (_name) => 'Mit dem obersten Ordner geht das nicht.',
 		offline: (name) => `„${name}“ ist gerade nicht erreichbar.`,
 		denied: (name) => `Der Browser erlaubt gerade keinen Zugriff auf „${name}“. Erlaube ihn in Files unter „Verbunden“.`,
-		readOnly: (name) => `„${name}“ lässt sich nur lesen.`
+		readOnly: (name) => `„${name}“ lässt sich nur lesen.`,
+		ended: (_name) => 'Die Freigabe wurde beendet.',
+		taken: (_name) => 'Diese Freigabe ist gerade in einem anderen Browser geöffnet. Versuch es später noch einmal.',
 	},
 
 	indicator: {
@@ -72,6 +74,12 @@ const de: FilesMessages = {
 		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`
 	},
 
+	share: {
+		connection: (folder, host) => (host ? `${folder} von ${host}` : folder),
+		pending: 'Geteilter Ordner',
+		viewOnly: 'Nur ansehen'
+	},
+
 	folderSync: {
 		browser: 'Browser',
 		folder: 'Ordner'
@@ -100,7 +108,9 @@ const de: FilesMessages = {
 				: `${names.length} Dateien wurden auf zwei Geräten geändert – beide Fassungen sind erhalten.`,
 		added: (name) => `${name} wurde zu deinen Geräten hinzugefügt.`,
 		removedDevice: (name) => `${name} wurde aus deinen Geräten entfernt.`,
-		paired: 'Dieses Gerät ist jetzt mit deinen Geräten verbunden.'
+		paired: 'Dieses Gerät ist jetzt mit deinen Geräten verbunden.',
+		oldCopy: (name) =>
+			`„${name}“ wird auf diesem Gerät nicht abgeglichen und öffnet sich jetzt live von deinen anderen Geräten – die alte Kopie, die noch hier lag, ist im Papierkorb.`
 	},
 
 	names: {

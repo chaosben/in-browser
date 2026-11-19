@@ -1,6 +1,6 @@
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { list, move, readText, remove, stat, write } from './fs.js';
+import { list, move, readText, remove, stat, trashOf, write } from './fs.js';
 import { filesMessages } from './i18n/index.svelte.js';
 import { basename, isConnected, join, parent, uniqueName } from './path.js';
 import { displayName } from './sources/registry.js';
@@ -65,13 +65,31 @@ export async function deleteToTrash(paths: string[], onUndo?: () => void): Promi
 		paths = paths.filter((path) => !isConnected(path));
 		if (!paths.length) return true;
 	}
-	const items = await moveToTrash(paths);
-	if (!items.length) return connected.length > 0;
+	// In a folder this device doesn't sync: into the trash of the device that has it
+	const undo: (() => Promise<void>)[] = [];
+	const local: string[] = [];
+	const names: string[] = [];
+	for (const path of paths) {
+		const other = await trashOf(path);
+		if (!other) {
+			local.push(path);
+			continue;
+		}
+		const ref = await other.trash(path);
+		undo.push(() => other.untrash(ref));
+		names.push(ref.path);
+	}
+	const items = await moveToTrash(local);
+	for (const item of items) {
+		undo.push(() => restoreFromTrash(item).then(() => {}));
+		names.push(item.path);
+	}
+	if (!names.length) return connected.length > 0;
 	const t = filesMessages().trash;
-	toast(items.length === 1 ? t.moved(basename(items[0].path)) : t.movedMany(items.length), 'info', 8000, {
+	toast(names.length === 1 ? t.moved(basename(names[0])) : t.movedMany(names.length), 'info', 8000, {
 		label: t.undo,
 		run: async () => {
-			for (const item of items) await restoreFromTrash(item);
+			for (const step of undo) await step();
 			onUndo?.();
 		}
 	});

@@ -49,7 +49,8 @@ export interface NotebookEntry {
 /** Paths of all notebooks anywhere in the file system (hidden folders and package contents skipped) */
 async function findNotebooks(folder: string, into: string[] = []): Promise<string[]> {
 	for (const entry of await list(folder)) {
-		if (entry.kind !== 'directory' || entry.name.startsWith('.')) continue;
+		// Not searched over the network: folders this device doesn't sync (and connected ones) are left out
+		if (entry.kind !== 'directory' || entry.name.startsWith('.') || entry.remote) continue;
 		if (extname(entry.name) === NOTEBOOK_EXT) into.push(entry.path);
 		else if (!isPackage(entry.name, 'directory')) await findNotebooks(entry.path, into);
 	}
@@ -63,7 +64,7 @@ async function findNotebooks(folder: string, into: string[] = []): Promise<strin
 export async function listNotebooks(): Promise<NotebookEntry[]> {
 	const connected = connectedDocuments('notes');
 	const entries = await Promise.all(
-		[...(await findNotebooks('/')), ...connected].map(async (path): Promise<NotebookEntry | null> => {
+		[...new Set([...(await findNotebooks('/')), ...connected])].map(async (path): Promise<NotebookEntry | null> => {
 			try {
 				const notebook = await readNotebook(path);
 				const modified = (await stat(manifestPath(path)))?.modified ?? notebook.updatedAt;

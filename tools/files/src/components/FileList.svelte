@@ -199,13 +199,13 @@
 		>
 			{#if manager.view === 'grid'}
 				{#if selecting}{@render check(selected, 'absolute top-1 left-1')}{/if}
-				<FileIcon name={item.name} kind={item.kind} size="size-12" />
+				<FileIcon name={item.name} kind={item.kind} remote={item.remote} size="size-12" />
 				{@render name(item, 'line-clamp-2 w-full text-sm break-words')}
 				{#if coarsePointer.current}{@render more(item, 'absolute top-0 right-0')}{/if}
 			{:else}
 				<span class="flex min-w-0 flex-1 items-center gap-2">
 					{#if selecting}{@render check(selected, '')}{/if}
-					<FileIcon name={item.name} kind={item.kind} />
+					<FileIcon name={item.name} kind={item.kind} remote={item.remote} />
 					{@render name(item, 'flex-1 truncate')}
 				</span>
 				<span class="hidden w-44 truncate text-sm opacity-70 lg:block">{kindOf(item)}</span>

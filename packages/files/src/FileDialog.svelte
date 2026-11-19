@@ -7,7 +7,7 @@
 	import { filesErrorText, filesMessages } from './i18n/index.svelte.js';
 	import { extname, isConnected, join, nameKey, nameProblem, parent, placeRoot, segments } from './path.js';
 	import { FilesError } from './fs.js';
-	import { accessAction, connections } from './sources/connections.svelte.js';
+	import { accessAction, connectionLabel, connections } from './sources/connections.svelte.js';
 
 	// One instance per tool (in its layout); opened via `chooseFile()`.
 
@@ -164,7 +164,10 @@
 	}
 
 	/** My files and the connected folders */
-	const places = $derived([{ path: '/', name: t.root }, ...connections.list.map((c) => ({ path: c.path, name: c.name }))]);
+	const places = $derived([
+		{ path: '/', name: t.root },
+		...(options?.places === false ? [] : connections.list.map((c) => ({ path: c.path, name: connectionLabel(c) })))
+	]);
 	const root = $derived(placeRoot(folder));
 	const rootName = $derived(places.find((p) => p.path === root)?.name ?? t.root);
 	const crumbs = $derived(
@@ -261,7 +264,7 @@
 									open(entry);
 								}}
 							>
-								<FileIcon name={entry.name} kind={entry.kind} />
+								<FileIcon name={entry.name} kind={entry.kind} remote={entry.remote} />
 								<span class="min-w-0 flex-1 truncate">{entry.name}</span>
 							</button>
 						</li>

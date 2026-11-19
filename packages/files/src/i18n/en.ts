@@ -40,7 +40,9 @@ const en = {
 		root: (_name: string) => 'This is not possible with the top folder.',
 		offline: (name: string) => `“${name}” can’t be reached right now.`,
 		denied: (name: string) => `The browser doesn’t allow access to “${name}” right now. Allow it in Files under “Connected”.`,
-		readOnly: (name: string) => `“${name}” can only be read.`
+		readOnly: (name: string) => `“${name}” can only be read.`,
+		ended: (_name: string) => 'The share has ended.',
+		taken: (_name: string) => 'This share is open in another browser right now. Try again later.',
 	},
 
 	/** Sync status in the footer of every tool (`SyncIndicator`) */
@@ -77,6 +79,14 @@ const en = {
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`
 	},
 
+	/** Guest shares: one folder for a browser outside your devices */
+	share: {
+		/** A share opened as a guest, under “Connected” */
+		connection: (folder: string, host: string) => (host ? `${folder} from ${host}` : folder),
+		pending: 'Shared folder',
+		viewOnly: 'View only'
+	},
+
 	/** Sync with a folder on disk */
 	folderSync: {
 		/** Whose version a conflict copy holds: `Notes (conflict browser).md` */
@@ -110,7 +120,9 @@ const en = {
 				: `${names.length} files were changed on two devices – both versions are kept.`,
 		added: (name: string) => `${name} was added to your devices.`,
 		removedDevice: (name: string) => `${name} was removed from your devices.`,
-		paired: 'This device is now connected with your devices.'
+		paired: 'This device is now connected with your devices.',
+		oldCopy: (name: string) =>
+			`“${name}” isn’t synced on this device and now opens live from your other devices – the old copy that was still here is in the trash.`
 	},
 
 	/** Why a name is not allowed (shown while typing) */

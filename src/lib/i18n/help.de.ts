@@ -138,8 +138,13 @@ const help: typeof enHelp = {
 						},
 						folders: {
 							title: 'Ordner auswählen',
-							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und gleichen sich dort weiter ab – nur dieses Gerät bekommt sie nicht. Einen Ordner auszulassen löscht ihn nirgendwo sonst.',
-							tip: 'Lass große Ordner (z. B. Bildschirmaufnahmen) auf einem Telefon mit wenig Platz aus.'
+							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und gleichen sich dort weiter ab – nur dieses Gerät bekommt sie nicht, und seine Kopie wird hier gelöscht. Einen Ordner auszulassen löscht ihn nirgendwo sonst.',
+							tip: 'Lass große Ordner (z. B. Bildschirmaufnahmen) auf einem Telefon mit wenig Platz aus – öffnen kannst du sie trotzdem live.'
+						},
+						live: {
+							title: 'Live von deinen Geräten',
+							text: 'Ein Ordner, den dieses Gerät nicht abgleicht, erscheint trotzdem in Files, mit einer Wolke statt des Ordnersymbols. Öffnest du ihn, liest dieses Gerät ihn live von einem deiner Geräte, das ihn hat – einem p2p-node oder einem Browser mit offenem in-browser. Jedes Tool funktioniert dort: öffnen, speichern, hochladen, umbenennen, löschen (in den Papierkorb jenes Geräts). Videos spielen schon beim Laden, geholt wird nur der Teil, den du ansiehst. Die Änderungen gleichen sich von jenem Gerät zu den anderen ab. Ist keins davon verbunden, sagt Files das und nennt, wo der Ordner liegt.',
+							tip: 'Ordner, die du auf diesem Gerät selten brauchst: auslassen und live öffnen. Gleich den Ordner wieder ab („Auf diesem Gerät wieder abgleichen“), wenn du ihn ohne die anderen Geräte brauchst.'
 						}
 					}
 				},
@@ -273,6 +278,32 @@ const help: typeof enHelp = {
 						deleting: {
 							title: 'Löschen',
 							text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser. Löschen fragt dort vorher und löscht dann endgültig; auch im Papierkorb deines Systems landet es nicht.'
+						}
+					}
+				},
+				share: {
+					title: 'Mit einem Gast teilen',
+					items: {
+						start: {
+							title: 'Einen Ordner teilen',
+							text: 'Wähle in Files „Ordner teilen …“ unter „Freigaben“ in der Seitenleiste und such einen Ordner in Meine Dateien aus – oder wähle „Teilen …“ im Menü eines Ordners. Wähle, was der Gast darf, dann „Teilen“: Der Dialog zeigt einen Link und einen QR-Code. Der Gast öffnet den Link in einem beliebigen aktuellen Browser – ohne Konto, ohne eines deiner Geräte zu sein. Der Ordner öffnet sich dort live von diesem Gerät; in seinem Browser bleibt nichts davon, und es ist weg, wenn er den Tab schließt.',
+							options: {
+								view: { label: '„Nur ansehen“ (Standard)', text: 'Dateien öffnen, ansehen und herunterladen. Hier ändert sich nichts.' },
+								edit: { label: '„Bearbeiten“', text: 'Auch speichern, hochladen, umbenennen und löschen. Was der Gast löscht, landet hier im Papierkorb.' }
+							},
+							tip: 'Teile zum Ansehen, um Fotos oder Dokumente weiterzugeben; nimm „Bearbeiten“, wenn der Gast Dateien zurückbringen soll, z. B. seine Bilder von einer Reise.'
+						},
+						valid: {
+							title: 'Wie lange und für wen',
+							text: 'Eine Freigabe gilt, bis du sie beendest. Sie kann jeweils ein Browser nutzen: Solange ein Gast verbunden ist, erfährt ein zweiter Browser, dass die Freigabe gerade in einem anderen Browser geöffnet ist, und versucht es selbst wieder. Der Gast kann den Tab schließen und den Link später wieder öffnen. Wer den Link hat, kommt also hinein, solange niemand sonst drin ist – gib ihn nur deinem Gast und beende Freigaben, die du nicht mehr brauchst. Lass in-browser auf diesem Gerät offen, solange der Gast ihn nutzt – im selben WLAN ist die Verbindung am schnellsten und zuverlässigsten.'
+						},
+						guest: {
+							title: 'Als Gast',
+							text: 'Der geteilte Ordner erscheint in Files unter „Verbunden“ als „Ordner“ von dem Gerät, das ihn teilt, mit einem Schloss, wenn du nur ansehen darfst. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. „Trennen“ oder das Schließen des Tabs beendet es für dich; der Link öffnet es wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Files das und versucht es selbst wieder. Beendet das teilende Gerät die Freigabe, siehst du sofort „Die Freigabe wurde beendet.“ – „Entfernen“ nimmt sie weg; was du in deine eigenen Dateien kopiert hast, bleibt. Ist das teilende Gerät nicht erreichbar, sagt Files das: Dort muss in-browser offen sein.'
+						},
+						end: {
+							title: 'Eine Freigabe beenden',
+							text: 'Deine aktiven Freigaben stehen in Files unter „Freigaben“, mit einem Punkt, der grün wird, solange ein Gast verbunden ist. Ein Klick zeigt Link und QR-Code wieder; Rechtsklick (oder gedrückt halten) für „Freigabe beenden“. Beenden trennt den Gast sofort und sagt es ihm; im Ordner ändert sich nichts. Freigaben enden auch von selbst, wenn ihre Zeit um ist.'
 						}
 					}
 				}

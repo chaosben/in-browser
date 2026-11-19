@@ -142,8 +142,13 @@ const help = {
 						},
 						folders: {
 							title: 'Choosing folders',
-							text: 'Under “Choose folders” you decide per device which folders it gets. Folders you deselect stay on the other devices and keep syncing there – only this device doesn’t get them. Leaving out a folder never deletes it anywhere else.',
-							tip: 'Leave out large folders (e.g. screen recordings) on a phone with little space.'
+							text: 'Under “Choose folders” you decide per device which folders it gets. Folders you deselect stay on the other devices and keep syncing there – only this device doesn’t get them, and its copy is deleted here. Leaving out a folder never deletes it anywhere else.',
+							tip: 'Leave out large folders (e.g. screen recordings) on a phone with little space – you can still open them live.'
+						},
+						live: {
+							title: 'Live from your devices',
+							text: 'A folder this device doesn’t sync still shows up in Files, with a cloud instead of the folder icon. Opening it reads it live from one of your devices that has it – a p2p-node or a browser with in-browser open. Every tool works there: open, save, upload, rename, delete (into the trash of that device). Videos play while they load, only the part you watch is fetched. The changes sync from that device to the others. If none of them is connected, Files says so and names where the folder is.',
+							tip: 'For folders you rarely need on this device, leave them out and open them live. Sync the folder again (“Sync again on this device”) if you need it without the other devices.'
 						}
 					}
 				},
@@ -277,6 +282,32 @@ const help = {
 						deleting: {
 							title: 'Deleting',
 							text: 'A connected folder has no trash of in-browser. Deleting there asks first and then deletes for good; the trash of your system doesn’t get it either.'
+						}
+					}
+				},
+				share: {
+					title: 'Sharing with a guest',
+					items: {
+						start: {
+							title: 'Share a folder',
+							text: 'In Files, choose “Share a folder …” under “Shares” in the sidebar and pick a folder of My files – or choose “Share …” in the menu of a folder. Pick what the guest may, then “Share”: the dialog shows a link and a QR code. The guest opens the link in any current browser – no account, not one of your devices. The folder opens there live from this device; nothing of it stays in their browser, and it is gone when they close the tab.',
+							options: {
+								view: { label: '“View only” (default)', text: 'Open, preview and download files. Nothing changes here.' },
+								edit: { label: '“Edit”', text: 'Also save, upload, rename and delete. What the guest deletes goes into the trash here.' }
+							},
+							tip: 'Share for viewing to hand over photos or documents; choose “Edit” when the guest should bring files back, e.g. their pictures of a trip.'
+						},
+						valid: {
+							title: 'How long and for whom',
+							text: 'A share stays until you end it. One browser at a time can use it: while a guest is connected, a second browser is told the share is open in another browser and tries again by itself. The guest can close the tab and open the link again later. So whoever has the link gets in while nobody else is – give it only to your guest and end shares you no longer need. Keep in-browser open on this device while the guest uses it – in the same Wi-Fi the connection is fastest and most reliable.'
+						},
+						guest: {
+							title: 'As a guest',
+							text: 'The shared folder appears in Files under “Connected” as “Folder” from the device that shares it, with a lock if you may only view. You can open the files in every tool, download them or copy them into your own files. “Disconnect” or closing the tab ends it for you; the link opens it again as long as the share lasts. If another browser is in it right now, Files says so and tries again by itself. When the sharing device ends the share, you see “The share has ended.” right away – “Remove” takes it away; what you copied into your own files stays. If the sharing device can’t be reached, Files says so: in-browser has to be open there.'
+						},
+						end: {
+							title: 'Ending a share',
+							text: 'Your active shares are in Files under “Shares”, with a dot that turns green while a guest is connected. A click shows the link and QR code again; right-click (or press and hold) for “End share”. Ending disconnects the guest at once and tells them so; nothing in the folder changes. Shares also end by themselves when their time is up.'
 						}
 					}
 				}

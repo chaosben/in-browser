@@ -1,3 +1,4 @@
+import type { Share } from './shares.js';
 import { idbDelete, idbGet, idbSet } from '../sync/idb.js';
 import type { Base, BaseEntry } from '../sync/plan.js';
 import { identityOf, createIdentity, type Identity } from './identity.js';
@@ -17,6 +18,8 @@ export interface P2pState {
 	devices: Record<string, DeviceInfo>;
 	/** Open one-time keys of this device (kept only until used or expired) */
 	invites: { code: string; expires: number }[];
+	/** Folders shared with a guest (a browser outside the group) */
+	shares?: Share[];
 	/** This device was removed from its group */
 	removed?: true;
 }

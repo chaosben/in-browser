@@ -20,7 +20,7 @@ const help = {
 			},
 			connected: {
 				title: 'In a connected folder',
-				text: 'When you start a project or use “Open …” or “Save as …”, the choice in front of the folder path switches between My files and the folders you connected in Files (“Connected”). A project there – recordings included – is saved right in that folder on your computer and takes no browser storage. The start page lists such projects once you have created or opened them here; it doesn’t search connected folders. After a restart the browser may ask again: the start page then shows “Allow access”, and so does a message when saving or opening fails; the save state shows an error until it works again.',
+				text: 'When you start a project or use “Open …” or “Save as …”, the choice in front of the folder path switches between My files and the folders you connected in Files (“Connected”). A project there – recordings included – is saved right in that folder on your computer and takes no browser storage. The start page lists such projects once you have created or opened them here; it doesn’t search connected folders. After a restart the browser may ask again: the start page then shows “Allow access”, and so does a message when saving or opening fails; the save state shows an error until it works again. Folders shown with a cloud (opened live from your other devices) work the same way: videos play while they load, only what you watch is fetched.',
 				tip: 'Long recordings go straight to the folder – handy when the browser storage is small. Allow access before you record: if the browser withdraws it during a recording, the recording stops being written.',
 				link: { href: '/help/connected', label: 'Connected folders' }
 			},

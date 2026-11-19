@@ -1,8 +1,10 @@
-import { FilesError, list, mkdir, move, read, remove, rootHandle, stat, writable } from '../fs.js';
+import { FilesError } from '../entry.js';
+import { list, mkdir, move, read, remove, rootHandle, stat, writable } from '../opfs.js';
 import { scan } from './scan.js';
 import type { Tree } from './tree.js';
 
-// The shared file system (OPFS) as both syncs see it; every change goes through fs.ts (locks, `watch`)
+// My files on this device (OPFS) as the syncs see it – never routed elsewhere; every change goes through opfs.ts (locks,
+// `watch`)
 
 export const opfsTree: Tree = {
 	scan: async () => scan(await rootHandle()),

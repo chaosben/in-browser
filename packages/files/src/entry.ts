@@ -8,6 +8,8 @@ export interface Entry {
 	size?: number;
 	/** Last change in ms (files only; OPFS folders have no date) */
 	modified?: number;
+	/** Not on this device: opened live from another device (a folder this device doesn't sync) */
+	remote?: boolean;
 }
 
 export type FilesErrorCode =
@@ -22,7 +24,11 @@ export type FilesErrorCode =
 	/** The browser doesn't (or no longer) allow access to a connected source */
 	| 'denied'
 	/** A connected source can only be read */
-	| 'readOnly';
+	| 'readOnly'
+	/** A guest share was ended or ran out */
+	| 'ended'
+	/** A guest share is already open in another browser */
+	| 'taken';
 
 /** Error with a code the UI translates (`filesMessages().errors`) */
 export class FilesError extends Error {

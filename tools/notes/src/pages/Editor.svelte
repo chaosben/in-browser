@@ -168,7 +168,7 @@
 		try {
 			await d.save();
 			const target = await renameNotebook(d.path, name);
-			if (target !== d.path) await goto(editorUrl(target), { replaceState: true });
+			if (target !== d.path) await goto(editorUrl(target), { replace: true });
 		} catch (e) {
 			toast(m.editor.renameFailed(filesErrorText(e)), 'error', 8000);
 		}

@@ -1,7 +1,6 @@
-import { createWriteStream, openAsBlob } from 'node:fs';
-import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
+import { openAsBlob } from 'node:fs';
+import { mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Writable } from 'node:stream';
 import { segments } from '@in-browser/files/path.js';
 import { ignored, type FileState, type Snapshot } from '@in-browser/files/sync/plan.js';
 import type { Tree } from '@in-browser/files/sync/tree.js';
@@ -68,7 +67,7 @@ export function fsTree(root: string): Tree {
 		async write(path) {
 			const file = real(path);
 			await mkdir(join(file, '..'), { recursive: true });
-			return Writable.toWeb(createWriteStream(file, { flush: await canFlush(root) })) as WritableStream<Uint8Array>;
+			return positionalWriter(file, await canFlush(root)) as WritableStream<Uint8Array>;
 		},
 		mkdir: async (path) => void (await mkdir(real(path), { recursive: true })),
 		remove: (path) => rm(real(path), { recursive: true, force: true }),
@@ -86,4 +85,38 @@ export function fsTree(root: string): Tree {
 			}
 		}
 	};
+}
+
+/**
+ * A file written like `FileSystemWritableFileStream`: plain chunks one after the other, `{ type: 'write', position,
+ * data }` at a position (live writes of another device, e.g. a recording that fixes its header at the end)
+ */
+function positionalWriter(file: string, flush: boolean): WritableStream<Uint8Array | { type: 'write'; position?: number; data: Uint8Array }> {
+	const handle = open(file, 'w');
+	let position = 0;
+	return new WritableStream({
+		async write(chunk) {
+			const fh = await handle;
+			let data: Uint8Array;
+			if (chunk instanceof Uint8Array) data = chunk;
+			else {
+				data = chunk.data;
+				if (chunk.position !== undefined) position = chunk.position;
+			}
+			let written = 0;
+			while (written < data.length) {
+				const { bytesWritten } = await fh.write(data, written, data.length - written, position + written);
+				written += bytesWritten;
+			}
+			position += data.length;
+		},
+		async close() {
+			const fh = await handle;
+			if (flush) await fh.sync();
+			await fh.close();
+		},
+		async abort() {
+			await (await handle).close();
+		}
+	});
 }

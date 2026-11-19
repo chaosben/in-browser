@@ -1,5 +1,13 @@
 import { requestPersistence } from '../cache.js';
-import { watch } from '../fs.js';
+import { FilesError, noticed, watch, type FilesErrorCode } from '../fs.js';
+import { expectDevices, setDevicesSource } from '../sources/registry.js';
+import type { Source } from '../sources/source.js';
+import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+import { basename, isConnected } from '../path.js';
+import type { Tree } from '../sync/tree.js';
+import { liveSource } from './live.js';
+import type { Share } from './shares.js';
+import type { Json } from './rpc.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import type { Device, DeviceEvent, P2pView } from './device.js';
 import { ed25519Supported } from './identity.js';
@@ -15,7 +23,7 @@ export interface P2pStatus {
 	view: P2pView;
 }
 
-const EMPTY: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0 };
+const EMPTY: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0, shares: [] };
 
 export const p2pStatus = $state<P2pStatus>({ supported: true, view: EMPTY });
 
@@ -33,13 +41,17 @@ type Action =
 	| ['syncNow']
 	| ['applyDeletes']
 	| ['sizes', string]
-	| ['diagnostics'];
+	| ['diagnostics']
+	| ['live', string, string, Json, Uint8Array | undefined]
+	| ['holders', string]
+	| ['share', string, Share['mode']]
+	| ['endShare', string];
 
 type Message =
 	| { status: P2pView }
 	| { event: DeviceEvent }
 	| { request: Action; id: string }
-	| { reply: string; value?: unknown; error?: string }
+	| { reply: string; value?: unknown; error?: string; code?: FilesErrorCode; path?: string }
 	| { hello: true };
 
 let channel: BroadcastChannel | null = null;
@@ -59,27 +71,35 @@ export function startP2p() {
 	channel.onmessage = (e: MessageEvent<Message>) => {
 		const message = e.data;
 		if ('status' in message) {
-			if (!device) p2pStatus.view = message.status;
+			if (!device) showView(message.status);
 		} else if ('event' in message) {
 			eventHandlers.forEach((handler) => handler(message.event));
+			if (message.event.type === 'remoteChanged') remoteChanged();
 		} else if ('request' in message) {
 			if (device) run(message.request).then(
 				(value) => channel?.postMessage({ reply: message.id, value } satisfies Message),
-				(error: unknown) => channel?.postMessage({ reply: message.id, error: error instanceof Error ? error.message : String(error) } satisfies Message)
+				(error: unknown) =>
+					channel?.postMessage({
+						reply: message.id,
+						error: error instanceof Error ? error.message : String(error),
+						...(error instanceof FilesError ? { code: error.code, path: error.path } : {})
+					} satisfies Message)
 			);
 		} else if ('reply' in message) {
 			const pending = waiting.get(message.reply);
 			waiting.delete(message.reply);
-			if (message.error !== undefined) pending?.reject(new Error(message.error));
+			if (message.error !== undefined) pending?.reject(message.code ? new FilesError(message.code, message.path ?? '/') : new Error(message.error));
 			else pending?.resolve(message.value);
 		} else if ('hello' in message && device) {
 			channel?.postMessage({ status: device.view() } satisfies Message);
 		}
 	};
 	channel.postMessage({ hello: true } satisfies Message);
+	// Paths in folders this device doesn't sync wait for the folder choice before fs.ts routes them
+	expectDevices();
 	ed25519Supported().then((ok) => {
 		p2pStatus.supported = ok;
-		if (!ok) return;
+		if (!ok) return showView(EMPTY);
 		navigator.locks.request('files:p2p-leader', async () => {
 			await lead();
 			return new Promise<never>(() => {});
@@ -103,16 +123,19 @@ async function lead() {
 		conflictLabel: (name) => filesMessages().p2p.conflictLabel(name),
 		log: log.add,
 		onChange: (view) => {
-			p2pStatus.view = view;
+			showView(view);
 			channel?.postMessage({ status: view } satisfies Message);
 		},
 		onEvent: (event) => {
 			eventHandlers.forEach((handler) => handler(event));
+			if (event.type === 'remoteChanged') remoteChanged();
 			channel?.postMessage({ event } satisfies Message);
 		}
 	});
-	watch((paths) => void device?.localChange(paths));
+	// Connected folders are no part of My files: their changes never reach the other devices
+	watch((paths) => void device?.localChange(paths.filter((path) => !isConnected(path))));
 	await device.start();
+	void dropOldCopies(opfsTree);
 }
 
 async function run(action: Action): Promise<unknown> {
@@ -146,8 +169,80 @@ async function run(action: Action): Promise<unknown> {
 			return d.remoteSizes(action[1]);
 		case 'diagnostics':
 			return diagnosticsHere();
+		case 'live':
+			return d.live(action[2], action[3], action[4]).catch((e: unknown) => {
+				// Answers of the other device about files keep their code across tabs
+				if (e instanceof Error && e.name === 'RemoteError' && e.message.startsWith('files:')) {
+					throw new FilesError(e.message.slice(6) as FilesErrorCode, action[1]);
+				}
+				throw e;
+			});
+		case 'holders':
+			return d.holdersOf(action[1]);
+		case 'share':
+			return d.share(action[1], action[2]);
+		case 'endShare':
+			return d.endShare(action[1]);
 	}
 }
+
+// --- Folders this device doesn't sync, opened live from the others ---
+
+/** A request may wait this long for the leading tab (pieces are at most 1 MiB) */
+const LIVE_TIMEOUT = 60_000;
+
+const devicesSource: Source = liveSource(
+	(method, params, upload) => {
+		const p = (params ?? {}) as { path?: string; from?: string };
+		const path = p.path ?? p.from ?? '/';
+		return withTimeout(request<{ value: Json; bytes?: Uint8Array }>('live', path, method, params, upload), path);
+	},
+	{ readOnly: false, trash: true }
+);
+
+function withTimeout<T>(promise: Promise<T>, path: string): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => reject(new FilesError('offline', path)), LIVE_TIMEOUT);
+		promise.then(
+			(value) => (clearTimeout(timer), resolve(value)),
+			(error) => (clearTimeout(timer), reject(error))
+		);
+	});
+}
+
+function showView(view: P2pView) {
+	p2pStatus.view = view;
+	setDevicesSource(devicesSource, view.state === 'online' ? view.scope : []);
+}
+
+/**
+ * Copies of folders this device doesn't sync that are still here (“keep copy” of earlier versions): into the trash of
+ * this device – there they stay restorable (restoring writes to a device that has the folder); once per start
+ */
+async function dropOldCopies(tree: Tree) {
+	const { trashInTree } = await import('../trash.js');
+	for (const folder of device?.view().state === 'online' ? device.view().scope : []) {
+		try {
+			if (!(await tree.stat(folder))) continue;
+			await trashInTree(tree, folder);
+			toast(filesMessages().p2p.oldCopy(basename(folder)), 'info', 10000);
+		} catch (e) {
+			console.warn('[P2P] old copy', folder, e);
+		}
+	}
+}
+
+/** Another device changed files: views of folders opened from it load again */
+function remoteChanged() {
+	if (p2pStatus.view.scope.length) noticed(...p2pStatus.view.scope);
+}
+
+/** Shares a folder with a guest (a browser outside your devices); its link carries the code */
+export const shareFolder = (folder: string, mode: Share['mode']) => request<Share>('share', folder, mode);
+export const endShare = (id: string) => request<void>('endShare', id);
+
+/** Devices that have `path` (for “can't be reached right now”) */
+export const holdersOf = (path: string) => request<string[]>('holders', path);
 
 /** Runs an action in the leading tab (this one or another) */
 function request<T>(...action: Action): Promise<T> {

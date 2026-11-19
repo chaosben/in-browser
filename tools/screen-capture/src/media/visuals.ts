@@ -1,7 +1,8 @@
 import { AudioBufferSink, CanvasSink } from 'mediabunny';
 import type { Item, Source } from '#lib/project/types.js';
 import { sourceCrop, visibleRect } from './content.js';
-import { mediaFile, writeMediaText } from '#lib/storage/store.js';
+import type { RandomAccess } from '@in-browser/files/fs.js';
+import { mediaAccess, writeMediaText } from '#lib/storage/store.js';
 import { openInput } from './media.js';
 
 // Thumbnails and audio waveform for the timeline. Computed in the background and cached
@@ -27,7 +28,7 @@ const thumbCache = new Map<string, Promise<Thumbnails | null>>();
 const peakCache = new Map<string, Promise<Peaks | null>>();
 
 /** Opens a media file where it is (a project's folder or the global library) */
-export type OpenMedia = (file: string) => Promise<File>;
+export type OpenMedia = (file: string) => Promise<Blob | RandomAccess>;
 
 /** Where media lives: cache key (project id or `library`), how to open its files, optionally how to cache text */
 export interface MediaPlace {
@@ -38,7 +39,7 @@ export interface MediaPlace {
 
 export const projectMedia = (projectId: string): MediaPlace => ({
 	key: projectId,
-	open: (file) => mediaFile(projectId, file),
+	open: (file) => mediaAccess(projectId, file),
 	save: (file, text) => writeMediaText(projectId, file, text)
 });
 
@@ -108,7 +109,7 @@ async function loadPeaks(place: MediaPlace, source: Source): Promise<Peaks | nul
 	const file = `${source.id}.peaks.json`;
 	const cached = await place
 		.open(file)
-		.then((f) => f.text())
+		.then(async (f) => (f instanceof Blob ? f.text() : new TextDecoder().decode(await f.read(0, f.size))))
 		.catch(() => null);
 	if (cached) {
 		const { rate, data } = JSON.parse(cached) as { rate: number; data: number[] };

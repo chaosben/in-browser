@@ -11,7 +11,7 @@ that serves the overview site and every tool on a single origin, so the tools ca
 | `tools/notes` | `@in-browser/notes`: handwritten notebooks, PDF import and export | https://in-browser.org/notes |
 | `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.org/screen-capture |
 | `packages/brand` | `@in-browser/brand`: header, footer, theme, language logic, PWA, toasts, dialogs, context menu | – |
-| `packages/files` | `@in-browser/files`: shared file system (OPFS) with connected sources (`/:c/<id>`), file dialog, formats, folder and device sync | – |
+| `packages/files` | `@in-browser/files`: shared file system (OPFS) with connected sources (`/:c/<id>`), live access to other devices and guest shares, media in pieces, file dialog, formats, folder and device sync | – |
 | `packages/graphics` | `@in-browser/graphics`: colors, icons, shapes and fields of the drawing tools | – |
 | `packages/p2p-node` | `@in-browser/p2p-node`: always-on device for the device sync, runs in Node ([README](packages/p2p-node/README.md), [user guide](https://in-browser.org/help/p2p-node)) | https://in-browser.org/p2p-node/install.sh |
 
@@ -25,8 +25,10 @@ User help is on the site, not here: https://in-browser.org/help (pages in `src/r
 Your devices sync their files directly with each other over WebRTC; only encrypted connection offers pass through
 public Nostr relays. Both syncs (devices and a folder on disk) share one way of applying changes
 (`packages/files/src/sync/apply.ts`): the newer version wins, the other one becomes a conflict copy, and what the user
-deletes goes into the synced trash `/.in-browser-trash/` (`packages/files/src/trash.ts`). How this looks to users:
-https://in-browser.org/help/sync.
+deletes goes into the synced trash `/.in-browser-trash/` (`packages/files/src/trash.ts`). Folders a device doesn't
+sync open live from a device that has them, and a guest share gives one folder to a browser outside the group – both
+through live requests on the same connections (`packages/files/src/p2p/live.ts`). How this looks to users:
+https://in-browser.org/help/sync and https://in-browser.org/help/connected.
 
 Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest, Playwright. The UI is
 available in English and German (following the browser language).

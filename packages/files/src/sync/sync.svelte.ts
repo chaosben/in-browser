@@ -9,7 +9,8 @@ import type { Base, BaseEntry, Op } from './plan.js';
 import { cleanTrash } from '../trash.js';
 import { journal } from './journal.svelte.js';
 import type { LogFn } from './log.js';
-import { startP2p } from '../p2p/p2p.svelte.js';
+import { p2pStatus, startP2p } from '../p2p/p2p.svelte.js';
+import { intersect } from '../p2p/scope.js';
 
 // Sync of the shared file system with a folder on disk (File System Access API, Chromium only).
 // `startSync()` also starts the P2P sync with other devices (`p2p/p2p.svelte.ts`), in every browser.
@@ -219,9 +220,11 @@ async function run(): Promise<void> {
 		publish({ folder: folder.name, state: 'syncing' });
 		observe(folder);
 		const disk = handleTree(folder);
-		const base: Base = new Map((await idbGet<[string, BaseEntry][]>(BASE)) ?? []);
-		const local = await opfsTree.scan();
-		const remote = await disk.scan();
+		// Folders this device doesn't sync with the other devices aren't here: the folder on disk keeps them as they are
+		const excluded = p2pStatus.view.state === 'online' ? p2pStatus.view.scope : [];
+		const base: Base = intersect(new Map((await idbGet<[string, BaseEntry][]>(BASE)) ?? []), excluded, []);
+		const local = intersect(await opfsTree.scan(), excluded, []);
+		const remote = intersect(await disk.scan(), excluded, []);
 		log('folder.start', { folder: folder.name, local: local.size, disk: remote.size, base: base.size });
 
 		const m = filesMessages();

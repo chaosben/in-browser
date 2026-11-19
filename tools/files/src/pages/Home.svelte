@@ -11,21 +11,24 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-	import { supported, watch } from '@in-browser/files/fs.js';
+	import { stat, supported, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { isConnected, isInside, join, normalize, parent, placeRoot, segments } from '@in-browser/files/path.js';
+	import { basename, isConnected, isInside, join, normalize, parent, placeRoot, segments } from '@in-browser/files/path.js';
 	import {
 		allowAccess,
 		connectFolder,
+		connectionLabel,
 		connections,
+		openShare,
 		connectionsSupported,
 		disconnect,
 		renameConnection,
 		type ConnectionView
 	} from '@in-browser/files/sources/connections.svelte.js';
 	import { displayName } from '@in-browser/files/sources/registry.js';
-	import { parseInviteCode } from '@in-browser/files/p2p/auth.js';
-	import { includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
+	import { parseInviteCode, parseShareCode } from '@in-browser/files/p2p/auth.js';
+	import { endShare, holdersOf, includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
+	import type { ShareView } from '@in-browser/files/p2p/device.js';
 	import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
 	import {
 		duplicate,
@@ -40,6 +43,8 @@
 	} from '#lib/actions.js';
 	import { BRAND } from '#lib/brand.js';
 	import ConnectedSection from '#lib/components/ConnectedSection.svelte';
+	import SharesSection from '#lib/components/SharesSection.svelte';
+	import ShareDialog from '#lib/components/ShareDialog.svelte';
 	import FileList from '#lib/components/FileList.svelte';
 	import FolderTree from '#lib/components/FolderTree.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
@@ -65,6 +70,10 @@
 	const t = $derived(filesMessages());
 
 	let preview = $state<Item | null>(null);
+	/** Folder being shared with a guest (dialog) */
+	let sharing = $state<{ path: string; id?: string } | null>(null);
+	/** A folder of My files on this device can be shared with a guest (an excluded one isn't here) */
+	const shareable = (path: string) => p2pStatus.supported && path !== '/' && !isConnected(path) && inScope(path, p2pStatus.view.scope);
 	let properties = $state<Item | null>(null);
 	let uploading = $state<string | null>(null);
 	let dropping = $state(false);
@@ -83,12 +92,29 @@
 			: [])
 	];
 
+	/** The open folder lies in a folder this device doesn't sync: it comes live from the other devices */
+	const remoteFolder = $derived(
+		p2pStatus.view.state === 'online' ? (p2pStatus.view.scope.find((folder) => isInside(manager.folder, folder)) ?? null) : null
+	);
+	/** Devices that have it (when none answers) */
+	let holders = $state<string[]>([]);
+	$effect(() => {
+		const folder = remoteFolder;
+		if (!folder || !manager.error) return;
+		holdersOf(folder).then(
+			(names) => (holders = names),
+			() => (holders = [])
+		);
+	});
+
 	/** My files (`/`) or the root of the connected folder the open folder lies in */
 	const root = $derived(placeRoot(manager.folder));
 	const connection = $derived(connections.list.find((c) => c.path === root) ?? null);
+	/** A guest share for viewing: nothing can be added here */
+	const readOnlyPlace = $derived(connection?.mode === 'view');
 	/** Levels from the first folder; in a connected folder starting with the connection */
 	const crumbs = $derived([
-		...(root === '/' ? [] : [{ name: connection?.name ?? displayName(root), path: root }]),
+		...(root === '/' ? [] : [{ name: connection ? connectionLabel(connection) : displayName(root), path: root }]),
 		...segments(manager.folder)
 			.slice(segments(root).length)
 			.map((name, i, all) => ({ name, path: join(root, ...all.slice(0, i + 1)) }))
@@ -119,12 +145,24 @@
 			{ separator: true },
 			{ label: m.menu.downloadZip, icon: 'icon-[material-symbols-light--folder-zip-outline]', run: () => downloadItems([folder]) },
 			{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', run: () => (properties = folder) },
+			...(shareable(folder.path) ? [{ label: m.share.action, icon: 'icon-[material-symbols-light--share-outline]', run: () => (sharing = { path: folder.path }) }] : []),
 			...(connection && folder.path === connection.path ? [{ separator: true } as MenuEntry, ...connectionEntries(connection)] : []),
 			{ separator: true },
 			// Also in the sidebar, which is hidden on small screens
 			{ label: m.trash.title, icon: 'icon-[material-symbols-light--delete-outline]', run: () => openDevicesDialog('trash') },
-			...connections.list.map((c) => ({ label: c.name, icon: 'icon-[material-symbols-light--link]', run: () => navigate(c.path) })),
-			...(connectionsSupported() ? [{ label: m.connected.connect, icon: 'icon-[material-symbols-light--add-link]', run: connect }] : [])
+			...connections.list.map((c) => ({ label: connectionLabel(c), icon: 'icon-[material-symbols-light--link]', run: () => navigate(c.path) })),
+			...(connectionsSupported() ? [{ label: m.connected.connect, icon: 'icon-[material-symbols-light--add-link]', run: connect }] : []),
+			...(p2pStatus.supported
+				? [
+						{ separator: true } as MenuEntry,
+						...p2pStatus.view.shares.map((share) => ({
+							label: `${basename(share.folder)} – ${m.share.shared}`,
+							icon: 'icon-[material-symbols-light--share-outline]',
+							run: () => (sharing = { path: share.folder, id: share.id })
+						})),
+						{ label: m.share.new, icon: 'icon-[material-symbols-light--share-outline]', run: shareNew }
+					]
+				: [])
 		];
 		// The tool name stands for the top level: the levels start with the first folder, the menu of the top level
 		// hangs at the tool name
@@ -136,7 +174,8 @@
 							label: level.name,
 							menu,
 							// The name of a connection is only how it is shown here
-							rename: connection && level.path === connection.path ? (name: string) => void renameConnection(connection.id, name) : undefined
+							rename:
+																connection?.kind === 'folder' && level.path === connection.path ? (name: string) => void renameConnection(connection.id, name) : undefined
 						}
 			),
 			menu,
@@ -161,23 +200,39 @@
 		usage = m.storage.used(formatSize(used, intlLocale), formatSize(quota, intlLocale));
 	}
 
+	// Links with a key in the fragment (kept out of requests): a guest share (`#share=KEY`, this tab only) and pairing
+	// (`#pair=KEY`). Also when only the fragment changes in an open Files tab (no new page load).
+	$effect(() => {
+		const hash = page.url.hash;
+		untrack(() => openFromLink(hash));
+	});
+
+	function openFromLink(hash: string) {
+		const shared = parseShareCode(hash);
+		const code = parseInviteCode(hash);
+		if (!shared && !code) return;
+		// The key leaves the address first (through SvelteKit's router)
+		const url = new URL(location.href);
+		url.hash = '';
+		const cleared = goto(url, { state: page.state, shallow: true, replace: true });
+		if (shared) void cleared.then(() => openShare(shared)).then(navigate);
+		if (code) {
+			devicesUi.joinCode = code;
+			openDevicesDialog('join');
+		}
+	}
+
 	// Changes from anywhere (this tab, other tools, the sync): reload what is affected
 	let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 	onMount(() => {
 		updateUsage();
-		// Pairing link (`#pair=KEY`, the key stays out of requests) and “Manage devices” from the footer of any tool
-		const code = parseInviteCode(location.hash);
-		const panel = page.url.searchParams.get('panel') === 'sync';
-		if (code || panel) {
+		// “Manage devices” from the footer of any tool
+		if (page.url.searchParams.get('panel') === 'sync') {
 			const url = new URL(location.href);
-			url.hash = '';
 			url.searchParams.delete('panel');
-			history.replaceState(history.state, '', url);
+			void goto(url, { state: page.state, shallow: true, replace: true });
+			openDevicesDialog('sync');
 		}
-		if (code) {
-			devicesUi.joinCode = code;
-			openDevicesDialog('join');
-		} else if (panel) openDevicesDialog('sync');
 		const stop = watch((paths) => {
 			treeVersion.current++;
 			const folder = manager.folder;
@@ -214,21 +269,93 @@
 		}
 	}
 
+	/** Actions of a folder this device shares with a guest */
+	/** “Share a folder …”: pick one of My files, then the share dialog */
+	async function shareNew() {
+		const start = shareable(manager.folder) ? manager.folder : '/';
+		const folder = await chooseFile({ mode: 'folder', folder: start, accept: [], places: false, title: m.share.chooseTitle, confirmLabel: m.share.chooseConfirm });
+		if (!folder) return;
+		if (!shareable(folder)) {
+			toast(folder === '/' ? m.share.notRoot : m.share.notShareable, 'info', 8000);
+			return;
+		}
+		sharing = { path: folder };
+	}
+
+	function shareEntries(share: ShareView): MenuEntry[] {
+		return [
+			{ label: m.share.show, icon: 'icon-[material-symbols-light--qr-code]', run: () => (sharing = { path: share.folder, id: share.id }) },
+			{
+				label: m.share.end,
+				icon: 'icon-[material-symbols-light--link-off]',
+				run: async () => {
+					const ok = await ask({ title: m.share.endTitle, message: m.share.endMessage(basename(share.folder)), confirm: m.share.end, danger: true });
+					if (ok) await endShare(share.id);
+				}
+			}
+		];
+	}
+
+	/** Menu of a folder in the tree: the same actions as in the list, for exactly this folder */
+	async function treeMenu(e: MouseEvent, path: string) {
+		const listed = manager.visible.find((i) => i.path === path);
+		const entry = listed ? null : await stat(path).catch(() => null);
+		const item = listed ?? (entry && toItem(entry));
+		if (!item) return;
+		openContextMenu(
+			e,
+			itemEntries([item], (it) => {
+				// Renamed in the list of the folder it is in
+				if (manager.folder !== parent(it.path)) navigate(parent(it.path));
+				setTimeout(() => (manager.renaming = it.path), 150);
+			})
+		);
+	}
+
+	async function disconnectShare() {
+		await disconnect('share');
+		navigate('/');
+	}
+
+	// A guest share that ends while it is open: say it once
+	let endedShown = false;
+	$effect(() => {
+		if (connection?.kind !== 'share' || !connection.ended) {
+			endedShown = false;
+			return;
+		}
+		if (endedShown) return;
+		endedShown = true;
+		toast(m.share.ended, 'info', 8000);
+	});
+
+	// A guest share that can't be opened right now (device away, another guest in it): try again by itself
+	$effect(() => {
+		if (connection?.kind !== 'share' || (manager.errorCode !== 'offline' && manager.errorCode !== 'taken')) return;
+		const timer = setTimeout(() => untrack(() => manager.refresh()), 20_000);
+		return () => clearTimeout(timer);
+	});
+
 	/** Actions of a connection: allow access again, rename, disconnect */
 	function connectionEntries(c: ConnectionView): MenuEntry[] {
 		return [
 			...(c.access === 'granted'
 				? []
 				: [{ label: m.connected.allow, icon: 'icon-[material-symbols-light--key-outline]', run: () => void allowAccess(c.id) }]),
-			{
-				label: m.connected.rename,
-				icon: 'icon-[material-symbols-light--edit-outline]',
-				run: () => {
-					if (manager.folder !== c.path) navigate(c.path);
-					// Renamed inline in the BrandBar once the connection is the open level
-					setTimeout(startRename, 50);
-				}
-			},
+			// A guest share keeps the name its device gives it
+			...(c.kind === 'share'
+				? []
+				: [
+						{
+							label: m.connected.rename,
+							icon: 'icon-[material-symbols-light--edit-outline]',
+							run: () => {
+								if (manager.folder !== c.path) navigate(c.path);
+								// Renamed inline in the BrandBar once the connection is the open level
+								setTimeout(startRename, 50);
+							}
+						}
+					]),
 			{ label: m.connected.disconnect, icon: 'icon-[material-symbols-light--link-off]', run: () => void disconnectConnection(c) }
 		];
 	}
@@ -292,12 +419,13 @@
 		if (!(await rename(manager, item.path, name))) manager.renaming = item.path;
 	}
 
-	/** Menu of the selection (`item`) or of the free area (`null`); at the pointer, or below a button */
-	function menu(e: MouseEvent, item: Item | null, show = openContextMenu) {
-		const items = manager.selected;
+	/**
+	 * Actions for entries (the selection in the list, or one folder in the tree); `rename` starts renaming one where it
+	 * is shown in the list
+	 */
+	function itemEntries(items: Item[], rename: (item: Item) => void = (item) => (manager.renaming = item.path)): MenuEntry[] {
 		const one = items.length === 1 ? items[0] : null;
-		const entries: MenuEntry[] = item
-			? [
+		return [
 					...(one?.folder ? [{ label: m.menu.open, icon: 'icon-[material-symbols-light--folder-open-outline]', run: () => open(one) }] : []),
 					...(one && !one.folder
 						? one.openWith.map((format) => ({
@@ -323,15 +451,34 @@
 					{ label: m.menu.duplicate, icon: 'icon-[material-symbols-light--folder-copy-outline]', run: () => duplicate(manager, items) },
 					{ label: m.menu.moveTo, icon: 'icon-[material-symbols-light--drive-file-move-outline]', run: () => moveTo(items) },
 					{ separator: true },
-					{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && (manager.renaming = one.path) },
-					{ label: m.menu.delete, icon: 'icon-[material-symbols-light--delete-outline]', keys: 'Del', run: () => removeItems(manager, items) },
+					{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && rename(one) },
+					{
+						label: m.menu.delete,
+						icon: 'icon-[material-symbols-light--delete-outline]',
+						keys: 'Del',
+						run: async () => {
+							await removeItems(manager, items);
+							// The open folder was in it (deleted from the tree): show where it was
+							const gone = items.find((i) => isInside(manager.folder, i.path));
+							if (gone) navigate(parent(gone.path));
+						}
+					},
 					{ separator: true },
 					...(coarsePointer.current
 						? [{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() }]
 						: []),
 					...scopeEntries(one),
+					...(one?.folder && shareable(one.path)
+						? [{ label: m.share.action, icon: 'icon-[material-symbols-light--share-outline]', run: () => (sharing = { path: one.path }) }]
+						: []),
 					{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', disabled: !one, run: () => (properties = one) }
-				]
+				];
+	}
+
+	/** Menu of the selection (`item`) or of the free area (`null`); at the pointer, or below a button */
+	function menu(e: MouseEvent, item: Item | null, show = openContextMenu) {
+		const entries: MenuEntry[] = item
+			? itemEntries(manager.selected)
 			: [
 					{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
 					{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
@@ -406,7 +553,13 @@
 		{/if}
 		{#if connection}
 			<span class="hidden items-center gap-1 lg:flex">
-				<span class="icon-[material-symbols-light--link] size-4" aria-hidden="true"></span>{m.connected.live(connection.name)}
+				<span class="icon-[material-symbols-light--link] size-4" aria-hidden="true"></span>{connection.kind === 'share'
+					? m.connected.liveShared(connection.host ?? '')
+					: m.connected.live(connection.name)}
+			</span>
+		{:else if remoteFolder}
+			<span class="hidden items-center gap-1 lg:flex">
+				<span class="icon-[material-symbols-light--cloud-outline] size-4" aria-hidden="true"></span>{m.remote.live}
 			</span>
 		{:else if usage}<span class="hidden lg:inline">{usage}</span>{/if}
 		<span class="hidden truncate 2xl:inline">{m.list.hint}</span>
@@ -481,13 +634,14 @@
 {#snippet barPrimary()}
 	<button
 		class="btn btn-primary btn-sm"
+		disabled={readOnlyPlace}
 		onclick={(e) => openMenuBelow(e, uploadEntries())}
 	>
 		<span class="icon-[material-symbols-light--upload] size-5" aria-hidden="true"></span>
 		{m.toolbar.upload}
 		<span class="icon-[material-symbols-light--keyboard-arrow-down] size-4" aria-hidden="true"></span>
 	</button>
-	<button class="btn btn-ghost btn-sm" onclick={() => newFolder(manager)}>
+	<button class="btn btn-ghost btn-sm" disabled={readOnlyPlace} onclick={() => newFolder(manager)}>
 		<span class="icon-[material-symbols-light--create-new-folder-outline] size-5" aria-hidden="true"></span>
 		{m.toolbar.newFolder}
 	</button>
@@ -503,6 +657,7 @@
 			<ul role="tree" aria-label={t.root}>
 				<FolderTree
 					path="/"
+					onfoldermenu={treeMenu}
 					current={manager.folder}
 					onnavigate={navigate}
 					ondropitems={dropItems}
@@ -515,6 +670,12 @@
 				ondropitems={dropItems}
 				ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
 				onmenu={(e, c) => openContextMenu(e, connectionEntries(c))}
+				onfoldermenu={treeMenu}
+			/>
+			<SharesSection
+				onshare={(share) => (sharing = { path: share.folder, id: share.id })}
+				onsharemenu={(e, share) => openContextMenu(e, shareEntries(share))}
+				onnew={shareNew}
 			/>
 			<div class="mt-auto flex flex-col gap-2">
 				<TrashEntry />
@@ -541,7 +702,16 @@
 				ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}
 				ondrop={areaDrop}
 			>
-				{#if connection && connection.access !== 'granted'}
+				{#if connection?.ended}
+					<div class="flex flex-col items-start gap-2 p-6">
+						<p class="flex items-center gap-2">
+							<span class="icon-[material-symbols-light--link-off] size-6 shrink-0" aria-hidden="true"></span>
+							{m.share.ended}
+						</p>
+						<p class="text-sm opacity-70">{m.share.endedHint}</p>
+						<button class="btn btn-sm" onclick={() => disconnectShare()}>{m.share.remove}</button>
+					</div>
+				{:else if connection && connection.access !== 'granted'}
 					<div class="flex flex-col items-start gap-2 p-6">
 						<p>{m.connected.noAccess(connection.name)}</p>
 						<button class="btn btn-sm btn-primary" onclick={() => allowAccess(connection.id)}>{m.connected.allow}</button>
@@ -549,6 +719,19 @@
 					</div>
 				{:else if manager.items === null}
 					<p class="p-6 text-sm opacity-60">{m.list.loading}</p>
+				{:else if manager.error && remoteFolder}
+					<div class="flex flex-col items-start gap-2 p-6">
+						<p class="flex items-center gap-2">
+							<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
+							{m.remote.unreachable(basename(remoteFolder), holders)}
+						</p>
+						<a class="link text-sm" href={resolve('/help/sync')} target="_blank" rel="noopener">{m.remote.help}</a>
+					</div>
+				{:else if manager.error && connection?.kind === 'share' && (manager.errorCode === 'offline' || manager.errorCode === 'taken')}
+					<p class="flex items-center gap-2 p-6">
+						<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
+						{manager.errorCode === 'offline' ? m.share.unreachable : manager.error}
+					</p>
 				{:else if manager.error}
 					<p class="text-error p-6">{manager.error}</p>
 				{:else}
@@ -581,6 +764,9 @@
 
 {#if preview}
 	<PreviewDialog item={preview} ondownload={(item) => downloadItems([item])} onclose={() => (preview = null)} />
+{/if}
+{#if sharing}
+	<ShareDialog path={sharing.path} id={sharing.id} onclose={() => (sharing = null)} />
 {/if}
 {#if properties}
 	<PropertiesDialog item={properties} onclose={() => (properties = null)} />

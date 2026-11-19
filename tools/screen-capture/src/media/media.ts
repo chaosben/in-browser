@@ -1,6 +1,7 @@
 import {
 	ALL_FORMATS,
 	BlobSource,
+	CustomSource,
 	canEncodeAudio,
 	Conversion,
 	Input,
@@ -10,11 +11,20 @@ import {
 	type AudioCodec
 } from 'mediabunny';
 import { newId, type Source } from '#lib/project/types.js';
-import { deleteMediaFile, mediaFile, mediaWritable } from '#lib/storage/store.js';
+import type { RandomAccess } from '@in-browser/files/fs.js';
+import { deleteMediaFile, mediaAccess, mediaWritable } from '#lib/storage/store.js';
 import { m } from '#lib/i18n/index.js';
 
-export function openInput(blob: Blob) {
-	return new Input({ formats: ALL_FORMATS, source: new BlobSource(blob) });
+/** A media file to decode: a blob (fresh imports) or a file read in pieces (stored media, wherever they live) */
+export function openInput(media: Blob | RandomAccess) {
+	if (media instanceof Blob) return new Input({ formats: ALL_FORMATS, source: new BlobSource(media) });
+	const source = new CustomSource({
+		getSize: () => media.size,
+		read: (start, end) => media.read(start, end),
+		// Remote pieces are slow to fetch: read ahead when decoding goes forward
+		prefetchProfile: 'network'
+	});
+	return new Input({ formats: ALL_FORMATS, source });
 }
 
 /**
@@ -38,7 +48,7 @@ export const MEDIA_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv', '.mp3', '.wav'
 export const isMediaFile = (f: File) => MEDIA_TYPES.test(f.type) || MEDIA_TYPES.test(f.name);
 
 /** Reads duration, dimensions and audio track of a media file. Audio-only files have no picture (0×0). */
-export async function probe(blob: Blob) {
+export async function probe(blob: Blob | RandomAccess) {
 	using input = openInput(blob);
 	const video = await input.getPrimaryVideoTrack();
 	if (video && !(await video.canDecode())) {
@@ -63,7 +73,7 @@ export async function describeSource(
 	name: string,
 	kind: Source['kind']
 ): Promise<Source> {
-	const info = await probe(await mediaFile(projectId, file));
+	const info = await probe(await mediaAccess(projectId, file));
 	return { id: file.replace(/\.\w+$/, ''), file, name, kind, ...info };
 }
 

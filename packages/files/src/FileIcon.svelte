@@ -9,9 +9,11 @@
 		name: string;
 		kind: 'file' | 'directory';
 		size?: string;
+		/** Not on this device: a folder opened live from another device (cloud instead of the folder) */
+		remote?: boolean;
 	}
 
-	let { name, kind, size = 'size-5' }: Props = $props();
+	let { name, kind, size = 'size-5', remote = false }: Props = $props();
 
 	const format = $derived(formatsOf(name, kind).find((f) => f.kind === 'package'));
 	const fileKind = $derived(kind === 'directory' ? null : previewKind(name));
@@ -19,6 +21,8 @@
 
 {#if format}
 	<img src={format.icon} alt="" class="{size} shrink-0" />
+{:else if kind === 'directory' && remote}
+	<span class="icon-[material-symbols-light--cloud-outline] text-folder {size} shrink-0" aria-hidden="true"></span>
 {:else if kind === 'directory'}
 	<span class="icon-[material-symbols-light--folder-outline] text-folder {size} shrink-0" aria-hidden="true"></span>
 {:else if fileKind === 'image'}

@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
-	import { allowAccess, connectFolder, connections, connectionsSupported, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
+	import {
+		allowAccess,
+		connectFolder,
+		connectionLabel,
+		connections,
+		connectionsSupported,
+		type ConnectionView
+	} from '@in-browser/files/sources/connections.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import FolderTree from './FolderTree.svelte';
 
-	// “Connected” in the sidebar of Files: folders on the computer opened live (not part of My files)
+	// “Connected” in the sidebar of Files: folders on the computer and guest shares opened live (not part of My files)
 
 	interface Props {
 		current: string;
@@ -14,9 +21,11 @@
 		ondropfiles: (data: DataTransfer, folder: string) => void;
 		/** Menu of a connection (allow access, rename, disconnect) */
 		onmenu: (e: MouseEvent, connection: ConnectionView) => void;
+		/** Menu of a folder inside a connection */
+		onfoldermenu: (e: MouseEvent, path: string) => void;
 	}
 
-	let { current, onnavigate, ondropitems, ondropfiles, onmenu }: Props = $props();
+	let { current, onnavigate, ondropitems, ondropfiles, onmenu, onfoldermenu }: Props = $props();
 
 	async function connect() {
 		try {
@@ -40,15 +49,31 @@
 	{#if connections.list.length}
 		<ul role="tree" aria-label={m.connected.title}>
 			{#each connections.list as connection (connection.id)}
-				{#if connection.access === 'granted'}
+				{#if connection.ended}
+					<li
+						class="flex items-center gap-1.5 py-1 pr-2 pl-6.5 text-sm"
+						oncontextmenu={(e) => {
+							e.preventDefault();
+							onmenu(e, connection);
+						}}
+					>
+						<span class="icon-[material-symbols-light--link-off] size-5 shrink-0 opacity-60" aria-hidden="true"></span>
+						<button class="min-w-0 flex-1 truncate text-left opacity-60" title={m.share.ended} onclick={() => onnavigate(connection.path)}>
+							{connectionLabel(connection)}
+						</button>
+					</li>
+				{:else if connection.access === 'granted'}
 					<FolderTree
 						path={connection.path}
-						label={connection.name}
+						label={connectionLabel(connection)}
 						connected
+						shared={connection.kind === 'share'}
+						readOnly={connection.mode === 'view'}
 						{current}
 						{onnavigate}
 						{ondropitems}
 						{ondropfiles}
+						{onfoldermenu}
 						onmenu={(e) => onmenu(e, connection)}
 					/>
 				{:else}

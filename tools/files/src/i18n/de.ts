@@ -100,6 +100,58 @@ const de: Messages = {
 		used: (used, quota) => `${used} von ${quota} belegt`
 	},
 
+	share: {
+		action: 'Teilen …',
+		title: (folder) => `„${folder}“ teilen`,
+		intro: 'Ein Gast öffnet diesen Ordner mit einem Link oder QR-Code in seinem Browser – live von diesem Gerät, bei ihm bleibt nichts. Lass in-browser hier offen, solange er ihn nutzt.',
+		mode: 'Der Gast darf',
+		view: 'Nur ansehen',
+		viewHint: 'Dateien öffnen, ansehen und herunterladen (Standard).',
+		edit: 'Bearbeiten',
+		editHint: 'Auch speichern, hochladen, umbenennen und löschen – Gelöschtes landet hier im Papierkorb.',
+		untilEnded: 'Bis du sie beendest',
+		validity: 'Der Link funktioniert, bis du die Freigabe beendest. Wer ihn hat, kommt hinein, solange niemand sonst verbunden ist – gib ihn nur deinem Gast.',
+		create: 'Teilen',
+		link: 'Link für den Gast',
+		qr: 'QR-Code des Freigabe-Links',
+		copy: 'Link kopieren',
+		copied: 'Link kopiert.',
+		waiting: 'Wartet auf den Gast – jeweils ein Browser kann den Link öffnen.',
+		connected: 'Gast verbunden.',
+		away: 'Der Gast ist gerade nicht verbunden.',
+		until: (time) => `Endet ${time}`,
+		end: 'Freigabe beenden',
+		endTitle: 'Freigabe beenden?',
+		endMessage: (folder) => `Der Gast kann „${folder}“ dann nicht mehr öffnen. Im Ordner ändert sich nichts.`,
+		shared: 'geteilt',
+		guestConnected: 'Gast verbunden',
+		guestWaiting: 'Kein Gast verbunden',
+		menu: (folder) => `Aktionen für die Freigabe von „${folder}“`,
+		ended: 'Die Freigabe wurde beendet.',
+		endedHint: 'Was du nach Meine Dateien kopiert hast, bleibt.',
+		remove: 'Entfernen',
+		unreachable: 'Das teilende Gerät ist gerade nicht erreichbar – dort muss in-browser offen sein.',
+		show: 'Link zeigen',
+		panelLabel: 'Mit einem Gast geteilte Ordner',
+		section: 'Freigaben',
+		new: 'Ordner teilen …',
+		chooseTitle: 'Ordner zum Teilen auswählen',
+		chooseConfirm: 'Diesen Ordner teilen',
+		notRoot: 'Meine Dateien als Ganzes lassen sich nicht teilen – wähle einen Ordner darin.',
+		notShareable: 'Dieser Ordner liegt nicht auf diesem Gerät (er ist hier vom Abgleich ausgenommen) und lässt sich deshalb nicht von hier teilen.',
+		help: 'So funktioniert das Teilen mit einem Gast',
+		unsupported: 'Dieser Browser kann keine Ordner teilen. Nimm eine aktuelle Version von Chrome, Edge, Firefox oder Safari.'
+	},
+
+	remote: {
+		live: 'Live von deinen anderen Geräten',
+		unreachable: (name, devices) =>
+			devices.length
+				? `„${name}“ ist gerade nicht erreichbar – der Ordner liegt auf ${devices.join(', ')}, und keins davon ist verbunden.`
+				: `„${name}“ ist gerade nicht erreichbar – keins deiner verbundenen Geräte hat ihn.`,
+		help: 'So funktionieren Ordner, die hier nicht abgeglichen werden'
+	},
+
 	connected: {
 		title: 'Verbunden',
 		connect: 'Ordner verbinden …',
@@ -115,6 +167,7 @@ const de: Messages = {
 			`In „${name}“ wird nichts gelöscht. Er taucht hier nur nicht mehr auf; du kannst ihn jederzeit wieder verbinden.`,
 		alsoSynced: (name) => `Meine Dateien werden schon mit „${name}“ abgeglichen – sein Inhalt erscheint jetzt doppelt.`,
 		live: (name) => `Live aus „${name}“ auf deinem Rechner`,
+		liveShared: (host) => (host ? `Live von ${host} (geteilt)` : 'Live (geteilt)'),
 		help: 'So funktionieren verbundene Ordner'
 	},
 
@@ -267,9 +320,7 @@ const de: Messages = {
 		always: 'Immer abgeglichen (Daten der Tools)',
 		onlyOn: (devices) => `nur auf ${devices}`,
 		excludeTitle: (name) => `„${name}“ auf diesem Gerät nicht mehr abgleichen?`,
-		excludeMessage: 'Die anderen Geräte behalten ihn. Du kannst die Kopie auf diesem Gerät behalten oder hier löschen – das betrifft die anderen Geräte nicht.',
-		keepCopy: 'Kopie hier behalten',
-		deleteCopy: 'Hier löschen',
+		excludeMessage: 'Die Kopie auf diesem Gerät wird gelöscht – der Ordner bleibt auf deinen anderen Geräten, und hier öffnest du ihn live von einem davon (es muss verbunden sein).',
 		exclude: 'Auf diesem Gerät nicht abgleichen',
 		include: 'Auf diesem Gerät wieder abgleichen',
 		excluded: 'Wird auf diesem Gerät nicht abgeglichen'

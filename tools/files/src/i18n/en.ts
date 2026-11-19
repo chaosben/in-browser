@@ -101,6 +101,60 @@ const en = {
 	},
 
 	/** Folders on the computer opened live (sidebar section “Connected”) */
+	/** Sharing a folder with a guest */
+	share: {
+		action: 'Share …',
+		title: (folder: string) => `Share “${folder}”`,
+		intro: 'A guest opens this folder in their browser with a link or QR code – live from this device, nothing stays with them. Keep in-browser open here while they use it.',
+		mode: 'The guest may',
+		view: 'View only',
+		viewHint: 'Open, preview and download files (default).',
+		edit: 'Edit',
+		editHint: 'Also save, upload, rename and delete – deleted items go into the trash here.',
+		untilEnded: 'Until you end it',
+		validity: 'The link works until you end the share. Whoever has it gets in while no one else is connected – give it only to your guest.',
+		create: 'Share',
+		link: 'Link for the guest',
+		qr: 'QR code of the share link',
+		copy: 'Copy link',
+		copied: 'Link copied.',
+		waiting: 'Waiting for the guest – one browser at a time can open the link.',
+		connected: 'Guest connected.',
+		away: 'The guest is not connected right now.',
+		until: (time: string) => `Ends ${time}`,
+		end: 'End share',
+		endTitle: 'End the share?',
+		endMessage: (folder: string) => `The guest can no longer open “${folder}”. Nothing in the folder changes.`,
+		shared: 'shared',
+		guestConnected: 'Guest connected',
+		guestWaiting: 'No guest connected',
+		menu: (folder: string) => `Actions for the share of “${folder}”`,
+		ended: 'The share has ended.',
+		endedHint: 'What you copied into My files stays.',
+		remove: 'Remove',
+		unreachable: 'The sharing device can’t be reached right now – in-browser has to be open there.',
+		show: 'Show link',
+		panelLabel: 'Folders shared with a guest',
+		section: 'Shares',
+		new: 'Share a folder …',
+		chooseTitle: 'Choose a folder to share',
+		chooseConfirm: 'Share this folder',
+		notRoot: 'My files as a whole can’t be shared – choose a folder in it.',
+		notShareable: 'This folder isn’t on this device (it is left out of the sync here), so it can’t be shared from here.',
+		help: 'How sharing with a guest works',
+		unsupported: 'This browser can’t share folders. Use a current version of Chrome, Edge, Firefox or Safari.'
+	},
+
+	/** Folders this device doesn't sync, opened live from the other devices */
+	remote: {
+		live: 'Live from your other devices',
+		unreachable: (name: string, devices: string[]) =>
+			devices.length
+				? `“${name}” can’t be reached right now – it is on ${devices.join(', ')}, and none of them is connected.`
+				: `“${name}” can’t be reached right now – none of your connected devices has it.`,
+		help: 'How folders that aren’t synced here work'
+	},
+
 	connected: {
 		title: 'Connected',
 		connect: 'Connect folder …',
@@ -116,6 +170,7 @@ const en = {
 			`Nothing in “${name}” is deleted. It just no longer shows up here; you can connect it again at any time.`,
 		alsoSynced: (name: string) => `My files already sync with “${name}” – its content now shows up twice.`,
 		live: (name: string) => `Live from “${name}” on your computer`,
+		liveShared: (host: string) => (host ? `Live from ${host} (shared)` : 'Live (shared)'),
 		help: 'How connected folders work'
 	},
 
@@ -268,9 +323,7 @@ const en = {
 		always: 'Always synced (tool data)',
 		onlyOn: (devices: string) => `only on ${devices}`,
 		excludeTitle: (name: string) => `Stop syncing “${name}” on this device?`,
-		excludeMessage: 'The other devices keep it. You can keep the copy on this device or delete it here – that doesn’t affect the other devices.',
-		keepCopy: 'Keep copy here',
-		deleteCopy: 'Delete here',
+		excludeMessage: 'The copy on this device is deleted – the folder stays on your other devices, and here you open it live from one of them (it needs to be connected).',
 		exclude: 'Don’t sync on this device',
 		include: 'Sync again on this device',
 		excluded: 'Not synced on this device'
