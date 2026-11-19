@@ -1,6 +1,6 @@
 import type { Component } from 'svelte';
 import type { TableFormat } from './table/model.js';
-import { looksLikeIni } from './tree/ini.js';
+import { looksLikeIni } from './tree/ini-detect.js';
 import type { TreeFormat } from './tree/model.js';
 import type { ViewProps } from './types.js';
 

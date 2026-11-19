@@ -14,6 +14,7 @@ import {
 	type TreeNode,
 	type TreeParse
 } from './model.js';
+import { HEADER, PAIR } from './ini-detect.js';
 import { attachedStart, removeLines, removeSection } from './toml.js';
 
 // The INI family as a tree: `ini` (sections, `key = value`), Java `properties` (no sections, continuation lines,
@@ -25,26 +26,11 @@ export type IniDialect = 'ini' | 'properties' | 'env';
 const ENTRY: Capabilities = { rename: true, edit: true, types: ['string'], remove: true, duplicate: true, move: true };
 const SECTION: Capabilities = { rename: true, remove: true, add: ['entry'], move: false, duplicate: false, types: [] };
 
-const HEADER = /^\[([^\]]*)\]\s*(?:[;#].*)?$/;
-const PAIR = /^[^=:\s][^=:]*[=:]/;
 const ENV_LINE = /^(export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*=[ \t]*/;
 const ENV_KEY = /^[A-Za-z_][A-Za-z0-9_.-]*$/;
 const ENV_PLAIN = /^[A-Za-z0-9_\-.,:/@+=%]*$/;
 
 const COMMENT: Record<IniDialect, RegExp> = { ini: /^[ \t]*[;#]/, properties: /^[ \t]*[#!]/, env: /^[ \t]*#/ };
-
-/** At least ~80 % of the lines with content are section headers or `key = value` pairs */
-export function looksLikeIni(doc: string): boolean {
-	let total = 0;
-	let matching = 0;
-	for (const line of doc.split('\n')) {
-		const t = line.trim();
-		if (!t || t[0] === ';' || t[0] === '#') continue;
-		total++;
-		if (HEADER.test(t) || PAIR.test(t)) matching++;
-	}
-	return total > 0 && matching >= total * 0.8;
-}
 
 // --- Escapes ---
 

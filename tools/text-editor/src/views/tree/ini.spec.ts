@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { iniFormat, insertSection, looksLikeIni } from './ini';
+import { iniFormat, insertSection } from './ini';
+import { looksLikeIni } from './ini-detect';
 import { applyChanges, type TreeNode } from './model';
 
 const ini = iniFormat('ini');
