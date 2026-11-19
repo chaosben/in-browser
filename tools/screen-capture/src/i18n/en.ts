@@ -12,10 +12,6 @@ const en = {
 		untitled: 'Untitled',
 		denied: 'Access was denied.',
 		aborted: 'Canceled.',
-		saving: 'Saving …',
-		saved: 'Saved',
-		notSaved: 'Not saved yet',
-		saveFailed: (error: string) => `Saving didn’t work: ${error}`,
 		importing: (name: string) => `Importing ${name} …`,
 		recordingName: (time: string) => `Recording ${time}`,
 		projectName: (time: string) => `Project ${time}`
@@ -42,7 +38,7 @@ const en = {
 		newProjectTitle: 'Where should the new project go?',
 		inFolder: (folder: string) => `in ${folder}`,
 		projects: 'Projects',
-		storage: (used: string, quota: string) => `${used} GB of ${quota} GB used`,
+		storage: (used: string, quota: string) => `${used} of ${quota} used`,
 		empty: 'No projects yet. Start a recording, import media, create an empty project or drop videos, audio or images here.',
 		changed: (date: string) => `modified ${date}`,
 		footer:
@@ -329,7 +325,6 @@ const en = {
 		fadeOut: 'Out',
 		zoomIn: 'In',
 		zoomOut: 'Out',
-		seconds: (what: string) => `${what} (seconds)`,
 		fadeShortened: (seconds: string) =>
 			`Too long for the current length – only ${seconds} s take effect. Lengthen the element or shorten the fades.`,
 		shadow: 'Shadow',

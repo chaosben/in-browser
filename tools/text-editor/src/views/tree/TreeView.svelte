@@ -6,8 +6,9 @@
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import CellEditor from '../CellEditor.svelte';
-	import { follow } from '../follow.svelte.js';
 	import ParseError from '../ParseError.svelte';
+	import { parsedView, undoKeys } from '../parsed.svelte.js';
+	import { VisibleRows } from '../rows.svelte.js';
 	import type { ViewProps } from '../types.js';
 	import { freeKey, guessKind, nodeAt, type ChildKind, type NewChild, type TreeFormat, type TreeNode, type TreeParse, type ValueKind } from './model.js';
 
@@ -17,17 +18,13 @@
 	let { tab, host, format: anyFormat }: ViewProps = $props();
 	const format = untrack(() => anyFormat as TreeFormat);
 
-	const parsed = follow(
+	const parsed = parsedView<TreeParse>(
 		() => tab,
+		() => host,
 		(text) => format.parse(text)
 	);
-	let good = $state.raw<TreeParse>(untrack(() => parsed.current));
-	$effect(() => {
-		if (parsed.current.error === null) good = parsed.current;
-	});
-	const error = $derived(parsed.current.error);
-	const tree = $derived(error === null ? parsed.current : good);
-	const editable = $derived(error === null);
+	const tree = $derived(parsed.shown);
+	const editable = $derived(parsed.editable);
 
 	interface Line {
 		node: TreeNode;
@@ -106,12 +103,7 @@
 
 	// --- Layout: fixed row height, only the rows in sight ---
 
-	const rowHeight = $derived(coarsePointer.current ? 40 : 28);
-	let scroller = $state<HTMLElement>();
-	let scrollTop = $state(0);
-	let viewHeight = $state(0);
-	const first = $derived(Math.max(0, Math.floor(scrollTop / rowHeight) - 5));
-	const last = $derived(Math.min(lines.length, Math.ceil((scrollTop + viewHeight) / rowHeight) + 5));
+	const rows = new VisibleRows(() => lines.length);
 
 	// --- Selection and editing ---
 
@@ -136,16 +128,10 @@
 	 * Applies an edit to the node with `id` in the tree of the current text (never on positions of an older text)
 	 */
 	function apply(id: string, make: (doc: string, node: TreeNode, parent: TreeNode) => ChangeSpec | null) {
-		if (!editable) return false;
-		const t = parsed.now();
-		if (t.error !== null) return false;
-		const found = find(t.root, id);
-		if (!found) return false;
-		const spec = make(tab.state.doc.toString(), found.node, found.parent);
-		if (!spec) return false;
-		parsed.soon();
-		host.edit(spec);
-		return true;
+		return parsed.apply((doc, t) => {
+			const found = find(t.root, id);
+			return found ? make(doc, found.node, found.parent) : null;
+		});
 	}
 
 	function select(line: Line, reveal = true) {
@@ -158,12 +144,13 @@
 	}
 
 	function scrollTo(id: string) {
+		const { scroller, height } = rows;
 		if (!scroller) return;
 		const index = lines.findIndex((l) => l.node.id === id);
 		if (index < 0) return;
-		const top = index * rowHeight;
+		const top = index * height;
 		if (top < scroller.scrollTop) scroller.scrollTop = top;
-		else if (top + rowHeight > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top + rowHeight * 2 - scroller.clientHeight;
+		else if (top + height > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top + height * 2 - scroller.clientHeight;
 	}
 
 	function toggle(node: TreeNode) {
@@ -196,12 +183,12 @@
 			if (e.field === 'key') return e.text && e.text !== node.key ? format.rename(doc, node, e.text) : null;
 			return e.text === node.value ? null : format.setValue(doc, node, { kind: kindFor(node, e.text), text: e.text });
 		});
-		scroller?.focus();
+		rows.scroller?.focus();
 	}
 
 	function cancel() {
 		editing = null;
-		scroller?.focus();
+		rows.scroller?.focus();
 	}
 
 	// --- Structure ---
@@ -222,12 +209,8 @@
 				return { kind, value: { kind: 'string', text: '' } };
 			case 'element':
 				return { kind, key: m.tree.newElement };
-			case 'attribute': {
-				const used = new Set(parent.children?.map((c) => c.key));
-				let name = m.tree.newAttribute;
-				for (let n = 2; used.has(name); n++) name = `${m.tree.newAttribute}-${n}`;
-				return { kind, key: name, value: '' };
-			}
+			case 'attribute':
+				return { kind, key: freeKey(parent, m.tree.newAttribute, '-'), value: '' };
 			case 'text':
 				return { kind, value: m.tree.newText };
 		}
@@ -344,10 +327,8 @@
 	function onkey(e: KeyboardEvent) {
 		// Keys of the grid itself or of a focused cell/row in it, not of the edit fields
 		if (editing || (e.target as Element).closest('input, textarea, button')) return;
-		const mod = e.ctrlKey || e.metaKey;
+		if (undoKeys(e, host)) return;
 		const handled = () => e.preventDefault();
-		if (mod && !e.altKey && e.code === 'KeyZ') return handled(), e.shiftKey ? host.redo() : host.undo();
-		if (mod && !e.altKey && e.code === 'KeyY') return handled(), host.redo();
 		const index = current ? lines.indexOf(current) : -1;
 		const go = (i: number) => lines[i] && select(lines[i]);
 		if (e.altKey && current && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return handled(), moveNode(current, e.key === 'ArrowUp' ? -1 : 1);
@@ -504,8 +485,8 @@
 {/snippet}
 
 <div class="flex size-full flex-col text-sm">
-	{#if error !== null}
-		<ParseError {tab} {host} pos={error} stale={good !== parsed.current} />
+	{#if parsed.error !== null}
+		<ParseError {tab} {host} pos={parsed.error} stale={parsed.stale} />
 	{/if}
 	{#if filter !== null}
 		<div class="border-base-300 flex items-center gap-2 border-b px-2 py-1.5" role="search">
@@ -532,17 +513,17 @@
 		</div>
 	{:else}
 		<div
-			bind:this={scroller}
-			bind:clientHeight={viewHeight}
+			bind:this={rows.scroller}
+			bind:clientHeight={rows.viewHeight}
 			class={['relative min-h-0 flex-1 overflow-auto outline-none', !editable && 'opacity-60']}
 			role="tree"
 			tabindex="0"
 			aria-label={m.tree.title}
-			onscroll={() => (scrollTop = scroller!.scrollTop)}
+			onscroll={rows.onscroll}
 			onkeydown={onkey}
 		>
-			<div class="relative min-w-full" style:width="max-content" style:height="{lines.length * rowHeight}px">
-				{#each lines.slice(first, last) as line, i (line.node.id)}
+			<div class="relative min-w-full" style:width="max-content" style:height="{lines.length * rows.height}px">
+				{#each lines.slice(rows.first, rows.last) as line, i (line.node.id)}
 					{@const node = line.node}
 					{@const key = keyOf(line)}
 					{@const isSelected = selected === node.id}
@@ -557,8 +538,8 @@
 							'group absolute left-0 flex min-w-full items-center gap-1 pr-2 whitespace-nowrap',
 							isSelected ? 'bg-selection/20' : 'hover:bg-base-200'
 						]}
-						style:top="{(first + i) * rowHeight}px"
-						style:height="{rowHeight}px"
+						style:top="{(rows.first + i) * rows.height}px"
+						style:height="{rows.height}px"
 						style:padding-left="{line.depth * 1.25 + 0.25}rem"
 						onclick={() => select(line)}
 						ondblclick={() => (node.can.edit ? startEdit(node, 'value') : toggle(node))}

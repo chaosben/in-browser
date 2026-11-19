@@ -11,5 +11,6 @@ describe('pushRecent', () => {
 		const list = ['/a', '/b', '/c', '/d', '/e'];
 		expect(pushRecent(list, '/f')).toEqual(['/f', '/a', '/b', '/c', '/d']);
 		expect(pushRecent(list, '/f')).toHaveLength(RECENT_MAX);
+		expect(pushRecent(['#1', '#2'], '#3', 2)).toEqual(['#3', '#1']);
 	});
 });

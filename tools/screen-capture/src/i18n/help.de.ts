@@ -10,19 +10,19 @@ const help: typeof enHelp = {
 			},
 			saving: {
 				title: 'Speichern',
-				text: 'Jede Änderung wird automatisch gesichert – „Gespeichert“ neben dem Projektnamen in der oberen Leiste bestätigt es. Ein Klick auf den Namen benennt das Projekt um. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner (gibt es ihn nicht mehr, im nächsten darüber). „Speichern unter …“ im Menü neben dem Projektnamen (Pfeil) legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. Wähle ein bestehendes Projekt und klicke „Ersetzen“, um es zu überschreiben (nicht, solange es in einem anderen Tab offen ist). „Öffnen …“ auf der Startseite öffnet jedes Projekt. In Files benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter.',
+				text: 'Jede Änderung wird automatisch gesichert; das Symbol unten links zeigt, ob alles gespeichert ist. Ein Klick auf den Projektnamen in der oberen Leiste benennt das Projekt um – seine Datei bekommt den neuen Namen mit. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner (gibt es ihn nicht mehr, im nächsten darüber). „Speichern unter …“ im Menü neben dem Projektnamen (Pfeil) legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. Wähle ein bestehendes Projekt und klicke „Ersetzen“, um es zu überschreiben (nicht, solange es in einem anderen Tab offen ist). „Öffnen …“ auf der Startseite öffnet jedes Projekt. In Dateien benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter.',
 				tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Halte eine Kopie in einem Ordner auf deinem Rechner oder auf deinen anderen Geräten. Ein Projekt, das in einem Tab offen ist, lässt sich nicht gleichzeitig in einem zweiten öffnen.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
 			connected: {
 				title: 'In einem verbundenen Ordner',
-				text: 'Wenn du ein Projekt beginnst oder „Öffnen …“ bzw. „Speichern unter …“ nutzt, wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Projekt dort – samt Aufnahmen – wird direkt in diesem Ordner auf deinem Rechner gespeichert und belegt keinen Browserspeicher. Die Startseite zeigt solche Projekte, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt; der Speicherstatus zeigt einen Fehler, bis es wieder geht. Ordner mit einer Wolke (live von deinen anderen Geräten) funktionieren genauso: Videos spielen schon beim Laden, geholt wird nur, was du ansiehst.',
+				text: 'Wenn du ein Projekt beginnst oder „Öffnen …“ bzw. „Speichern unter …“ nutzt, wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Dateien verbunden hast („Verbunden“). Ein Projekt dort – samt Aufnahmen – wird direkt in diesem Ordner auf deinem Rechner gespeichert und belegt keinen Browserspeicher. Die Startseite zeigt solche Projekte, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt; der Speicherstatus zeigt einen Fehler, bis es wieder geht. Ordner mit einer Wolke (live von deinen anderen Geräten) funktionieren genauso: Videos spielen schon beim Laden, geholt wird nur, was du ansiehst.',
 				tip: 'Lange Aufnahmen landen direkt im Ordner – praktisch, wenn der Browserspeicher knapp ist. Erlaube den Zugriff vor der Aufnahme: Entzieht ihn der Browser währenddessen, wird die Aufnahme nicht weiter geschrieben.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
 			storage: {
 				title: 'Speicherplatz',
-				text: 'Die Startseite zeigt, wie viel vom Browserspeicher die Tools von in-browser belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst (auf der Startseite oder in Files), landet es im Papierkorb; sein Platz wird frei, wenn der Papierkorb geleert wird.',
+				text: 'Die Startseite zeigt, wie viel vom Browserspeicher die Tools von in-browser belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst (auf der Startseite oder in Dateien), landet es im Papierkorb; sein Platz wird frei, wenn der Papierkorb geleert wird.',
 				link: { href: '/help/storage', label: 'Speicherplatz und der Ordner auf deinem Rechner' }
 			},
 			browser: {
@@ -157,11 +157,11 @@ const help: typeof enHelp = {
 		items: {
 			import: {
 				title: 'Importieren',
-				text: '„Vom Rechner importieren“ oder Dateien, die du auf den Editor ziehst, landen in der Medienablage – nicht in der Timeline. „Aus Files importieren“ macht dasselbe mit Dateien aus dem gemeinsamen Browserspeicher (mehrere auf einmal mit Strg oder Umschalt); sie werden ins Projekt kopiert, die Originale in Files bleiben also unverändert, und wenn du sie dort löschst, schadet das dem Projekt nicht. Videos: MP4, WebM, MOV, MKV. Ton: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Bilder: PNG, JPEG, WebP, GIF, SVG. Videos und Ton werden ohne Qualitätsverlust nach MP4 umverpackt.'
+				text: '„Vom Rechner importieren“ oder Dateien, die du auf den Editor ziehst, landen in der Medienablage – nicht in der Timeline. „Aus Dateien importieren“ macht dasselbe mit Dateien aus dem gemeinsamen Browserspeicher (mehrere auf einmal mit Strg oder Umschalt); sie werden ins Projekt kopiert, die Originale in Dateien bleiben also unverändert, und wenn du sie dort löschst, schadet das dem Projekt nicht. Videos: MP4, WebM, MOV, MKV. Ton: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Bilder: PNG, JPEG, WebP, GIF, SVG. Videos und Ton werden ohne Qualitätsverlust nach MP4 umverpackt.'
 			},
 			newProject: {
 				title: 'Neues Projekt aus Dateien',
-				text: 'Auf der Startseite legen „Vom Rechner importieren“, „Aus Files importieren“ oder Dateien, die du auf die Seite ziehst, ein neues Projekt an – nachdem du Ordner und Namen gewählt hast. Videos und Ton werden Clips in der Timeline; Bilder folgen nacheinander nach den Videos, je 3 s, in die Leinwand eingepasst (z. B. für eine Diashow), und liegen zusätzlich in der Medienablage. Das erste Video bestimmt die Leinwandgröße; ohne Video das erste Bild.'
+				text: 'Auf der Startseite legen „Vom Rechner importieren“, „Aus Dateien importieren“ oder Dateien, die du auf die Seite ziehst, ein neues Projekt an – nachdem du Ordner und Namen gewählt hast. Videos und Ton werden Clips in der Timeline; Bilder folgen nacheinander nach den Videos, je 3 s, in die Leinwand eingepasst (z. B. für eine Diashow), und liegen zusätzlich in der Medienablage. Das erste Video bestimmt die Leinwandgröße; ohne Video das erste Bild.'
 			},
 			insert: {
 				title: 'Einfügen',
@@ -652,7 +652,7 @@ const help: typeof enHelp = {
 			},
 			running: {
 				title: 'Während des Exports',
-				text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Files speichern …“ legt die Datei im Browserspeicher ab (standardmäßig neben dem Projekt); wähle eine bestehende Datei und klicke „Ersetzen“, um sie zu überschreiben. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zur fertigen Datei, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
+				text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Dateien speichern …“ legt die Datei im Browserspeicher ab (standardmäßig neben dem Projekt); wähle eine bestehende Datei und klicke „Ersetzen“, um sie zu überschreiben. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zur fertigen Datei, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
 			}
 		}
 	},

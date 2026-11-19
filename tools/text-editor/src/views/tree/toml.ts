@@ -1,7 +1,6 @@
 import type { ChangeSpec } from '@codemirror/state';
-import { insertRaw, removeEntry } from './json.js';
 import {
-	childId,
+	assignIds,
 	convertText,
 	freeKey,
 	indentAt,
@@ -9,7 +8,6 @@ import {
 	lineStartOf,
 	neighbour,
 	swap,
-	uniqueIds,
 	type NewValue,
 	type Range,
 	type TreeFormat,
@@ -17,6 +15,7 @@ import {
 	type TreeParse,
 	type ValueKind
 } from './model.js';
+import { attachedStart, insertRaw, removeEntry, removeLines, removeSection } from './edit.js';
 
 // TOML 1.0 as a tree, with a small parser of its own that records positions. Tables from headers (`[a.b]`,
 // `[[a]]`) and dotted keys (`a.b = 1`) become nested nodes; inline tables and arrays are edited like JSON. New
@@ -68,47 +67,6 @@ function encodeValue(value: NewValue): string | null {
 		case 'array':
 			return '[]';
 	}
-}
-
-// --- Shared with the INI family: whole lines and sections ---
-
-/** Start of the comment lines directly above the line starting at `lineStart` */
-export function attachedStart(doc: string, lineStart: number, comment = /^[ \t]*#/): number {
-	let start = lineStart;
-	while (start > 0) {
-		const prev = lineStartOf(doc, start - 1);
-		if (!comment.test(doc.slice(prev, start - 1))) break;
-		start = prev;
-	}
-	return start;
-}
-
-/** Removes the lines a range is on, with their line break */
-export function removeLines(doc: string, range: Range): ChangeSpec {
-	let from = lineStartOf(doc, range.from);
-	let to = lineEndOf(doc, range.to);
-	if (to < doc.length) to++;
-	else if (from > 0) from--;
-	return { from, to };
-}
-
-/**
- * Removes a section from its header line to `to` (start of the next header, or the end of the text). Comments
- * directly above a header (after a blank line) belong to it: they go with this one and stay with the next one. At
- * the end of the text, the blank lines before the section go too.
- */
-export function removeSection(doc: string, from: number, to: number, comment = /^[ \t]*#/): ChangeSpec {
-	const blankBefore = (pos: number) => pos === 0 || doc.slice(lineStartOf(doc, pos - 1), pos - 1).trim() === '';
-	const lead = attachedStart(doc, from, comment);
-	if (lead < from && blankBefore(lead)) from = lead;
-	if (to < doc.length) {
-		const start = attachedStart(doc, to, comment);
-		if (start < to && start > from && blankBefore(start)) to = start;
-		return { from, to };
-	}
-	const prev = doc.slice(0, from).trimEnd().length;
-	if (prev === 0) return { from: 0, to };
-	return { from: doc.endsWith('\n') ? prev + 1 : prev, to };
 }
 
 // --- Parser ---
@@ -535,13 +493,6 @@ class Parser {
 		this.sections.push(section);
 		return [table, section];
 	}
-}
-
-function assignIds(node: TreeNode) {
-	if (!node.children) return;
-	node.children.forEach((c, i) => (c.id = childId(node.id, c.key, i)));
-	uniqueIds(node.children);
-	node.children.forEach(assignIds);
 }
 
 /** Tables span their section and everything below them */

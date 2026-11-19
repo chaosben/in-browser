@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import type { ChangeSpec } from '@codemirror/state';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import CellEditor from '../CellEditor.svelte';
-	import { follow } from '../follow.svelte.js';
+	import { freeName } from '../names.js';
 	import ParseError from '../ParseError.svelte';
+	import { parsedView, undoKeys } from '../parsed.svelte.js';
+	import { VisibleRows } from '../rows.svelte.js';
 	import type { ViewProps } from '../types.js';
 	import { DELIMITERS } from './csv.js';
 	import type { Row, TableFormat, TableParse } from './model.js';
@@ -21,8 +22,10 @@
 	let delimiter = $state<string | null>(null);
 	const options = () => ({ header: format.delimited && host.tableHeader, delimiter: delimiter ?? undefined });
 
-	const parsed = follow(
+	/** The table, or the last one without errors (read-only) while the text doesn't parse */
+	const parsed = parsedView<TableParse>(
 		() => tab,
+		() => host,
 		(text) => format.parse(text, options())
 	);
 	// Options changed: read again at once
@@ -32,14 +35,8 @@
 		untrack(() => parsed.refresh());
 	});
 
-	/** Last table without errors: shown (read-only) while the text doesn't parse */
-	let good = $state.raw<TableParse>(untrack(() => parsed.current));
-	$effect(() => {
-		if (parsed.current.error === null) good = parsed.current;
-	});
-	const error = $derived(parsed.current.error);
-	const table = $derived(error === null ? parsed.current : good);
-	const editable = $derived(error === null);
+	const table = $derived(parsed.shown);
+	const editable = $derived(parsed.editable);
 
 	// --- Filters (view only) ---
 
@@ -64,12 +61,7 @@
 
 	// --- Layout: fixed row height, only the rows in sight ---
 
-	const rowHeight = $derived(coarsePointer.current ? 40 : 28);
-	let scroller = $state<HTMLElement>();
-	let scrollTop = $state(0);
-	let viewHeight = $state(0);
-	const first = $derived(Math.max(0, Math.floor(scrollTop / rowHeight) - 5));
-	const last = $derived(Math.min(shown.length, Math.ceil((scrollTop + viewHeight) / rowHeight) + 5));
+	const rows = new VisibleRows(() => shown.length);
 
 	/** Column widths in characters, from the header and the first rows */
 	const widths = $derived.by(() => {
@@ -93,18 +85,6 @@
 	const rowOf = (t: TableParse, row: number): Row | null => (row < 0 ? t.header : (t.rows[row] ?? null));
 	const canRename = $derived(!format.delimited || !!table.header);
 
-	/** Applies an edit made on the current text (never on positions of an older one) */
-	function apply(make: (doc: string, t: TableParse) => ChangeSpec | null) {
-		if (!editable) return false;
-		const t = parsed.now();
-		if (t.error !== null) return false;
-		const spec = make(tab.state.doc.toString(), t);
-		if (!spec || (Array.isArray(spec) && !spec.length)) return false;
-		parsed.soon();
-		host.edit(spec);
-		return true;
-	}
-
 	function select(row: number, column: number, reveal = true) {
 		cur = { row, column };
 		scrollTo(row);
@@ -113,12 +93,13 @@
 	}
 
 	function scrollTo(row: number) {
+		const { scroller, height } = rows;
 		if (!scroller || row < 0) return;
 		const index = shown.indexOf(row);
 		if (index < 0) return;
-		const top = (index + 1) * rowHeight;
-		if (top < scroller.scrollTop + rowHeight) scroller.scrollTop = top - rowHeight;
-		else if (top + rowHeight > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top + rowHeight * 2 - scroller.clientHeight;
+		const top = (index + 1) * height;
+		if (top < scroller.scrollTop + height) scroller.scrollTop = top - height;
+		else if (top + height > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top + height * 2 - scroller.clientHeight;
 	}
 
 	async function startEdit(row: number, column: number, text?: string) {
@@ -135,18 +116,18 @@
 		const e = editing;
 		if (!e) return;
 		editing = null;
-		apply((doc, t) => {
+		parsed.apply((doc, t) => {
 			if (e.row < 0) return format.renameColumn(doc, t, e.column, e.text);
 			const row = t.rows[e.row];
 			return row ? format.setCell(doc, t, row, e.column, e.text) : null;
 		});
 		if (next) move(next === 'down' ? 1 : 0, next === 'right' ? 1 : next === 'left' ? -1 : 0);
-		scroller?.focus();
+		rows.scroller?.focus();
 	}
 
 	function cancel() {
 		editing = null;
-		scroller?.focus();
+		rows.scroller?.focus();
 	}
 
 	/** Moves the selection by rows (among the shown ones) and columns */
@@ -162,22 +143,21 @@
 	function onkey(e: KeyboardEvent) {
 		// Keys of the grid itself or of a focused cell/row in it, not of the edit fields
 		if (editing || (e.target as Element).closest('input, textarea, button')) return;
+		if (undoKeys(e, host)) return;
 		const mod = e.ctrlKey || e.metaKey;
 		const handled = () => e.preventDefault();
-		if (mod && !e.altKey && e.code === 'KeyZ') return handled(), e.shiftKey ? host.redo() : host.undo();
-		if (mod && !e.altKey && e.code === 'KeyY') return handled(), host.redo();
 		if (e.key === 'ArrowDown') return handled(), move(1, 0);
 		if (e.key === 'ArrowUp') return handled(), move(-1, 0);
 		if (e.key === 'ArrowRight') return handled(), move(0, 1);
 		if (e.key === 'ArrowLeft') return handled(), move(0, -1);
 		if (e.key === 'Tab') return handled(), move(0, e.shiftKey ? -1 : 1);
-		if (e.key === 'PageDown') return handled(), move(Math.floor(viewHeight / rowHeight) - 1, 0);
-		if (e.key === 'PageUp') return handled(), move(-Math.floor(viewHeight / rowHeight) + 1, 0);
+		if (e.key === 'PageDown') return handled(), move(Math.floor(rows.viewHeight / rows.height) - 1, 0);
+		if (e.key === 'PageUp') return handled(), move(-Math.floor(rows.viewHeight / rows.height) + 1, 0);
 		if (!cur) return;
 		if (e.key === 'Enter' || e.key === 'F2') return handled(), startEdit(cur.row, cur.column);
 		if ((e.key === 'Delete' || e.key === 'Backspace') && cur.row >= 0) {
 			const { row, column } = cur;
-			return handled(), apply((doc, t) => (t.rows[row] ? format.setCell(doc, t, t.rows[row], column, '') : null));
+			return handled(), parsed.apply((doc, t) => (t.rows[row] ? format.setCell(doc, t, t.rows[row], column, '') : null));
 		}
 		// Typing starts editing with that character, as in a spreadsheet
 		if (e.key.length === 1 && !mod && !e.altKey && cur.row >= 0) return handled(), startEdit(cur.row, cur.column, e.key);
@@ -191,14 +171,8 @@
 
 	// --- Structure ---
 
-	const freeName = (base: string) => {
-		const used = new Set(table.columns);
-		if (!used.has(base)) return base;
-		for (let n = 2; ; n++) if (!used.has(`${base} ${n}`)) return `${base} ${n}`;
-	};
-
 	function insertRow(index: number) {
-		if (apply((doc, t) => format.insertRow(doc, t, index))) {
+		if (parsed.apply((doc, t) => format.insertRow(doc, t, index))) {
 			filters = {};
 			cur = { row: index, column: cur?.column ?? 0 };
 			tick().then(() => scrollTo(index));
@@ -206,8 +180,8 @@
 	}
 
 	async function insertColumn(index: number) {
-		const name = canRename ? freeName(m.table.newColumn) : '';
-		if (!apply((doc, t) => format.insertColumn(doc, t, index, name))) return;
+		const name = canRename ? freeName(table.columns, m.table.newColumn) : '';
+		if (!parsed.apply((doc, t) => format.insertColumn(doc, t, index, name))) return;
 		await tick();
 		parsed.now();
 		await tick();
@@ -216,22 +190,22 @@
 	}
 
 	function removeColumn(column: number) {
-		if (apply((doc, t) => format.removeColumn(doc, t, column))) {
+		if (parsed.apply((doc, t) => format.removeColumn(doc, t, column))) {
 			delete filters[column];
 			cur = null;
 		}
 	}
 
 	function moveColumn(column: number, delta: -1 | 1) {
-		if (apply((doc, t) => format.moveColumn(doc, t, column, delta))) cur = { row: cur?.row ?? -1, column: column + delta };
+		if (parsed.apply((doc, t) => format.moveColumn(doc, t, column, delta))) cur = { row: cur?.row ?? -1, column: column + delta };
 	}
 
 	function moveRow(row: number, delta: -1 | 1) {
-		if (apply((doc, t) => (t.rows[row] ? format.moveRow(doc, t, t.rows[row], delta) : null))) cur = { row: row + delta, column: cur?.column ?? 0 };
+		if (parsed.apply((doc, t) => (t.rows[row] ? format.moveRow(doc, t, t.rows[row], delta) : null))) cur = { row: row + delta, column: cur?.column ?? 0 };
 	}
 
 	function sort(column: number, descending: boolean) {
-		apply((doc, t) => format.sort(doc, t, column, descending, intlLocale));
+		parsed.apply((doc, t) => format.sort(doc, t, column, descending, intlLocale));
 	}
 
 	function columnEntries(column: number): MenuEntry[] {
@@ -277,7 +251,7 @@
 				label: m.table.removeRow,
 				icon: 'icon-[material-symbols-light--delete-outline]',
 				disabled,
-				run: () => apply((doc, t) => (t.rows[row] ? format.removeRow(doc, t, t.rows[row]) : null))
+				run: () => parsed.apply((doc, t) => (t.rows[row] ? format.removeRow(doc, t, t.rows[row]) : null))
 			}
 		];
 	}
@@ -385,7 +359,7 @@
 				broken && 'text-base-content/60 italic',
 				selected && 'outline-selection bg-selection/10 outline-2 -outline-offset-2'
 			]}
-			style:line-height="{rowHeight - 1}px"
+			style:line-height="{rows.height - 1}px"
 			title={text.length > 30 || text.includes('\n') ? text : undefined}
 			onclick={() => tap(row, column)}
 			ondblclick={() => startEdit(row, column)}
@@ -397,8 +371,8 @@
 {/snippet}
 
 <div class="flex size-full flex-col text-sm">
-	{#if error !== null}
-		<ParseError {tab} {host} pos={error} stale={good !== parsed.current} />
+	{#if parsed.error !== null}
+		<ParseError {tab} {host} pos={parsed.error} stale={parsed.stale} />
 	{/if}
 	{#if Object.keys(filters).length}
 		<div class="border-base-300 flex flex-wrap items-center gap-2 border-b px-2 py-1.5" role="search">
@@ -435,8 +409,8 @@
 		</div>
 	{:else}
 		<div
-			bind:this={scroller}
-			bind:clientHeight={viewHeight}
+			bind:this={rows.scroller}
+			bind:clientHeight={rows.viewHeight}
 			class={['relative min-h-0 flex-1 overflow-auto outline-none', !editable && 'opacity-60']}
 			role="grid"
 			tabindex="0"
@@ -444,12 +418,12 @@
 			aria-rowcount={shown.length + 1}
 			aria-colcount={table.columns.length}
 			aria-readonly={!editable}
-			onscroll={() => (scrollTop = scroller!.scrollTop)}
+			onscroll={rows.onscroll}
 			onkeydown={onkey}
 		>
-			<div class="relative min-w-full" style:width="max-content" style:height="{(shown.length + 1) * rowHeight}px">
+			<div class="relative min-w-full" style:width="max-content" style:height="{(shown.length + 1) * rows.height}px">
 				<!-- Same font as the rows: the widths are in `ch` of it -->
-				<div role="row" class="bg-base-200 sticky top-0 z-20 grid" style:grid-template-columns={template} style:height="{rowHeight}px">
+				<div role="row" class="bg-base-200 sticky top-0 z-20 grid" style:grid-template-columns={template} style:height="{rows.height}px">
 					<div class="bg-base-200 border-base-300 sticky left-0 z-10 border-r border-b"></div>
 					{#each table.columns as name, column (column)}
 						{#if editing && editing.row === -1 && editing.column === column}
@@ -476,14 +450,14 @@
 						{/if}
 					{/each}
 				</div>
-				{#each shown.slice(first, last) as row, i (row)}
+				{#each shown.slice(rows.first, rows.last) as row, i (row)}
 					{@const r = table.rows[row]}
 					<div
 						role="row"
 						class="absolute left-0 grid min-w-full"
 						style:grid-template-columns={template}
-						style:top="{(first + i + 1) * rowHeight}px"
-						style:height="{rowHeight}px"
+						style:top="{(rows.first + i + 1) * rows.height}px"
+						style:height="{rows.height}px"
 					>
 						<button
 							class={[

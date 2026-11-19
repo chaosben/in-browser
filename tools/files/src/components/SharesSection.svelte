@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { basename } from '@in-browser/files/path.js';
 	import { p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
-	import type { ShareView } from '@in-browser/files/p2p/device.js';
+	import type { ShareView } from '@in-browser/files/p2p/view.js';
 	import { m } from '#lib/i18n/index.js';
 
 	// “Shares” in the sidebar of Files: the folders this device shares with a guest right now, and sharing another one

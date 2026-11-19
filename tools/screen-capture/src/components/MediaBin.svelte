@@ -41,12 +41,14 @@
 		};
 	}
 
+	/** Asks before deleting a source or image for good (another text when only the history still uses it) */
+	async function confirmRemove(name: string, inHistory: boolean) {
+		const message = inHistory ? m.mediaBin.confirmDeleteHistory(name) : m.mediaBin.confirmDelete(name);
+		return ask({ title: m.mediaBin.deleteTitle, message, confirm: m.common.delete, danger: true });
+	}
+
 	async function removeImage(image: ImageAsset) {
-		const message = editor.isImageInHistory(image.id)
-			? m.mediaBin.confirmDeleteHistory(image.name)
-			: m.mediaBin.confirmDelete(image.name);
-		if (!(await ask({ title: m.mediaBin.deleteTitle, message, confirm: m.common.delete, danger: true }))) return;
-		await editor.removeImage(image.id);
+		if (await confirmRemove(image.name, editor.isImageInHistory(image.id))) await editor.removeImage(image.id);
 	}
 
 	function preview(canvas: HTMLCanvasElement, source: Source) {
@@ -65,10 +67,7 @@
 	}
 
 	async function removeSource(source: Source) {
-		const message = editor.isSourceInHistory(source.id)
-			? m.mediaBin.confirmDeleteHistory(source.name)
-			: m.mediaBin.confirmDelete(source.name);
-		if (!(await ask({ title: m.mediaBin.deleteTitle, message, confirm: m.common.delete, danger: true }))) return;
+		if (!(await confirmRemove(source.name, editor.isSourceInHistory(source.id)))) return;
 		await editor.removeSource(source.id);
 		onremoved();
 	}

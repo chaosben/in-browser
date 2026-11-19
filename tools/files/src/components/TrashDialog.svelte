@@ -3,7 +3,7 @@
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
-	import { watch } from '@in-browser/files/fs.js';
+	import { watchSettled } from '@in-browser/files/fs.js';
 	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, parent } from '@in-browser/files/path.js';
 	import { RETENTIONS, inTrash, type Retention } from '@in-browser/files/trash.js';
@@ -43,16 +43,7 @@
 			void trashRetention().then((r) => (retention = r));
 		});
 		// Entries also arrive from other devices
-		let timer: ReturnType<typeof setTimeout> | undefined;
-		const stop = watch((paths) => {
-			if (!paths.some(inTrash)) return;
-			clearTimeout(timer);
-			timer = setTimeout(() => void refresh(), 500);
-		});
-		return () => {
-			stop();
-			clearTimeout(timer);
-		};
+		return watchSettled((paths) => paths.some(inTrash), 500, () => void refresh());
 	});
 
 	function start(dialog: HTMLDialogElement) {

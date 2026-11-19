@@ -1,31 +1,34 @@
 import { isolateHistory, redoDepth, undoDepth } from '@codemirror/commands';
-import { EditorSelection, EditorState, Text, type ChangeSpec, type StateEffect, type TransactionSpec, type Transaction } from '@codemirror/state';
+import { EditorSelection, type ChangeSpec, type TransactionSpec, type Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 import { resolve } from '$app/paths';
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
-import { move, read, stat, write, type Entry } from '@in-browser/files/fs.js';
+import { move, read, stat, write } from '@in-browser/files/fs.js';
 import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 import { basename, isInside, join, parent } from '@in-browser/files/path.js';
 import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
-import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Decoded, type Encoding, type LineEnding } from '#lib/document.js';
-import { loadDraft, pruneDrafts, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
+import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Encoding, type LineEnding } from '#lib/document.js';
+import { pruneDrafts, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
 import { markdownKeymap } from '#lib/editor/commands.js';
 import { isMarkdown, languageOf } from '#lib/editor/languages.js';
-import { createState, languageSlot, wrapping, wrapSlot } from '#lib/editor/setup.js';
+import { languageSlot, wrapping, wrapSlot } from '#lib/editor/setup.js';
+import { loadTabs, restoreTab, storeTabs } from '#lib/session.js';
+import { sameStamp, stampOf, Tab } from '#lib/tab.svelte.js';
 import type { ViewId } from '#lib/views/registry.js';
 import type { ViewUi } from '#lib/views/types.js';
 import { intlLocale, m } from '#lib/i18n/index.js';
+import { downloadBlob } from '@in-browser/brand/download.js';
 
 // Open files as tabs: one CodeMirror state per tab, shown by the one `EditorView` of the page. Files with a place in
 // the file system save themselves shortly after typing (never with a question: conflicts and characters the encoding
 // can't hold pause it and show a bar); files without one (untitled, opened from the computer) wait for "Save …".
 // Saving keeps the encoding and line ending; changes made elsewhere (other tabs, the sync) are noticed via
-// `watch()`. Unsaved changes are kept as drafts, open tabs in `localStorage`.
+// `watch()`. Unsaved changes are kept as drafts, open tabs in `localStorage` (`session.ts`).
 
-const TABS_KEY = 'text-editor:tabs';
 const RECENT_KEY = 'text-editor:recent';
 const WRAP_KEY = 'text-editor:wrap';
 /** Until layouts existed: whether the Markdown preview was shown */
@@ -44,27 +47,6 @@ export type Layout = 'text' | 'split' | 'view';
 /** Share of the width the text gets side by side */
 export const SPLIT = { min: 0.2, default: 0.5, max: 0.8 };
 
-function load<T>(key: string, fallback: T): T {
-	try {
-		const value = localStorage.getItem(key);
-		return value === null ? fallback : (JSON.parse(value) as T);
-	} catch {
-		return fallback;
-	}
-}
-
-function store(key: string, value: unknown) {
-	try {
-		localStorage.setItem(key, JSON.stringify(value));
-	} catch {
-		// Storage full or blocked: only a convenience
-	}
-}
-
-const stampOf = (entry: Entry): FileStamp => ({ size: entry.size ?? 0, modified: entry.modified ?? 0 });
-const sameStamp = (a: FileStamp | null, b: FileStamp | null) => !!a && !!b && a.size === b.size && a.modified === b.modified;
-const sameEncoding = (a: Encoding, b: Encoding) => a.charset === b.charset && a.bom === b.bom;
-
 export function encodingName(encoding: Encoding) {
 	const name = CHARSET_NAMES[encoding.charset];
 	return encoding.bom ? m.encoding.withBom(name) : name;
@@ -75,105 +57,22 @@ function fail(e: unknown) {
 	toast(m.toasts.failed(filesErrorText(e)), 'error', 8000);
 }
 
-export class Tab {
-	readonly id: string;
-	path = $state<string | null>(null);
-	/** Number of an untitled tab ("Untitled 2") */
-	readonly untitled: number;
-	/** Name of a file opened from the computer (not saved here yet) */
-	fileName = $state<string | null>(null);
-	get name() {
-		return this.path ? basename(this.path) : (this.fileName ?? m.common.untitled(this.untitled));
-	}
-	/** CodeMirror state; kept current while the tab is shown */
-	state: EditorState;
-	/** Counts changes of the text (for the preview) */
-	version = $state(0);
-	/** Text as last loaded or saved */
-	saved: Text;
-	encoding = $state<Encoding>({ charset: 'utf-8', bom: false });
-	eol = $state<LineEnding>('\n');
-	savedEncoding: Encoding = { charset: 'utf-8', bom: false };
-	savedEol: LineEnding = '\n';
-	changedText = $state(false);
-	dirty = $derived(this.changedText || !sameEncoding(this.encoding, this.savedEncoding) || this.eol !== this.savedEol);
-	/** The file as last read or written (null: untitled or not there) */
-	stamp: FileStamp | null = null;
-	/** Changed or removed elsewhere while open */
-	conflict = $state<'changed' | 'deleted' | null>(null);
-	/** The last save failed (e.g. a connected folder without access): shown as the save state until a save works */
-	saveError = $state<string | null>(null);
-	/** Characters the encoding can't hold: automatic saving waits */
-	problem = $state<{ unmappable: number } | null>(null);
-	/** Automatic save is waiting for the pause after typing */
-	pending = $state(false);
-	saving = $state(false);
-	history = $state({ undo: 0, redo: 0 });
-	cursor = $state({ line: 1, column: 1, selected: 0 });
-	/** Offset of the cursor in the text (the views mark what it is on) */
-	head = $state(0);
-	language = $state<string | null>(null);
-	/** Scroll position while another tab is shown */
-	scroll: StateEffect<unknown> | null = null;
-	/** Saving or renaming: our own change notifications don't count as changes from elsewhere */
-	busy = false;
-
-	constructor(init: {
-		id?: string;
-		path: string | null;
-		untitled: number;
-		fileName?: string | null;
-		text: string;
-		saved: string;
-		wrap: boolean;
-	}) {
-		this.id = init.id ?? crypto.randomUUID();
-		this.path = init.path;
-		this.untitled = init.untitled;
-		this.fileName = init.fileName ?? null;
-		this.state = createState(init.text, init.wrap);
-		this.saved = init.text === init.saved ? this.state.doc : Text.of(init.saved.split(/\r\n|\r|\n/));
-		this.changedText = !this.state.doc.eq(this.saved);
-	}
-
-	/** Takes over loaded or saved content as the new clean state */
-	setSaved(decoded: Pick<Decoded, 'encoding' | 'eol'>, stamp: FileStamp | null) {
-		this.saved = this.state.doc;
-		this.changedText = false;
-		this.encoding = this.savedEncoding = decoded.encoding;
-		this.eol = this.savedEol = decoded.eol;
-		this.stamp = stamp;
-		this.conflict = null;
-		this.problem = null;
-	}
-
-	/** Name suggested when saving or downloading */
-	get suggestedName() {
-		return this.path ? this.name : (this.fileName ?? `${this.name}.txt`);
-	}
-}
-
-interface StoredTabs {
-	tabs: { id: string; path: string | null; untitled: number; fileName?: string | null }[];
-	active: string | null;
-}
-
 export class Workspace {
 	tabs = $state<Tab[]>([]);
 	activeId = $state<string | null>(null);
 	active = $derived(this.tabs.find((t) => t.id === this.activeId) ?? null);
 	/** Wrapped by default on phones and narrow windows (no horizontal scrolling there) */
-	wrap = $state(load(WRAP_KEY, typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 47.99rem)').matches));
-	layout = $state<Layout>(load<Layout | null>(LAYOUT_KEY, null) ?? (load(OLD_PREVIEW_KEY, true) ? 'split' : 'text'));
-	split = $state(load(SPLIT_KEY, SPLIT.default));
+	wrap = $state(loadJson(WRAP_KEY, typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 47.99rem)').matches));
+	layout = $state<Layout>(loadJson<Layout | null>(LAYOUT_KEY, null) ?? (loadJson(OLD_PREVIEW_KEY, true) ? 'split' : 'text'));
+	split = $state(loadJson(SPLIT_KEY, SPLIT.default));
 	/** View chosen per file type, where there are several (e.g. JSON Lines: table or tree) */
-	views = $state<Record<string, ViewId>>(load(VIEWS_KEY, {}));
+	views = $state<Record<string, ViewId>>(loadJson(VIEWS_KEY, {}));
 	/** The first row of CSV files holds the column names */
-	tableHeader = $state(load(HEADER_KEY, true));
+	tableHeader = $state(loadJson(HEADER_KEY, true));
 	/** Menus and status of the view that is shown */
 	viewUi = $state.raw<ViewUi | null>(null);
-	recent = $state<string[]>(load(RECENT_KEY, []));
-	fontSize = $state(load(FONT_KEY, FONT_SIZES.default));
+	recent = $state<string[]>(loadJson(RECENT_KEY, []));
+	fontSize = $state(loadJson(FONT_KEY, FONT_SIZES.default));
 	/** Folder of the last open/save dialog */
 	folder = '/';
 
@@ -305,8 +204,7 @@ export class Workspace {
 		const entry = await stat(path);
 		if (!entry || entry.kind !== 'file') {
 			toast(m.toasts.notFound(basename(path)), 'error');
-			this.recent = this.recent.filter((p) => p !== path);
-			store(RECENT_KEY, this.recent);
+			this.forget(path);
 			return null;
 		}
 		if ((entry.size ?? 0) > MAX_SIZE) {
@@ -354,13 +252,9 @@ export class Workspace {
 	async close(tab: Tab) {
 		// A file with a place saves first; only what can't be saved that way needs a question
 		if (tab.dirty && tab.path && !tab.conflict && !tab.problem) await this.save(tab, { auto: true });
-		if (tab.dirty) {
-			const ok = await ask({ ...m.questions.discard, message: m.questions.discard.message(tab.name), danger: true });
-			if (!ok) return false;
-		}
+		if (tab.dirty && !(await this.#confirmDiscard(tab))) return false;
 		this.#cancelSave(tab);
-		this.#cancelDraft(tab.id);
-		removeDraft(tab.id);
+		this.#dropDraft(tab.id);
 		const index = this.tabs.indexOf(tab);
 		const wasActive = tab === this.active;
 		this.tabs.splice(index, 1);
@@ -447,10 +341,7 @@ export class Workspace {
 			tab.saved = doc;
 			tab.changedText = !tab.state.doc.eq(doc);
 			if (tab.dirty) this.#changed(tab);
-			else {
-				this.#cancelDraft(tab.id);
-				removeDraft(tab.id);
-			}
+			else this.#dropDraft(tab.id);
 			if (renamed) this.#loadLanguage(tab);
 			this.#remember(path);
 			this.#persist();
@@ -531,12 +422,7 @@ export class Workspace {
 
 	download(tab: Tab) {
 		const { bytes } = encode(tab.state.doc.sliceString(0, tab.state.doc.length, tab.eol), tab.encoding);
-		const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = tab.suggestedName;
-		a.click();
-		setTimeout(() => URL.revokeObjectURL(url), 10_000);
+		downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), tab.suggestedName);
 	}
 
 	showInFiles(tab: Tab) {
@@ -572,8 +458,7 @@ export class Workspace {
 			});
 			tab.setSaved(decoded, file.stamp);
 			this.#cancelSave(tab);
-			this.#cancelDraft(tab.id);
-			removeDraft(tab.id);
+			this.#dropDraft(tab.id);
 		} catch (e) {
 			fail(e);
 		} finally {
@@ -581,11 +466,13 @@ export class Workspace {
 		}
 	}
 
+	/** Asks before throwing away the unsaved changes of a tab */
+	#confirmDiscard(tab: Tab) {
+		return ask({ ...m.questions.discard, message: m.questions.discard.message(tab.name), danger: true });
+	}
+
 	async reopenWith(tab: Tab, charset: Charset) {
-		if (tab.dirty) {
-			const ok = await ask({ ...m.questions.discard, message: m.questions.discard.message(tab.name), danger: true });
-			if (!ok) return;
-		}
+		if (tab.dirty && !(await this.#confirmDiscard(tab))) return;
 		await this.reload(tab, charset);
 	}
 
@@ -630,21 +517,17 @@ export class Workspace {
 	// --- Persistence: open tabs, drafts, recent files, settings ---
 
 	#persist() {
-		const stored: StoredTabs = {
-			tabs: this.tabs.map((t) => ({ id: t.id, path: t.path, untitled: t.untitled, fileName: t.fileName })),
-			active: this.activeId
-		};
-		store(TABS_KEY, stored);
+		storeTabs(this.tabs, this.activeId);
 	}
 
 	#remember(path: string) {
 		this.recent = [path, ...this.recent.filter((p) => p !== path)].slice(0, MAX_RECENT);
-		store(RECENT_KEY, this.recent);
+		storeJson(RECENT_KEY, this.recent);
 	}
 
 	forget(path: string) {
 		this.recent = this.recent.filter((p) => p !== path);
-		store(RECENT_KEY, this.recent);
+		storeJson(RECENT_KEY, this.recent);
 	}
 
 	#scheduleDraft(tab: Tab) {
@@ -661,6 +544,12 @@ export class Workspace {
 	#cancelDraft(id: string) {
 		clearTimeout(this.#draftTimers.get(id));
 		this.#draftTimers.delete(id);
+	}
+
+	/** No unsaved changes left: no draft either */
+	#dropDraft(id: string) {
+		this.#cancelDraft(id);
+		removeDraft(id);
 	}
 
 	#writeDraft(tab: Tab) {
@@ -687,10 +576,10 @@ export class Workspace {
 
 	/** Brings back the tabs of the last visit, with their unsaved changes */
 	async restore() {
-		const stored = load<StoredTabs>(TABS_KEY, { tabs: [], active: null });
+		const stored = loadTabs();
 		for (const entry of stored.tabs) {
 			try {
-				const tab = await this.#restoreTab(entry);
+				const tab = await restoreTab(entry, this.wrap);
 				if (tab) this.tabs.push(tab);
 			} catch (e) {
 				console.error(e);
@@ -707,59 +596,37 @@ export class Workspace {
 		this.#persist();
 	}
 
-	async #restoreTab({ id, path, untitled, fileName }: StoredTabs['tabs'][number]): Promise<Tab | null> {
-		const draft = await loadDraft(id);
-		const entry = path ? await stat(path) : null;
-		const exists = entry?.kind === 'file' && (entry.size ?? 0) <= MAX_SIZE;
-		const decoded = exists ? decode(new Uint8Array(await (await read(path!)).arrayBuffer())) : null;
-		// Without changes a tab only comes back with its file
-		if (!draft && !decoded) return null;
-		const text = draft?.text ?? decoded!.text;
-		const tab = new Tab({ id, path, untitled, fileName, text, saved: decoded?.text ?? '', wrap: this.wrap });
-		const now = exists ? stampOf(entry!) : null;
-		tab.encoding = tab.savedEncoding = decoded?.encoding ?? { charset: 'utf-8', bom: false };
-		tab.eol = tab.savedEol = decoded?.eol ?? '\n';
-		tab.stamp = draft ? draft.stamp : now;
-		if (draft) {
-			tab.encoding = draft.encoding;
-			tab.eol = draft.eol;
-			if (path && !exists) tab.conflict = 'deleted';
-			else if (path && !sameStamp(now, draft.stamp)) tab.conflict = 'changed';
-		}
-		return tab;
-	}
-
 	setWrap(wrap: boolean) {
 		this.wrap = wrap;
-		store(WRAP_KEY, wrap);
+		storeJson(WRAP_KEY, wrap);
 		for (const tab of this.tabs) this.#apply(tab, { effects: wrapSlot.reconfigure(wrapping(wrap)) });
 	}
 
 	setLayout(layout: Layout) {
 		this.layout = layout;
-		store(LAYOUT_KEY, layout);
+		storeJson(LAYOUT_KEY, layout);
 		this.#view?.requestMeasure();
 	}
 
 	setSplit(share: number) {
 		this.split = Math.min(SPLIT.max, Math.max(SPLIT.min, share));
-		store(SPLIT_KEY, this.split);
+		storeJson(SPLIT_KEY, this.split);
 	}
 
 	setView(type: string, id: ViewId) {
 		this.views = { ...this.views, [type]: id };
-		store(VIEWS_KEY, this.views);
+		storeJson(VIEWS_KEY, this.views);
 	}
 
 	setTableHeader(on: boolean) {
 		this.tableHeader = on;
-		store(HEADER_KEY, on);
+		storeJson(HEADER_KEY, on);
 	}
 
 	/** Text size in px (`null`: default) */
 	setFontSize(size: number | null) {
 		this.fontSize = Math.min(FONT_SIZES.max, Math.max(FONT_SIZES.min, size ?? FONT_SIZES.default));
-		store(FONT_KEY, this.fontSize);
+		storeJson(FONT_KEY, this.fontSize);
 		this.#view?.requestMeasure();
 	}
 

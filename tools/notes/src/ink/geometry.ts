@@ -27,9 +27,6 @@ export function boundsOf(points: Float32Array, pad = 0): Box {
 	return { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
 }
 
-/** Box of a stroke including its width (pressure can't make it wider than `size`) */
-export const strokeBounds = (s: Stroke): Box => boundsOf(s.points, s.size / 2 + 1);
-
 /** Box of a picture */
 export const pictureBounds = (p: Picture): Box => ({ x0: p.x, y0: p.y, x1: p.x + p.w, y1: p.y + p.h });
 

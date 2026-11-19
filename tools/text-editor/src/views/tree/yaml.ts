@@ -1,11 +1,11 @@
 import type { ChangeSpec } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import { parser } from '@lezer/yaml';
-import { indentUnit, insertRaw, removeEntry } from './json.js';
 import {
 	ALL_KINDS,
 	childId,
 	convertText,
+	firstError,
 	freeKey,
 	lineEndOf,
 	lineStartOf,
@@ -22,6 +22,7 @@ import {
 	type TreeParse,
 	type ValueKind
 } from './model.js';
+import { indentUnit, insertRaw, removeEntry } from './edit.js';
 
 // YAML as a tree (parsed with Lezer). Block collections get new entries on their own lines with the indentation of
 // their siblings, flow collections (`{…}`, `[…]`) are edited like JSON; comments, anchors, tags and quoting elsewhere
@@ -201,19 +202,6 @@ export function encodeValue(value: NewValue, inFlow = false): string {
 // --- Parsing ---
 
 const isComment = (n: SyntaxNode) => n.name === 'Comment';
-
-/** First syntax error: an error node or a quoted scalar that is never closed */
-function firstError(top: SyntaxNode, doc: string): number | null {
-	let error: number | null = null;
-	top.toTree().iterate({
-		enter: (n) => {
-			if (error !== null) return false;
-			if (n.type.isError) error = n.from;
-			else if (n.name === 'QuotedLiteral' && quoteEnd(doc.slice(n.from, n.to)) !== n.to - n.from) error = n.from;
-		}
-	});
-	return error;
-}
 
 /** End of a node without trailing comments (Lezer lets collections run over them) */
 function contentEnd(node: SyntaxNode): number {
@@ -431,7 +419,11 @@ function buildDocument(doc: string, value: SyntaxNode | null, id: string, range:
 
 export function parseYaml(doc: string): TreeParse {
 	const top = parser.parse(doc).topNode;
-	const error = firstError(top, doc);
+	const error = firstError(
+		top.toTree(),
+		// A quoted scalar that is never closed
+		(n) => n.name === 'QuotedLiteral' && quoteEnd(doc.slice(n.from, n.to)) !== n.to - n.from
+	);
 	const documents = top.getChildren('Document');
 	const whole = { from: 0, to: doc.length };
 	if (documents.length <= 1) {

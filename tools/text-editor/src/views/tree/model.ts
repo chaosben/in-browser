@@ -1,4 +1,6 @@
 import { ChangeSet, Text, type ChangeSpec } from '@codemirror/state';
+import type { SyntaxNodeRef, Tree } from '@lezer/common';
+import { freeName } from '../names.js';
 
 // The tree behind the tree view (JSON, YAML, TOML, INI, XML …). The text stays the only source: a format parses it
 // into nodes that know where they are in the text, and every edit is a minimal change of exactly that place – the
@@ -111,7 +113,6 @@ export interface TreeFormat {
 
 // --- Helpers shared by the formats ---
 
-export const SCALARS: readonly ValueKind[] = ['string', 'number', 'boolean', 'null'];
 export const ALL_KINDS: readonly ValueKind[] = ['string', 'number', 'boolean', 'null', 'object', 'array'];
 
 export const childId = (parent: string, key: string | undefined, index: number) =>
@@ -125,6 +126,27 @@ export function uniqueIds(children: TreeNode[]) {
 		seen.set(child.id, n + 1);
 		if (n) child.id = `${child.id}#${n}`;
 	}
+}
+
+/** Ids from the root down: by `keyOf` (default the key), by index where it gives none */
+export function assignIds(node: TreeNode, keyOf: (child: TreeNode) => string | undefined = (c) => c.key) {
+	const children = node.children;
+	if (!children) return;
+	children.forEach((c, i) => (c.id = childId(node.id, keyOf(c), i)));
+	uniqueIds(children);
+	for (const c of children) assignIds(c, keyOf);
+}
+
+/** Position of the first syntax error of a Lezer tree: error nodes, and nodes `isError` refuses */
+export function firstError(tree: Tree, isError?: (node: SyntaxNodeRef) => boolean): number | null {
+	let error: number | null = null;
+	tree.iterate({
+		enter: (n) => {
+			if (error !== null) return false;
+			if (n.type.isError || isError?.(n)) error = n.from;
+		}
+	});
+	return error;
 }
 
 /**
@@ -146,12 +168,9 @@ export function convertText(kind: ValueKind, text: string): string {
 	return text;
 }
 
-/** A free key in `parent` based on `base` (`key`, `key 2`, …) */
-export function freeKey(parent: TreeNode, base: string): string {
-	const used = new Set(parent.children?.map((c) => c.key));
-	if (!used.has(base)) return base;
-	for (let n = 2; ; n++) if (!used.has(`${base} ${n}`)) return `${base} ${n}`;
-}
+/** A free key in `parent` based on `base` (`key`, `key 2`, …; `sep` goes before the number) */
+export const freeKey = (parent: TreeNode, base: string, sep = ' ') =>
+	freeName(parent.children?.map((c) => c.key) ?? [], base, sep);
 
 export const lineStartOf = (doc: string, pos: number) => doc.lastIndexOf('\n', pos - 1) + 1;
 

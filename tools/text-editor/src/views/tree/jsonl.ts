@@ -1,6 +1,7 @@
 import { parseLines } from '../table/jsonl.js';
 import { removeLine } from '../table/model.js';
-import { encodeValue, insertRaw, jsonFormat } from './json.js';
+import { insertRaw } from './edit.js';
+import { encodeValue, jsonFormat } from './json.js';
 import { swap, type TreeFormat, type TreeNode } from './model.js';
 
 // JSON Lines as a tree: one node per line, below it the line's value as in JSON. Changes inside a line work as in

@@ -4,7 +4,7 @@
 // pen polylines (x, y, pressure 0.5, `inkStrokes`): the outline (in dashes or dots, exact or hand-drawn via
 // `@in-browser/graphics`) and the arrowheads (wing → tip → wing, always solid); a fill under it (`fillOutline`).
 
-import { arrowHead, strokesOf, type Point } from '@in-browser/graphics/shapes.js';
+import { arrowHead, arrowWings, strokesOf, type Point } from '@in-browser/graphics/shapes.js';
 import type { Ink, ShapeItem, Stroke } from '#lib/model/types.js';
 
 export type ShapeFit =
@@ -40,8 +40,6 @@ const SNAP_RANGE = (4 * Math.PI) / 180;
 const SQUARE_RATIO = 1.1;
 /** Smallest arrowhead in points (with thin pens) */
 const MIN_HEAD = 8;
-/** Half the opening angle of an arrowhead */
-const HEAD_SPREAD = 0.45;
 
 /** Corners of a polygon with `n` corners (alternating radii for a star) around the unit circle, top corner up */
 function unitPolygon(n: number, start: number, inner = 1): number[] {
@@ -119,15 +117,10 @@ export function fitFromDrag(kind: ShapeKind, x0: number, y0: number, x1: number,
 	}
 }
 
-/** The two wing ends of an arrowhead at `tip`, pointing away from `from` */
-function wings(fx: number, fy: number, tx: number, ty: number, head: number): [number, number, number, number] {
-	const angle = Math.atan2(ty - fy, tx - fx);
-	return [
-		tx - Math.cos(angle - HEAD_SPREAD) * head,
-		ty - Math.sin(angle - HEAD_SPREAD) * head,
-		tx - Math.cos(angle + HEAD_SPREAD) * head,
-		ty - Math.sin(angle + HEAD_SPREAD) * head
-	];
+/** Arrowhead at (`tx`, `ty`) pointing away from (`fx`, `fy`) as polyline wing → tip → wing */
+function headAt(fx: number, fy: number, tx: number, ty: number, head: number): number[] {
+	const [a, b] = arrowWings({ x: tx, y: ty }, Math.atan2(ty - fy, tx - fx), head);
+	return [a.x, a.y, tx, ty, b.x, b.y];
 }
 
 type Line = Extract<ShapeFit, { kind: 'line' }>;
@@ -144,14 +137,8 @@ function heads(fit: ShapeFit, size: number): number[][] {
 	const { x0, y0, x1, y1 } = fit;
 	const head = arrowHead(size, Math.hypot(x1 - x0, y1 - y0) / (fit.start && fit.end ? 2 : 1), MIN_HEAD);
 	const out: number[][] = [];
-	if (fit.end) {
-		const [ax, ay, bx, by] = wings(x0, y0, x1, y1, head);
-		out.push([ax, ay, x1, y1, bx, by]);
-	}
-	if (fit.start) {
-		const [ax, ay, bx, by] = wings(x1, y1, x0, y0, head);
-		out.push([ax, ay, x0, y0, bx, by]);
-	}
+	if (fit.end) out.push(headAt(x0, y0, x1, y1, head));
+	if (fit.start) out.push(headAt(x1, y1, x0, y0, head));
 	return out;
 }
 

@@ -8,7 +8,7 @@ describe('staleness', () => {
 			{ o: 'A', n: 2, p: '/a' },
 			{ o: 'A', n: 3, p: '/b' }
 		];
-		expect(staleness({ lastSeen: 1, lastSync: 7, scope: [], vector: { A: 1 } }, log)).toEqual({ changes: 2, more: false, lastSync: 7 });
+		expect(staleness({ lastSeen: 1, lastSync: 7, scope: [], vector: { A: 1 } }, log)).toEqual({ changes: 2, more: false });
 	});
 
 	it('warns about this device only when nobody is reachable and the last sync is old', () => {

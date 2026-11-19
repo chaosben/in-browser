@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatsOf, isPackage, openUrl } from './formats';
+import { FormatError, formatsOf, isPackage, migrateFormat, openUrl } from './formats';
 
 describe('formats', () => {
 	it('recognizes packages by extension and kind', () => {
@@ -29,5 +29,25 @@ describe('formats', () => {
 		expect(openUrl(format, '/Screen Capture/Demo.screencapture')).toBe(
 			'/screen-capture/editor?path=%2FScreen%20Capture%2FDemo.screencapture'
 		);
+	});
+});
+
+describe('migrateFormat', () => {
+	const steps = { 1: (p: { version: number }) => ({ ...p, version: 2, format: 'x' }) };
+	it('runs every step up to the current version', () => {
+		expect(migrateFormat({ version: 1 }, 'x', 2, steps)).toEqual({ version: 2, format: 'x' });
+	});
+	it('rejects newer, foreign and broken documents', () => {
+		const reason = (raw: unknown) => {
+			try {
+				migrateFormat(raw, 'x', 2, steps);
+			} catch (e) {
+				return e instanceof FormatError ? e.reason : 'other';
+			}
+		};
+		expect(reason({ version: 3, format: 'x' })).toBe('newer');
+		expect(reason({ version: 2, format: 'y' })).toBe('unknown');
+		expect(reason({ version: 0, format: 'x' })).toBe('unknown');
+		expect(reason(null)).toBe('unknown');
 	});
 });

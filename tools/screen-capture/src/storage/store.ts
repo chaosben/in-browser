@@ -1,9 +1,9 @@
 import { cacheDir } from '@in-browser/files/cache.js';
-import { isPackage, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
-import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
+import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
+import { chooseFiles } from '@in-browser/files/dialog.svelte.js';
+import { documentName, packageDocuments } from '@in-browser/files/documents.js';
 import { FilesError, list, mkdir, open, read, readText, remove, stat, write, writable, type RandomAccess } from '@in-browser/files/fs.js';
-import { basename, extname, join, normalize, parent, safeName, stem } from '@in-browser/files/path.js';
-import { connectedDocuments, forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
+import { join, normalize } from '@in-browser/files/path.js';
 import { m } from '#lib/i18n/index.js';
 import { IMAGE_EXTENSIONS } from '#lib/media/images.js';
 import { MEDIA_EXTENSIONS } from '#lib/media/media.js';
@@ -21,59 +21,19 @@ export { requestPersistence, storageEstimate } from '@in-browser/files/cache.js'
 
 export const PROJECT_EXT = '.screencapture';
 const LIBRARY = '/.apps/screen-capture/library';
-/** Folder last used for a project (start of the open/save dialogs) */
-const FOLDER_KEY = 'screen-capture:folder';
+const projects = packageDocuments('screen-capture', PROJECT_EXT);
 
 /** Path of a media file of a project */
 export const mediaPath = (project: string, file: string) => join(project, 'media', file);
 
-/** Folder the open/save dialogs start in: the one last used, otherwise the top folder */
-export function lastFolder(): string {
-	try {
-		return localStorage.getItem(FOLDER_KEY) ?? '/';
-	} catch {
-		return '/';
-	}
-}
+export const lastFolder = projects.lastFolder;
+export const rememberProject = projects.remember;
+/** Lets the user pick a project in the shared file system */
+export const chooseProject = () => projects.choose();
 
-/** Remembers the folder of an opened or created project. */
-export function rememberProject(path: string) {
-	// Connected folders aren't searched: projects there are listed because they are remembered
-	rememberConnected('screen-capture', path);
-	try {
-		localStorage.setItem(FOLDER_KEY, parent(path));
-	} catch {
-		// Storage blocked: the dialogs just start at the top
-	}
-}
-
-/** Paths of all projects anywhere in the file system (hidden folders and package contents skipped) */
-async function findProjects(folder: string, into: string[] = []): Promise<string[]> {
-	for (const entry of await list(folder)) {
-		// Not searched over the network: folders this device doesn't sync (and connected ones) are left out
-		if (entry.kind !== 'directory' || entry.name.startsWith('.') || entry.remote) continue;
-		if (extname(entry.name) === PROJECT_EXT) into.push(entry.path);
-		else if (!isPackage(entry.name, 'directory')) await findProjects(entry.path, into);
-	}
-	return into;
-}
-
-/**
- * All projects, newest change first: those in My files and those remembered in connected folders (gone ones are
- * forgotten, those the browser doesn't allow access to right now are skipped)
- */
+/** All projects (see `packageDocuments`; incomplete ones, e.g. of an aborted recording, are skipped), newest first */
 export async function listProjects(): Promise<Project[]> {
-	const connected = connectedDocuments('screen-capture');
-	const projects = await Promise.all(
-		[...new Set([...(await findProjects('/')), ...connected])].map((path) =>
-			loadProject(path).catch((e: unknown) => {
-				if (connected.includes(path) && e instanceof FilesError && e.code === 'notFound') forgetConnected('screen-capture', path);
-				return null;
-			})
-		)
-	);
-	// Incomplete (e.g. aborted recording) or broken projects are skipped
-	return projects.filter((p): p is Project => p !== null).sort((a, b) => b.updatedAt - a.updatedAt);
+	return (await projects.list(loadProject)).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function loadProject(path: string): Promise<Project> {
@@ -92,8 +52,13 @@ export async function projectFileDate(path: string): Promise<number | undefined>
 }
 
 /** Name of the project in the package at `path` (its file name without extension) */
-export function projectName(path: string): string {
-	return stem(basename(path));
+export const projectName = documentName;
+
+/** Renames the package and the project in it (saved first); the new path */
+export async function renameProject(project: Project, name: string): Promise<string> {
+	const target = await projects.rename(project.id, name, m.common.untitled);
+	if (target !== project.id) await saveProject({ ...project, id: target, name: projectName(target) });
+	return target;
 }
 
 /**
@@ -101,13 +66,7 @@ export function projectName(path: string): string {
  * returns its path (= project id), `null` if canceled.
  */
 export async function chooseNewProject(title: string): Promise<string | null> {
-	const path = await chooseFile({
-		mode: 'save',
-		folder: lastFolder(),
-		accept: [PROJECT_EXT],
-		name: safeName(title, m.common.untitled) + PROJECT_EXT,
-		title: m.home.newProjectTitle
-	});
+	const path = await projects.chooseNew(title, m.home.newProjectTitle, m.common.untitled);
 	if (!path) return null;
 	await mkdir(join(path, 'media'));
 	rememberProject(path);

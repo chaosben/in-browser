@@ -6,6 +6,7 @@
 	import { brandMessages } from './i18n/index.svelte.js';
 	import { coarsePointer } from './ui/pointer.svelte.js';
 	import { matchesQuery } from './ui/search.js';
+	import { pointerDrag } from './ui/drag.js';
 
 	interface Props {
 		/** Topics of the tool (its `m.help`) */
@@ -57,21 +58,14 @@
 	function dragWindow(e: PointerEvent) {
 		if (compact || !dialog || e.button !== 0 || (e.target as HTMLElement).closest('button, input, a')) return;
 		e.preventDefault();
-		const el = e.currentTarget as HTMLElement;
-		el.setPointerCapture(e.pointerId);
 		const rect = dialog.getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
-		const move = (ev: PointerEvent) => (help.pos = clampPos(ev.clientX - offsetX, ev.clientY - offsetY));
-		const up = () => {
-			el.removeEventListener('pointermove', move);
-			el.removeEventListener('pointerup', up);
-			el.removeEventListener('pointercancel', up);
-			help.save();
-		};
-		el.addEventListener('pointermove', move);
-		el.addEventListener('pointerup', up);
-		el.addEventListener('pointercancel', up);
+		pointerDrag(
+			e,
+			(ev) => (help.pos = clampPos(ev.clientX - offsetX, ev.clientY - offsetY)),
+			() => help.save()
+		);
 	}
 
 	/** Remembers the size the user gave the window (CSS `resize`) */

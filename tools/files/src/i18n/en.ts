@@ -5,8 +5,6 @@ const en = {
 	common: {
 		cancel: 'Cancel',
 		close: 'Close',
-		open: 'Open',
-		delete: 'Delete',
 		rename: 'Rename',
 		download: 'Download'
 	},
@@ -17,7 +15,6 @@ const en = {
 	},
 
 	toolbar: {
-		up: 'Up one folder',
 		newFolder: 'New folder',
 		newTextFile: 'New text file',
 		upload: 'Upload',
@@ -121,7 +118,6 @@ const en = {
 		waiting: 'Waiting for the guest – one browser at a time can open the link.',
 		connected: 'Guest connected.',
 		away: 'The guest is not connected right now.',
-		until: (time: string) => `Ends ${time}`,
 		end: 'End share',
 		endTitle: 'End the share?',
 		endMessage: (folder: string) => `The guest can no longer open “${folder}”. Nothing in the folder changes.`,
@@ -326,7 +322,6 @@ const en = {
 		excludeMessage: 'The copy on this device is deleted – the folder stays on your other devices, and here you open it live from one of them (it needs to be connected).',
 		exclude: 'Don’t sync on this device',
 		include: 'Sync again on this device',
-		excluded: 'Not synced on this device'
 	},
 
 	sync: {

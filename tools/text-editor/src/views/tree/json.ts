@@ -5,8 +5,8 @@ import {
 	ALL_KINDS,
 	childId,
 	convertText,
+	firstError,
 	freeKey,
-	indentAt,
 	neighbour,
 	swap,
 	uniqueIds,
@@ -17,6 +17,7 @@ import {
 	type TreeNode,
 	type TreeParse
 } from './model.js';
+import { insertRaw, removeEntry } from './edit.js';
 
 // JSON as a tree (parsed with Lezer, which knows every position). New entries follow the layout of their siblings
 // (one per line or all in one line), the rest of the text is never touched.
@@ -37,18 +38,6 @@ export function decodeString(raw: string): string {
 	} catch {
 		return raw.slice(1, -1);
 	}
-}
-
-/** Position of the first syntax error (Lezer marks them with error nodes) */
-function firstError(node: SyntaxNode): number | null {
-	let error: number | null = null;
-	node.toTree().iterate({
-		enter: (n) => {
-			if (error !== null) return false;
-			if (n.type.isError) error = n.from;
-		}
-	});
-	return error;
 }
 
 /** Child value nodes (no punctuation) */
@@ -94,7 +83,7 @@ function build(doc: string, value: SyntaxNode, id: string, offset: number, key?:
  */
 export function parseJson(doc: string, offset = 0, id = ''): TreeParse {
 	const top = parser.parse(doc).topNode;
-	const at = firstError(top);
+	const at = firstError(top.toTree());
 	const error = at === null ? null : at + offset;
 	const main = values(top)[0];
 	const document: TreeNode = { id, kind: 'document', range: { from: offset, to: offset + doc.length }, can: {} };
@@ -108,13 +97,6 @@ export function parseJson(doc: string, offset = 0, id = ''): TreeParse {
 	}
 	node.can = { ...node.can, remove: false, move: false, duplicate: false };
 	return { root: { ...document, children: [node] }, error };
-}
-
-/** One step of indentation as used in the text (default two spaces) */
-export function indentUnit(doc: string): string {
-	const match = /\n([ \t]+)\S/.exec(doc);
-	if (!match) return '  ';
-	return match[1].startsWith('\t') ? '\t' : match[1];
 }
 
 export function encodeValue(value: NewValue): string {
@@ -131,46 +113,6 @@ export function encodeValue(value: NewValue): string {
 		case 'array':
 			return '[]';
 	}
-}
-
-/**
- * Inserts raw entry text into a container (`{…}`/`[…]` whose brackets are the ends of `parent.valueRange`).
- * Separators copy the siblings' layout; an empty container gets one entry per line unless the text has no line
- * breaks at all (minified) or `inline` asks for one line (JSON Lines).
- */
-export function insertRaw(doc: string, parent: TreeNode, index: number, raw: string, inline = false): ChangeSpec | null {
-	const siblings = parent.children ?? [];
-	if (!parent.valueRange) {
-		// Empty document: the value becomes the whole text
-		return siblings.length ? null : { from: parent.range.from, to: parent.range.to, insert: raw };
-	}
-	if (!siblings.length) {
-		const { from, to } = parent.valueRange;
-		if (inline || (!doc.includes('\n') && doc.trim().length > 2)) return { from: from + 1, to: to - 1, insert: raw };
-		const indent = indentAt(doc, parent.range.from);
-		return { from: from + 1, to: to - 1, insert: `\n${indent}${indentUnit(doc)}${raw}\n${indent}` };
-	}
-	let separator: string;
-	if (siblings.length >= 2) separator = doc.slice(siblings[0].range.to, siblings[1].range.from);
-	else {
-		const before = doc.slice(parent.valueRange.from + 1, siblings[0].range.from);
-		separator = before.includes('\n') ? `,\n${indentAt(doc, siblings[0].range.from)}` : ', ';
-	}
-	if (index < siblings.length) return { from: siblings[index].range.from, insert: raw + separator };
-	return { from: siblings[siblings.length - 1].range.to, insert: separator + raw };
-}
-
-/** Removes an entry with the separator next to it; the last one empties the container */
-export function removeEntry(parent: TreeNode, node: TreeNode): ChangeSpec | null {
-	const siblings = parent.children ?? [];
-	const i = siblings.indexOf(node);
-	if (i < 0) return null;
-	if (siblings.length === 1) {
-		if (!parent.valueRange) return { from: parent.range.from, to: parent.range.to };
-		return { from: parent.valueRange.from + 1, to: parent.valueRange.to - 1 };
-	}
-	if (i < siblings.length - 1) return { from: node.range.from, to: siblings[i + 1].range.from };
-	return { from: siblings[i - 1].range.to, to: node.range.to };
 }
 
 export const jsonFormat: TreeFormat = {

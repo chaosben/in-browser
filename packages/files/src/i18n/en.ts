@@ -74,6 +74,11 @@ const en = {
 	},
 
 	/** Connected folders (access, start pages of the tools) */
+	document: {
+		saveFailed: (error: string) => `Saving failed: ${error}`,
+		renameFailed: (error: string) => `Renaming failed: ${error}`
+	},
+
 	connected: {
 		allow: 'Allow access',
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`

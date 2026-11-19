@@ -1,9 +1,10 @@
-import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { identityOf, type Identity } from '@in-browser/files/p2p/identity.js';
 import { emptyState, type P2pState, type Store } from '@in-browser/files/p2p/store.js';
 import type { Base, BaseEntry } from '@in-browser/files/sync/plan.js';
 import { canFlush, syncDir } from './durable.js';
+import { readJson as readStrict } from './json.js';
 
 // What the p2p-node keeps about the sync, as JSON files in its instance folder (readable by its user only):
 // `identity.json` (key pair), `state.json`, `bases/<device>.json`. Unlike the browser, the private key must be
@@ -12,14 +13,8 @@ import { canFlush, syncDir } from './durable.js';
 /** Version of `state.json`; a different one on disk is kept as `state.v<n>.json` before it is replaced */
 const STATE_VERSION: P2pState['v'] = 1;
 
-async function readJson<T>(file: string): Promise<T | undefined> {
-	try {
-		return JSON.parse(await readFile(file, 'utf8')) as T;
-	} catch (e) {
-		if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
-		throw e;
-	}
-}
+/** Unreadable state must never look like none (that would start over) */
+const readJson = <T>(file: string) => readStrict<T>(file, true);
 
 /** Written to a temporary file first (and flushed where allowed), so a crash never leaves half a file */
 async function writeJson(file: string, value: unknown) {

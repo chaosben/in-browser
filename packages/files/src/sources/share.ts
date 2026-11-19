@@ -1,9 +1,11 @@
 import { FilesError } from '../entry.js';
 import { roomId, shareProof } from '../p2p/auth.js';
+import { randomBytes, toHex } from '../p2p/bytes.js';
 import type { Link } from '../p2p/link.js';
-import { liveSource, rpcLiveCall, type LiveCall } from '../p2p/live.js';
+import { filesErrorOf, type LiveCall } from '../p2p/live.js';
+import { liveSource, rpcLiveCall } from '../p2p/live-client.js';
 import type { Network, NetworkRoom } from '../p2p/network.js';
-import { RemoteError, Rpc } from '../p2p/rpc.js';
+import { Rpc } from '../p2p/rpc.js';
 import type { Source } from './source.js';
 
 // The guest's side of a guest share (`p2p/shares.ts`): a browser outside the group opens one folder of another device
@@ -50,8 +52,7 @@ function storeSession(session: ShareSession | null) {
 export function beginShare(code: string): ShareSession {
 	const current = shareSession();
 	if (current?.code === code) return current;
-	const bytes = crypto.getRandomValues(new Uint8Array(16));
-	const session: ShareSession = { code, token: [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('') };
+	const session: ShareSession = { code, token: toHex(randomBytes(16)) };
 	storeSession(session);
 	client = null;
 	return session;
@@ -142,15 +143,15 @@ export function shareClient(
 			reply = (await rpc.call('share.hello', { proof: await shareProof(session.code, 'guest', fingerprints), token: session.token })) as typeof reply;
 		} catch (e) {
 			rpc.close();
-			if (e instanceof RemoteError && e.message === 'files:ended') {
-				const error = new FilesError('ended', '/');
+			const error = filesErrorOf(e, '/');
+			if (error?.code === 'ended') {
 				end(error);
 				throw error;
 			}
 			// Another guest is in it: out of the room until the next attempt (the host stops offering meanwhile)
 			room?.leave();
 			room = null;
-			throw e instanceof RemoteError && e.message === 'files:taken' ? new FilesError('taken', '/') : e;
+			throw error?.code === 'taken' ? error : e;
 		}
 		if (reply.proof !== (await shareProof(session.code, 'host', fingerprints))) {
 			rpc.close();

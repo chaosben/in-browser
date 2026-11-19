@@ -1,3 +1,4 @@
+import brand from '@in-browser/brand/i18n/de.js';
 import help from './help.de.js';
 import type { Messages } from './index.svelte.js';
 
@@ -45,24 +46,24 @@ const de: Messages = {
 
 	tools: {
 		screenCapture: {
-			name: 'Screen Capture',
+			name: brand.tools['screen-capture'],
 			summary: 'Bildschirm aufnehmen, bearbeiten und als Video oder GIF exportieren',
-			keywords: 'aufnehmen, aufzeichnen, bildschirmaufnahme, bildschirmvideo, video, webcam, mikrofon, schneiden, anleitung'
+			keywords: 'screen capture, aufnehmen, aufzeichnen, bildschirmaufnahme, bildschirmvideo, video, webcam, mikrofon, schneiden, anleitung'
 		},
 		files: {
-			name: 'Files',
+			name: brand.tools['files'],
 			summary: 'Deine Dateien verwalten, abgleichen und herunterladen',
-			keywords: 'dateien, dateimanager, explorer, ordner, abgleich, synchronisieren, hochladen, herunterladen, vorschau, geräte'
+			keywords: 'files, dateimanager, explorer, ordner, abgleich, synchronisieren, hochladen, herunterladen, vorschau, geräte'
 		},
 		textEditor: {
-			name: 'Text Editor',
+			name: brand.tools['text-editor'],
 			summary: 'Markdown, JSON, YAML und Code mit Syntax-Hervorhebung bearbeiten',
-			keywords: 'texteditor, textdatei, notizblock, markdown, json, yaml, csv, code, quelltext'
+			keywords: 'text editor, textdatei, notizblock, markdown, json, yaml, csv, code, quelltext'
 		},
 		notes: {
-			name: 'Notes',
+			name: brand.tools['notes'],
 			summary: 'Handschriftliche Notizbücher für Stift, Finger oder Maus',
-			keywords: 'notizen, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen, pdf, kommentieren, tafel'
+			keywords: 'notes, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen, pdf, kommentieren, tafel'
 		}
 	},
 

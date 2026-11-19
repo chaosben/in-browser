@@ -1,0 +1,18 @@
+{
+	"lang": "de",
+	"id": "/notes",
+	"name": "Notizen – in-browser",
+	"short_name": "Notizen",
+	"description": "Handschriftliche Notizen mit Stift, Textmarker und Radierer – gemacht für Stift und Touch, komplett im Browser.",
+	"start_url": "/notes",
+	"scope": "/notes",
+	"display": "standalone",
+	"launch_handler": { "client_mode": "focus-existing" },
+	"categories": ["productivity", "education"],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{ "src": "/notes/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/notes/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+	]
+}

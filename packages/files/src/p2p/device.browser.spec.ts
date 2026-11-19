@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Device, type P2pView } from './device.js';
+import { Device } from './device.js';
+import type { P2pView } from './view.js';
 import type { Network } from './network.js';
 import { memoryStore, type Store } from './store.js';
 import { folderTree, hub, readText, until, writeText } from './testing.js';

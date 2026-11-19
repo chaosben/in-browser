@@ -6,10 +6,23 @@ const de: BrandMessages = {
 		cancel: 'Abbrechen'
 	},
 
+	tools: {
+		files: 'Dateien',
+		notes: 'Notizen',
+		'text-editor': 'Texteditor',
+		'screen-capture': 'Bildschirmaufnahme'
+	},
+
 	brand: {
 		home: `Zur Übersicht von ${BRAND.suite}`,
 		allTools: `Alle Tools von ${BRAND.suite}`,
 		toolHome: (tool) => `Zur Startseite von ${tool}`
+	},
+
+	save: {
+		saving: 'Speichert …',
+		saved: 'Gespeichert',
+		notSaved: 'Noch nicht gespeichert'
 	},
 
 	bar: {

@@ -2,6 +2,7 @@
 	// Icon picker of the drawing tools: curated selection per set (offline), whole sets loaded on demand, search and
 	// filters. The tool decides what a click (and dragging, if it supports that) does.
 	import { untrack } from 'svelte';
+	import { readStored, writeStored } from '@in-browser/brand/storage.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { graphicsMessages } from './i18n/index.svelte.js';
 	import type { IconCategoryGroup } from './icons/curated/types.js';
@@ -39,13 +40,8 @@
 	const LEGACY_KEY = 'screen-capture:icon-set';
 
 	function loadSetId(): IconSetId {
-		try {
-			const id = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_KEY);
-			if (ICON_SETS.some((s) => s.id === id)) return id as IconSetId;
-		} catch {
-			// localStorage not available
-		}
-		return DEFAULT_ICON_SET;
+		const id = readStored(STORAGE_KEY) ?? readStored(LEGACY_KEY);
+		return ICON_SETS.some((s) => s.id === id) ? (id as IconSetId) : DEFAULT_ICON_SET;
 	}
 
 	let query = $state('');
@@ -108,12 +104,8 @@
 	function chooseSet(id: IconSetId) {
 		setId = id;
 		variant = category = null;
-		try {
-			localStorage.setItem(STORAGE_KEY, id);
-			localStorage.removeItem(LEGACY_KEY);
-		} catch {
-			// ignore
-		}
+		writeStored(STORAGE_KEY, id);
+		writeStored(LEGACY_KEY, null);
 	}
 
 	async function load(id: IconSetId) {

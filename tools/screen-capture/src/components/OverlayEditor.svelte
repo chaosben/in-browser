@@ -2,7 +2,17 @@
 	import { untrack } from 'svelte';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import { itemIcon, itemLabel } from '#lib/project/labels.js';
-	import type { Annotation, CalloutAnnotation, Clip, Item, Rect, TextAnnotation } from '#lib/project/types.js';
+	import type {
+		Annotation,
+		CalloutAnnotation,
+		Clip,
+		IconAnnotation,
+		ImageAnnotation,
+		Item,
+		Rect,
+		TextAnnotation,
+		ZoomSegment
+	} from '#lib/project/types.js';
 	import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { endLibraryDrag, saveSelection, trackLibraryDrag, type LibraryScope } from '#lib/ui/library.svelte.js';
 	import type { Player } from '#lib/preview/player.svelte.js';
@@ -11,10 +21,23 @@
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { FULL, dragCrop, fullRect, type CropHandle } from '#lib/project/crop.js';
+	import {
+		clampZoomRect,
+		cornerPoint,
+		CORNERS,
+		CROP_HANDLES,
+		padded,
+		resized,
+		resizedKeepingAspect,
+		resizedZoom,
+		sign,
+		type Corner
+	} from '#lib/project/geometry.js';
 	import { ZOOM_ICON } from '#lib/project/defaults.js';
 	import {
 		snapAspect,
 		snapLine,
+		SNAP_PX,
 		snapMove,
 		snapPoint,
 		snapTargets,
@@ -25,6 +48,7 @@
 	} from '@in-browser/graphics/snap.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
+	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
 
 	interface Props {
 		editor: Editor;
@@ -35,11 +59,6 @@
 
 	let { editor, player, itemMenu }: Props = $props();
 
-	type Corner = 'nw' | 'ne' | 'sw' | 'se';
-	const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
-	const MIN_SIZE = 0.01;
-	/** Snap distance in screen pixels */
-	const SNAP_PX = 6;
 	/** Movement in screen pixels below which a press with a click alternative counts as a click */
 	const CLICK_PX = 3;
 
@@ -92,9 +111,8 @@
 	const ph = (v: number) => `${(v / view.h) * 100}%`;
 
 	function boxStyle(r: Rect, minPad = 0) {
-		const padX = Math.max(0, minPad - r.w) / 2;
-		const padY = Math.max(0, minPad - r.h) / 2;
-		return `left: ${px(r.x - padX)}; top: ${py(r.y - padY)}; width: ${pw(r.w + 2 * padX)}; height: ${ph(r.h + 2 * padY)}`;
+		const b = padded(r, minPad);
+		return `left: ${px(b.x)}; top: ${py(b.y)}; width: ${pw(b.w)}; height: ${ph(b.h)}`;
 	}
 
 	/** Lines to snap to: canvas and the other visible items under the playhead (locked ones too) */
@@ -135,8 +153,6 @@
 		e.preventDefault();
 		// Arrow keys now move the selection
 		layer.focus({ preventScroll: true });
-		const el = e.currentTarget as HTMLElement;
-		el.setPointerCapture(e.pointerId);
 		const rect = layer.getBoundingClientRect();
 		const x0 = e.clientX;
 		const y0 = e.clientY;
@@ -159,19 +175,13 @@
 				lockAxis: ev.shiftKey
 			});
 		};
-		const up = () => {
+		pointerDrag(e, move, () => {
 			guides = null;
-			el.removeEventListener('pointermove', move);
-			el.removeEventListener('pointerup', up);
-			el.removeEventListener('pointercancel', up);
 			editor.endGesture();
 			endLibraryDrag();
 			if (!moved) return onclick?.();
 			if (target) saveSelection(editor, target);
-		};
-		el.addEventListener('pointermove', move);
-		el.addEventListener('pointerup', up);
-		el.addEventListener('pointercancel', up);
+		});
 	}
 
 	/** Offset of a moved box: Shift keeps it on the axis it moved most along, then it snaps on the free axes */
@@ -213,69 +223,76 @@
 		return () => editor.select('item', front.id);
 	}
 
-	function moveOverlay(e: PointerEvent, o: Annotation) {
-		if (e.button !== 0) return;
-		const onclick = clickInFront(e, o.id);
-		const key = `move-${o.id}-${e.timeStamp}`;
-		const b = bounds(o);
-		const targets = targetsFor(o.id);
-		drag(e, (dx, dy, step) => {
-			const d = moveBy(b, dx, dy, step, targets);
-			patchOverlay(o.id, moveAnnotation(o, d.dx, d.dy), key);
-		}, key, onclick);
-	}
-
-	/** Move a corner of a rect, the opposite corner stays fixed. */
-	function resized(r: Rect, corner: Corner, dx: number, dy: number): Rect {
-		let x1 = r.x;
-		let y1 = r.y;
-		let x2 = r.x + r.w;
-		let y2 = r.y + r.h;
-		if (corner.includes('w')) x1 += dx;
-		else x2 += dx;
-		if (corner.includes('n')) y1 += dy;
-		else y2 += dy;
+	/** What moving an item or zoom view changes: its box (for snapping) and the patch for an offset (`key`: undo step) */
+	function moveTargetOf(target: Item | ZoomSegment): { box: Rect; apply: (dx: number, dy: number, key: string) => void } {
+		if (!('type' in target)) {
+			const z = target;
+			return {
+				box: z.rect,
+				apply: (dx, dy, key) =>
+					editor.update((t) => updateZoom(t, z.id, { rect: clampZoomRect({ ...z.rect, x: z.rect.x + dx, y: z.rect.y + dy }) }), key)
+			};
+		}
+		const item = target;
+		if (item.type === 'annotation') {
+			return { box: bounds(item), apply: (dx, dy, key) => patchOverlay(item.id, moveAnnotation(item, dx, dy), key) };
+		}
+		const r = item.rect;
 		return {
-			x: Math.min(x1, x2),
-			y: Math.min(y1, y2),
-			w: Math.max(Math.abs(x2 - x1), MIN_SIZE),
-			h: Math.max(Math.abs(y2 - y1), MIN_SIZE)
+			box: r,
+			apply: (dx, dy, key) => editor.update((t) => updateItem(t, item.id, { rect: { ...r, x: r.x + dx, y: r.y + dy } }), key)
 		};
 	}
 
-	/** Move a corner keeping the aspect ratio (clips, images, icons); the opposite corner stays fixed */
-	function resizedKeepingAspect(r: Rect, corner: Corner, dx: number, dy: number, min = 0.05): Rect {
-		const aspect = r.h / r.w;
-		const sx = corner.includes('e') ? 1 : -1;
-		const sy = corner.includes('s') ? 1 : -1;
-		const ax = sx > 0 ? r.x : r.x + r.w;
-		const ay = sy > 0 ? r.y : r.y + r.h;
-		const w = Math.max((r.w + sx * dx + (r.h + sy * dy) / aspect) / 2, min);
-		const h = w * aspect;
-		return { x: sx > 0 ? ax : ax - w, y: sy > 0 ? ay : ay - h, w, h };
+	/** Drags an item or the selected zoom view; items can also be dropped onto the library */
+	function startMove(e: PointerEvent, target: Item | ZoomSegment, onclick?: () => void) {
+		const isItem = 'type' in target;
+		const key = `move-${target.id}-${e.timeStamp}`;
+		const { box, apply } = moveTargetOf(target);
+		const targets = targetsFor(isItem ? target.id : undefined);
+		drag(
+			e,
+			(dx, dy, step) => {
+				const d = moveBy(box, dx, dy, step, targets);
+				apply(d.dx, d.dy, key);
+			},
+			isItem ? key : undefined,
+			onclick
+		);
+	}
+
+	function moveItem(e: PointerEvent, item: Item) {
+		if (e.button !== 0) return;
+		startMove(e, item, clickInFront(e, item.id));
+	}
+
+	/** Scales a clip, image or icon at a corner keeping its aspect ratio; the nearer edge snaps */
+	function resizeKeepingAspect(e: PointerEvent, item: Clip | ImageAnnotation | IconAnnotation, corner: Corner, min: number) {
+		const key = `resize-${item.id}-${e.timeStamp}`;
+		const r = item.rect;
+		const targets = targetsFor(item.id);
+		drag(e, (dx, dy, { tol }) => {
+			let rect = resizedKeepingAspect(r, corner, dx, dy, min);
+			if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, min));
+			editor.update((t) => updateItem(t, item.id, { rect }), key);
+		});
 	}
 
 	function resizeOverlay(e: PointerEvent, o: Annotation, corner: Corner) {
+		if (o.kind === 'image' || o.kind === 'icon') return resizeKeepingAspect(e, o, corner, 0.01);
 		const key = `resize-${o.id}-${e.timeStamp}`;
 		const targets = targetsFor(o.id);
 		drag(e, (dx, dy, { tol }) => {
-			if (o.kind === 'image' || o.kind === 'icon') {
-				let rect = resizedKeepingAspect(o.rect, corner, dx, dy, 0.01);
-				if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, 0.01));
-				return patchOverlay(o.id, { rect }, key);
-			}
 			if (o.kind === 'arrow' || o.kind === 'line') return;
 			if (o.kind === 'text' || o.kind === 'callout') {
 				// A corner scales everything (font and a fixed width alike, so the text wraps the same); the
 				// opposite corner stays
 				const b = overlayBounds(o, W, H);
-				const sx = corner.includes('e') ? 1 : -1;
-				const sy = corner.includes('s') ? 1 : -1;
-				const size = Math.max(0.012, o.size * ((b.h + sy * dy) / b.h));
+				const size = Math.max(0.012, o.size * ((b.h + sign(corner, 's') * dy) / b.h));
 				const k = size / o.size;
 				const boxWidth = o.boxWidth === undefined ? {} : { boxWidth: o.boxWidth * k };
-				const x = sx > 0 ? b.x : b.x + b.w * (1 - k);
-				const y = sy > 0 ? b.y : b.y + b.h * (1 - k);
+				const x = sign(corner, 'e') > 0 ? b.x : b.x + b.w * (1 - k);
+				const y = sign(corner, 's') > 0 ? b.y : b.y + b.h * (1 - k);
 				// One patch: within a gesture every update starts from the state before it
 				patchOverlay(o.id, { ...boxWidth, x, y, size, radius: o.radius * k, padding: o.padding * k }, key);
 				return rememberStyle(o.kind, { size });
@@ -286,20 +303,15 @@
 			}
 			if (tol) {
 				// The dragged corner snaps; the opposite one stays
-				const r = o.rect;
-				const cx = corner.includes('w') ? r.x : r.x + r.w;
-				const cy = corner.includes('n') ? r.y : r.y + r.h;
-				const s = snapPoint({ x: cx + dx, y: cy + dy }, targets, tol);
-				dx = s.point.x - cx;
-				dy = s.point.y - cy;
+				const c = cornerPoint(o.rect, corner);
+				const s = snapPoint({ x: c.x + dx, y: c.y + dy }, targets, tol);
+				dx = s.point.x - c.x;
+				dy = s.point.y - c.y;
 				guides = s.guides;
 			}
 			patchOverlay(o.id, { rect: resized(o.rect, corner, dx, dy) }, key);
 		});
 	}
-
-	/** Direction of a corner: 1 towards east/south, -1 towards west/north */
-	const sign = (corner: Corner, towards: 'e' | 's'): 1 | -1 => (corner.includes(towards) ? 1 : -1);
 
 	/** A side of a text box sets a fixed width, the text wraps inside; the opposite side stays */
 	function resizeWidth(e: PointerEvent, o: TextAnnotation | CalloutAnnotation, side: 'w' | 'e') {
@@ -333,7 +345,13 @@
 		});
 	}
 
-	// --- Clips: a click selects the front-most one (full-frame ones too); move and scale with fixed aspect ratio
+	// --- Zoom segment: view with fixed aspect ratio (w === h in normalized coordinates)
+
+	function resizeZoom(e: PointerEvent, z: ZoomSegment, corner: Corner) {
+		const key = `zoom-resize-${z.id}-${e.timeStamp}`;
+		const r = z.rect;
+		drag(e, (dx, dy) => editor.update((t) => updateZoom(t, z.id, { rect: resizedZoom(r, corner, dx, dy) }), key));
+	}
 
 	/** Label or edge of the marked zoom area: selects the segment (the layer below would clear the selection) */
 	function pickZoom(e: PointerEvent, id: string) {
@@ -344,28 +362,7 @@
 	/** Same label for the marked and the selected zoom area */
 	const zoomLabelClass = 'bg-zoom text-zoom-content absolute top-1 left-1 flex items-center gap-0.5 rounded px-1 text-xs';
 
-	function moveClip(e: PointerEvent, c: Clip) {
-		if (e.button !== 0) return;
-		const onclick = clickInFront(e, c.id);
-		const key = `clip-move-${c.id}-${e.timeStamp}`;
-		const r = c.rect;
-		const targets = targetsFor(c.id);
-		drag(e, (dx, dy, step) => {
-			const d = moveBy(r, dx, dy, step, targets);
-			editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + d.dx, y: r.y + d.dy } }), key);
-		}, key, onclick);
-	}
-
-	function resizeClip(e: PointerEvent, c: Clip, corner: Corner) {
-		const key = `clip-resize-${c.id}-${e.timeStamp}`;
-		const r = c.rect;
-		const targets = targetsFor(c.id);
-		drag(e, (dx, dy, { tol }) => {
-			let rect = resizedKeepingAspect(r, corner, dx, dy);
-			if (tol) ({ rect, guides } = snapAspect(rect, sign(corner, 'e'), sign(corner, 's'), targets, tol, 0.05));
-			editor.update((t) => updateItem(t, c.id, { rect }), key);
-		});
-	}
+	// --- Clips
 
 	/** Crop mode: an edge or corner crops the clip; the content stays in place, the moved edges snap */
 	function cropClip(e: PointerEvent, c: Clip, handle: CropHandle) {
@@ -390,52 +387,6 @@
 		});
 	}
 
-	/** Crop handles: corners, then the middle of each side */
-	const CROP_HANDLES: { handle: CropHandle; at: (r: Rect) => [number, number] }[] = [
-		{ handle: 'nw', at: (r) => [r.x, r.y] },
-		{ handle: 'ne', at: (r) => [r.x + r.w, r.y] },
-		{ handle: 'sw', at: (r) => [r.x, r.y + r.h] },
-		{ handle: 'se', at: (r) => [r.x + r.w, r.y + r.h] },
-		{ handle: 'n', at: (r) => [r.x + r.w / 2, r.y] },
-		{ handle: 's', at: (r) => [r.x + r.w / 2, r.y + r.h] },
-		{ handle: 'w', at: (r) => [r.x, r.y + r.h / 2] },
-		{ handle: 'e', at: (r) => [r.x + r.w, r.y + r.h / 2] }
-	];
-
-	// --- Zoom segment: view with fixed aspect ratio (w === h in normalized coordinates)
-
-	const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
-
-	function moveZoom(e: PointerEvent) {
-		const z = selectedZoom;
-		if (!z) return;
-		const key = `zoom-move-${z.id}-${e.timeStamp}`;
-		const r = z.rect;
-		const targets = targetsFor();
-		drag(e, (dx, dy, step) => {
-			const d = moveBy(r, dx, dy, step, targets);
-			const rect = { ...r, x: clamp(r.x + d.dx, 0, 1 - r.w), y: clamp(r.y + d.dy, 0, 1 - r.h) };
-			editor.update((t) => updateZoom(t, z.id, { rect }), key);
-		});
-	}
-
-	function resizeZoom(e: PointerEvent, corner: Corner) {
-		const z = selectedZoom;
-		if (!z) return;
-		const key = `zoom-resize-${z.id}-${e.timeStamp}`;
-		const r = z.rect;
-		const sx = corner.includes('e') ? 1 : -1;
-		const sy = corner.includes('s') ? 1 : -1;
-		const ax = sx > 0 ? r.x : r.x + r.w;
-		const ay = sy > 0 ? r.y : r.y + r.h;
-		const maxW = Math.min(sx > 0 ? 1 - ax : ax, sy > 0 ? 1 - ay : ay);
-		drag(e, (dx, dy) => {
-			const w = clamp(r.w + (sx * dx + sy * dy) / 2, 0.1, maxW);
-			const rect = { x: sx > 0 ? ax : ax - w, y: sy > 0 ? ay : ay - w, w, h: w };
-			editor.update((t) => updateZoom(t, z.id, { rect }), key);
-		});
-	}
-
 	// --- Arrow keys while the preview has the focus: move the selection by canvas pixels (Shift: 10)
 
 	const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -445,20 +396,9 @@
 
 	/** Selected element that can be moved here (not on a hidden or locked track) */
 	function nudgeTarget(): ((dx: number, dy: number, key: string) => void) | null {
-		const z = selectedZoom;
-		if (z) {
-			const r = z.rect;
-			return (dx, dy, key) =>
-				editor.update((t) => updateZoom(t, z.id, { rect: { ...r, x: clamp(r.x + dx, 0, 1 - r.w), y: clamp(r.y + dy, 0, 1 - r.h) } }), key);
-		}
-		const o = selectedOverlay;
-		if (o && active.some((item) => item.id === o.id)) return (dx, dy, key) => patchOverlay(o.id, moveAnnotation(o, dx, dy), key);
-		const c = selectedClip;
-		if (c && active.some((item) => item.id === c.id)) {
-			const r = c.rect;
-			return (dx, dy, key) => editor.update((t) => updateItem(t, c.id, { rect: { ...r, x: r.x + dx, y: r.y + dy } }), key);
-		}
-		return null;
+		if (selectedZoom) return moveTargetOf(selectedZoom).apply;
+		const item = [selectedOverlay, selectedClip].find((i) => i && active.some((a) => a.id === i.id));
+		return item ? moveTargetOf(item).apply : null;
 	}
 
 	/** Minimum size of an annotation's click area (thin lines), as in its `boxStyle` */
@@ -466,11 +406,7 @@
 
 	/** Click area of an item in content coordinates */
 	function hitBox(item: Item): Rect {
-		if (item.type !== 'annotation') return item.rect;
-		const r = bounds(item);
-		const padX = Math.max(0, MIN_HIT - r.w) / 2;
-		const padY = Math.max(0, MIN_HIT - r.h) / 2;
-		return { x: r.x - padX, y: r.y - padY, w: r.w + 2 * padX, h: r.h + 2 * padY };
+		return item.type === 'annotation' ? padded(bounds(item), MIN_HIT) : item.rect;
 	}
 
 	/** Editable items under a mouse position, the front one first */
@@ -557,7 +493,8 @@
 	}
 
 	function cornerPos(r: Rect, c: Corner) {
-		return `left: ${px(c.includes('w') ? r.x : r.x + r.w)}; top: ${py(c.includes('n') ? r.y : r.y + r.h)}`;
+		const p = cornerPoint(r, c);
+		return `left: ${px(p.x)}; top: ${py(p.y)}`;
 	}
 
 	const handle =
@@ -597,6 +534,13 @@
 	</span>
 {/snippet}
 
+<!-- Scaling handles at the corners of `r` -->
+{#snippet cornerHandles(r: Rect, ondown: (e: PointerEvent, corner: Corner) => void, corners: Corner[] = CORNERS)}
+	{#each corners as c (c)}
+		<div class="{handle} {cursors[c]}" style={cornerPos(r, c)} onpointerdown={(e) => ondown(e, c)} role="presentation"></div>
+	{/each}
+{/snippet}
+
 {#snippet zoomLabel(r: Rect)}
 	<span class="{ZOOM_ICON} size-3.5" aria-hidden="true"></span>
 	{m.preview.zoom((1 / r.w).toFixed(1))}
@@ -620,24 +564,17 @@
 	role="presentation"
 >
 	{#if selectedZoom}
-		{@const r = selectedZoom.rect}
+		{@const z = selectedZoom}
 		<!-- Dim outside the zoom view -->
 		<div
 			class="border-zoom absolute cursor-move border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-			style={boxStyle(r)}
-			onpointerdown={moveZoom}
+			style={boxStyle(z.rect)}
+			onpointerdown={(e) => startMove(e, z)}
 			role="presentation"
 		>
-			<span class={zoomLabelClass}>{@render zoomLabel(r)}</span>
+			<span class={zoomLabelClass}>{@render zoomLabel(z.rect)}</span>
 		</div>
-		{#each CORNERS as c (c)}
-			<div
-				class="{handle} {cursors[c]}"
-				style={cornerPos(r, c)}
-				onpointerdown={(e) => resizeZoom(e, c)}
-				role="presentation"
-			></div>
-		{/each}
+		{@render cornerHandles(z.rect, (e, c) => resizeZoom(e, z, c))}
 	{:else}
 		<!-- The selected items last, so they are on top: a covered item, once selected, can be moved directly -->
 		{#each [...active.filter((i) => !editor.isSelected('item', i.id)), ...active.filter((i) => editor.isSelected('item', i.id))] as item (item.id)}
@@ -647,14 +584,14 @@
 				<div
 					class="absolute cursor-move {frame}"
 					style={boxStyle(bounds(item), MIN_HIT)}
-					onpointerdown={(e) => moveOverlay(e, item)}
+					onpointerdown={(e) => moveItem(e, item)}
 					role="presentation"
 				></div>
 			{:else}
 				<div
 					class="absolute cursor-move {frame}"
 					style={boxStyle(item.rect)}
-					onpointerdown={(e) => moveClip(e, item)}
+					onpointerdown={(e) => moveItem(e, item)}
 					ondblclick={() => editor.startCrop(item.id)}
 					role="presentation"
 				></div>
@@ -713,14 +650,7 @@
 			{/each}
 		{:else if selectedClip && active.some((c) => c.id === selectedClip.id)}
 			{@const c = selectedClip}
-			{#each CORNERS as corner (corner)}
-				<div
-					class="{handle} {cursors[corner]}"
-					style={cornerPos(c.rect, corner)}
-					onpointerdown={(e) => resizeClip(e, c, corner)}
-					role="presentation"
-				></div>
-			{/each}
+			{@render cornerHandles(c.rect, (e, corner) => resizeKeepingAspect(e, c, corner, 0.05))}
 		{/if}
 
 		{#if selectedOverlay && active.some((o) => o.id === selectedOverlay.id)}
@@ -739,22 +669,10 @@
 					role="presentation"
 				></div>
 			{:else if o.kind === 'step' || o.kind === 'click'}
-				<div
-					class="{handle} {cursors.se}"
-					style={cornerPos(bounds(o), 'se')}
-					onpointerdown={(e) => resizeOverlay(e, o, 'se')}
-					role="presentation"
-				></div>
+				{@render cornerHandles(bounds(o), (e, c) => resizeOverlay(e, o, c), ['se'])}
 			{:else if o.kind === 'text' || o.kind === 'callout'}
 				{@const b = bounds(o)}
-				{#each CORNERS as c (c)}
-					<div
-						class="{handle} {cursors[c]}"
-						style={cornerPos(b, c)}
-						onpointerdown={(e) => resizeOverlay(e, o, c)}
-						role="presentation"
-					></div>
-				{/each}
+				{@render cornerHandles(b, (e, c) => resizeOverlay(e, o, c))}
 				<!-- Sides: box width, the text wraps -->
 				{#each ['w', 'e'] as const as side (side)}
 					<div
@@ -773,14 +691,7 @@
 					></div>
 				{/if}
 			{:else}
-				{#each CORNERS as c (c)}
-					<div
-						class="{handle} {cursors[c]}"
-						style={cornerPos(o.rect, c)}
-						onpointerdown={(e) => resizeOverlay(e, o, c)}
-						role="presentation"
-					></div>
-				{/each}
+				{@render cornerHandles(o.rect, (e, c) => resizeOverlay(e, o, c))}
 			{/if}
 		{/if}
 	{/if}

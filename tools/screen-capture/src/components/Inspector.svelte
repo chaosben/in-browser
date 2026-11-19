@@ -7,6 +7,7 @@
 	import type { Size } from '#lib/project/canvas.js';
 	import { croppedSize, cropInsets, FULL, insetsCrop, type CropInsets } from '#lib/project/crop.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
+	import { zoomRectAt } from '#lib/project/geometry.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
 	import {
 		hasShadow,
@@ -97,11 +98,7 @@
 	function setZoomLevel(level: number) {
 		const z = zoom;
 		if (!z) return;
-		const w = 1 / level;
-		const cx = z.rect.x + z.rect.w / 2;
-		const cy = z.rect.y + z.rect.h / 2;
-		const clamp = (v: number) => Math.min(Math.max(v, 0), 1 - w);
-		setZoom({ rect: { x: clamp(cx - w / 2), y: clamp(cy - w / 2), w, h: w } }, 'level');
+		setZoom({ rect: zoomRectAt(z.rect.x + z.rect.w / 2, z.rect.y + z.rect.h / 2, 1 / level) }, 'level');
 	}
 
 	function setTiming(start: number, length: number) {

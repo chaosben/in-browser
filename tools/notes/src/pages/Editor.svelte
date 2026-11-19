@@ -7,17 +7,18 @@
 	import { page } from '$app/state';
 	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
 	import { debug } from '@in-browser/brand/debug.js';
-	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
+	import { saveStateOf, setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { openMenuAbove, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { chooseFiles } from '@in-browser/files/dialog.svelte.js';
-	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { read, watch } from '@in-browser/files/fs.js';
 	import type { IconData } from '@in-browser/graphics/icons/types.js';
 	import { normalize } from '@in-browser/files/path.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
-	import { BRAND, editorUrl } from '#lib/brand.js';
+	import { editorUrl } from '#lib/brand.js';
+	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import PerfOverlay from '#lib/components/PerfOverlay.svelte';
 	import SelectionMenu from '#lib/components/SelectionMenu.svelte';
@@ -34,6 +35,8 @@
 	import { FormatError, PAGE_SIZES, PAPERS, pageSize, pageSizeOf, type PageSize, type Paper, type Picture } from '#lib/model/types.js';
 	import { PdfError, readPdfPages } from '#lib/render/pdf.js';
 	import type { Stage } from '#lib/render/stage.js';
+	import { inTextField } from '@in-browser/brand/ui/typing.js';
+	import { flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
 
 	let doc = $state<NotebookDoc | null>(null);
 	let error = $state<string | null>(null);
@@ -52,16 +55,6 @@
 	let zoom = $state(1);
 	const perf = $derived(page.url.searchParams.has('perf'));
 
-	/** Holds the notebook's lock until the returned function is called; `null` if another tab holds it */
-	function lock(path: string): Promise<(() => void) | null> {
-		return new Promise((resolve) => {
-			navigator.locks.request(`notes:notebook:${path}`, { ifAvailable: true }, (held) => {
-				if (!held) return resolve(null);
-				return new Promise<void>((release) => resolve(release));
-			});
-		});
-	}
-
 	function loadError(e: unknown): string {
 		if (e instanceof FormatError) return e.reason === 'newer' ? m.editor.newerVersion : m.editor.unknownFormat;
 		return m.editor.loadFailed(filesErrorText(e));
@@ -79,7 +72,7 @@
 
 		(async () => {
 			try {
-				release = await lock(path);
+				release = await lockDocument(`notes:notebook:${path}`);
 				if (disposed) return release?.();
 				if (!release) {
 					error = m.editor.openElsewhere;
@@ -98,14 +91,10 @@
 			}
 		})();
 
-		const flush = () => opened?.flush();
-		const hidden = () => document.visibilityState === 'hidden' && flush();
-		window.addEventListener('pagehide', flush);
-		document.addEventListener('visibilitychange', hidden);
+		const stopFlush = flushWhenHidden(() => opened?.flush());
 		return () => {
 			disposed = true;
-			window.removeEventListener('pagehide', flush);
-			document.removeEventListener('visibilitychange', hidden);
+			stopFlush();
 			stopWatch?.();
 			const last = opened;
 			doc = null;
@@ -170,7 +159,7 @@
 			const target = await renameNotebook(d.path, name);
 			if (target !== d.path) await goto(editorUrl(target), { replace: true });
 		} catch (e) {
-			toast(m.editor.renameFailed(filesErrorText(e)), 'error', 8000);
+			toast(filesMessages().document.renameFailed(filesErrorText(e)), 'error', 8000);
 		}
 	}
 
@@ -205,7 +194,7 @@
 				const page = d.pages[target.page];
 				if (page) place(imageItem(asset, image, page, target.x + i * 16, target.y + i * 16), target.page);
 			} catch (e) {
-				toast(m.editor.saveFailed(filesErrorText(e)), 'error', 8000);
+				toast(filesMessages().document.saveFailed(filesErrorText(e)), 'error', 8000);
 				return;
 			}
 		}
@@ -249,7 +238,7 @@
 				stage?.scrollToPage(at);
 				toast(m.insert.pdfInserted(sizes.length), 'success');
 			} catch (e) {
-				toast(m.editor.saveFailed(filesErrorText(e)), 'error', 8000);
+				toast(filesMessages().document.saveFailed(filesErrorText(e)), 'error', 8000);
 				return;
 			}
 		}
@@ -304,7 +293,7 @@
 	const pdfFiles = (list: FileList | null | undefined) => [...(list ?? [])].filter(isPdf);
 
 	function paste(e: ClipboardEvent) {
-		if (!doc || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+		if (!doc || inTextField(e.target)) return;
 		const files = imageFiles(e.clipboardData?.files);
 		const pdfs = pdfFiles(e.clipboardData?.files);
 		if (!files.length && !pdfs.length) return;
@@ -410,7 +399,7 @@
 	}
 
 	function keydown(e: KeyboardEvent) {
-		if (!doc || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+		if (!doc || inTextField(e.target)) return;
 		const mod = e.ctrlKey || e.metaKey;
 		if (mod && e.key.toLowerCase() === 'z') {
 			e.preventDefault();
@@ -467,15 +456,7 @@
 	$effect(() =>
 		setBrandFooter({
 			status: footerStatus,
-			save: doc
-				? doc.saving
-					? { state: 'saving', text: m.editor.saving }
-					: doc.saveError
-						? { state: 'error', text: doc.saveError }
-						: doc.dirty
-							? { state: 'unsaved', text: m.editor.notSaved }
-							: { state: 'saved', text: m.editor.saved }
-				: null
+			save: doc ? saveStateOf(doc) : null
 		})
 	);
 </script>
@@ -483,7 +464,7 @@
 <svelte:window onkeydown={keydown} onpaste={paste} />
 
 <svelte:head>
-	{#if doc}<title>{notebookName(doc.path)} · {BRAND.tool}</title>{/if}
+	{#if doc}<title>{notebookName(doc.path)} · {toolName('notes')}</title>{/if}
 </svelte:head>
 
 {#snippet barPrimary()}

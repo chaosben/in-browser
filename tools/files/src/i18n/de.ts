@@ -5,8 +5,6 @@ const de: Messages = {
 	common: {
 		cancel: 'Abbrechen',
 		close: 'Schließen',
-		open: 'Öffnen',
-		delete: 'Löschen',
 		rename: 'Umbenennen',
 		download: 'Herunterladen'
 	},
@@ -17,7 +15,6 @@ const de: Messages = {
 	},
 
 	toolbar: {
-		up: 'Einen Ordner nach oben',
 		newFolder: 'Neuer Ordner',
 		newTextFile: 'Neue Textdatei',
 		upload: 'Hochladen',
@@ -59,7 +56,7 @@ const de: Messages = {
 
 	list: {
 		loading: 'Wird geladen …',
-		unsupported: 'Deinem Browser fehlt der Speicher, den Files braucht (Origin Private File System). Nutze einen aktuellen Browser.',
+		unsupported: 'Deinem Browser fehlt der Speicher, den dieses Tool braucht (Origin Private File System). Nutze einen aktuellen Browser.',
 		empty: 'Dieser Ordner ist leer. Leg Dateien hier ab oder nutze „Hochladen“.',
 		noMatch: 'Nichts passt zu deiner Suche.',
 		items: (n) => (n === 1 ? '1 Element' : `${n} Elemente`),
@@ -119,7 +116,6 @@ const de: Messages = {
 		waiting: 'Wartet auf den Gast – jeweils ein Browser kann den Link öffnen.',
 		connected: 'Gast verbunden.',
 		away: 'Der Gast ist gerade nicht verbunden.',
-		until: (time) => `Endet ${time}`,
 		end: 'Freigabe beenden',
 		endTitle: 'Freigabe beenden?',
 		endMessage: (folder) => `Der Gast kann „${folder}“ dann nicht mehr öffnen. Im Ordner ändert sich nichts.`,
@@ -237,7 +233,7 @@ const de: Messages = {
 		resetDelete: 'Dateien löschen und zurücksetzen',
 		resetDeleteTitle: 'Alle Dateien auf diesem Gerät löschen und zurücksetzen?',
 		resetDeleteMessage:
-			'Das löscht alle Dateien in Files auf diesem Gerät und setzt den Abgleich auf den Anfang zurück. Die anderen Geräte sind nicht betroffen.',
+			'Das löscht alle Dateien unter „Meine Dateien“ auf diesem Gerät und setzt den Abgleich auf den Anfang zurück. Die anderen Geräte sind nicht betroffen.',
 		resetHint: 'Zurücksetzen bringt dieses Gerät auf den Anfang: Du kannst es dann mit einem neuen Schlüssel wieder verbinden.',
 		nameLabel: 'Name dieses Geräts',
 		nameHint: 'Damit du deine Geräte auseinanderhalten kannst, z. B. „Laptop Büro“.',
@@ -255,7 +251,7 @@ const de: Messages = {
 	pair: {
 		title: 'Gerät hinzufügen',
 		yourKey: 'Dein Schlüssel',
-		scan: 'Scanne den Code mit der Kamera deines Handys oder gib den Schlüssel auf dem anderen Gerät in in-browser ein (Files → Deine Geräte → Schlüssel eingeben).',
+		scan: 'Scanne den Code mit der Kamera deines Handys oder gib den Schlüssel auf dem anderen Gerät in in-browser ein (Dateien → Deine Geräte → Schlüssel eingeben).',
 		copyLink: 'Link kopieren',
 		copied: 'Link kopiert.',
 		validity: 'Gilt einmal, 24 Stunden lang, solange dieses Gerät online ist.',
@@ -323,7 +319,6 @@ const de: Messages = {
 		excludeMessage: 'Die Kopie auf diesem Gerät wird gelöscht – der Ordner bleibt auf deinen anderen Geräten, und hier öffnest du ihn live von einem davon (es muss verbunden sein).',
 		exclude: 'Auf diesem Gerät nicht abgleichen',
 		include: 'Auf diesem Gerät wieder abgleichen',
-		excluded: 'Wird auf diesem Gerät nicht abgeglichen'
 	},
 
 	sync: {

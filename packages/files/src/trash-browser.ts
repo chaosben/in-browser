@@ -1,20 +1,21 @@
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { list, move, readText, remove, stat, trashOf, write } from './fs.js';
+import { list, readText, remove, stat, trashOf, write } from './fs.js';
 import { filesMessages } from './i18n/index.svelte.js';
-import { basename, isConnected, join, parent, uniqueName } from './path.js';
+import { basename, isConnected } from './path.js';
 import { displayName } from './sources/registry.js';
 import { opfsTree } from './sync/opfs-tree.js';
 import {
 	DEFAULT_RETENTION,
-	entryName,
 	entryPath,
-	infoPath,
 	itemPath,
 	parseEntry,
+	readTrashInfo,
 	retentionOf,
 	SETTINGS_PATH,
+	trashInTree,
 	TRASH_ROOT,
+	untrashInTree,
 	type Retention,
 	type TrashInfo
 } from './trash.js';
@@ -35,12 +36,9 @@ export async function moveToTrash(paths: string[]): Promise<TrashItem[]> {
 	for (const path of paths) {
 		const entry = await stat(path);
 		if (!entry) continue;
-		const name = entryName(Date.now());
-		const info: TrashInfo = { path, kind: entry.kind, deleted: Date.now() };
-		// The info first: an entry without it is not shown, so nothing half-done ever appears
-		await write(infoPath(name), JSON.stringify(info));
-		await move(path, itemPath(name, path));
-		items.push({ ...info, entry: name, size: entry.size ?? 0 });
+		const deleted = Date.now();
+		const ref = await trashInTree(opfsTree, path, deleted);
+		items.push({ ...ref, kind: entry.kind, deleted, size: entry.size ?? 0 });
 	}
 	return items;
 }
@@ -111,27 +109,15 @@ export async function listTrash(): Promise<TrashItem[]> {
 	const items: TrashItem[] = [];
 	for (const { name, kind } of await list(TRASH_ROOT)) {
 		if (kind !== 'directory' || parseEntry(name) === null) continue;
-		let info: TrashInfo;
-		try {
-			info = JSON.parse(await readText(infoPath(name))) as TrashInfo;
-		} catch {
-			continue;
-		}
-		if (typeof info.path !== 'string' || !(await stat(itemPath(name, info.path)))) continue;
+			const info = await readTrashInfo(opfsTree, name);
+		if (!info || !(await stat(itemPath(name, info.path)))) continue;
 		items.push({ ...info, entry: name, size: await sizeOf(itemPath(name, info.path)) });
 	}
 	return items.sort((a, b) => b.deleted - a.deleted || a.path.localeCompare(b.path));
 }
 
 /** Puts an item back where it was (under a free name if that is taken now); returns its path */
-export async function restoreFromTrash(item: TrashItem): Promise<string> {
-	const folder = parent(item.path);
-	const taken = (await stat(folder)) ? (await list(folder)).map((entry) => entry.name) : [];
-	const target = join(folder, uniqueName(basename(item.path), taken));
-	await move(itemPath(item.entry, item.path), target);
-	await remove(entryPath(item.entry));
-	return target;
-}
+export const restoreFromTrash = (item: TrashItem): Promise<string> => untrashInTree(opfsTree, item);
 
 /** Removes an entry for good */
 export async function deleteFromTrash(item: TrashItem): Promise<void> {

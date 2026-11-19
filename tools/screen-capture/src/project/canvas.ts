@@ -4,6 +4,7 @@
 
 import { croppedSize } from './crop.js';
 import { cameraRect, placeRect } from './defaults.js';
+import { zoomRectAt } from './geometry.js';
 import type { Annotation, Clip, Item, Point, Rect, Source, Timeline, ZoomSegment } from './types.js';
 
 export interface Size {
@@ -90,8 +91,7 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 	const zoom = (z: ZoomSegment): ZoomSegment => {
 		const s = Math.min(Math.max(z.rect.w * sx, z.rect.h * sy), 1);
 		const c = point({ x: z.rect.x + z.rect.w / 2, y: z.rect.y + z.rect.h / 2 });
-		const clamp = (v: number) => Math.min(Math.max(v - s / 2, 0), 1 - s);
-		return { ...z, rect: { x: clamp(c.x), y: clamp(c.y), w: s, h: s } };
+		return { ...z, rect: zoomRectAt(c.x, c.y, s) };
 	};
 
 	return { ...timeline, items: timeline.items.map(item), zoom: timeline.zoom.map(zoom) };

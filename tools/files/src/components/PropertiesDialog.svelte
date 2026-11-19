@@ -6,6 +6,7 @@
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
 	import type { Item } from '#lib/items.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
+	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 
 	let { item, onclose }: { item: Item; onclose: () => void } = $props();
 
@@ -15,7 +16,7 @@
 
 	const kind = $derived.by(() => {
 		if (item.folder) return t.kinds.folder;
-		if (item.formats[0]) return t.kinds.package(item.formats[0].toolName);
+		if (item.formats[0]) return t.kinds.package(toolName(item.formats[0].tool));
 		const ext = extname(item.name).slice(1).toUpperCase();
 		return ext ? t.kinds.fileType(ext) : t.kinds.file;
 	});

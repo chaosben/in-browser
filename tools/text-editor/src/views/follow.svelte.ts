@@ -1,4 +1,4 @@
-import type { Tab } from '#lib/workspace.svelte.js';
+import type { Tab } from '#lib/tab.svelte.js';
 
 /**
  * Follows the text of a tab: `current` is `read(text)`, recomputed shortly after typing pauses, at once when the

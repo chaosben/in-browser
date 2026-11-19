@@ -1,4 +1,4 @@
-import { dirAt, moveFile, renameEntry } from '../handles.js';
+import { dirAt, isMissing, moveFile, renameEntry } from '../handles.js';
 import { basename, nameKey, parent, segments } from '../path.js';
 import type { FileState } from './plan.js';
 import { scan, stateOf, DIR } from './scan.js';
@@ -12,7 +12,7 @@ export function handleTree(root: FileSystemDirectoryHandle): Tree {
 	/** The folder, `null` only if it isn't there (other errors are thrown: unreadable is not empty) */
 	const existing = (path: string) =>
 		dir(path).catch((e: unknown) => {
-			if (e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError')) return null;
+			if (isMissing(e)) return null;
 			throw e;
 		});
 
@@ -24,13 +24,13 @@ export function handleTree(root: FileSystemDirectoryHandle): Tree {
 			try {
 				return stateOf(await (await folder.getFileHandle(basename(path))).getFile());
 			} catch (e) {
-				if (!(e instanceof DOMException) || (e.name !== 'TypeMismatchError' && e.name !== 'NotFoundError')) throw e;
+				if (!isMissing(e)) throw e;
 			}
 			try {
 				await folder.getDirectoryHandle(basename(path));
 				return DIR;
 			} catch (e) {
-				if (e instanceof DOMException && (e.name === 'TypeMismatchError' || e.name === 'NotFoundError')) return null;
+				if (isMissing(e)) return null;
 				throw e;
 			}
 		},

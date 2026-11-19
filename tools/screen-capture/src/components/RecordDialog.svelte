@@ -2,7 +2,8 @@
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { describeSource } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
-	import { devices, openDevice, type DeviceKind } from '#lib/record/devices.svelte.js';
+	import { devices, type DeviceKind } from '#lib/record/devices.svelte.js';
+	import { DevicePreview } from '#lib/record/preview.svelte.js';
 	import { probeEncoders, pickScreenEncoder, type Encoder, type EncoderSupport } from '#lib/record/encoder.js';
 	import { Recorder, type RecordOptions } from '#lib/record/recorder.svelte.js';
 	import { floatingWindow } from '#lib/record/pip.svelte.js';
@@ -72,11 +73,8 @@
 	let recorder = $state<Recorder | null>(null);
 	/** Set while the recording starts: previews release their devices */
 	let starting = $state(false);
-	let cameraPreview = $state.raw<MediaStream | null>(null);
-	/** The preview shows a picture (until then a spinner keeps the space) */
-	let cameraPlaying = $state(false);
-	let micLevel = $state(0);
-	let deviceError = $state<Partial<Record<DeviceKind, boolean>>>({});
+	/** Webcam picture and microphone level while setting up */
+	const preview = new DevicePreview();
 	let dialog: HTMLDialogElement;
 
 	$effect(() => {
@@ -86,79 +84,23 @@
 	// Keep the device lists current while the dialog is open
 	$effect(() => untrack(() => devices.watch()));
 
-	const stopStream = (stream: MediaStream | null) => stream?.getTracks().forEach((t) => t.stop());
-
-	/**
-	 * Opens the chosen device for a preview while setting up (also unlocks the device names). `onopen` returns
-	 * its own cleanup.
-	 */
-	function preview(kind: DeviceKind, deviceId: string | undefined, onopen: (stream: MediaStream) => () => void) {
-		let cancelled = false;
-		let stream: MediaStream | null = null;
-		let cleanup = () => {};
-		// Reads the settings the device depends on, so the preview reopens when they change
-		openDevice(kind, deviceId, settings)
-			.then((s) => {
-				if (cancelled) return stopStream(s);
-				stream = s;
-				deviceError[kind] = false;
-				cleanup = onopen(s);
-				devices.refresh().catch(() => {});
-			})
-			.catch(() => (deviceError[kind] = true));
-		return () => {
-			cancelled = true;
-			cleanup();
-			stopStream(stream);
-		};
-	}
-
-	/** Shows the level of a microphone stream in `micLevel` until the returned cleanup runs */
-	function levelMeter(stream: MediaStream) {
-		const context = new AudioContext();
-		const analyser = context.createAnalyser();
-		analyser.fftSize = 512;
-		context.createMediaStreamSource(stream).connect(analyser);
-		const data = new Float32Array(analyser.fftSize);
-		let raf = 0;
-		const measure = () => {
-			analyser.getFloatTimeDomainData(data);
-			let peak = 0;
-			for (const v of data) peak = Math.max(peak, Math.abs(v));
-			micLevel = Math.max(peak, micLevel * 0.85);
-			raf = requestAnimationFrame(measure);
-		};
-		measure();
-		return () => {
-			cancelAnimationFrame(raf);
-			context.close().catch(() => {});
-			micLevel = 0;
-		};
-	}
-
 	// Microphone level meter, so the right microphone (and the effect of the filters) can be recognised
 	$effect(() => {
 		if (!settings.microphone || starting || recorder) return;
-		return preview('microphone', devices.selected.microphone, levelMeter);
+		return preview.openMicrophone(devices.selected.microphone, settings);
 	});
 
 	// The same before the start, from the microphone the recording will use
 	$effect(() => {
 		const mic = ready ? recorder?.mic : null;
 		if (!mic) return;
-		return untrack(() => levelMeter(mic));
+		return untrack(() => preview.meter(mic));
 	});
 
 	// Live webcam preview before recording
 	$effect(() => {
 		if (!settings.camera || starting || recorder) return;
-		return preview('camera', devices.selected.camera, (stream) => {
-			cameraPreview = stream;
-			return () => {
-				cameraPreview = null;
-				cameraPlaying = false;
-			};
-		});
+		return preview.openCamera(devices.selected.camera, settings);
 	});
 
 	/**
@@ -445,9 +387,9 @@
 					{:else if tab === 'microphone'}
 						<div class="flex flex-col gap-1">
 							{@render deviceSelect('microphone', devices.microphones, m.record.microphoneDevice)}
-							<progress class="progress progress-success h-1.5 w-full" value={micLevel} max="1" aria-label={m.record.level}
+							<progress class="progress progress-success h-1.5 w-full" value={preview.micLevel} max="1" aria-label={m.record.level}
 							></progress>
-							{#if deviceError.microphone}<p class="text-warning text-xs">{m.record.noMicrophone}</p>{/if}
+							{#if preview.error.microphone}<p class="text-warning text-xs">{m.record.noMicrophone}</p>{/if}
 						</div>
 						{@render audioOptions(settings.micKbps, (v) => (settings.micKbps = v), settings.micProcessing)}
 					{:else}
@@ -456,23 +398,23 @@
 							<!-- Fixed size from the start, so the dialog does not jump when the picture arrives -->
 							<div class="rounded-box bg-base-300 relative grid aspect-video w-48 place-items-center overflow-hidden">
 								<video
-									class="absolute inset-0 h-full w-full object-cover {cameraPlaying ? '' : 'invisible'}"
+									class="absolute inset-0 h-full w-full object-cover {preview.cameraPlaying ? '' : 'invisible'}"
 									autoplay
 									muted
 									playsinline
 									aria-label={m.record.cameraPreview}
-									onplaying={() => (cameraPlaying = true)}
+									onplaying={() => (preview.cameraPlaying = true)}
 									{@attach (video) => {
-										video.srcObject = cameraPreview;
+										video.srcObject = preview.camera;
 									}}
 								></video>
-								{#if deviceError.camera}
+								{#if preview.error.camera}
 									<span class="icon-[material-symbols-light--videocam-off-outline] size-8 opacity-60" aria-hidden="true"></span>
-								{:else if settings.camera && !cameraPlaying}
+								{:else if settings.camera && !preview.cameraPlaying}
 									<span class="loading loading-spinner opacity-60"></span>
 								{/if}
 							</div>
-							{#if deviceError.camera}<p class="text-warning text-xs">{m.record.noCamera}</p>{/if}
+							{#if preview.error.camera}<p class="text-warning text-xs">{m.record.noCamera}</p>{/if}
 						</div>
 						<div class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
 							<span>{m.record.videoQuality}</span>
@@ -585,7 +527,7 @@
 							></video>
 						{/if}
 						{#if recorder.mic}
-							<progress class="progress progress-success h-1.5 flex-1" value={micLevel} max="1" aria-label={m.record.level}
+							<progress class="progress progress-success h-1.5 flex-1" value={preview.micLevel} max="1" aria-label={m.record.level}
 							></progress>
 						{/if}
 					</div>

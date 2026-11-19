@@ -15,7 +15,7 @@ import {
 	type TreeParse
 } from './model.js';
 import { HEADER, PAIR } from './ini-detect.js';
-import { attachedStart, removeLines, removeSection } from './toml.js';
+import { attachedStart, removeLines, removeSection } from './edit.js';
 
 // The INI family as a tree: `ini` (sections, `key = value`), Java `properties` (no sections, continuation lines,
 // escapes) and `.env` (`KEY=value`, quotes, `export`). Every value is a string; the text stays as written around
@@ -196,11 +196,7 @@ function encodeValue(dialect: IniDialect, text: string): string {
 }
 
 /** A free key in `parent` that the dialect can write (`.env` keys can't hold spaces: `KEY_2`) */
-function freeEntryKey(dialect: IniDialect, parent: TreeNode, base: string): string {
-	if (dialect !== 'env') return freeKey(parent, base);
-	const used = new Set(parent.children?.map((c) => c.key));
-	for (let n = 2; ; n++) if (!used.has(`${base}_${n}`)) return `${base}_${n}`;
-}
+const freeEntryKey = (dialect: IniDialect, parent: TreeNode, base: string) => freeKey(parent, base, dialect === 'env' ? '_' : ' ');
 
 /** Separator between key and value as the text writes it (the first pair's), else the dialect's default */
 function separatorOf(doc: string, dialect: IniDialect, root: TreeNode): string {

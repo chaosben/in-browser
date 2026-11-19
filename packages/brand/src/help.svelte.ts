@@ -1,6 +1,9 @@
 // Help window of a tool: open or closed, shown topic, position and size (topic, position and size persisted under
 // `<tool>:help`). Each tool creates one in its layout and passes it to `BrandBar` and `HelpWindow`.
 
+import { loadJson, storeJson } from './storage.js';
+import { inTextField } from './ui/typing.js';
+
 interface Stored {
 	topic: string | null;
 	/** Top-left corner in CSS pixels; `null`: default place */
@@ -21,16 +24,12 @@ export class HelpState {
 	/** `tool`: prefix of the storage key, e.g. `screen-capture` */
 	constructor(tool: string) {
 		this.#key = `${tool}:help`;
-		try {
-			const value = JSON.parse(localStorage.getItem(this.#key) ?? 'null');
-			if (value && typeof value === 'object') {
-				const stored = { ...DEFAULTS, ...value } as Stored;
-				this.topic = stored.topic;
-				this.pos = stored.pos;
-				this.size = stored.size;
-			}
-		} catch {
-			// localStorage not available or broken entry
+		const value = loadJson<Partial<Stored> | null>(this.#key, null);
+		if (value && typeof value === 'object') {
+			const stored = { ...DEFAULTS, ...value } as Stored;
+			this.topic = stored.topic;
+			this.pos = stored.pos;
+			this.size = stored.size;
 		}
 	}
 
@@ -46,11 +45,7 @@ export class HelpState {
 	}
 
 	save() {
-		try {
-			localStorage.setItem(this.#key, JSON.stringify({ topic: this.topic, pos: this.pos, size: this.size }));
-		} catch {
-			// ignore
-		}
+		storeJson(this.#key, { topic: this.topic, pos: this.pos, size: this.size });
 	}
 }
 
@@ -64,10 +59,7 @@ export function installHelpKeys(help: HelpState): () => void {
 		if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.key !== 'F1' && e.key !== '?') return;
 		if (document.querySelector('dialog[open]:modal')) return;
-		if (e.key === '?') {
-			const target = e.target as HTMLElement | null;
-			if (target?.closest('input, select, textarea, [contenteditable]:not([contenteditable="false"])')) return;
-		}
+		if (e.key === '?' && inTextField(e.target)) return;
 		e.preventDefault();
 		help.toggle();
 	};

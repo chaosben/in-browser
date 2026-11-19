@@ -1,0 +1,34 @@
+{
+	"lang": "de",
+	"id": "/screen-capture",
+	"name": "Bildschirmaufnahme – in-browser",
+	"short_name": "Bildschirmaufnahme",
+	"description": "Bildschirm aufnehmen, bearbeiten und als MP4, WebM oder GIF exportieren – komplett im Browser.",
+	"start_url": "/screen-capture",
+	"scope": "/screen-capture",
+	"display": "standalone",
+	"launch_handler": {
+		"client_mode": "focus-existing"
+	},
+	"categories": [
+		"productivity",
+		"utilities",
+		"multimedia"
+	],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{
+			"src": "/screen-capture/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/screen-capture/icon-maskable.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}

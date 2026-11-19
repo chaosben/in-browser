@@ -14,8 +14,8 @@ import type { RandomAccess } from './sources/source.js';
 // no overwriting) hold everywhere. Changes are announced to every tab (`watch`).
 
 export { FilesError, type Entry, type FilesErrorCode } from './entry.js';
-export { changed, noticed, watch } from './changes.js';
-export { rootHandle, supported } from './opfs.js';
+export { changed, noticed, watch, watchSettled } from './changes.js';
+export { supported } from './opfs.js';
 export type { RandomAccess } from './sources/source.js';
 
 /** Runs an action of a source; its errors name the full path */

@@ -1,3 +1,4 @@
+import type { ToolSlug } from '@in-browser/brand/i18n/index.svelte.js';
 import { TEXT_EXTENSIONS } from './kinds.js';
 import { extname } from './path.js';
 
@@ -10,10 +11,8 @@ export interface Format {
 	/** Extension in lower case, with dot */
 	ext: string;
 	kind: 'package' | 'file';
-	/** Tool folder/route (`/screen-capture`) */
-	tool: string;
-	/** Tool name as shown in the UI (a brand name, not translated) */
-	toolName: string;
+	/** Tool that opens it (its folder; the visible name is `toolName(tool)`) */
+	tool: ToolSlug;
 	/** Page that opens it; gets `?path=<path>` */
 	open: string;
 	/** Icon of the tool (its favicon) */
@@ -25,6 +24,32 @@ export interface Format {
 	fallback?: boolean;
 }
 
+/** A saved document this version can't read: unknown format, or written by a newer version of the tool */
+export class FormatError extends Error {
+	constructor(readonly reason: 'unknown' | 'newer') {
+		super(reason === 'newer' ? 'created with a newer version' : 'unknown format');
+	}
+}
+
+export type RawDocument = Record<string, unknown> & { version: number; format?: unknown };
+
+/**
+ * Brings a saved document (`project.json` of a package) to the current `version` of `format`, one step per older
+ * version (`migrations[n]` goes from n to n + 1; every change of a format adds one, with a test).
+ */
+export function migrateFormat(raw: unknown, format: string, version: number, migrations: Record<number, (p: RawDocument) => RawDocument>): RawDocument {
+	let p = raw as RawDocument;
+	if (!p || typeof p !== 'object' || typeof p.version !== 'number') throw new FormatError('unknown');
+	if (p.version > version) throw new FormatError('newer');
+	while (p.version < version) {
+		const step = migrations[p.version];
+		if (!step) throw new FormatError('unknown');
+		p = step(p);
+	}
+	if (p.format !== format) throw new FormatError('unknown');
+	return p;
+}
+
 /** Control file at the root of every package */
 export const PACKAGE_MANIFEST = 'project.json';
 
@@ -33,7 +58,6 @@ export const FORMATS: readonly Format[] = [
 		ext: '.screencapture',
 		kind: 'package',
 		tool: 'screen-capture',
-		toolName: 'Screen Capture',
 		open: '/screen-capture/editor',
 		icon: '/screen-capture/favicon.svg'
 	},
@@ -41,7 +65,6 @@ export const FORMATS: readonly Format[] = [
 		ext: '.note',
 		kind: 'package',
 		tool: 'notes',
-		toolName: 'Notes',
 		open: '/notes/editor',
 		icon: '/notes/favicon.svg'
 	},
@@ -50,7 +73,6 @@ export const FORMATS: readonly Format[] = [
 		ext: '.pdf',
 		kind: 'file',
 		tool: 'notes',
-		toolName: 'Notes',
 		open: '/notes',
 		icon: '/notes/favicon.svg'
 	},
@@ -59,13 +81,12 @@ export const FORMATS: readonly Format[] = [
 			ext,
 			kind: 'file',
 			tool: 'text-editor',
-			toolName: 'Text Editor',
 			open: '/text-editor',
 			icon: '/text-editor/favicon.svg'
 		})
 	),
 	// An image whose text can be edited
-	{ ext: '.svg', kind: 'file', tool: 'text-editor', toolName: 'Text Editor', open: '/text-editor', icon: '/text-editor/favicon.svg', fallback: true }
+	{ ext: '.svg', kind: 'file', tool: 'text-editor', open: '/text-editor', icon: '/text-editor/favicon.svg', fallback: true }
 ];
 
 /**

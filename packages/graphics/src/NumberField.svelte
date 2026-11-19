@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { lang } from '@in-browser/brand/i18n/index.svelte.js';
 	import { clampNumber, formatNumber, parseNumber } from './number.js';
+	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
 
 	interface Props {
 		label: string;
@@ -72,8 +73,6 @@
 	/** Dragging the label left/right changes the value: a step per 2 px, Shift ×10, Alt ×0.1 */
 	function scrub(e: PointerEvent) {
 		if (e.button !== 0) return;
-		const el = e.currentTarget as HTMLElement;
-		el.setPointerCapture(e.pointerId);
 		const x0 = e.clientX;
 		const v0 = value;
 		let moved = false;
@@ -84,17 +83,11 @@
 			const factor = ev.shiftKey ? 10 : ev.altKey ? 0.1 : 1;
 			set(v0 + Math.round(dx / 2) * step * factor);
 		};
-		const onup = () => {
-			el.removeEventListener('pointermove', onmove);
-			el.removeEventListener('pointerup', onup);
-			el.removeEventListener('pointercancel', onup);
+		pointerDrag(e, onmove, () => {
 			// A click without dragging edits the value
 			if (moved) oncommit?.();
 			else input.focus();
-		};
-		el.addEventListener('pointermove', onmove);
-		el.addEventListener('pointerup', onup);
-		el.addEventListener('pointercancel', onup);
+		});
 	}
 </script>
 

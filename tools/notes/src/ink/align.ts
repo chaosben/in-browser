@@ -7,8 +7,7 @@ import { isPicture, isShape, isStroke, type Item } from '#lib/model/types.js';
 import { boundsOf } from './geometry.js';
 import { handlesOf } from './shapes.js';
 
-/** Snap distance in screen pixels */
-export const SNAP_PX = 6;
+export { SNAP_PX } from '@in-browser/graphics/snap.js';
 
 /** The geometric box of an item (without the pen width): what lines up with others */
 export function snapBox(item: Item): Rect {

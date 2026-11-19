@@ -1,21 +1,23 @@
 import type { ChangeSpec } from '@codemirror/state';
-import type { SyntaxNode, Tree } from '@lezer/common';
+import type { SyntaxNode } from '@lezer/common';
 import { parser } from '@lezer/xml';
 import {
-	childId,
+	assignIds,
+	firstError,
 	indentAt,
 	lineEndOf,
 	lineStartOf,
 	neighbour,
 	ownsLine,
 	swap,
-	uniqueIds,
 	type NewChild,
 	type Range,
 	type TreeFormat,
 	type TreeNode,
 	type TreeParse
 } from './model.js';
+import { freeName } from '../names.js';
+import { indentUnit } from './edit.js';
 
 // XML (and SVG) as a tree, parsed with Lezer. An element's children are its attributes, then its content (elements,
 // text, comments, CDATA, processing instructions). Edits touch only the affected tag, attribute or content; new
@@ -49,18 +51,6 @@ const READ_ONLY: Record<string, 'comment' | 'cdata' | 'instruction'> = {
 	ProcessingInst: 'instruction',
 	DoctypeDecl: 'instruction'
 };
-
-/** First syntax error: error nodes and unclosed or mismatched tags */
-function firstError(tree: Tree): number | null {
-	let error: number | null = null;
-	tree.iterate({
-		enter: (n) => {
-			if (error !== null) return false;
-			if (n.type.isError || n.name === 'MissingCloseTag' || n.name === 'MismatchedCloseTag') error = n.from;
-		}
-	});
-	return error;
-}
 
 /** Open tag or self-closing tag of an element */
 const tagOf = (element: SyntaxNode) => element.getChild('OpenTag') ?? element.getChild('SelfClosingTag');
@@ -177,15 +167,8 @@ function buildElement(doc: string, element: SyntaxNode, top: boolean): TreeNode 
 	return node;
 }
 
-/** Ids from the root down: attributes as `@name`, elements by tag name, other content by index */
-function assignIds(node: TreeNode) {
-	const children = node.children ?? [];
-	children.forEach((c, i) => {
-		c.id = childId(node.id, c.kind === 'attribute' ? `@${c.key}` : c.kind === 'element' ? c.key : undefined, i);
-	});
-	uniqueIds(children);
-	for (const c of children) assignIds(c);
-}
+/** Ids: attributes as `@name`, elements by tag name, other content by index */
+const idKey = (c: TreeNode) => (c.kind === 'attribute' ? `@${c.key}` : c.kind === 'element' ? c.key : undefined);
 
 export function parseXml(doc: string): TreeParse {
 	const tree = parser.parse(doc);
@@ -197,8 +180,9 @@ export function parseXml(doc: string): TreeParse {
 		children,
 		can: { add: children.some((c) => c.kind === 'element') ? [] : ['element'] }
 	};
-	assignIds(root);
-	return { root, error: doc.trim() ? firstError(tree) : null };
+	assignIds(root, idKey);
+	const unclosed = (n: { name: string }) => n.name === 'MissingCloseTag' || n.name === 'MismatchedCloseTag';
+	return { root, error: doc.trim() ? firstError(tree, unclosed) : null };
 }
 
 /** The element's syntax node in the current text */
@@ -210,12 +194,8 @@ function locate(doc: string, range: Range): SyntaxNode | null {
 	return null;
 }
 
-/** One step of indentation as used by the tags in the text (default two spaces) */
-function indentUnit(doc: string): string {
-	const match = /\n([ \t]+)</.exec(doc);
-	if (!match) return '  ';
-	return match[1].startsWith('\t') ? '\t' : match[1];
-}
+/** Indented lines that start with a tag */
+const TAG_INDENT = /\n([ \t]+)</;
 
 /** The node ends its line (only whitespace after it) */
 const endsLine = (doc: string, pos: number) => doc.slice(pos, lineEndOf(doc, pos)).trim() === '';
@@ -228,7 +208,7 @@ function fill(doc: string, parent: TreeNode, raw: string, ownLine: boolean): Cha
 	const element = locate(doc, parent.range);
 	if (!element) return null;
 	const indent = indentAt(doc, parent.range.from);
-	const inner = ownLine && /\n[ \t]+</.test(doc) ? `\n${indent}${indentUnit(doc)}${raw}\n${indent}` : raw;
+	const inner = ownLine && /\n[ \t]+</.test(doc) ? `\n${indent}${indentUnit(doc, TAG_INDENT)}${raw}\n${indent}` : raw;
 	const open = element.getChild('OpenTag');
 	const close = element.getChild('CloseTag');
 	if (open && close) return { from: open.to, to: close.from, insert: inner };
@@ -328,9 +308,11 @@ export const xmlFormat: TreeFormat = {
 	duplicate(doc, parent, node) {
 		if (!node.can.duplicate) return null;
 		if (node.kind === 'attribute') {
-			const used = new Set(parent.children?.filter((c) => c.kind === 'attribute').map((c) => c.key));
-			let key = node.key!;
-			for (let n = 2; used.has(key); n++) key = `${node.key}-${n}`;
+			const key = freeName(
+				parent.children!.filter((c) => c.kind === 'attribute').map((c) => c.key),
+				node.key!,
+				'-'
+			);
 			const space = doc.slice(spaceBefore(doc, node.range.from), node.range.from) || ' ';
 			return { from: node.range.to, insert: space + key + doc.slice(node.keyRange!.to, node.range.to) };
 		}

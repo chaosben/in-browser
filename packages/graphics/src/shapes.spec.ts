@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { partialStrokes, seeded, strokesLength, strokesOf, type Shape } from './shapes';
+import { ARROW_SPREAD, arrowWings, partialStrokes, seeded, strokesLength, strokesOf, type Shape } from './shapes';
 
 describe('seeded', () => {
 	it('repeats the same sequence for the same text', () => {
@@ -61,5 +61,15 @@ describe('partialStrokes', () => {
 		const most = partialStrokes(strokes, 0.75);
 		expect(most).toHaveLength(2);
 		expect(most[1].at(-1)).toEqual({ x: 5, y: 10 });
+	});
+});
+
+describe('arrowWings', () => {
+	it('places both wings behind the tip, symmetric to the shaft', () => {
+		const [a, b] = arrowWings({ x: 10, y: 0 }, 0, 4);
+		expect(a.x).toBeCloseTo(10 - Math.cos(ARROW_SPREAD) * 4);
+		expect(a.y).toBeCloseTo(Math.sin(ARROW_SPREAD) * 4);
+		expect(b.x).toBeCloseTo(a.x);
+		expect(b.y).toBeCloseTo(-a.y);
 	});
 });

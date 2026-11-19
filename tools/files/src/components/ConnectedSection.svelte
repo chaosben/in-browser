@@ -1,14 +1,12 @@
 <script lang="ts">
-	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 	import {
 		allowAccess,
-		connectFolder,
 		connectionLabel,
 		connections,
 		connectionsSupported,
 		type ConnectionView
 	} from '@in-browser/files/sources/connections.svelte.js';
+	import { connect } from '#lib/connections.js';
 	import { m } from '#lib/i18n/index.js';
 	import FolderTree from './FolderTree.svelte';
 
@@ -26,18 +24,6 @@
 	}
 
 	let { current, onnavigate, ondropitems, ondropfiles, onmenu, onfoldermenu }: Props = $props();
-
-	async function connect() {
-		try {
-			const result = await connectFolder();
-			if (!result) return;
-			if (result.alsoSynced) toast(m.connected.alsoSynced(connections.list.find((c) => c.path === result.path)?.name ?? ''), 'info', 8000);
-			onnavigate(result.path);
-		} catch (e) {
-			console.error(e);
-			toast(filesErrorText(e), 'error', 8000);
-		}
-	}
 
 	async function allow(connection: ConnectionView) {
 		if (await allowAccess(connection.id)) onnavigate(connection.path);
@@ -93,7 +79,7 @@
 		</ul>
 	{/if}
 	{#if connectionsSupported()}
-		<button class="btn btn-ghost justify-start gap-2 px-2 font-normal" onclick={connect} title={m.connected.connectHint}>
+		<button class="btn btn-ghost justify-start gap-2 px-2 font-normal" onclick={() => connect(onnavigate)} title={m.connected.connectHint}>
 			<span class="icon-[material-symbols-light--add-link] size-5 shrink-0" aria-hidden="true"></span>
 			<span class="text-sm">{m.connected.connect}</span>
 		</button>

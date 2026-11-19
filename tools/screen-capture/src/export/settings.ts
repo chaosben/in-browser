@@ -1,5 +1,6 @@
 import type { AudioCodec, VideoCodec } from 'mediabunny';
 import { m } from '#lib/i18n/index.js';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
 export type ExportFormat = 'mp4' | 'webm' | 'gif';
 export type QualityPreset = 'low' | 'medium' | 'high' | 'very-high' | 'custom';
@@ -131,28 +132,12 @@ export function estimateBytes(settings: ExportSettings, width: number, height: n
 	return bits / 8;
 }
 
-export function formatBytes(bytes: number): string {
-	if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-	if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-	return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-}
-
 const STORAGE_KEY = 'screen-capture:export-settings';
 
 export function loadSettings(): ExportSettings {
-	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-	} catch {
-		// localStorage not available
-	}
-	return { ...DEFAULT_SETTINGS };
+	return { ...DEFAULT_SETTINGS, ...loadJson<Partial<ExportSettings>>(STORAGE_KEY, {}) };
 }
 
 export function storeSettings(settings: ExportSettings) {
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-	} catch {
-		// ignore
-	}
+	storeJson(STORAGE_KEY, settings);
 }

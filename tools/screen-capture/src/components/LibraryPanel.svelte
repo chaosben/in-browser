@@ -3,6 +3,7 @@
 	import { m } from '#lib/i18n/index.js';
 	import { itemIcon, itemLabel } from '#lib/project/labels.js';
 	import { matchesQuery } from '@in-browser/brand/ui/search.js';
+	import { readStored, writeStored } from '@in-browser/brand/storage.js';
 	import { entryDuration } from '#lib/project/library.js';
 	import { globalLibrary } from '#lib/project/library.svelte.js';
 	import type { Clip, LibraryEntry, Source } from '#lib/project/types.js';
@@ -48,25 +49,12 @@
 	type View = 'list' | 'grid';
 	const VIEW_KEY = 'screen-capture:library-view';
 
-	function loadView(): View {
-		try {
-			return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
-		} catch {
-			// localStorage not available
-			return 'grid';
-		}
-	}
-
 	/** Many entries with small previews (list) or fewer with large ones (tiles); remembered */
-	let view = $state<View>(loadView());
+	let view = $state<View>(readStored(VIEW_KEY) === 'list' ? 'list' : 'grid');
 
 	function setView(next: View) {
 		view = next;
-		try {
-			localStorage.setItem(VIEW_KEY, next);
-		} catch {
-			// ignore
-		}
+		writeStored(VIEW_KEY, next);
 	}
 
 	const VIEWS: { value: View; label: string; icon: string }[] = [

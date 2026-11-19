@@ -13,16 +13,16 @@ import { debug } from '@in-browser/brand/debug.js';
 import { PointBuffer } from '#lib/ink/buffer.js';
 import { Smoother } from '#lib/ink/smooth.js';
 import { hitsStroke, intersects, type Box } from '#lib/ink/geometry.js';
-import { diameter, inkAlpha, inkPath } from '#lib/ink/outline.js';
+import { diameter, inkAlpha } from '#lib/ink/outline.js';
 import { pointInPolygon, type Transform } from '#lib/ink/lasso.js';
 import { fillOutline, inkStrokes } from '#lib/ink/shapes.js';
-import { pageTargets, toMm } from '#lib/ink/align.js';
+import { pageTargets } from '#lib/ink/align.js';
 import type { Guides, Rect, SnapTargets } from '@in-browser/graphics/snap.js';
-import { isInk, isPicture, isShape, type Ink, type InkTool, type Item, type PageMeta } from '#lib/model/types.js';
+import { isInk, isShape, type Ink, type InkTool, type Item, type PageMeta } from '#lib/model/types.js';
 import type { PdfBackgrounds } from './backgrounds.js';
 import { PAPER_COLOR } from './paper.js';
-import { drawPicture } from './pictures.js';
-import { drawInk, type PageScene } from './scene.js';
+import { drawGuides, drawLaser, drawLasso, drawLifted, drawSelectionFrame, type LaserPoint } from './overlay.js';
+import type { PageScene } from './scene.js';
 import { TILE, TileCache, tileRange, type Tile, type TilePage } from './tiles.js';
 import { layoutPages, Viewport, type PageRect } from './viewport.js';
 
@@ -70,9 +70,6 @@ export interface StageGuides {
 	guides: Guides;
 	boxes: Rect[];
 }
-
-/** Laser pointer: points fade out after this time */
-const LASER_MS = 1200;
 
 /** Ink trail drawn by the operating system ahead of the page (Chromium) – see `navigator.ink` */
 interface InkPresenter {
@@ -133,7 +130,7 @@ export class Stage {
 	/** Outlines of dragged strokes (computed once per lift) */
 	private readonly liftedPaths = new WeakMap<Ink, Path2D>();
 	/** Laser trail: document points with time */
-	private laser: { x: number; y: number; t: number }[] = [];
+	private laser: LaserPoint[] = [];
 	private readonly ghostCtx: CanvasRenderingContext2D;
 	/** Context the current stroke is painted on (live or marker) */
 	private inkCtx: CanvasRenderingContext2D;
@@ -352,13 +349,7 @@ export class Stage {
 			ctx.clip();
 			ctx.fillStyle = PAPER_COLOR;
 			ctx.fillRect(ox, oy, pw, ph);
-			// Part of the page in view (page points)
-			const box: Box = {
-				x0: Math.max(0, view.x - rect.x),
-				y0: Math.max(0, view.y - rect.y),
-				x1: Math.min(rect.w, view.x + view.width / view.zoom - rect.x),
-				y1: Math.min(rect.h, view.y + view.height / view.zoom - rect.y)
-			};
+			const box = this.partInView(rect, view.y, view.y + view.height / view.zoom);
 			const scale = this.scale;
 			const { tx0, ty0, tx1, ty1 } = tileRange(scale, box);
 			const draw = (tile: { canvas: OffscreenCanvas; scale: number; tx: number; ty: number }) => {
@@ -427,12 +418,7 @@ export class Stage {
 				this.load(meta.id);
 				continue;
 			}
-			const box: Box = {
-				x0: Math.max(0, view.x - rect.x),
-				y0: Math.max(0, top - rect.y),
-				x1: Math.min(rect.w, view.x + view.width / view.zoom - rect.x),
-				y1: Math.min(rect.h, bottom - rect.y)
-			};
+			const box = this.partInView(rect, top, bottom);
 			if (box.y1 <= box.y0) continue;
 			const { tx0, ty0, tx1, ty1 } = tileRange(this.scale, box);
 			for (let ty = ty0; ty <= ty1 && performance.now() < deadline; ty++) {
@@ -441,6 +427,17 @@ export class Stage {
 				}
 			}
 		}
+	}
+
+	/** Part of a page (page points) within the view's width and the document rows `top`…`bottom` */
+	private partInView(rect: PageRect, top: number, bottom: number): Box {
+		const { view } = this;
+		return {
+			x0: Math.max(0, view.x - rect.x),
+			y0: Math.max(0, top - rect.y),
+			x1: Math.min(rect.w, view.x + view.width / view.zoom - rect.x),
+			y1: Math.min(rect.h, bottom - rect.y)
+		};
 	}
 
 	private tilePage(meta: PageMeta, scene: PageScene | null): TilePage {
@@ -752,12 +749,8 @@ export class Stage {
 		const rect = s && this.rects[s.page];
 		if (!s || !rect) return null;
 		const { t, box } = s;
-		const map = (x: number, y: number) => [
-			this.view.toScreenX(rect.x + t.ox + (x - t.ox) * t.scale + t.dx),
-			this.view.toScreenY(rect.y + t.oy + (y - t.oy) * t.scale + t.dy)
-		];
-		const [x0, y0] = map(box.x0, box.y0);
-		const [x1, y1] = map(box.x1, box.y1);
+		const [x0, y0] = this.toScreen(rect, t, box.x0, box.y0);
+		const [x1, y1] = this.toScreen(rect, t, box.x1, box.y1);
 		return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 	}
 
@@ -766,11 +759,12 @@ export class Stage {
 		const s = this.selection;
 		const rect = s && this.rects[s.page];
 		if (!s?.handles || !rect) return [];
-		const { t } = s;
-		return s.handles.map(([x, y]) => [
-			this.view.toScreenX(rect.x + t.ox + (x - t.ox) * t.scale + t.dx),
-			this.view.toScreenY(rect.y + t.oy + (y - t.oy) * t.scale + t.dy)
-		]);
+		return s.handles.map(([x, y]) => this.toScreen(rect, s.t, x, y));
+	}
+
+	/** A page point on screen (CSS pixels), moved/scaled by `t` */
+	private toScreen(rect: PageRect, t: Transform, x: number, y: number): [number, number] {
+		return [this.view.toScreenX(rect.x + t.ox + (x - t.ox) * t.scale + t.dx), this.view.toScreenY(rect.y + t.oy + (y - t.oy) * t.scale + t.dy)];
 	}
 
 	/** Which part of the selection is at a screen point: a point of a shape, a corner handle, the inside, or nothing */
@@ -833,7 +827,7 @@ export class Stage {
 		this.request();
 	}
 
-	/** Draws the overlay; true while it needs further frames (fading laser) */
+	/** Draws the overlay (`overlay.ts`); true while it needs further frames (fading laser) */
 	private drawOverlay(): boolean {
 		const ctx = this.overlayCtx;
 		const { dpr, view } = this;
@@ -846,143 +840,19 @@ export class Stage {
 		const s = this.selection;
 		const rect = s && this.rects[s.page];
 		if (s && rect) {
-			if (s.lifted) {
-				// The dragged strokes, moved/scaled as they will be put back
-				const k = view.zoom;
-				ctx.save();
-				ctx.translate((rect.x - view.x) * k, (rect.y - view.y) * k);
-				ctx.scale(k, k);
-				ctx.translate(s.t.ox + s.t.dx, s.t.oy + s.t.dy);
-				ctx.scale(s.t.scale, s.t.scale);
-				ctx.translate(-s.t.ox, -s.t.oy);
-				const pictures = this.sceneOf(this.pages[s.page].id)?.pictures ?? null;
-				for (const item of s.lifted) {
-					if (isPicture(item)) {
-						drawPicture(ctx, item, pictures);
-						continue;
-					}
-					let path = this.liftedPaths.get(item);
-					if (!path) this.liftedPaths.set(item, (path = inkPath(item)));
-					drawInk(ctx, item, path);
-				}
-				ctx.restore();
-			}
-			const r = this.selectionRect()!;
-			ctx.strokeStyle = this.selectionColor;
-			ctx.lineWidth = 1.5;
-			ctx.setLineDash([6, 4]);
-			ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
-			ctx.setLineDash([]);
-			ctx.fillStyle = '#ffffff';
-			const handles = s.handles
-				? this.handlePoints()
-				: [[r.x - 4, r.y - 4], [r.x + r.w + 4, r.y - 4], [r.x + r.w + 4, r.y + r.h + 4], [r.x - 4, r.y + r.h + 4]];
-			for (const [x, y] of handles) {
-				ctx.beginPath();
-				ctx.arc(x, y, 6, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.stroke();
-			}
+			// The dragged items, moved/scaled as they will be put back
+			if (s.lifted) drawLifted(ctx, view, rect, s.t, s.lifted, this.sceneOf(this.pages[s.page].id)?.pictures ?? null, this.liftedPaths);
+			drawSelectionFrame(ctx, this.selectionRect()!, s.handles ? this.handlePoints() : null, this.selectionColor);
 		}
 
-		if (this.guides) this.drawGuides(ctx, this.guides);
+		const guides = this.guides;
+		const guideRect = guides && this.rects[guides.page];
+		if (guides && guideRect) drawGuides(ctx, view, guideRect, guides.guides, guides.boxes, { guide: this.guideColor, text: this.guideText });
 
-		if (this.lasso && this.lasso.length >= 4) {
-			const l = this.lasso;
-			ctx.strokeStyle = this.selectionColor;
-			ctx.lineWidth = 1.5;
-			ctx.setLineDash([5, 5]);
-			ctx.beginPath();
-			ctx.moveTo(l[0], l[1]);
-			for (let i = 2; i < l.length; i += 2) ctx.lineTo(l[i], l[i + 1]);
-			ctx.closePath();
-			ctx.stroke();
-			ctx.setLineDash([]);
-		}
+		if (this.lasso && this.lasso.length >= 4) drawLasso(ctx, this.lasso, this.selectionColor);
 
-		const now = performance.now();
-		this.laser = this.laser.filter((p) => now - p.t < LASER_MS);
-		if (this.laser.length) {
-			ctx.strokeStyle = '#ef4444';
-			ctx.shadowColor = '#ef4444';
-			ctx.shadowBlur = 8;
-			ctx.lineWidth = 4;
-			for (let i = 1; i < this.laser.length; i++) {
-				const a = this.laser[i - 1];
-				const b = this.laser[i];
-				// A new stroke starts after a pause
-				if (b.t - a.t > 200) continue;
-				ctx.globalAlpha = Math.max(0, 1 - (now - b.t) / LASER_MS);
-				ctx.beginPath();
-				ctx.moveTo(view.toScreenX(a.x), view.toScreenY(a.y));
-				ctx.lineTo(view.toScreenX(b.x), view.toScreenY(b.y));
-				ctx.stroke();
-			}
-			ctx.globalAlpha = 1;
-			ctx.shadowBlur = 0;
-			return true;
-		}
-		return false;
-	}
-
-	/** Snap lines across the page, equal gaps with their size, outlines of what is snapped to */
-	private drawGuides(ctx: CanvasRenderingContext2D, { page, guides, boxes }: StageGuides) {
-		const rect = this.rects[page];
-		if (!rect) return;
-		const { view } = this;
-		const sx = (x: number) => view.toScreenX(rect.x + x);
-		const sy = (y: number) => view.toScreenY(rect.y + y);
-		ctx.save();
-		ctx.strokeStyle = this.guideColor;
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		if (guides.x) {
-			const x = Math.round(sx(guides.x.at)) + 0.5;
-			ctx.moveTo(x, sy(0));
-			ctx.lineTo(x, sy(rect.h));
-		}
-		if (guides.y) {
-			const y = Math.round(sy(guides.y.at)) + 0.5;
-			ctx.moveTo(sx(0), y);
-			ctx.lineTo(sx(rect.w), y);
-		}
-		for (const box of new Set([guides.x?.box, guides.y?.box])) {
-			if (box == null || !boxes[box]) continue;
-			const b = boxes[box];
-			ctx.rect(sx(b.x), sy(b.y), sx(b.x + b.w) - sx(b.x), sy(b.y + b.h) - sy(b.y));
-		}
-		ctx.stroke();
-		// Equal gaps: a measure with end ticks and its length
-		ctx.font = '10px system-ui, sans-serif';
-		ctx.textBaseline = 'middle';
-		for (const gap of guides.gaps) {
-			const along = gap.axis === 'x';
-			const [a, b, c] = along ? [sx(gap.from), sx(gap.to), sy(gap.at)] : [sy(gap.from), sy(gap.to), sx(gap.at)];
-			ctx.beginPath();
-			const line = (x0: number, y0: number, x1: number, y1: number) => {
-				if (along) {
-					ctx.moveTo(x0, y0);
-					ctx.lineTo(x1, y1);
-				} else {
-					ctx.moveTo(y0, x0);
-					ctx.lineTo(y1, x1);
-				}
-			};
-			line(a, c, b, c);
-			line(a, c - 4, a, c + 4);
-			line(b, c - 4, b, c + 4);
-			ctx.stroke();
-			const label = `${toMm(gap.to - gap.from)} mm`;
-			const w = ctx.measureText(label).width + 6;
-			const [lx, ly] = along ? [(a + b) / 2 - w / 2, c + 6] : [c + 6, (a + b) / 2 - 8];
-			ctx.fillStyle = this.guideColor;
-			ctx.beginPath();
-			ctx.roundRect(lx, ly, w, 16, 3);
-			ctx.fill();
-			ctx.fillStyle = this.guideText;
-			ctx.fillText(label, lx + 3, ly + 8);
-		}
-		ctx.restore();
+		this.laser = drawLaser(ctx, view, this.laser);
+		return this.laser.length > 0;
 	}
 
 	// --- Cursor preview (pen hover, eraser) ---

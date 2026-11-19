@@ -17,7 +17,6 @@ import {
 	insertFreeze,
 	itemsAt,
 	groupOf,
-	moveItem,
 	moveItems,
 	nextStepNumber,
 	pasteItems,
@@ -149,11 +148,11 @@ describe('tracks', () => {
 		expect(tracks(bringToFront(t, 'a'))).toEqual({ x: 0, y: 1, a: 2 });
 		expect(sendToBack(t, 'a')).toBe(t);
 	});
-	it('moveItem stops at the neighbor on its own track, open towards the end', () => {
+	it('moveItems of one item stops at the neighbor on its own track, open towards the end', () => {
 		const t = tl(clip('a', 0, 0, 2), clip('b', 5, 0, 2), text('x', 0, 10));
-		expect(layout(moveItem(t, 'b', 1)).b).toEqual([0, 2, 4]);
-		expect(layout(moveItem(t, 'b', 20)).b).toEqual([0, 20, 22]);
-		expect(layout(moveItem(t, 'a', -3)).a).toEqual([0, 0, 2]);
+		expect(layout(moveItems(t, ['b'], -4)).b).toEqual([0, 2, 4]);
+		expect(layout(moveItems(t, ['b'], 15)).b).toEqual([0, 20, 22]);
+		expect(layout(moveItems(t, ['a'], -3)).a).toEqual([0, 0, 2]);
 	});
 	it('placeItem passes neighbors on the old track when changing tracks', () => {
 		const t = tl(clip('a', 0, 0, 5), text('x', 6, 8, 0), text('y', 0, 1, 1));

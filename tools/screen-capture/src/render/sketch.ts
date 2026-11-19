@@ -3,7 +3,7 @@
 import type { DrawableAnnotation } from '#lib/project/types.js';
 import { arrowHead as headSize, strokesOf as shapeStrokes, type Shape, type Stroke } from '@in-browser/graphics/shapes.js';
 
-export { partialStrokes, seeded, strokesLength, type Stroke } from '@in-browser/graphics/shapes.js';
+export { arrowWings, partialStrokes, seeded, strokesLength, type Stroke } from '@in-browser/graphics/shapes.js';
 
 /** Arrowhead size for a line width and shaft length (pixels); at least 2 % of the frame height `H` */
 export const arrowHead = (lineWidth: number, length: number, H: number) => headSize(lineWidth, length, 0.02 * H);

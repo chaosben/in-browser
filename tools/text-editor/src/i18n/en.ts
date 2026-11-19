@@ -87,9 +87,6 @@ const en = {
 		position: (line: number, column: number) => `Ln ${line}, Col ${column}`,
 		selected: (chars: number) => `${chars} selected`,
 		plainText: 'Plain text',
-		saving: 'Saving …',
-		saved: 'Saved',
-		notSaved: 'Not saved yet',
 		deleted: 'Deleted',
 		lineEnding: 'Line ending',
 		encoding: 'Encoding'

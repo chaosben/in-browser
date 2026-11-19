@@ -2,6 +2,7 @@ import { displayName } from '@in-browser/files/sources/registry.js';
 import { downloadZip } from 'client-zip';
 import { list, mkdir, read, stat, writable } from '@in-browser/files/fs.js';
 import { basename, join, uniqueName } from '@in-browser/files/path.js';
+import { downloadBlob } from '@in-browser/brand/download.js';
 
 // Upload (files, folders, drops from the computer) and download (single file directly, everything else as ZIP).
 
@@ -66,16 +67,6 @@ export async function upload(uploads: Upload[], folder: string, progress?: (name
 	return count;
 }
 
-/** Saves a file through the browser's download */
-function save(blob: Blob, name: string) {
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = name;
-	a.click();
-	setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
 /** All files below the paths, with their names inside the ZIP */
 async function* zipEntries(paths: string[]) {
 	for (const path of paths) {
@@ -102,7 +93,7 @@ async function* zipEntries(paths: string[]) {
 export async function download(paths: string[], zipName: string): Promise<void> {
 	if (paths.length === 1) {
 		const entry = await stat(paths[0]);
-		if (entry?.kind === 'file') return save(await read(paths[0]), entry.name);
+		if (entry?.kind === 'file') return downloadBlob(await read(paths[0]), entry.name);
 	}
 	const name = `${zipName}.zip`;
 	const zip = downloadZip(zipEntries(paths));
@@ -118,7 +109,7 @@ export async function download(paths: string[], zipName: string): Promise<void> 
 		await zip.body!.pipeTo(await target.createWritable());
 		return;
 	}
-	save(await zip.blob(), name);
+	downloadBlob(await zip.blob(), name);
 }
 
 /** Name of the ZIP for a selection: the single entry's name, otherwise the folder's */

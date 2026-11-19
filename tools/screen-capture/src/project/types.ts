@@ -1,5 +1,5 @@
-import { m } from '#lib/i18n/index.js';
 import type { IconData } from '@in-browser/graphics/icons/types.js';
+import { FormatError, migrateFormat, type RawDocument } from '@in-browser/files/formats.js';
 
 export type { IconData };
 
@@ -386,33 +386,20 @@ export function newId(): string {
 	return crypto.randomUUID().slice(0, 8);
 }
 
-type Raw = Record<string, unknown> & { version: number };
-
 /** Steps from each older format version to the next; every change of the format adds one (with a test). */
-const MIGRATIONS: Record<number, (p: Raw) => Raw> = {
+const MIGRATIONS: Record<number, (p: RawDocument) => RawDocument> = {
 	// Version 2: projects became packages in the shared file system; `format` names the tool
 	1: (p) => ({ ...p, format: FORMAT, version: 2 })
 };
 
-/** Brings a saved project to the current format version; newer or unknown formats are rejected. */
-export function migrate(raw: unknown): Raw {
-	let p = raw as Raw;
-	if (!p || typeof p !== 'object' || typeof p.version !== 'number') throw new Error(m.errors.unknownFormat);
-	if (p.version > VERSION) throw new Error(m.errors.newerVersion);
-	while (p.version < VERSION) {
-		const step = MIGRATIONS[p.version];
-		if (!step) throw new Error(m.errors.unknownFormat);
-		p = step(p);
-	}
-	if (p.format !== FORMAT) throw new Error(m.errors.unknownFormat);
-	return p;
-}
+/** Brings a saved project to the current format version; newer or unknown formats are rejected (`FormatError`). */
+export const migrate = (raw: unknown) => migrateFormat(raw, FORMAT, VERSION, MIGRATIONS);
 
 /** Validates a saved project (after `migrate`) and fills in fields added later. */
 export function parseProject(raw: unknown): Project {
 	const p = migrate(raw) as unknown as Project;
 	if (!Array.isArray(p.sources) || !p.timeline || !Array.isArray(p.timeline.items)) {
-		throw new Error(m.errors.unknownFormat);
+		throw new FormatError('unknown');
 	}
 	// Fill in fields added later (idempotent)
 	return {

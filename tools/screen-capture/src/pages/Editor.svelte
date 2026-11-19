@@ -4,10 +4,11 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { BRAND, editorUrl } from '#lib/brand.js';
+	import { editorUrl } from '#lib/brand.js';
+	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
 	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
-	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
+	import { saveStateOf, setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import OverlayEditor from '#lib/components/OverlayEditor.svelte';
@@ -22,27 +23,26 @@
 	import { createIcon, createImage, createOverlay, createZoom, defaultDuration, FREEZE_ICON } from '#lib/project/defaults.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
-	import type { Annotation, IconData, Point, Timeline as TimelineData, ToolKind } from '#lib/project/types.js';
+	import type { Annotation, IconData, ToolKind } from '#lib/project/types.js';
+	import { zoomRectAt } from '#lib/project/geometry.js';
 	import { setImageProject } from '#lib/render/images.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
-	import { hasDragPayload, readDragPayload, type DragPayload } from '#lib/tools/drag.js';
 	import type { DropPlace, ToolActions } from '#lib/tools/types.js';
 	import {
 		chooseMediaFromFiles,
 		cleanupMedia,
-		libraryMediaFile,
 		loadProject,
-		mediaFile,
 		PROJECT_EXT,
 		projectFileDate,
 		projectName,
 		rememberProject,
+		renameProject,
 		saveProject
 	} from '#lib/storage/store.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 	import { copy, exists, FilesError, remove as removePath, watch } from '@in-browser/files/fs.js';
-	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 	import { basename, join, normalize, parent } from '@in-browser/files/path.js';
 	import {
@@ -65,24 +65,24 @@
 		sendBackward,
 		trackState,
 		sendToBack,
-		split,
-		viewAt
+		split
 	} from '#lib/timeline/ops.js';
 	import { toolState } from '#lib/tools/state.svelte.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { clipboard } from '#lib/project/clipboard.svelte.js';
-	import { prepareMedia, type ItemsWithMedia } from '#lib/project/transfer.js';
-	import { globalLibrary } from '#lib/project/library.svelte.js';
-	import { mediaOf } from '#lib/project/library.js';
-	import { libraryUi, saveSelection, type LibraryScope } from '#lib/ui/library.svelte.js';
+	import { saveSelection } from '#lib/ui/library.svelte.js';
+	import { insertLibrary, pasteClipboard, saveToLibrary, sourcesAdded, transferLibrary } from '#lib/ui/library-actions.js';
+	import { editorShortcut, type Arrange } from '#lib/ui/shortcuts.js';
+	import { dragOver, drop } from '#lib/ui/drop.js';
 	import LibrarySaveDialog from '#lib/components/LibrarySaveDialog.svelte';
 	import DragGhost from '#lib/components/DragGhost.svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
-
-	const FRAME = 1 / 30;
+	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
+	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
+	import { flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
 
 	let editor = $state<Editor | null>(null);
 	let player = $state<Player | null>(null);
@@ -100,20 +100,13 @@
 	/** Dragging the splitter above the timeline changes its height; stored at the end */
 	function resizeTimeline(e: PointerEvent) {
 		if (e.button !== 0) return;
-		const el = e.currentTarget as HTMLElement;
-		el.setPointerCapture(e.pointerId);
 		const y0 = e.clientY;
 		const h0 = shownTimelineHeight;
-		const onmove = (ev: PointerEvent) => (timelineHeight = clampTimelineHeight(h0 - (ev.clientY - y0), innerHeight.current ?? 900));
-		const onup = () => {
-			el.removeEventListener('pointermove', onmove);
-			el.removeEventListener('pointerup', onup);
-			el.removeEventListener('pointercancel', onup);
-			storeTimelineHeight(timelineHeight);
-		};
-		el.addEventListener('pointermove', onmove);
-		el.addEventListener('pointerup', onup);
-		el.addEventListener('pointercancel', onup);
+		pointerDrag(
+			e,
+			(ev) => (timelineHeight = clampTimelineHeight(h0 - (ev.clientY - y0), innerHeight.current ?? 900)),
+			() => storeTimelineHeight(timelineHeight)
+		);
 	}
 
 	function setTimelineHeight(px: number) {
@@ -125,15 +118,8 @@
 	/** A tile or media entry is dragged over the preview (highlighted as drop target) */
 	let overPreview = $state(false);
 
-	/** Holds the project's lock until the returned function is called; `null` if another tab holds it */
-	function lockProject(path: string): Promise<(() => void) | null> {
-		return new Promise((resolve) => {
-			navigator.locks.request(`screen-capture:project:${path}`, { ifAvailable: true }, (lock) => {
-				if (!lock) return resolve(null);
-				return new Promise<void>((release) => resolve(release));
-			});
-		});
-	}
+	/** One tab at a time edits a project */
+	const lockProject = (path: string) => lockDocument(`screen-capture:project:${path}`);
 
 	// The project of the address (`?path=` of its package): one tab at a time edits it (Web Lock); changes from
 	// elsewhere (sync from another computer) reload it unless there are unsaved changes.
@@ -205,14 +191,13 @@
 			}
 		})();
 
-		// Closing the tab: save what is still waiting (the 400 ms of the autosave)
-		const flush = () => {
-			if (ed?.dirty) ed.save();
-		};
-		window.addEventListener('pagehide', flush);
+		// Leaving or hiding the page: save what is still waiting (the 400 ms of the autosave)
+		const stopFlush = flushWhenHidden(() => {
+			if (ed?.dirty) void ed.save();
+		});
 		return () => {
 			disposed = true;
-			window.removeEventListener('pagehide', flush);
+			stopFlush();
 			stopWatch?.();
 			const last = ed;
 			close();
@@ -231,15 +216,7 @@
 	$effect(() =>
 		setBrandFooter({
 			status: footerStatus,
-			save: !editor
-				? null
-				: editor.saving
-					? { state: 'saving', text: m.common.saving }
-					: editor.saveError
-						? { state: 'error', text: editor.saveError }
-						: editor.dirty
-							? { state: 'unsaved', text: m.common.notSaved }
-							: { state: 'saved', text: m.common.saved }
+			save: editor ? saveStateOf(editor) : null
 		})
 	);
 
@@ -252,7 +229,7 @@
 			crumbs: [
 				{
 					label: ed.project.name,
-					rename: (name) => ed.rename(name),
+					rename: (name) => void rename(ed, name),
 					menu: [
 						{ label: m.editor.rename, icon: 'icon-[material-symbols-light--edit-outline]', run: startRename },
 						{ label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', run: saveAs },
@@ -325,20 +302,16 @@
 		placeAnnotation(applyStyle(createOverlay(kind, start, start + defaultDuration(kind), nextStepNumber(editor.project.timeline)), loadStyle(kind)), at);
 	}
 
-	/** Own image from the media bin */
-	function addImage(imageId: string, at: DropPlace = {}) {
-		const image = editor?.image(imageId);
-		if (!editor || !player || !image) return;
-		const start = at.start ?? player.time;
-		const { width, height } = editor.project;
-		placeAnnotation(applyStyle(createImage(image, start, start + 3, width, height), loadStyle('image')), at);
-	}
-
-	function addIcon(icon: IconData, at: DropPlace = {}) {
+	/** Own image from the media bin (`image`: its id) or an icon, 3 s long */
+	function addPicture(picture: { image: string } | { icon: IconData }, at: DropPlace = {}) {
 		if (!editor || !player) return;
 		const start = at.start ?? player.time;
 		const { width, height } = editor.project;
-		placeAnnotation(applyStyle(createIcon(icon, start, start + 3, width, height), loadStyle('icon')), at);
+		if ('icon' in picture) {
+			return placeAnnotation(applyStyle(createIcon(picture.icon, start, start + 3, width, height), loadStyle('icon')), at);
+		}
+		const image = editor.image(picture.image);
+		if (image) placeAnnotation(applyStyle(createImage(image, start, start + 3, width, height), loadStyle('image')), at);
 	}
 
 	/** Adds a new annotation, centered on the drop point if there is one, and selects it */
@@ -372,12 +345,8 @@
 		const range = newZoomRange(4, at.start);
 		if (!editor || !player || !range) return;
 		const segment = createZoom(range.start, range.end);
-		if (at.point) {
-			// Centered on the drop point, within the frame
-			const { w, h } = segment.rect;
-			const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
-			segment.rect = { w, h, x: clamp(at.point.x - w / 2, 1 - w), y: clamp(at.point.y - h / 2, 1 - h) };
-		}
+		// Centered on the drop point, within the frame
+		if (at.point) segment.rect = zoomRectAt(at.point.x, at.point.y, segment.rect.w);
 		editor.update((t) => addZoom(t, segment));
 		if (editor.project.timeline.zoom.some((z) => z.id === segment.id)) editor.select('zoom', segment.id);
 		else toast(m.editor.zoomExists, 'warning');
@@ -403,97 +372,9 @@
 		removeSelected();
 	}
 
-	/**
-	 * Inserts copied items at `at`; media they lack is copied into the project first (`read` opens it where it is,
-	 * `null`: already in this project's folder)
-	 */
-	async function insertWithMedia(data: ItemsWithMedia, at: number, read: ((file: string) => Promise<File>) | null) {
-		if (!editor || !data.items.length) return;
-		const ed = editor;
-		try {
-			const { items, sources, images, skipped } = await prepareMedia(data, ed.project, read, () =>
-				toast(m.editor.copyingMedia)
-			);
-			if (items.length) ed.paste(items, at, sources, images);
-			if (sources.length) await sourcesAdded();
-			if (skipped) toast(m.editor.pasteSkipped(skipped), 'warning', 6000);
-		} catch (e) {
-			console.error(e);
-			toast(errorMessage(e), 'error', 8000);
-		}
-	}
-
-	/** Pastes at the playhead; media from another project is copied into this one first */
 	function paste() {
-		const data = clipboard.data;
-		if (!editor || !player || !data) return;
-		const from = data.projectId;
-		insertWithMedia(data, player.time, from === editor.project.id ? null : (file) => mediaFile(from, file));
+		if (editor && player) pasteClipboard(editor, player);
 	}
-
-	function libraryEntry(scope: LibraryScope, id: string) {
-		return (scope === 'project' ? editor?.project.library : globalLibrary.entries)?.find((e) => e.id === id);
-	}
-
-	/** Library entry at the playhead or the dropped time (it keeps its place in the picture) */
-	async function insertLibrary(scope: LibraryScope, id: string, at?: DropPlace) {
-		const entry = libraryEntry(scope, id);
-		if (!editor || !player || !entry) return;
-		const start = at?.start ?? player.time;
-		await insertWithMedia(entry, start, scope === 'project' ? null : libraryMediaFile);
-		if (at?.start !== undefined) player.seek(at.start);
-	}
-
-	/** Adds items to a library: in the project, or globally with copies of their media */
-	async function addToLibrary(name: string, scope: LibraryScope, items: TimelineData['items']) {
-		if (!editor) return;
-		if (scope === 'project') editor.addToLibrary(name, items);
-		else await globalLibrary.add(name, { items, ...mediaOf(items, editor.project.sources, editor.project.images) }, editor.project.id);
-	}
-
-	async function saveToLibrary(name: string, scope: LibraryScope, items: TimelineData['items']) {
-		try {
-			await addToLibrary(name, scope, items);
-			libraryUi.scope = scope;
-			toolState.group = 'library';
-			toast(m.library.added(name), 'success');
-		} catch (e) {
-			console.error(e);
-			toast(errorMessage(e), 'error', 8000);
-		}
-	}
-
-	/** Copies or moves an entry into the other library; on errors it stays where it was */
-	async function transferLibrary(scope: LibraryScope, id: string, move: boolean) {
-		const entry = libraryEntry(scope, id);
-		if (!editor || !entry) return;
-		const ed = editor;
-		const target: LibraryScope = scope === 'project' ? 'global' : 'project';
-		try {
-			if (target === 'global') await addToLibrary(entry.name, 'global', entry.items);
-			else {
-				const { items, sources, images, skipped } = await prepareMedia(entry, ed.project, libraryMediaFile, () =>
-					toast(m.editor.copyingMedia)
-				);
-				// Not complete: keep the global entry
-				if (skipped) return toast(m.editor.pasteSkipped(skipped), 'warning', 6000);
-				ed.addMedia(sources, images);
-				if (sources.length) await sourcesAdded();
-				ed.addToLibrary(entry.name, items);
-			}
-			if (move) {
-				if (scope === 'project') ed.removeLibraryEntry(id);
-				else await globalLibrary.remove(id);
-			}
-			const where = target === 'project' ? m.library.project : m.library.global;
-			toast(move ? m.library.moved(entry.name, where) : m.library.copied(entry.name, where), 'success');
-		} catch (e) {
-			console.error(e);
-			toast(errorMessage(e), 'error', 8000);
-		}
-	}
-
-	type Arrange = (timeline: TimelineData, id: string) => TimelineData;
 
 	/** The selected item (on an unlocked track), if `op` would change its stacking order */
 	function arrangeable(op: Arrange) {
@@ -579,11 +460,15 @@
 
 	const actions: ToolActions = {
 		addAnnotation,
-		addImage,
-		addIcon,
+		addImage: (image, at) => addPicture({ image }, at),
+		addIcon: (icon, at) => addPicture({ icon }, at),
 		addZoom: addZoomSegment,
-		insertLibrary,
-		transferLibrary,
+		insertLibrary: (scope, id, at) => {
+			if (editor && player) insertLibrary(editor, player, scope, id, at);
+		},
+		transferLibrary: (scope, id, move) => {
+			if (editor && player) transferLibrary(editor, player, scope, id, move);
+		},
 		record: openRecordDialog,
 		importFromFiles: async () => {
 			if (importing || !editor) return;
@@ -600,17 +485,10 @@
 		}
 	};
 
-	/** After new sources: the preview loads their videos and redraws */
-	async function sourcesAdded() {
-		if (!player) return;
-		await player.syncSources();
-		player.refresh();
-	}
-
 	async function recorded(recording: Recording) {
 		dialog = null;
 		editor?.addRecording(recording);
-		await sourcesAdded();
+		if (player) await sourcesAdded(player);
 		toast(m.editor.recordingAdded, 'success');
 	}
 
@@ -636,11 +514,11 @@
 				if (isImageFile(file)) {
 					const image = await importImage(editor.project.id, file);
 					editor.addImage(image);
-					if (place) addImage(image.id, place);
+					if (place) addPicture({ image: image.id }, place);
 				} else {
 					const source = await importFile(editor.project.id, file, (p) => (importing!.progress = p));
 					editor.addSource(source);
-					await sourcesAdded();
+					if (player) await sourcesAdded(player);
 					if (place) insertSource(source.id, place);
 				}
 				added++;
@@ -655,6 +533,21 @@
 		} finally {
 			importing = null;
 			if (fileInput) fileInput.value = '';
+		}
+	}
+
+	/** Renames the project and its package (like a file in Files); the editor follows to the new path */
+	async function rename(ed: Editor, name: string) {
+		if (!name.trim() || name.trim() === ed.project.name) return;
+		try {
+			await ed.save();
+			// Not saved (the message said so): moving now would lose the latest changes
+			if (ed.saveError) return;
+			const target = await renameProject(ed.project, name);
+			if (target !== ed.project.id) await goto(editorUrl(target), { replace: true });
+		} catch (e) {
+			console.error('[screen-capture] rename', e);
+			toast(filesMessages().document.renameFailed(filesErrorText(e)), 'error', 8000);
 		}
 	}
 
@@ -704,134 +597,27 @@
 
 	function onKey(e: KeyboardEvent) {
 		if (!editor || !player || dialog) return;
-		const target = e.target as HTMLElement;
-		if (target.closest('input, select, textarea, [contenteditable]')) return;
-		const mod = e.ctrlKey || e.metaKey;
-		const key = e.key.toLowerCase();
-		if (mod && key === 'z') {
-			e.preventDefault();
-			if (e.shiftKey) editor.redo();
-			else editor.undo();
-		} else if (mod && key === 'y') {
-			e.preventDefault();
-			editor.redo();
-		} else if (mod && key === 'g') {
-			e.preventDefault();
-			if (e.shiftKey) editor.unlink();
-			else editor.link();
-		} else if ((key === 'c' || key === 'x') && mod && window.getSelection()?.toString()) {
-			// Selected text (e.g. in the help): the browser copies it
-			return;
-		} else if (mod && key === 'c') {
-			e.preventDefault();
-			copySelected();
-		} else if (mod && key === 'x') {
-			e.preventDefault();
-			cutSelected();
-		} else if (mod && key === 'v') {
-			e.preventDefault();
-			paste();
-		} else if (mod && key === 'a') {
-			e.preventDefault();
-			editor.selectItems(editor.project.timeline.items.map((item) => item.id));
-		} else if (mod && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && editor.selectedItem) {
-			// Track of the selected item (stacking order)
-			e.preventDefault();
-			const up = e.key === 'ArrowUp';
-			arrange(e.shiftKey ? (up ? bringToFront : sendToBack) : up ? bringForward : sendBackward);
-		} else if (mod) {
-			return;
-		} else if (e.key === ' ' || key === 'k') {
-			e.preventDefault();
-			player.toggle();
-		} else if (key === 's') {
-			splitAtPlayhead();
-		} else if (key === 'f') {
-			holdFrame();
-		} else if (e.key === 'Escape') {
-			// Ends crop mode first, the clip stays selected
-			if (editor.croppingClip) editor.endCrop();
-			else editor.selection = null;
-		} else if (e.key === 'Delete' || e.key === 'Backspace') {
-			removeSelected(e.shiftKey);
-		} else if (e.key === 'ArrowLeft') {
-			e.preventDefault();
-			player.seek(player.time - (e.shiftKey ? 1 : FRAME));
-		} else if (e.key === 'ArrowRight') {
-			e.preventDefault();
-			player.seek(player.time + (e.shiftKey ? 1 : FRAME));
-		} else if (e.key === 'Home') {
-			player.seek(0);
-		} else if (e.key === 'End') {
-			player.seek(player.duration);
-		}
-	}
-
-	/** Where a tile or media entry may be dropped */
-	function dropZone(e: DragEvent) {
-		const target = e.target as HTMLElement;
-		if (target.closest('[data-timeline]')) return 'timeline';
-		if (target.closest('[data-preview]')) return 'preview';
-		return null;
+		editorShortcut(e, editor, player, {
+			copy: () => copySelected(),
+			cut: cutSelected,
+			paste,
+			arrange,
+			split: splitAtPlayhead,
+			holdFrame,
+			remove: removeSelected
+		});
 	}
 
 	function onDragOver(e: DragEvent) {
-		if (hasDragPayload(e)) {
-			const zone = dropZone(e);
-			overPreview = zone === 'preview';
-			if (!zone) return;
-			e.preventDefault();
-			e.dataTransfer!.dropEffect = 'copy';
-			return;
-		}
-		if (!e.dataTransfer?.types.includes('Files')) return;
-		e.preventDefault();
-		draggingFiles = true;
-	}
-
-	/** Content coordinates under the mouse in the preview (also when zoomed in) */
-	function previewPoint(e: DragEvent): Point | undefined {
-		const el = (e.target as HTMLElement).closest<HTMLElement>('[data-preview]');
-		if (!el || !editor || !player) return undefined;
-		const rect = el.getBoundingClientRect();
-		const view = player.forcedView ?? viewAt(editor.project.timeline, player.time);
-		return {
-			x: view.x + ((e.clientX - rect.left) / rect.width) * view.w,
-			y: view.y + ((e.clientY - rect.top) / rect.height) * view.h
-		};
-	}
-
-	/** Tile or media entry dropped: on the timeline at the time under the mouse, in the preview at that spot */
-	function dropPayload(payload: DragPayload, e: DragEvent) {
-		const zone = dropZone(e);
-		if (!editor || !player || !zone) return;
-		const at: DropPlace =
-			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : { point: previewPoint(e) };
-		if (payload.type === 'annotation') addAnnotation(payload.kind, at);
-		else if (payload.type === 'zoom') addZoomSegment(at);
-		else if (payload.type === 'image') addImage(payload.id, at);
-		else if (payload.type === 'icon') addIcon(payload.icon, at);
-		else if (payload.type === 'library') insertLibrary(payload.scope, payload.id, at);
-		else insertSource(payload.id, at);
+		const over = dragOver(e);
+		if (over === 'files') draggingFiles = true;
+		else if (over) overPreview = over.payload === 'preview';
 	}
 
 	function onDrop(e: DragEvent) {
 		draggingFiles = false;
 		overPreview = false;
-		const payload = readDragPayload(e);
-		if (payload) {
-			e.preventDefault();
-			dropPayload(payload, e);
-			return;
-		}
-		if (!e.dataTransfer?.files.length) return;
-		e.preventDefault();
-		// Onto the timeline: inserted at the drop time; onto the preview: at the playhead (images at that spot);
-		// anywhere else only into the media bin
-		const zone = dropZone(e);
-		const place: DropPlace | undefined =
-			zone === 'timeline' && timeline ? { start: timeline.timeAtClient(e.clientX) } : zone === 'preview' ? { point: previewPoint(e) } : undefined;
-		importFiles(e.dataTransfer.files, place);
+		if (editor && player) drop(e, { editor, player, timeline, actions, insertSource, importFiles });
 	}
 </script>
 
@@ -854,7 +640,7 @@
 
 <!-- Also when a drag is cancelled (Esc) or ends outside the window -->
 <svelte:window onkeydown={onKey} ondragend={() => (overPreview = false)} />
-<svelte:head><title>{editor?.project.name ?? m.editor.title} · {BRAND.tool}</title></svelte:head>
+<svelte:head><title>{editor?.project.name ?? m.editor.title} · {toolName('screen-capture')}</title></svelte:head>
 
 {#if loadError}
 	<main class="mx-auto max-w-xl p-10">
@@ -1003,18 +789,11 @@
 			<Timeline bind:this={timeline} {editor} {player} {itemMenu} height={shownTimelineHeight} />
 		</section>
 
-		<LibrarySaveDialog onsave={saveToLibrary} />
+		<LibrarySaveDialog onsave={(name, scope, items) => editor && saveToLibrary(editor, name, scope, items)} />
 		<DragGhost {editor} />
 
 		{#if draggingFiles}
-			<div
-				class="border-selection bg-base-300/80 pointer-events-none absolute inset-2 z-40 grid place-items-center rounded-box border-4 border-dashed"
-			>
-				<div class="flex flex-col items-center gap-2 text-lg font-semibold">
-					<span class="icon-[material-symbols-light--upload-file] size-12" aria-hidden="true"></span>
-					{m.editor.dropToImport}
-				</div>
-			</div>
+			<DropOverlay label={m.editor.dropToImport} />
 		{/if}
 	</div>
 

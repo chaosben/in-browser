@@ -1,6 +1,6 @@
 // The preset colors of the color field: editable by dragging a color onto a place, shared by all color fields,
 // projects and tools (localStorage). New elements keep their own default colors.
-import { readStored } from './storage.js';
+import { readStored, writeStored } from '@in-browser/brand/storage.js';
 
 /** Default preset colors */
 export const COLORS: readonly string[] = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
@@ -35,19 +35,14 @@ export function validPalette(raw: unknown): string[] {
 
 export function loadPalette(): string[] {
 	try {
-		return validPalette(JSON.parse(readStored(STORAGE_KEY, LEGACY_KEY) ?? 'null'));
+		return validPalette(JSON.parse(readStored(STORAGE_KEY) ?? readStored(LEGACY_KEY) ?? 'null'));
 	} catch {
-		// localStorage not available or invalid JSON
+		// broken entry
 		return [...COLORS];
 	}
 }
 
 export function storePalette(palette: readonly string[]) {
-	try {
-		localStorage.removeItem(LEGACY_KEY);
-		if (isDefaultPalette(palette)) localStorage.removeItem(STORAGE_KEY);
-		else localStorage.setItem(STORAGE_KEY, JSON.stringify(palette));
-	} catch {
-		// ignore
-	}
+	writeStored(LEGACY_KEY, null);
+	writeStored(STORAGE_KEY, isDefaultPalette(palette) ? null : JSON.stringify(palette));
 }

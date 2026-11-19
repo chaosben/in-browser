@@ -4,7 +4,7 @@
 	import { list } from '@in-browser/files/fs.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename } from '@in-browser/files/path.js';
-	import { acceptsDrag, copyKey, droppedPaths } from '#lib/dnd.js';
+	import { acceptsDrag, dropOnFolder } from '#lib/dnd.js';
 	import { sortItems, toItem, type Item } from '#lib/items.js';
 	import { expanded, treeVersion } from '#lib/manager.svelte.js';
 	import FolderTree from './FolderTree.svelte';
@@ -71,9 +71,7 @@
 	function drop(e: DragEvent) {
 		e.preventDefault();
 		target = false;
-		const paths = droppedPaths(e);
-		if (paths) ondropitems(paths, path, copyKey(e));
-		else if (e.dataTransfer) ondropfiles(e.dataTransfer, path);
+		dropOnFolder(e, path, ondropitems, ondropfiles);
 	}
 </script>
 

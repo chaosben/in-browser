@@ -5,7 +5,7 @@
 	import { formatAgo } from './format.js';
 	import { filesMessages } from './i18n/index.svelte.js';
 	import { basename } from './path.js';
-	import type { DeviceView } from './p2p/device.js';
+	import type { DeviceView } from './p2p/view.js';
 	import { onP2pEvent, p2pStatus, syncDevicesNow } from './p2p/p2p.svelte.js';
 	import { selfStale } from './p2p/staleness.js';
 	import { syncNow, syncStatus } from './sync/sync.svelte.js';

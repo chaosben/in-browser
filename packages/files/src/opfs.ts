@@ -1,6 +1,7 @@
 import { changed } from './changes.js';
 import { FilesError, type Entry } from './entry.js';
 import { basename, nameKey, nameProblem, normalize, parent, segments } from './path.js';
+import { childHandle, isMissing, nativeMove } from './handles.js';
 
 // My files in the Origin Private File System (OPFS), as they really are on this device: no routing to connected
 // folders or other devices (that is fs.ts). Used by the syncs, the trash cleanup and to answer live requests of other
@@ -22,9 +23,7 @@ async function rootDir() {
 export const rootHandle = rootDir;
 
 function notFound(e: unknown, path: string): never {
-	if (e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError')) {
-		throw new FilesError('notFound', path);
-	}
+	if (isMissing(e)) throw new FilesError('notFound', path);
 	throw e;
 }
 
@@ -63,14 +62,7 @@ async function anyHandle(path: string): Promise<FileSystemHandle | null> {
 		if (e instanceof FilesError) return null;
 		throw e;
 	}
-	for (const get of [() => dir.getFileHandle(name), () => dir.getDirectoryHandle(name)]) {
-		try {
-			return await get();
-		} catch (e) {
-			if (!(e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError'))) throw e;
-		}
-	}
-	return null;
+	return childHandle(dir, name);
 }
 
 /** Before creating `name` in `dir`: valid name, no other entry that only differs in case (would clash on disk) */
@@ -113,10 +105,6 @@ export async function exists(path: string): Promise<boolean> {
 
 export async function read(path: string): Promise<File> {
 	return (await fileHandle(normalize(path))).getFile();
-}
-
-export async function readText(path: string): Promise<string> {
-	return (await read(path)).text();
 }
 
 // --- Writing ---
@@ -225,17 +213,7 @@ export async function move(from: string, to: string): Promise<void> {
 	await mkdir(parent(to));
 	if (!caseOnly) await checkNew(await dirHandle(parent(to)), to);
 	// Native move where the browser supports it (fast, also for large videos), otherwise copy and delete
-	const native = (source as FileSystemHandle & { move?: (dir: FileSystemDirectoryHandle, name: string) => Promise<void> }).move;
-	let moved = false;
-	if (native) {
-		try {
-			await native.call(source, await dirHandle(parent(to)), basename(to));
-			moved = true;
-		} catch (e) {
-			if (!(e instanceof DOMException) && !(e instanceof TypeError)) throw e;
-		}
-	}
-	if (!moved) {
+	if (!(await nativeMove(source, await dirHandle(parent(to)), basename(to)))) {
 		const target = caseOnly ? `${parent(to)}/.moving-${crypto.randomUUID()}` : to;
 		await moveHandle(source, target);
 		await remove(from);
@@ -250,16 +228,7 @@ export async function move(from: string, to: string): Promise<void> {
  */
 async function moveHandle(source: FileSystemHandle, to: string): Promise<void> {
 	if (source.kind === 'file') {
-		const native = (source as FileSystemHandle & { move?: (dir: FileSystemDirectoryHandle, name: string) => Promise<void> }).move;
-		if (native) {
-			try {
-				await native.call(source, await dirHandle(parent(to), true), basename(to));
-				return;
-			} catch (e) {
-				if (!(e instanceof DOMException) && !(e instanceof TypeError)) throw e;
-			}
-		}
-		await copyHandle(source, to);
+		if (!(await nativeMove(source, await dirHandle(parent(to), true), basename(to)))) await copyHandle(source, to);
 		return;
 	}
 	await mkdir(to);

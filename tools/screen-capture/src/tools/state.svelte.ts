@@ -1,13 +1,11 @@
+import { readStored, writeStored } from '@in-browser/brand/storage.js';
+
 const STORAGE_KEY = 'screen-capture:tool-panel';
 
+/** Open group; `''` stored means collapsed */
 function loadGroup(): string | null {
-	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		if (raw !== null) return raw || null;
-	} catch {
-		// localStorage not available
-	}
-	return 'media';
+	const raw = readStored(STORAGE_KEY);
+	return raw === null ? 'media' : raw || null;
 }
 
 /** State of the left tool rail: open group (persisted) and active tab per group */
@@ -21,11 +19,7 @@ class ToolState {
 
 	set group(id: string | null) {
 		this.#group = id;
-		try {
-			localStorage.setItem(STORAGE_KEY, id ?? '');
-		} catch {
-			// ignore
-		}
+		writeStored(STORAGE_KEY, id ?? '');
 	}
 
 	/** Click on the group icon: open it, or collapse it if already active */

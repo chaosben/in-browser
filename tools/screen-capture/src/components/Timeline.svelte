@@ -23,6 +23,7 @@
 	import { annotationLabel } from '#lib/project/labels.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { endLibraryDrag, saveSelection, trackLibraryDrag, type LibraryScope } from '#lib/ui/library.svelte.js';
+	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
 
 	interface Props {
 		editor: Editor;
@@ -132,8 +133,6 @@
 	) {
 		if (e.button !== 0) return;
 		e.stopPropagation();
-		const el = e.currentTarget as HTMLElement;
-		el.setPointerCapture(e.pointerId);
 		const x0 = e.clientX;
 		const y0 = e.clientY;
 		const scale = pxPerSec;
@@ -145,20 +144,14 @@
 			snapOn = snapping.active(ev);
 			handlers.onmove((ev.clientX - x0) / scale, ev);
 		};
-		const onup = () => {
-			el.removeEventListener('pointermove', onmove);
-			el.removeEventListener('pointerup', onup);
-			el.removeEventListener('pointercancel', onup);
+		pointerDrag(e, onmove, () => {
 			lockedTotal = null;
 			snapAt = null;
 			// onend still belongs to the gesture (same undo step), afterwards it is ended
 			if (moved) handlers.onend?.();
 			else handlers.onclick?.();
 			editor.endGesture();
-		};
-		el.addEventListener('pointermove', onmove);
-		el.addEventListener('pointerup', onup);
-		el.addEventListener('pointercancel', onup);
+		});
 	}
 
 	// Ruler/background: clicking or dragging sets the playhead
@@ -184,16 +177,8 @@
 	function scrub(e: PointerEvent, deselect = false) {
 		if (e.button !== 0) return;
 		if (deselect) editor.selection = null;
-		const el = e.currentTarget as HTMLElement;
-		el.setPointerCapture(e.pointerId);
 		player.seek(timeAt(e.clientX));
-		const onmove = (ev: PointerEvent) => player.seek(timeAt(ev.clientX));
-		const onup = () => {
-			el.removeEventListener('pointermove', onmove);
-			el.removeEventListener('pointerup', onup);
-		};
-		el.addEventListener('pointermove', onmove);
-		el.addEventListener('pointerup', onup);
+		pointerDrag(e, (ev) => player.seek(timeAt(ev.clientX)));
 	}
 
 	/** Snap points: start, playhead and the edges of all other items */
@@ -206,17 +191,8 @@
 	/** Snapping in the current drag step (switch, reversed with Alt) */
 	let snapOn = true;
 
-	/** Snaps a point in time (e.g. a dragged edge). */
-	function snapTime(exclude: string[], t: number) {
-		const range = snapOn ? SNAP_PX / pxPerSec : 0;
-		let best: { at: number; d: number } | null = null;
-		for (const p of snapPoints(exclude)) {
-			const d = Math.abs(p - t);
-			if (d < range && (!best || d < best.d)) best = { at: p, d };
-		}
-		snapAt = best?.at ?? null;
-		return best?.at ?? t;
-	}
+	/** Snaps a point in time (e.g. a dragged edge) */
+	const snapTime = (exclude: string[], t: number) => snap(exclude, t, 0);
 
 	/** Snaps `start` (or the end, given length `length`). */
 	function snap(exclude: string[], start: number, length: number) {
@@ -224,7 +200,7 @@
 		let best: { start: number; at: number; d: number } | null = null;
 		for (const p of snapPoints(exclude)) {
 			// Put start or end on the point
-			for (const s of [p, p - length]) {
+			for (const s of length ? [p, p - length] : [p]) {
 				const d = Math.abs(s - start);
 				if (d < range && (!best || d < best.d)) best = { start: s, at: p, d };
 			}

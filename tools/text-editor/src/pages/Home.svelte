@@ -8,14 +8,14 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
-	import { setBrandFooter, type SaveState } from '@in-browser/brand/brand-footer.svelte.js';
+	import { saveStateOf, setBrandFooter, type SaveState } from '@in-browser/brand/brand-footer.svelte.js';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
 	import { openMenuBelow, type MenuAction, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { supported, watch } from '@in-browser/files/fs.js';
 	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 	import { basename, normalize, parent } from '@in-browser/files/path.js';
-	import { BRAND } from '#lib/brand.js';
 	import Editor from '#lib/components/Editor.svelte';
 	import StatusBar from '#lib/components/StatusBar.svelte';
 	import TabBar from '#lib/components/TabBar.svelte';
@@ -26,7 +26,10 @@
 	import { viewsOf, type ViewId } from '#lib/views/registry.js';
 	import SplitView from '#lib/views/SplitView.svelte';
 	import type { ViewHost } from '#lib/views/types.js';
-	import { encodingName, FONT_SIZES, Workspace, type Layout, type Tab } from '#lib/workspace.svelte.js';
+	import type { Tab } from '#lib/tab.svelte.js';
+	import { encodingName, FONT_SIZES, Workspace, type Layout } from '#lib/workspace.svelte.js';
+	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
+	import { flushWhenHidden } from '@in-browser/files/documents.js';
 
 	const workspace = new Workspace();
 	const active = $derived(workspace.active);
@@ -103,16 +106,12 @@
 		if (!supported()) return;
 		const stop = watch((paths) => workspace.changed(paths));
 		// Pending saves and drafts go out before the page is hidden or closed
-		const flush = () => workspace.flush();
-		const hidden = () => document.visibilityState === 'hidden' && flush();
-		document.addEventListener('visibilitychange', hidden);
-		window.addEventListener('pagehide', flush);
+		const stopFlush = flushWhenHidden(() => workspace.flush());
 		workspace.restore().finally(() => (ready = true));
 		return () => {
 			stop();
-			document.removeEventListener('visibilitychange', hidden);
-			window.removeEventListener('pagehide', flush);
-			flush();
+			stopFlush();
+			workspace.flush();
 		};
 	});
 
@@ -239,10 +238,8 @@
 	/** Files with a place save themselves: how far that is; without a place only "not saved" (and "Save …") */
 	function saveOf(tab: Tab): SaveState | null {
 		if (tab.conflict === 'deleted') return { state: 'error', text: m.status.deleted };
-		if (!tab.path) return tab.dirty ? { state: 'unsaved', text: m.status.notSaved } : null;
-		if (tab.pending || tab.saving) return { state: 'saving', text: m.status.saving };
-		if (tab.saveError) return { state: 'error', text: tab.saveError };
-		return tab.dirty ? { state: 'unsaved', text: m.status.notSaved } : { state: 'saved', text: m.status.saved };
+		if (!tab.path) return tab.dirty ? { state: 'unsaved', text: brandMessages().save.notSaved } : null;
+		return saveStateOf({ saving: tab.pending || tab.saving, saveError: tab.saveError, dirty: tab.dirty });
 	}
 
 	// The active file with all its actions on the left of the BrandBar, the main ones as buttons right after it,
@@ -515,14 +512,7 @@
 			</div>
 		{/if}
 		{#if dropping}
-			<div
-				class="border-selection bg-base-300/80 rounded-box pointer-events-none absolute inset-2 z-10 grid place-items-center border-4 border-dashed"
-			>
-				<div class="flex flex-col items-center gap-2 text-lg font-semibold">
-					<span class="icon-[material-symbols-light--upload-file] size-12" aria-hidden="true"></span>
-					{m.drop.release}
-				</div>
-			</div>
+			<DropOverlay label={m.drop.release} />
 		{/if}
 	</div>
 {/if}

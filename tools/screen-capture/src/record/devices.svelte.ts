@@ -2,6 +2,7 @@
 // access once, so the dialog opens the device (preview, level meter) before the list is refreshed.
 
 import { CAMERA_FPS, cameraSize, type RecordSettings } from './settings.js';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
 /** What the constraints of a device depend on */
 export type DeviceSettings = Pick<RecordSettings, 'cameraResolution' | 'micProcessing'>;
@@ -33,14 +34,7 @@ export async function openDevice(kind: DeviceKind, deviceId: string | undefined,
 	}
 }
 
-function load(): Partial<Record<DeviceKind, string>> {
-	try {
-		return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-	} catch {
-		// localStorage not available
-		return {};
-	}
-}
+const load = () => loadJson<Partial<Record<DeviceKind, string>>>(STORAGE_KEY, {});
 
 /** Available devices and the chosen ones (persisted) */
 class Devices {
@@ -60,11 +54,7 @@ class Devices {
 
 	select(kind: DeviceKind, deviceId: string | undefined) {
 		this.selected[kind] = deviceId;
-		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(this.selected));
-		} catch {
-			// ignore
-		}
+		storeJson(STORAGE_KEY, this.selected);
 	}
 
 	/** Keeps the lists up to date while devices are plugged in or out */

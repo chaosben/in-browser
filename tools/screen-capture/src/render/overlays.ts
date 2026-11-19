@@ -5,7 +5,7 @@ import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
 import { iconPicture, imagePicture } from './images.svelte.js';
 import { drawClick } from './click.js';
-import { arrowHead, partialStrokes, strokesOf } from './sketch.js';
+import { arrowHead, arrowWings, partialStrokes, strokesOf } from './sketch.js';
 
 
 const LINE_HEIGHT = 1.25;
@@ -19,10 +19,11 @@ function blurCopy(ctx: Ctx2D, radius: number) {
 }
 
 function fillArrowHead(ctx: Ctx2D, x: number, y: number, angle: number, head: number) {
+	const [a, b] = arrowWings({ x, y }, angle, head);
 	ctx.beginPath();
 	ctx.moveTo(x, y);
-	ctx.lineTo(x - Math.cos(angle - 0.45) * head, y - Math.sin(angle - 0.45) * head);
-	ctx.lineTo(x - Math.cos(angle + 0.45) * head, y - Math.sin(angle + 0.45) * head);
+	ctx.lineTo(a.x, a.y);
+	ctx.lineTo(b.x, b.y);
 	ctx.closePath();
 	ctx.fill();
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { folderTree, readText, writeText } from '../p2p/testing.js';
-import { runSync, treeSide, type SyncOptions } from './apply.js';
+import { runSync, type SyncOptions } from './apply.js';
+import { treeSide } from './tree-ops.js';
 import type { Base } from './plan.js';
 import type { Tree } from './tree.js';
 

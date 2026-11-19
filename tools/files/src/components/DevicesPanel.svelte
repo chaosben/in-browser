@@ -3,7 +3,7 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { formatAgo } from '@in-browser/files/format.js';
 	import { list, remove } from '@in-browser/files/fs.js';
-	import type { DeviceView } from '@in-browser/files/p2p/device.js';
+	import type { DeviceView } from '@in-browser/files/p2p/view.js';
 	import {
 		applyDeviceDeletes,
 		forgetGroup,

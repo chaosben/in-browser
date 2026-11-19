@@ -1,15 +1,17 @@
 import { startConnections } from '../sources/connections.svelte.js';
 import { watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
+import { diskFoldersSupported } from '../handles.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
-import { runSync, treeSide } from './apply.js';
+import { runSync } from './apply.js';
+import { treeSide } from './tree-ops.js';
 import { handleTree } from './handle-tree.js';
 import { opfsTree } from './opfs-tree.js';
 import type { Base, BaseEntry, Op } from './plan.js';
 import { cleanTrash } from '../trash.js';
 import { journal } from './journal.svelte.js';
 import type { LogFn } from './log.js';
-import { p2pStatus, startP2p } from '../p2p/p2p.svelte.js';
+import { excludedNow, startP2p } from '../p2p/p2p.svelte.js';
 import { intersect } from '../p2p/scope.js';
 
 // Sync of the shared file system with a folder on disk (File System Access API, Chromium only).
@@ -51,9 +53,8 @@ export const syncStatus = $state<SyncStatus>({
 /** This tab runs the sync (otherwise another tab does) */
 export const syncLeader = $state({ current: false });
 
-export function syncSupported() {
-	return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
-}
+/** A folder on disk can be synced */
+export const syncSupported = diskFoldersSupported;
 
 const HANDLE = 'handle';
 const BASE = 'base';
@@ -115,7 +116,7 @@ function startTrashCleaning() {
 // --- Requests from the UI (any tab) ---
 
 /** Lets the user pick the folder and starts syncing with it (needs a click). */
-export async function connectFolder(): Promise<void> {
+export async function chooseSyncFolder(): Promise<void> {
 	const folder = await window.showDirectoryPicker({ id: 'in-browser-files', mode: 'readwrite' });
 	const previous = await idbGet<FileSystemDirectoryHandle>(HANDLE);
 	// Another folder: start from scratch (first run merges both sides, the newer version wins)
@@ -145,8 +146,11 @@ export function restoreDeleted() {
 	send('restoreDeleted');
 }
 
+/** The synced folder, if one is chosen */
+export const syncedFolder = () => idbGet<FileSystemDirectoryHandle>(HANDLE);
+
 /** Stops syncing; deletes nothing. */
-export async function disconnect(): Promise<void> {
+export async function stopFolderSync(): Promise<void> {
 	await idbDelete(HANDLE);
 	await idbDelete(BASE);
 	Object.assign(syncStatus, { folder: null, state: 'off', lastSync: null, failed: 0, pendingDeletes: 0 });
@@ -221,7 +225,7 @@ async function run(): Promise<void> {
 		observe(folder);
 		const disk = handleTree(folder);
 		// Folders this device doesn't sync with the other devices aren't here: the folder on disk keeps them as they are
-		const excluded = p2pStatus.view.state === 'online' ? p2pStatus.view.scope : [];
+		const excluded = excludedNow();
 		const base: Base = intersect(new Map((await idbGet<[string, BaseEntry][]>(BASE)) ?? []), excluded, []);
 		const local = intersect(await opfsTree.scan(), excluded, []);
 		const remote = intersect(await disk.scan(), excluded, []);

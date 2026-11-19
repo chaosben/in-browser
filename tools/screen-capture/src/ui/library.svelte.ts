@@ -1,5 +1,6 @@
 // Editor-wide state around the library: the pending "save to library" request (dialog), the remembered choice of
 // library and the library section under a dragged element.
+import { readStored, writeStored } from '@in-browser/brand/storage.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
 import { itemLabel } from '#lib/project/labels.js';
 import { toolState } from '#lib/tools/state.svelte.js';
@@ -9,15 +10,6 @@ import type { Item } from '#lib/project/types.js';
 export type LibraryScope = 'project' | 'global';
 
 const SCOPE_KEY = 'screen-capture:library-scope';
-
-function loadScope(): LibraryScope {
-	try {
-		return localStorage.getItem(SCOPE_KEY) === 'global' ? 'global' : 'project';
-	} catch {
-		// localStorage not available
-		return 'project';
-	}
-}
 
 class LibraryUi {
 	/** Items waiting to be saved: the dialog asks for name and library */
@@ -36,7 +28,7 @@ class LibraryUi {
 	get dragging() {
 		return !!this.ghost;
 	}
-	#scope = loadScope();
+	#scope: LibraryScope = readStored(SCOPE_KEY) === 'global' ? 'global' : 'project';
 
 	get scope() {
 		return this.#scope;
@@ -44,11 +36,7 @@ class LibraryUi {
 
 	set scope(scope: LibraryScope) {
 		this.#scope = scope;
-		try {
-			localStorage.setItem(SCOPE_KEY, scope);
-		} catch {
-			// ignore
-		}
+		writeStored(SCOPE_KEY, scope);
 	}
 
 	/** Opens the save dialog; `scope` preselects a library (dropped onto it), else the last choice */

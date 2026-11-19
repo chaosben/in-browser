@@ -1,4 +1,5 @@
-import { GONE, runSync, treeSide, type Other, type Outcome, type SyncResult } from '../sync/apply.js';
+import { runSync, type SyncResult } from '../sync/apply.js';
+import { GONE, treeSide, type Other, type Outcome } from '../sync/tree-ops.js';
 import type { LogFn } from '../sync/log.js';
 import type { Base, FileState, Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
@@ -7,7 +8,7 @@ import type { Json, Rpc } from './rpc.js';
 import { intersect } from './scope.js';
 
 export type { Tree } from '../sync/tree.js';
-export { conflictPath, hashFile } from '../sync/apply.js';
+export { conflictPath, hashFile } from '../sync/tree-ops.js';
 
 // Sync of two devices: the one with the smaller ID drives (plans and applies, `sync/apply.ts`), the other one only
 // answers requests (`serve`) – in the role of the “disk” side of the plan. Only paths both devices take part in are

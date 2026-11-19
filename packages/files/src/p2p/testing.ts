@@ -1,6 +1,6 @@
 import { handleTree } from '../sync/handle-tree.js';
 import type { Tree } from '../sync/tree.js';
-import { channelLink, type Link } from './link.js';
+import { connectionFingerprints, connectionStats, type Link } from './link.js';
 
 // Helpers for the browser specs (never imported by the app): a Tree over its own OPFS folder per simulated device
 // (the same kind of tree as a folder on disk, with its trash inside),
@@ -86,4 +86,37 @@ export async function until(check: () => boolean | Promise<boolean>, timeout = 8
 		if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`);
 		await new Promise((r) => setTimeout(r, 25));
 	}
+}
+
+/** Link over one RTCDataChannel (browser specs; frames must stay below the channel's message size limit) */
+export function channelLink(channel: RTCDataChannel, connection: RTCPeerConnection): Link {
+	channel.binaryType = 'arraybuffer';
+	channel.bufferedAmountLowThreshold = 1 << 20;
+	const frameHandlers = new Set<(frame: Uint8Array<ArrayBuffer>) => void>();
+	const closeHandlers = new Set<() => void>();
+	channel.addEventListener('message', (e) => {
+		const frame = new Uint8Array(e.data as ArrayBuffer);
+		for (const handler of frameHandlers) handler(frame);
+	});
+	channel.addEventListener('close', () => closeHandlers.forEach((handler) => handler()));
+	return {
+		async send(frame) {
+			if (channel.readyState !== 'open') throw new Error('Link closed');
+			channel.send(frame);
+			if (channel.bufferedAmount > 4 << 20) {
+				await new Promise<void>((resolve) => channel.addEventListener('bufferedamountlow', () => resolve(), { once: true }));
+			}
+		},
+		onFrame(handler) {
+			frameHandlers.add(handler);
+			return () => frameHandlers.delete(handler);
+		},
+		onClose(handler) {
+			closeHandlers.add(handler);
+			return () => closeHandlers.delete(handler);
+		},
+		close: () => channel.close(),
+		fingerprints: () => connectionFingerprints(connection),
+		stats: () => connectionStats(connection)
+	};
 }

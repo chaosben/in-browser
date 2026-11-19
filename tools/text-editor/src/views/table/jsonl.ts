@@ -1,5 +1,6 @@
 import type { ChangeSpec } from '@codemirror/state';
-import { encodeValue, insertRaw, jsonFormat, parseJson, removeEntry } from '../tree/json.js';
+import { insertRaw, removeEntry } from '../tree/edit.js';
+import { encodeValue, jsonFormat, parseJson } from '../tree/json.js';
 import { guessKind, swap, type TreeNode } from '../tree/model.js';
 import { removeLine, rewriteRows, sortedRows, type Cell, type Row, type TableFormat, type TableParse } from './model.js';
 

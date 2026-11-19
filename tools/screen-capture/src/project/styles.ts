@@ -2,6 +2,7 @@
 // of that type. Position, content and step number are not part of it. Stored in localStorage for all projects.
 
 import type { Annotation, AnnotationKind } from './types.js';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
 const STORAGE_KEY = 'screen-capture:annotation-styles';
 
@@ -59,21 +60,13 @@ export function applyStyle<T extends Annotation>(annotation: T, style: Style | u
 }
 
 function load(): Styles {
-	try {
-		const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-		return raw && typeof raw === 'object' ? raw : {};
-	} catch {
-		// localStorage not available or invalid JSON
-		return {};
-	}
+	const raw = loadJson<unknown>(STORAGE_KEY, {});
+	return raw && typeof raw === 'object' ? (raw as Styles) : {};
 }
 
 function store(kind: AnnotationKind, style: Style) {
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...load(), [kind]: { ...load()[kind], ...style } }));
-	} catch {
-		// ignore
-	}
+	const styles = load();
+	storeJson(STORAGE_KEY, { ...styles, [kind]: { ...styles[kind], ...style } });
 }
 
 export function loadStyle(kind: AnnotationKind): Style | undefined {

@@ -29,6 +29,9 @@ export interface Manifest {
 	starter: ReleaseFile & { version: number; min: number };
 }
 
+// Self-contained on purpose: `scripts/build.ts` and the starter load this module under plain Node, which can't
+// resolve the workspace's TypeScript imports (the same helpers live in `@in-browser/files/p2p/bytes.ts`).
+
 export function fromBase64Url(text: string): Uint8Array<ArrayBuffer> {
 	const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
 	return Uint8Array.from(binary, (c) => c.charCodeAt(0));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import de from './de';
 import en from './en';
+import { messageKeys } from './keys';
 import { detectLocale } from './index.svelte';
 
 describe('detectLocale', () => {
@@ -16,14 +17,8 @@ describe('detectLocale', () => {
 });
 
 describe('brand component texts', () => {
-	type Tree = { [key: string]: unknown };
-	const keys = (tree: Tree, prefix = ''): string[] =>
-		Object.entries(tree).flatMap(([k, v]) =>
-			v && typeof v === 'object' ? keys(v as Tree, `${prefix}${k}.`) : [`${prefix}${k}:${typeof v}`]
-		);
-
 	it('have the same keys and types in both languages', () => {
-		expect(keys(de as unknown as Tree)).toEqual(keys(en as unknown as Tree));
+		expect(messageKeys(de)).toEqual(messageKeys(en));
 	});
 	it('insert names', () => {
 		expect(de.brand.toolHome('Screen Capture')).toBe('Zur Startseite von Screen Capture');

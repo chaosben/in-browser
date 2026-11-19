@@ -3,45 +3,22 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
-	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
+	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
 	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
-	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { openContextMenu, openMenuBelow } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-	import { FilesError, stat, supported, watch } from '@in-browser/files/fs.js';
+	import { FilesError, stat, supported, watch, watchSettled } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, isConnected, isInside, join, normalize, parent, placeRoot, segments } from '@in-browser/files/path.js';
-	import {
-		allowAccess,
-		connectFolder,
-		connectionLabel,
-		connections,
-		openShare,
-		connectionsSupported,
-		disconnect,
-		renameConnection,
-		type ConnectionView
-	} from '@in-browser/files/sources/connections.svelte.js';
+	import { allowAccess, connectionLabel, connections, openShare, disconnect, renameConnection } from '@in-browser/files/sources/connections.svelte.js';
 	import { displayName } from '@in-browser/files/sources/registry.js';
 	import { parseInviteCode, parseShareCode } from '@in-browser/files/p2p/auth.js';
-	import { endShare, holdersOf, includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
-	import type { ShareView } from '@in-browser/files/p2p/device.js';
-	import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
-	import {
-		duplicate,
-		newFolder,
-		newTextFile,
-		paste,
-		removeItems,
-		rename,
-		toClipboard,
-		toolUrl,
-		transfer
-	} from '#lib/actions.js';
-	import { BRAND } from '#lib/brand.js';
+	import { excludedNow, holdersOf, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
+	import { inScope } from '@in-browser/files/p2p/scope.js';
+	import { newFolder, paste, removeItems, rename, toClipboard, toolUrl, transfer } from '#lib/actions.js';
 	import ConnectedSection from '#lib/components/ConnectedSection.svelte';
 	import SharesSection from '#lib/components/SharesSection.svelte';
 	import ShareDialog from '#lib/components/ShareDialog.svelte';
@@ -62,9 +39,12 @@
 	import { closeDevicesDialog, devicesUi, openDevicesDialog } from '#lib/devices.svelte.js';
 	import { acceptsDrag, DRAG_TYPE } from '#lib/dnd.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
+	import { areaEntries, connectionEntries, itemEntries, openFolderEntries, shareEntries, uploadEntries, type MenuContext } from '#lib/menus.js';
 	import { toItem, type Item } from '#lib/items.js';
-	import { clipboard, Manager, treeVersion } from '#lib/manager.svelte.js';
+	import { Manager, treeVersion } from '#lib/manager.svelte.js';
 	import { download, fromDrop, fromInput, upload, zipName, type Upload } from '#lib/transfer.js';
+	import { inTextField } from '@in-browser/brand/ui/typing.js';
+	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 
 	const manager = new Manager();
 	const t = $derived(filesMessages());
@@ -83,19 +63,25 @@
 	/** Small screens: the search is a button until it is opened (or has a query) */
 	let searchOpen = $state(false);
 
-	/** Uploading whole folders needs `webkitdirectory` (missing on iOS) */
-	const folderUpload = 'webkitdirectory' in HTMLInputElement.prototype;
-	const uploadEntries = (locked = false): MenuEntry[] => [
-		{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', disabled: locked, run: () => fileInput?.click() },
-		...(folderUpload
-			? [{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', disabled: locked, run: () => folderInput?.click() }]
-			: [])
-	];
+	/** What the menus (`menus.ts`) do on this page */
+	const menus: MenuContext = {
+		manager,
+		navigate,
+		open,
+		preview: (item) => (preview = item),
+		properties: (item) => (properties = item),
+		share: (path, id) => (sharing = { path, id }),
+		shareNew,
+		shareable,
+		readOnlyAt,
+		download: downloadItems,
+		moveTo,
+		chooseFiles: () => fileInput?.click(),
+		chooseFolder: () => folderInput?.click()
+	};
 
 	/** The open folder lies in a folder this device doesn't sync: it comes live from the other devices */
-	const remoteFolder = $derived(
-		p2pStatus.view.state === 'online' ? (p2pStatus.view.scope.find((folder) => isInside(manager.folder, folder)) ?? null) : null
-	);
+	const remoteFolder = $derived(excludedNow().find((folder) => isInside(manager.folder, folder)) ?? null);
 	/** Devices that have it (when none answers) */
 	let holders = $state<string[]>([]);
 	$effect(() => {
@@ -142,42 +128,7 @@
 	$effect(() => setBrandFooter({ status: footerStatus }));
 
 	$effect(() => {
-		const folder = current;
-		const canPaste = !!clipboard.current;
-		const locked = readOnlyPlace;
-		const menu: MenuEntry[] = [
-			{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', disabled: locked, run: () => newFolder(manager) },
-			{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', disabled: locked, run: () => newTextFile(manager) },
-			...uploadEntries(locked),
-			{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', disabled: locked || !canPaste, run: () => paste(manager) },
-			{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() },
-			{ separator: true },
-			// The view switch on the right is hidden on small screens
-			manager.view === 'list'
-				? { label: m.toolbar.grid, icon: 'icon-[material-symbols-light--grid-view-outline]', run: () => manager.setView('grid') }
-				: { label: m.toolbar.list, icon: 'icon-[material-symbols-light--view-list-outline]', run: () => manager.setView('list') },
-			{ separator: true },
-			{ label: m.menu.downloadZip, icon: 'icon-[material-symbols-light--folder-zip-outline]', run: () => downloadItems([folder]) },
-			{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', run: () => (properties = folder) },
-			...(shareable(folder.path) ? [{ label: m.share.action, icon: 'icon-[material-symbols-light--share-outline]', run: () => (sharing = { path: folder.path }) }] : []),
-			...(connection && folder.path === connection.path ? [{ separator: true } as MenuEntry, ...connectionEntries(connection)] : []),
-			{ separator: true },
-			// Also in the sidebar, which is hidden on small screens
-			{ label: m.trash.title, icon: 'icon-[material-symbols-light--delete-outline]', run: () => openDevicesDialog('trash') },
-			...connections.list.map((c) => ({ label: connectionLabel(c), icon: 'icon-[material-symbols-light--link]', run: () => navigate(c.path) })),
-			...(connectionsSupported() ? [{ label: m.connected.connect, icon: 'icon-[material-symbols-light--add-link]', run: connect }] : []),
-			...(p2pStatus.supported
-				? [
-						{ separator: true } as MenuEntry,
-						...p2pStatus.view.shares.map((share) => ({
-							label: `${basename(share.folder)} – ${m.share.shared}`,
-							icon: 'icon-[material-symbols-light--share-outline]',
-							run: () => (sharing = { path: share.folder, id: share.id })
-						})),
-						{ label: m.share.new, icon: 'icon-[material-symbols-light--share-outline]', run: shareNew }
-					]
-				: [])
-		];
+		const menu = openFolderEntries(menus, current, connection, readOnlyPlace);
 		// The tool name stands for the top level: the levels start with the first folder, the menu of the top level
 		// hangs at the tool name
 		return setBrandBar({
@@ -189,7 +140,7 @@
 							menu,
 							// The name of a connection is only how it is shown here
 							rename:
-																connection?.kind === 'folder' && level.path === connection.path ? (name: string) => void renameConnection(connection.id, name) : undefined
+								connection?.kind === 'folder' && level.path === connection.path ? (name: string) => void renameConnection(connection.id, name) : undefined
 						}
 			),
 			menu,
@@ -237,7 +188,6 @@
 	}
 
 	// Changes from anywhere (this tab, other tools, the sync): reload what is affected
-	let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 	onMount(() => {
 		updateUsage();
 		// “Manage devices” from the footer of any tool
@@ -247,20 +197,18 @@
 			void goto(url, { state: page.state, shallow: true, replace: true });
 			openDevicesDialog('sync');
 		}
-		const stop = watch((paths) => {
-			treeVersion.current++;
-			const folder = manager.folder;
-			if (paths.some((p) => parent(p) === folder || isInside(folder, p))) {
-				clearTimeout(refreshTimer);
-				refreshTimer = setTimeout(() => {
-					manager.refresh();
-					updateUsage();
-				}, 150);
+		const stopTree = watch(() => treeVersion.current++);
+		const stopList = watchSettled(
+			(paths) => paths.some((p) => parent(p) === manager.folder || isInside(manager.folder, p)),
+			150,
+			() => {
+				manager.refresh();
+				updateUsage();
 			}
-		});
+		);
 		return () => {
-			stop();
-			clearTimeout(refreshTimer);
+			stopTree();
+			stopList();
 		};
 	});
 
@@ -271,19 +219,6 @@
 		else preview = item;
 	}
 
-	async function connect() {
-		try {
-			const result = await connectFolder();
-			if (!result) return;
-			if (result.alsoSynced) toast(m.connected.alsoSynced(connections.list.find((c) => c.path === result.path)?.name ?? ''), 'info', 8000);
-			navigate(result.path);
-		} catch (e) {
-			console.error(e);
-			toast(filesErrorText(e), 'error', 8000);
-		}
-	}
-
-	/** Actions of a folder this device shares with a guest */
 	/** “Share a folder …”: pick one of My files, then the share dialog */
 	async function shareNew() {
 		const start = shareable(manager.folder) ? manager.folder : '/';
@@ -296,20 +231,6 @@
 		sharing = { path: folder };
 	}
 
-	function shareEntries(share: ShareView): MenuEntry[] {
-		return [
-			{ label: m.share.show, icon: 'icon-[material-symbols-light--qr-code]', run: () => (sharing = { path: share.folder, id: share.id }) },
-			{
-				label: m.share.end,
-				icon: 'icon-[material-symbols-light--link-off]',
-				run: async () => {
-					const ok = await ask({ title: m.share.endTitle, message: m.share.endMessage(basename(share.folder)), confirm: m.share.end, danger: true });
-					if (ok) await endShare(share.id);
-				}
-			}
-		];
-	}
-
 	/** Menu of a folder in the tree: the same actions as in the list, for exactly this folder */
 	async function treeMenu(e: MouseEvent, path: string) {
 		const listed = manager.visible.find((i) => i.path === path);
@@ -318,7 +239,7 @@
 		if (!item) return;
 		openContextMenu(
 			e,
-			itemEntries([item], (it) => {
+			itemEntries(menus, [item], (it) => {
 				// Renamed in the list of the folder it is in
 				if (manager.folder !== parent(it.path)) navigate(parent(it.path));
 				setTimeout(() => (manager.renaming = it.path), 150);
@@ -349,37 +270,6 @@
 		const timer = setTimeout(() => untrack(() => manager.refresh()), 20_000);
 		return () => clearTimeout(timer);
 	});
-
-	/** Actions of a connection: allow access again, rename, disconnect */
-	function connectionEntries(c: ConnectionView): MenuEntry[] {
-		return [
-			...(c.access === 'granted'
-				? []
-				: [{ label: m.connected.allow, icon: 'icon-[material-symbols-light--key-outline]', run: () => void allowAccess(c.id) }]),
-			// A guest share keeps the name its device gives it
-			...(c.kind === 'share'
-				? []
-				: [
-						{
-							label: m.connected.rename,
-							icon: 'icon-[material-symbols-light--edit-outline]',
-							run: () => {
-								if (manager.folder !== c.path) navigate(c.path);
-								// Renamed inline in the BrandBar once the connection is the open level
-								setTimeout(startRename, 50);
-							}
-						}
-					]),
-			{ label: m.connected.disconnect, icon: 'icon-[material-symbols-light--link-off]', run: () => void disconnectConnection(c) }
-		];
-	}
-
-	async function disconnectConnection(c: ConnectionView) {
-		const ok = await ask({ title: m.connected.disconnectTitle, message: m.connected.disconnectMessage(c.name), confirm: m.connected.disconnect });
-		if (!ok) return;
-		await disconnect(c.id);
-		if (isInside(manager.folder, c.path)) navigate('/');
-	}
 
 	async function downloadItems(items: Item[]) {
 		if (items.length === 0) return;
@@ -434,104 +324,13 @@
 		if (!(await rename(manager, item.path, name))) manager.renaming = item.path;
 	}
 
-	/**
-	 * Actions for entries (the selection in the list, or one folder in the tree); `rename` starts renaming one where it
-	 * is shown in the list
-	 */
-	function itemEntries(items: Item[], rename: (item: Item) => void = (item) => (manager.renaming = item.path)): MenuEntry[] {
-		const one = items.length === 1 ? items[0] : null;
-		// In a guest share for viewing: only opening, looking and copying out
-		const locked = items.some((item) => readOnlyAt(item.path));
-		return [
-					...(one?.folder ? [{ label: m.menu.open, icon: 'icon-[material-symbols-light--folder-open-outline]', run: () => open(one) }] : []),
-					...(one && !one.folder
-						? one.openWith.map((format) => ({
-								label: m.menu.openWith(format.toolName),
-								icon: 'icon-[material-symbols-light--open-in-new]',
-								run: () => location.assign(toolUrl(one, format)!)
-							}))
-						: []),
-					...(one && one.kind === 'file'
-						? [{ label: m.menu.preview, icon: 'icon-[material-symbols-light--visibility-outline]', keys: 'Space', run: () => (preview = one) }]
-						: []),
-					{
-						label: one?.kind === 'file' ? m.menu.download : m.menu.downloadZip,
-						icon: one?.kind === 'file' ? 'icon-[material-symbols-light--download]' : 'icon-[material-symbols-light--folder-zip-outline]',
-						run: () => downloadItems(items)
-					},
-					{ separator: true },
-					{ label: m.menu.copy, icon: 'icon-[material-symbols-light--content-copy]', keys: 'Ctrl+C', run: () => toClipboard(items, 'copy') },
-					...(locked
-						? []
-						: [
-								{ label: m.menu.cut, icon: 'icon-[material-symbols-light--content-cut]', keys: 'Ctrl+X', run: () => toClipboard(items, 'cut') },
-								...(one?.folder && clipboard.current
-									? [{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', run: () => paste(manager, one.path) }]
-									: []),
-								{ label: m.menu.duplicate, icon: 'icon-[material-symbols-light--folder-copy-outline]', run: () => duplicate(manager, items) },
-								{ label: m.menu.moveTo, icon: 'icon-[material-symbols-light--drive-file-move-outline]', run: () => moveTo(items) },
-								{ separator: true } as MenuEntry,
-								{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && rename(one) },
-								{
-									label: m.menu.delete,
-									icon: 'icon-[material-symbols-light--delete-outline]',
-									keys: 'Del',
-									run: async () => {
-										await removeItems(manager, items);
-										// The open folder was in it (deleted from the tree): show where it was
-										const gone = items.find((i) => isInside(manager.folder, i.path));
-										if (gone) navigate(parent(gone.path));
-									}
-								}
-							]),
-					{ separator: true },
-					...(coarsePointer.current
-						? [{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() }]
-						: []),
-					...scopeEntries(one),
-					...(one?.folder && shareable(one.path)
-						? [{ label: m.share.action, icon: 'icon-[material-symbols-light--share-outline]', run: () => (sharing = { path: one.path }) }]
-						: []),
-					{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', disabled: !one, run: () => (properties = one) }
-				];
-	}
-
 	/** Menu of the selection (`item`) or of the free area (`null`); at the pointer, or below a button */
 	function menu(e: MouseEvent, item: Item | null, show = openContextMenu) {
-		const entries: MenuEntry[] = item
-			? itemEntries(manager.selected)
-			: [
-					{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', disabled: readOnlyPlace, run: () => newFolder(manager) },
-					{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', disabled: readOnlyPlace, run: () => newTextFile(manager) },
-					...uploadEntries(readOnlyPlace),
-					{ separator: true },
-					{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', keys: 'Ctrl+V', disabled: readOnlyPlace || !clipboard.current, run: () => paste(manager) },
-					{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', keys: 'Ctrl+A', run: () => manager.selectAll() },
-					{ label: m.toolbar.refresh, icon: 'icon-[material-symbols-light--refresh]', run: () => manager.refresh() }
-				];
-		show(e, entries);
-	}
-
-	/** Folders can be left out of the sync with the other devices on this device (or taken in again) */
-	function scopeEntries(item: Item | null | undefined): MenuEntry[] {
-		if (!item?.folder || isConnected(item.path) || p2pStatus.view.state !== 'online' || !canExclude(item.path)) return [];
-		if (inScope(item.path, p2pStatus.view.scope)) {
-			return [{ label: m.scope.exclude, icon: 'icon-[material-symbols-light--sync-disabled]', run: () => (devicesUi.exclude = item.path) }];
-		}
-		const parentExcluded = !inScope(parent(item.path), p2pStatus.view.scope) && parent(item.path) !== '/';
-		return [
-			{
-				label: m.scope.include,
-				icon: 'icon-[material-symbols-light--sync]',
-				disabled: parentExcluded,
-				run: () => includeFolder(item.path).catch((e) => toast(filesErrorText(e), 'error'))
-			}
-		];
+		show(e, item ? itemEntries(menus, manager.selected) : areaEntries(menus, readOnlyPlace));
 	}
 
 	function onKey(e: KeyboardEvent) {
-		const target = e.target as HTMLElement;
-		if (target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+		if (inTextField(e.target) || document.querySelector('dialog[open]')) return;
 		const mod = e.ctrlKey || e.metaKey;
 		const items = manager.selected;
 		const focused = manager.visible.find((i) => i.path === manager.focus);
@@ -664,7 +463,7 @@
 	<button
 		class="btn btn-primary btn-sm"
 		disabled={readOnlyPlace}
-		onclick={(e) => openMenuBelow(e, uploadEntries())}
+		onclick={(e) => openMenuBelow(e, uploadEntries(menus))}
 	>
 		<span class="icon-[material-symbols-light--upload] size-5" aria-hidden="true"></span>
 		{m.toolbar.upload}
@@ -698,12 +497,12 @@
 				onnavigate={navigate}
 				ondropitems={dropItems}
 				ondropfiles={dropFiles}
-				onmenu={(e, c) => openContextMenu(e, connectionEntries(c))}
+				onmenu={(e, c) => openContextMenu(e, connectionEntries(menus, c))}
 				onfoldermenu={treeMenu}
 			/>
 			<SharesSection
 				onshare={(share) => (sharing = { path: share.folder, id: share.id })}
-				onsharemenu={(e, share) => openContextMenu(e, shareEntries(share))}
+				onsharemenu={(e, share) => openContextMenu(e, shareEntries(menus, share))}
 				onnew={shareNew}
 			/>
 			<div class="mt-auto flex flex-col gap-2">
@@ -777,14 +576,7 @@
 					{/if}
 				{/if}
 				{#if dropping}
-					<div
-						class="border-selection bg-base-300/80 rounded-box pointer-events-none absolute inset-2 grid place-items-center border-4 border-dashed"
-					>
-						<div class="flex flex-col items-center gap-2 text-lg font-semibold">
-							<span class="icon-[material-symbols-light--upload-file] size-12" aria-hidden="true"></span>
-							{m.list.dropHere(crumbs.at(-1)?.name ?? t.root)}
-						</div>
-					</div>
+					<DropOverlay label={m.list.dropHere(crumbs.at(-1)?.name ?? t.root)} />
 				{/if}
 			</div>
 		</main>

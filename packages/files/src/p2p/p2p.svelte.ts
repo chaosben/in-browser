@@ -5,11 +5,13 @@ import type { Source } from '../sources/source.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { basename, isConnected } from '../path.js';
 import type { Tree } from '../sync/tree.js';
-import { liveSource } from './live.js';
+import { liftError } from './live.js';
+import { liveSource } from './live-client.js';
 import type { Share } from './shares.js';
 import type { Json } from './rpc.js';
 import { filesMessages } from '../i18n/index.svelte.js';
-import type { Device, DeviceEvent, P2pView } from './device.js';
+import type { Device, DeviceEvent } from './device.js';
+import { OFF_VIEW, type P2pView } from './view.js';
 import { ed25519Supported } from './identity.js';
 import { journal } from '../sync/journal.svelte.js';
 
@@ -23,9 +25,8 @@ export interface P2pStatus {
 	view: P2pView;
 }
 
-const EMPTY: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0, shares: [] };
 
-export const p2pStatus = $state<P2pStatus>({ supported: true, view: EMPTY });
+export const p2pStatus = $state<P2pStatus>({ supported: true, view: OFF_VIEW });
 
 type Action =
 	| ['createGroup', string]
@@ -99,7 +100,7 @@ export function startP2p() {
 	expectDevices();
 	ed25519Supported().then((ok) => {
 		p2pStatus.supported = ok;
-		if (!ok) return showView(EMPTY);
+		if (!ok) return showView(OFF_VIEW);
 		navigator.locks.request('files:p2p-leader', async () => {
 			await lead();
 			return new Promise<never>(() => {});
@@ -170,13 +171,8 @@ async function run(action: Action): Promise<unknown> {
 		case 'diagnostics':
 			return diagnosticsHere();
 		case 'live':
-			return d.live(action[2], action[3], action[4]).catch((e: unknown) => {
-				// Answers of the other device about files keep their code across tabs
-				if (e instanceof Error && e.name === 'RemoteError' && e.message.startsWith('files:')) {
-					throw new FilesError(e.message.slice(6) as FilesErrorCode, action[1]);
-				}
-				throw e;
-			});
+			// Answers of the other device about files keep their code across tabs
+			return d.live(action[2], action[3], action[4]).catch((e: unknown) => liftError(e, action[1]));
 		case 'holders':
 			return d.holdersOf(action[1]);
 		case 'share':
@@ -210,9 +206,12 @@ function withTimeout<T>(promise: Promise<T>, path: string): Promise<T> {
 	});
 }
 
+/** Folders this device doesn't sync (opened live from the other devices); none while not online */
+export const excludedNow = (view: P2pView = p2pStatus.view) => (view.state === 'online' ? view.scope : []);
+
 function showView(view: P2pView) {
 	p2pStatus.view = view;
-	setDevicesSource(devicesSource, view.state === 'online' ? view.scope : []);
+	setDevicesSource(devicesSource, excludedNow(view));
 }
 
 /**
@@ -221,7 +220,7 @@ function showView(view: P2pView) {
  */
 async function dropOldCopies(tree: Tree) {
 	const { trashInTree } = await import('../trash.js');
-	for (const folder of device?.view().state === 'online' ? device.view().scope : []) {
+	for (const folder of device ? excludedNow(device.view()) : []) {
 		try {
 			if (!(await tree.stat(folder))) continue;
 			await trashInTree(tree, folder);

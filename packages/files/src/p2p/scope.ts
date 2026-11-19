@@ -20,7 +20,7 @@ export function inScope(path: string, excluded: readonly string[]): boolean {
 		path = original;
 	}
 	if (path === ALWAYS || isInside(path, ALWAYS)) return true;
-	return !excluded.some((folder) => path === folder || isInside(path, folder));
+	return !excluded.some((folder) => isInside(path, folder));
 }
 
 export function canExclude(folder: string): boolean {

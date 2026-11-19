@@ -1,4 +1,5 @@
 /** Height of the timeline area: fixed and draggable, so adding tracks never squeezes the preview (persisted) */
+import { readStored, writeStored } from '@in-browser/brand/storage.js';
 
 const STORAGE_KEY = 'screen-capture:timeline-height';
 export const DEFAULT_TIMELINE_HEIGHT = 260;
@@ -12,19 +13,10 @@ export function clampTimelineHeight(px: number, windowHeight: number) {
 }
 
 export function loadTimelineHeight(): number {
-	try {
-		const value = Number(localStorage.getItem(STORAGE_KEY));
-		if (Number.isFinite(value) && value > 0) return value;
-	} catch {
-		// localStorage not available
-	}
-	return DEFAULT_TIMELINE_HEIGHT;
+	const value = Number(readStored(STORAGE_KEY));
+	return Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMELINE_HEIGHT;
 }
 
 export function storeTimelineHeight(px: number) {
-	try {
-		localStorage.setItem(STORAGE_KEY, String(Math.round(px)));
-	} catch {
-		// ignore
-	}
+	writeStored(STORAGE_KEY, String(Math.round(px)));
 }

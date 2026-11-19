@@ -25,6 +25,15 @@ export function arrowHead(lineWidth: number, length: number, minHead: number): n
 	return Math.min(Math.max(lineWidth * 3.5, minHead), length * 0.6);
 }
 
+/** Half the opening angle of an exact arrowhead */
+export const ARROW_SPREAD = 0.45;
+
+/** The two wing ends of an exact arrowhead with its tip at `tip`, the shaft coming in at `angle` */
+export function arrowWings(tip: Point, angle: number, head: number): [Point, Point] {
+	const wing = (side: number) => ({ x: tip.x - Math.cos(angle + side * ARROW_SPREAD) * head, y: tip.y - Math.sin(angle + side * ARROW_SPREAD) * head });
+	return [wing(-1), wing(1)];
+}
+
 /** Pseudo-random numbers in [0, 1), always the same sequence for the same text */
 export function seeded(text: string): () => number {
 	let h = 1779033703 ^ text.length;

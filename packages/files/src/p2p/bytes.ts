@@ -21,6 +21,20 @@ export async function sha256(data: Uint8Array<ArrayBuffer> | string): Promise<Ui
 	return new Uint8Array(await crypto.subtle.digest('SHA-256', typeof data === 'string' ? utf8(data) : data));
 }
 
+/** Bytes as lower-case hex */
+export const toHex = (bytes: Uint8Array | ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+/** Parts joined into one array */
+export function concat(parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
+	const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+	let at = 0;
+	for (const part of parts) {
+		out.set(part, at);
+		at += part.length;
+	}
+	return out;
+}
+
 export function randomBytes(n: number): Uint8Array<ArrayBuffer> {
 	return crypto.getRandomValues(new Uint8Array(n));
 }

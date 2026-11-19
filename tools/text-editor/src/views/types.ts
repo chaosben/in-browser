@@ -1,6 +1,6 @@
 import type { ChangeSpec } from '@codemirror/state';
 import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
-import type { Tab } from '#lib/workspace.svelte.js';
+import type { Tab } from '#lib/tab.svelte.js';
 import type { TableFormat } from './table/model.js';
 import type { TreeFormat } from './tree/model.js';
 

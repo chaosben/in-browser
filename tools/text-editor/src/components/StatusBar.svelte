@@ -2,7 +2,8 @@
 	import { openMenuAbove, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { CHARSET_NAMES, CHARSETS, hasBom, type Encoding, type LineEnding } from '#lib/document.js';
 	import { m } from '#lib/i18n/index.js';
-	import { encodingName, type Tab, type Workspace } from '#lib/workspace.svelte.js';
+	import type { Tab } from '#lib/tab.svelte.js';
+	import { encodingName, type Workspace } from '#lib/workspace.svelte.js';
 
 	// Position, language, status of the view (rows, path of the selected node), line ending and encoding of the active
 	// tab (left in the BrandFooter); the last two can be changed here.

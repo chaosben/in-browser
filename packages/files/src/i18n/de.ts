@@ -38,7 +38,7 @@ const de: FilesMessages = {
 		intoItself: (name) => `„${name}“ lässt sich nicht in sich selbst verschieben oder kopieren.`,
 		root: (_name) => 'Mit dem obersten Ordner geht das nicht.',
 		offline: (name) => `„${name}“ ist gerade nicht erreichbar.`,
-		denied: (name) => `Der Browser erlaubt gerade keinen Zugriff auf „${name}“. Erlaube ihn in Files unter „Verbunden“.`,
+		denied: (name) => `Der Browser erlaubt gerade keinen Zugriff auf „${name}“. Erlaube ihn in Dateien unter „Verbunden“.`,
 		readOnly: (name) => `„${name}“ lässt sich nur lesen.`,
 		ended: (_name) => 'Die Freigabe wurde beendet.',
 		taken: (_name) => 'Diese Freigabe ist gerade in einem anderen Browser geöffnet. Versuch es später noch einmal.',
@@ -50,12 +50,12 @@ const de: FilesMessages = {
 		synced: 'Aktuell',
 		syncing: 'Gleiche ab …',
 		paused: 'Pausiert',
-		pausedHint: 'Erlaube den Zugriff in Files erneut.',
+		pausedHint: 'Erlaube den Zugriff in Dateien erneut.',
 		failed: (n) => (n === 1 ? '1 Datei nicht abgeglichen' : `${n} Dateien nicht abgeglichen`),
 		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
 		lastSync: (ago) => `Zuletzt abgeglichen ${ago}`,
 		syncNow: 'Jetzt abgleichen',
-		manage: 'In Files verwalten',
+		manage: 'In Dateien verwalten',
 		help: 'So funktioniert der Abgleich'
 	},
 
@@ -67,6 +67,11 @@ const de: FilesMessages = {
 		forGood: (name) => `„${name}“ liegt in einem verbundenen Ordner, der keinen Papierkorb hat. Es wird endgültig gelöscht.`,
 		forGoodMany: (n) => `${n} Elemente liegen in einem verbundenen Ordner, der keinen Papierkorb hat. Sie werden endgültig gelöscht.`,
 		forGoodConfirm: 'Löschen'
+	},
+
+	document: {
+		saveFailed: (error) => `Speichern fehlgeschlagen: ${error}`,
+		renameFailed: (error) => `Umbenennen fehlgeschlagen: ${error}`
 	},
 
 	connected: {

@@ -29,3 +29,20 @@ export function watch(listener: Listener): () => void {
 	listeners.add(listener);
 	return () => listeners.delete(listener);
 }
+
+/**
+ * Calls `refresh` once changes that `concerns` settle (bursts of sync or copy changes come together after `delay`
+ * ms); returns the unsubscribe function, which also drops a pending call.
+ */
+export function watchSettled(concerns: (paths: string[]) => boolean, delay: number, refresh: () => void): () => void {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const stop = watch((paths) => {
+		if (!concerns(paths)) return;
+		clearTimeout(timer);
+		timer = setTimeout(refresh, delay);
+	});
+	return () => {
+		stop();
+		clearTimeout(timer);
+	};
+}

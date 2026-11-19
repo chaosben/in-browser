@@ -101,6 +101,16 @@ export async function cleanTrash(tree: Pick<Tree, 'stat' | 'read' | 'names' | 'r
 	}
 }
 
+/** The info of a trash entry, `null` when it is missing or unreadable (not an entry to show or restore) */
+export async function readTrashInfo(tree: Pick<Tree, 'read'>, entry: string): Promise<TrashInfo | null> {
+	try {
+		const info = JSON.parse(await (await tree.read(infoPath(entry))).text()) as Partial<TrashInfo>;
+		return typeof info?.path === 'string' ? (info as TrashInfo) : null;
+	} catch {
+		return null;
+	}
+}
+
 /** An item moved into the trash of a tree (for undoing) */
 export interface TrashRef {
 	entry: string;
@@ -108,10 +118,7 @@ export interface TrashRef {
 	path: string;
 }
 
-/**
- * Moves a file or folder of a tree into its trash – what deleting does when another device or a guest asks (the
- * browser's own deletions use `moveToTrash` in `trash-browser.ts`, same layout)
- */
+/** Moves a file or folder of a tree into its trash: what deleting does in the browser (`moveToTrash`) and when another device or a guest asks */
 export async function trashInTree(tree: Pick<Tree, 'stat' | 'write' | 'move'>, path: string, now = Date.now()): Promise<TrashRef> {
 	const state = await tree.stat(path);
 	if (!state) throw new FilesError('notFound', path);
@@ -133,13 +140,8 @@ export async function untrashInTree(tree: Pick<Tree, 'stat' | 'read' | 'names' |
 	const entry = typeof ref?.entry === 'string' ? ref.entry : '';
 	const path = typeof ref?.path === 'string' ? normalize(ref.path) : '/';
 	if (parseEntry(entry) === null || path === '/' || inTrash(path)) throw new FilesError('notFound', path);
-	let info: Partial<TrashInfo> | null = null;
-	try {
-		info = JSON.parse(await (await tree.read(infoPath(entry))).text()) as Partial<TrashInfo>;
-	} catch {
-		// No readable info: not an entry this can restore
-	}
-	if (!info || typeof info.path !== 'string' || normalize(info.path) !== path) throw new FilesError('notFound', path);
+	const info = await readTrashInfo(tree, entry);
+	if (!info || normalize(info.path) !== path) throw new FilesError('notFound', path);
 	ref = { entry, path };
 	const item = itemPath(ref.entry, ref.path);
 	if (!(await tree.stat(item))) throw new FilesError('notFound', ref.path);

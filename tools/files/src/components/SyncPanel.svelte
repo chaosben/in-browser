@@ -3,8 +3,8 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import {
 		applyDeletes,
-		connectFolder,
-		disconnect,
+		chooseSyncFolder,
+		stopFolderSync,
 		renewAccess,
 		restoreDeleted,
 		syncNow,
@@ -31,7 +31,7 @@
 			message: m.sync.disconnectMessage(syncStatus.folder ?? ''),
 			confirm: m.sync.disconnect
 		});
-		if (ok) run(disconnect);
+		if (ok) run(stopFolderSync);
 	}
 </script>
 
@@ -45,7 +45,7 @@
 		<p class="opacity-70">{m.sync.unsupported}</p>
 	{:else if !syncStatus.folder}
 		<p class="opacity-70">{m.sync.intro}</p>
-		<button class="btn btn-sm btn-primary" onclick={() => run(connectFolder)}>
+		<button class="btn btn-sm btn-primary" onclick={() => run(chooseSyncFolder)}>
 			<span class="icon-[material-symbols-light--folder-open-outline] size-5" aria-hidden="true"></span>
 			{m.sync.connect}
 		</button>

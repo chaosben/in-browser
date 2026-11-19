@@ -42,7 +42,8 @@
 	<meta name="theme-color" media="(prefers-color-scheme: light)" content={BRAND.themeColor.light} />
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content={BRAND.themeColor.dark} />
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-	<link rel="manifest" href="/manifest.webmanifest" />
+	<!-- Installed, the suite carries the names in the browser's language -->
+	<link rel="manifest" href={lang.current === 'de' ? '/manifest.de.webmanifest' : '/manifest.webmanifest'} />
 	{#key lang.current}
 		<title>{fullTitle()}</title>
 		<meta name="description" content={description ?? m.brand.description} />

@@ -1,5 +1,6 @@
 import { FilesError } from '@in-browser/files/fs.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+import { FormatError } from '@in-browser/files/formats.js';
 import { m } from '#lib/i18n/index.js';
 
 /** 83.456 → "1:23.4" */
@@ -14,6 +15,7 @@ export function errorMessage(e: unknown): string {
 	if (e instanceof DOMException && e.name === 'NotAllowedError') return m.common.denied;
 	if (e instanceof DOMException && e.name === 'AbortError') return m.common.aborted;
 	if (e instanceof FilesError) return filesErrorText(e);
+	if (e instanceof FormatError) return e.reason === 'newer' ? m.errors.newerVersion : m.errors.unknownFormat;
 	return e instanceof Error ? e.message : String(e);
 }
 

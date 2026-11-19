@@ -5,12 +5,13 @@
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { write } from '@in-browser/files/fs.js';
 	import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { parent, safeName } from '@in-browser/files/path.js';
+	import { extname, parent, safeName } from '@in-browser/files/path.js';
 	import { exportPdf } from '#lib/export/pdf.js';
 	import { exportPng } from '#lib/export/png.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import type { NotebookDoc } from '#lib/model/notebook.svelte.js';
 	import { notebookName } from '#lib/model/store.js';
+	import { downloadUrl } from '@in-browser/brand/download.js';
 
 	interface Props {
 		doc: NotebookDoc;
@@ -55,17 +56,12 @@
 	}
 
 	function download() {
-		if (!result) return;
-		const a = document.createElement('a');
-		a.href = result.url;
-		a.download = result.name;
-		a.click();
+		if (result) downloadUrl(result.url, result.name);
 	}
 
 	async function saveToFiles() {
 		if (!result) return;
-		const ext = result.name.slice(result.name.lastIndexOf('.'));
-		const path = await chooseFile({ mode: 'save', folder: parent(doc.path), accept: [ext], name: result.name, overwrite: true });
+		const path = await chooseFile({ mode: 'save', folder: parent(doc.path), accept: [extname(result.name)], name: result.name, overwrite: true });
 		if (!path) return;
 		try {
 			await write(path, result.blob);

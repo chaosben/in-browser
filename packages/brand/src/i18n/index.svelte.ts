@@ -44,3 +44,11 @@ const MESSAGES: Record<Locale, BrandMessages> = { de, en };
 export function brandMessages(): BrandMessages {
 	return MESSAGES[lang.current];
 }
+
+/** A tool by its folder (`notes`, `screen-capture` …) */
+export type ToolSlug = keyof BrandMessages['tools'];
+
+/** Visible name of a tool in the active language, or in `locale` */
+export function toolName(slug: ToolSlug, locale: Locale = lang.current): string {
+	return MESSAGES[locale].tools[slug];
+}

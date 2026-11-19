@@ -36,7 +36,3 @@ export function formatColor(hex: string, alpha: number): string {
 	const a = Math.round(clamp(alpha, 0, 1) * 255);
 	return a === 255 ? base : base + byte(a);
 }
-
-export function withAlpha(value: string, alpha: number): string {
-	return formatColor(parseColor(value).hex, alpha);
-}

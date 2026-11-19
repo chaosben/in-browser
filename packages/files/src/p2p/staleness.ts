@@ -6,13 +6,12 @@ export interface Staleness {
 	/** Changes it is missing (paths); `more` when the log doesn't reach back far enough */
 	changes: number;
 	more: boolean;
-	lastSync: number;
 }
 
 /** What another device is missing, judged from what is known about it */
 export function staleness(info: DeviceInfo, log: Change[]): Staleness {
 	const { paths, more } = missing(info.vector, info.scope, log);
-	return { changes: paths, more, lastSync: info.lastSync };
+	return { changes: paths, more };
 }
 
 /** One day without a sync while devices exist: work here could lead to conflict copies */

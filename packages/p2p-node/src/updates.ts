@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { readJson, writeAtomic } from './json.js';
 import { RELEASE_KEY, sha256, STARTER_VERSION, verifyManifest } from './release.js';
 
 // Keeping the sync process up to date (used by the starter): the site's `version.json` is taken only with a valid
@@ -37,20 +38,6 @@ export interface UpdaterOptions {
  * restart before it can run the new version
  */
 export type UpdateResult = 'updated' | 'current' | 'refused' | 'failed' | 'restart';
-
-async function readJson<T>(file: string): Promise<T | undefined> {
-	try {
-		return JSON.parse(await readFile(file, 'utf8')) as T;
-	} catch {
-		return undefined;
-	}
-}
-
-export async function writeAtomic(file: string, data: string | Uint8Array) {
-	const temp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-	await writeFile(temp, data, { mode: 0o600 });
-	await rename(temp, file);
-}
 
 export function updater(options: UpdaterOptions) {
 	const { bundles, log } = options;

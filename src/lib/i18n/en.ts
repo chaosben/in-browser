@@ -1,3 +1,4 @@
+import brand from '@in-browser/brand/i18n/en.js';
 import help from './help.en.js';
 
 // English texts. This file defines the structure; `de.ts` must have the same keys.
@@ -51,22 +52,22 @@ const en = {
 	/** `summary`: one line on the launcher; `keywords`: synonyms for the search (not shown) */
 	tools: {
 		screenCapture: {
-			name: 'Screen Capture',
+			name: brand.tools['screen-capture'],
 			summary: 'Record your screen, edit it and export it as video or GIF',
 			keywords: 'record, recorder, screen recorder, screencast, video, webcam, microphone, gif, mp4, webm, tutorial'
 		},
 		files: {
-			name: 'Files',
+			name: brand.tools['files'],
 			summary: 'Manage, sync and download your files',
 			keywords: 'file manager, explorer, folder, sync, upload, download, zip, preview, devices'
 		},
 		textEditor: {
-			name: 'Text Editor',
+			name: brand.tools['text-editor'],
 			summary: 'Edit Markdown, JSON, YAML and code with syntax highlighting',
 			keywords: 'text, editor, notepad, markdown, json, yaml, csv, html, css, javascript, code, txt'
 		},
 		notes: {
-			name: 'Notes',
+			name: brand.tools['notes'],
 			summary: 'Handwritten notebooks for stylus, finger or mouse',
 			keywords: 'handwriting, notebook, stylus, pen, sketch, draw, pdf, annotate, whiteboard'
 		}

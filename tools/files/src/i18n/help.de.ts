@@ -6,8 +6,8 @@ const help: typeof enHelp = {
 		title: 'Erste Schritte',
 		items: {
 			what: {
-				title: 'Was Files ist',
-				text: 'Jedes Tool von in-browser legt seine Dokumente in einem gemeinsamen Speicher in diesem Browser ab: Aufnahmen und Projekte von Screen Capture, Texte des Text Editors, Notizen. Files zeigt diesen Speicher wie ein Laufwerk. Hier lädst du hoch und herunter, sortierst Dokumente in Ordner, benennst um, kopierst und löschst – und richtest den Abgleich mit einem Ordner auf deinem Rechner oder mit deinen anderen Geräten ein. Nichts wird auf einen Server hochgeladen.',
+				title: 'Wozu Dateien da ist',
+				text: 'Jedes Tool von in-browser legt seine Dokumente in einem gemeinsamen Speicher in diesem Browser ab: Aufnahmen und Projekte der Bildschirmaufnahme, Texte des Texteditors, Notizen. Das Tool Dateien zeigt diesen Speicher wie ein Laufwerk. Hier lädst du hoch und herunter, sortierst Dokumente in Ordner, benennst um, kopierst und löschst – und richtest den Abgleich mit einem Ordner auf deinem Rechner oder mit deinen anderen Geräten ein. Nichts wird auf einen Server hochgeladen.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
 			layout: {
@@ -16,7 +16,7 @@ const help: typeof enHelp = {
 			},
 			menus: {
 				title: 'Wo die Aktionen sind',
-				text: 'Der Name des geöffneten Ordners in der oberen Leiste (auf oberster Ebene: „Files“ neben „in-browser“) öffnet das Menü dieses Ordners: „Neuer Ordner“, „Neue Textdatei“, Hochladen, „Einfügen“, „Alles auswählen“, die Ansicht, „Als ZIP herunterladen“, „Eigenschaften“ und „Papierkorb“. Es enthält immer alles, auch was die Knöpfe daneben tun. Ein Rechtsklick auf einen Eintrag zeigt alles, was du mit ihm oder der Auswahl tun kannst; ein Rechtsklick auf die freie Fläche zeigt die Aktionen für den Ordner. Ordner im Baum links haben dasselbe Menü wie in der Liste.'
+				text: 'Der Name des geöffneten Ordners in der oberen Leiste (auf oberster Ebene: „Dateien“ neben „in-browser“) öffnet das Menü dieses Ordners: „Neuer Ordner“, „Neue Textdatei“, Hochladen, „Einfügen“, „Alles auswählen“, die Ansicht, „Als ZIP herunterladen“, „Eigenschaften“ und „Papierkorb“. Es enthält immer alles, auch was die Knöpfe daneben tun. Ein Rechtsklick auf einen Eintrag zeigt alles, was du mit ihm oder der Auswahl tun kannst; ein Rechtsklick auf die freie Fläche zeigt die Aktionen für den Ordner. Ordner im Baum links haben dasselbe Menü wie in der Liste.'
 			},
 			phone: {
 				title: 'Am Handy',
@@ -34,7 +34,7 @@ const help: typeof enHelp = {
 		items: {
 			open: {
 				title: 'Öffnen',
-				text: 'Doppelklicke einen Eintrag oder wähle ihn aus und drücke Enter. Ein Ordner öffnet sich in Files. Ein Dokument eines Tools (z. B. ein Screen-Capture-Projekt oder eine Textdatei) öffnet sich in diesem Tool – können es mehrere Tools öffnen, bietet das Menü des Eintrags für jedes „Mit … öffnen“ an. Andere Dateien öffnen sich in der Vorschau. Manche davon lassen sich auch als Text bearbeiten: Das Menü eines SVG-Bilds bietet „Mit Text Editor öffnen“ an, ein Doppelklick zeigt das Bild. Auf Touchscreens öffnet ein Tippen.'
+				text: 'Doppelklicke einen Eintrag oder wähle ihn aus und drücke Enter. Ein Ordner öffnet sich in Dateien. Ein Dokument eines Tools (z. B. ein Projekt der Bildschirmaufnahme oder eine Textdatei) öffnet sich in diesem Tool – können es mehrere Tools öffnen, bietet das Menü des Eintrags für jedes „Mit … öffnen“ an. Andere Dateien öffnen sich in der Vorschau. Manche davon lassen sich auch als Text bearbeiten: Das Menü eines SVG-Bilds bietet „Mit Texteditor öffnen“ an, ein Doppelklick zeigt das Bild. Auf Touchscreens öffnet ein Tippen.'
 			},
 			select: {
 				title: 'Auswählen',
@@ -46,7 +46,7 @@ const help: typeof enHelp = {
 			},
 			preview: {
 				title: 'Vorschau',
-				text: '„Vorschau“ im Menü einer Datei (oder die Leertaste) zeigt Bilder, Videos, Audio und Text direkt in Files, ohne ein Tool zu öffnen. Textdateien über etwa 1 MB werden nicht angezeigt; für andere Arten gibt es keine Vorschau. „Herunterladen“ in der Vorschau speichert die Datei.'
+				text: '„Vorschau“ im Menü einer Datei (oder die Leertaste) zeigt Bilder, Videos, Audio und Text direkt in Dateien, ohne ein Tool zu öffnen. Textdateien über etwa 1 MB werden nicht angezeigt; für andere Arten gibt es keine Vorschau. „Herunterladen“ in der Vorschau speichert die Datei.'
 			},
 			properties: {
 				title: 'Eigenschaften',
@@ -69,7 +69,7 @@ const help: typeof enHelp = {
 			},
 			names: {
 				title: 'Gleiche Namen',
-				text: 'Files überschreibt beim Hochladen, Einfügen, Verschieben oder Kopieren nie etwas: Hat der Zielordner schon einen Eintrag mit diesem Namen, bekommt der neue eine Nummer, z. B. „Foto (2).jpg“.'
+				text: 'Dateien überschreibt beim Hochladen, Einfügen, Verschieben oder Kopieren nie etwas: Hat der Zielordner schon einen Eintrag mit diesem Namen, bekommt der neue eine Nummer, z. B. „Foto (2).jpg“.'
 			}
 		}
 	},
@@ -78,7 +78,7 @@ const help: typeof enHelp = {
 		items: {
 			create: {
 				title: 'Neuer Ordner und neue Textdatei',
-				text: '„Neuer Ordner“ (obere Leiste oder Ordnermenü) und „Neue Textdatei“ (Ordnermenü oder Rechtsklick auf die freie Fläche) legen den Eintrag im geöffneten Ordner an, und du tippst gleich seinen Namen ein. Eine neue Textdatei ist leer; öffnest du sie, landest du im Text Editor.'
+				text: '„Neuer Ordner“ (obere Leiste oder Ordnermenü) und „Neue Textdatei“ (Ordnermenü oder Rechtsklick auf die freie Fläche) legen den Eintrag im geöffneten Ordner an, und du tippst gleich seinen Namen ein. Eine neue Textdatei ist leer; öffnest du sie, landest du im Texteditor.'
 			},
 			rename: {
 				title: 'Umbenennen',
@@ -170,7 +170,7 @@ const help: typeof enHelp = {
 			},
 			guest: {
 				title: 'Einen geteilten Link öffnen',
-				text: 'Ein Link, den jemand mit dir geteilt hat, öffnet Files mit dem Ordner unter „Verbunden“, benannt nach ihm und dem Gerät, das ihn teilt (ein Schloss heißt nur ansehen). Er lebt nur in diesem Tab: „Trennen“ oder das Schließen des Tabs beendet ihn, in deinem Browser bleibt nichts; der Link öffnet ihn wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Files das und versucht es selbst wieder. Kopiere Dateien nach Meine Dateien, um sie zu behalten. Endet die Freigabe, sagt Files das sofort; „Entfernen“ nimmt sie aus „Verbunden“.'
+				text: 'Ein Link, den jemand mit dir geteilt hat, öffnet Dateien mit dem Ordner unter „Verbunden“, benannt nach ihm und dem Gerät, das ihn teilt (ein Schloss heißt nur ansehen). Er lebt nur in diesem Tab: „Trennen“ oder das Schließen des Tabs beendet ihn, in deinem Browser bleibt nichts; der Link öffnet ihn wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Kopiere Dateien nach Meine Dateien, um sie zu behalten. Endet die Freigabe, sagt Dateien das sofort; „Entfernen“ nimmt sie aus „Verbunden“.'
 			}
 		}
 	},
@@ -179,23 +179,23 @@ const help: typeof enHelp = {
 		items: {
 			connect: {
 				title: 'Mit einem Ordner abgleichen',
-				text: '„Abgleich“ in der Seitenleiste (am Handy das Abgleich-Symbol in der oberen Leiste) öffnet die Abgleich-Einstellungen; klicke unter „Ordner auf deinem Rechner“ auf „Ordner wählen“ und wähle einen Ordner. Ab dann hält Files den Browserspeicher und diesen Ordner in beide Richtungen abgeglichen; wurde eine Datei auf beiden Seiten geändert, gewinnt die neuere Fassung. Der Abgleich läuft, solange ein Tool von in-browser in diesem Browser offen ist. Das können nur Chrome und Edge am Desktop-Rechner.',
-				tip: 'Wähle einen leeren Ordner oder einen nur für in-browser – alles darin wird Teil von Files. Ein Ordner, den dein Sync-Tool (Syncthing, Nextcloud, Dropbox …) mitnimmt, bringt deine Dokumente auch auf andere Rechner.',
+				text: '„Abgleich“ in der Seitenleiste (am Handy das Abgleich-Symbol in der oberen Leiste) öffnet die Abgleich-Einstellungen; klicke unter „Ordner auf deinem Rechner“ auf „Ordner wählen“ und wähle einen Ordner. Ab dann hält Dateien den Browserspeicher und diesen Ordner in beide Richtungen abgeglichen; wurde eine Datei auf beiden Seiten geändert, gewinnt die neuere Fassung. Der Abgleich läuft, solange ein Tool von in-browser in diesem Browser offen ist. Das können nur Chrome und Edge am Desktop-Rechner.',
+				tip: 'Wähle einen leeren Ordner oder einen nur für in-browser – alles darin wird Teil von „Meine Dateien“. Ein Ordner, den dein Sync-Tool (Syncthing, Nextcloud, Dropbox …) mitnimmt, bringt deine Dokumente auch auf andere Rechner.',
 				link: { href: '/help/storage', label: 'Der Ordner auf deinem Rechner' }
 			},
 			paused: {
 				title: 'Pausiert: „Zugriff erlauben“',
-				text: 'Der Browser erlaubt den Zugriff auf den Ordner oft nur, bis er geschlossen wird. Dann steht in den Abgleich-Einstellungen „Pausiert“, und Files ändert nichts im Ordner. Klicke auf „Zugriff erlauben“ und bestätige die Frage des Browsers; der Abgleich geht weiter und holt nach.',
+				text: 'Der Browser erlaubt den Zugriff auf den Ordner oft nur, bis er geschlossen wird. Dann steht in den Abgleich-Einstellungen „Pausiert“, und Dateien ändert nichts im Ordner. Klicke auf „Zugriff erlauben“ und bestätige die Frage des Browsers; der Abgleich geht weiter und holt nach.',
 				tip: 'Wähle in der Frage des Browsers „Bei jedem Besuch zulassen“ – dann läuft der Abgleich beim nächsten Mal von selbst weiter.'
 			},
 			deletes: {
 				title: 'Löschungen im Ordner',
-				text: 'Verschwinden viele Dateien auf einmal aus dem Ordner auf deinem Rechner, folgt Files nicht einfach: Die Abgleich-Einstellungen fragen, ob sie auch hier gelöscht werden sollen. „Auch hier löschen“ löscht sie in Files, „Stattdessen wiederherstellen“ schreibt sie zurück in den Ordner.',
+				text: 'Verschwinden viele Dateien auf einmal aus dem Ordner auf deinem Rechner, folgt Dateien nicht einfach: Die Abgleich-Einstellungen fragen, ob sie auch hier gelöscht werden sollen. „Auch hier löschen“ löscht sie in Dateien, „Stattdessen wiederherstellen“ schreibt sie zurück in den Ordner.',
 				tip: 'Stelle sie wieder her, wenn du sie nicht absichtlich gelöscht hast – z. B. wenn ein Laufwerk fehlte oder ein Sync-Tool den Ordner geleert hat. Lösch sie auch hier, wenn du den Ordner selbst aufgeräumt hast.'
 			},
 			manage: {
 				title: 'Jetzt abgleichen und trennen',
-				text: '„Jetzt abgleichen“ gleicht sofort ab, statt auf die nächste Änderung zu warten. Lassen sich einzelne Dateien nicht abgleichen, sagt eine Zeile, wie viele. „Trennen“ beendet den Abgleich mit dem Ordner; es wird nichts gelöscht, weder in Files noch im Ordner, und du kannst jederzeit wieder einen Ordner wählen.'
+				text: '„Jetzt abgleichen“ gleicht sofort ab, statt auf die nächste Änderung zu warten. Lassen sich einzelne Dateien nicht abgleichen, sagt eine Zeile, wie viele. „Trennen“ beendet den Abgleich mit dem Ordner; es wird nichts gelöscht, weder in Dateien noch im Ordner, und du kannst jederzeit wieder einen Ordner wählen.'
 			}
 		}
 	},
@@ -209,7 +209,7 @@ const help: typeof enHelp = {
 			},
 			first: {
 				title: 'Die ersten Geräte verbinden',
-				text: 'Klicke auf dem ersten Gerät auf „Geräte verbinden“: eine kurze Erklärung, dann ein Name für dieses Gerät (damit du sie auseinanderhältst), dann zeigt „Gerät hinzufügen“ einen Schlüssel als QR-Code. Auf dem zweiten Gerät scannst du den Code mit der Kamera, öffnest den Link aus „Link kopieren“ oder öffnest dort Files und tippst den Schlüssel unter „Schlüssel eingeben“ ein. Lass Files auf dem ersten Gerät geöffnet, bis das zweite hinzugefügt ist.',
+				text: 'Klicke auf dem ersten Gerät auf „Geräte verbinden“: eine kurze Erklärung, dann ein Name für dieses Gerät (damit du sie auseinanderhältst), dann zeigt „Gerät hinzufügen“ einen Schlüssel als QR-Code. Auf dem zweiten Gerät scannst du den Code mit der Kamera, öffnest den Link aus „Link kopieren“ oder öffnest dort Dateien und tippst den Schlüssel unter „Schlüssel eingeben“ ein. Lass Dateien auf dem ersten Gerät geöffnet, bis das zweite hinzugefügt ist.',
 				link: { href: '/help/sync', label: 'Geräte verbinden' }
 			},
 			add: {
@@ -223,7 +223,7 @@ const help: typeof enHelp = {
 			},
 			folders: {
 				title: 'Ordner ausnehmen',
-				text: '„Ordner auswählen“ zeigt alle Ordner mit Größe und wo sie liegen; nimm bei einem das Häkchen weg, um ihn auf diesem Gerät nicht mehr abzugleichen. Dasselbe steht im Menü eines Ordners: „Auf diesem Gerät nicht abgleichen“, und zurück mit „Auf diesem Gerät wieder abgleichen“. Die Kopie auf diesem Gerät wird gelöscht, die anderen Geräte behalten den Ordner. Er bleibt mit einer Wolke im Baum: Öffnest du ihn, liest dieses Gerät ihn live von einem Gerät, das ihn hat, und du arbeitest darin wie überall (Löschen geht in den Papierkorb jenes Geräts). Ist keins davon verbunden, nennt Files, wo der Ordner liegt.',
+				text: '„Ordner auswählen“ zeigt alle Ordner mit Größe und wo sie liegen; nimm bei einem das Häkchen weg, um ihn auf diesem Gerät nicht mehr abzugleichen. Dasselbe steht im Menü eines Ordners: „Auf diesem Gerät nicht abgleichen“, und zurück mit „Auf diesem Gerät wieder abgleichen“. Die Kopie auf diesem Gerät wird gelöscht, die anderen Geräte behalten den Ordner. Er bleibt mit einer Wolke im Baum: Öffnest du ihn, liest dieses Gerät ihn live von einem Gerät, das ihn hat, und du arbeitest darin wie überall (Löschen geht in den Papierkorb jenes Geräts). Ist keins davon verbunden, nennt Dateien, wo der Ordner liegt.',
 				tip: 'Lass aus, was du hier selten brauchst, z. B. große Aufnahmen auf dem Handy – öffnen kannst du sie trotzdem live. Gleich einen Ordner wieder ab, wenn du ihn brauchst, während deine anderen Geräte aus sind.',
 				link: { href: '/help/sync', label: 'Live von deinen Geräten' }
 			},
@@ -259,7 +259,7 @@ const help: typeof enHelp = {
 				text: 'Die Pfeiltasten wählen den vorigen oder nächsten Eintrag aus; mit gedrückter Umschalttaste erweitern sie die Auswahl. Kürzel wirken nicht, während du in einem Feld tippst oder ein Dialog offen ist.',
 				keys: [['↑'], ['↓'], ['Umschalt', '↓']]
 			},
-			open: { title: 'Öffnen', text: 'Öffnet den ausgewählten Eintrag: einen Ordner in Files, ein Dokument in seinem Tool, andere Dateien in der Vorschau.', keys: [['Enter']] },
+			open: { title: 'Öffnen', text: 'Öffnet den ausgewählten Eintrag: einen Ordner in Dateien, ein Dokument in seinem Tool, andere Dateien in der Vorschau.', keys: [['Enter']] },
 			up: { title: 'Einen Ordner nach oben', text: 'Wechselt in den Ordner, der den geöffneten enthält.', keys: [['Rücktaste'], ['Alt', '↑']] },
 			preview: { title: 'Vorschau', text: 'Zeigt die ausgewählte Datei in der Vorschau.', keys: [['Leertaste']] },
 			selectAll: { title: 'Alles auswählen und aufheben', text: 'Wählt jeden Eintrag des geöffneten Ordners aus; Esc hebt die Auswahl auf.', keys: [['Strg', 'A'], ['Esc']] },

@@ -1,5 +1,5 @@
 import { FilesError, type Entry } from '../entry.js';
-import { dirAt, moveFile, renameEntry } from '../handles.js';
+import { childHandle, dirAt, isMissing, moveFile, renameEntry } from '../handles.js';
 import { basename, join, nameKey, parent, segments } from '../path.js';
 import type { Source } from './source.js';
 
@@ -9,7 +9,7 @@ import type { Source } from './source.js';
 function mapped(e: unknown, path: string): never {
 	if (e instanceof FilesError) throw e;
 	if (e instanceof DOMException) {
-		if (e.name === 'NotFoundError' || e.name === 'TypeMismatchError') throw new FilesError('notFound', path);
+		if (isMissing(e)) throw new FilesError('notFound', path);
 		if (e.name === 'NotAllowedError' || e.name === 'SecurityError') throw new FilesError('denied', '/');
 		if (e.name === 'InvalidModificationError') throw new FilesError('exists', path);
 	}
@@ -46,17 +46,10 @@ export function folderSource(root: FileSystemDirectoryHandle): Source {
 		try {
 			folder = await dir(parent(path));
 		} catch (e) {
-			if (e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError')) return null;
+			if (isMissing(e)) return null;
 			throw e;
 		}
-		for (const get of [() => folder.getFileHandle(basename(path)), () => folder.getDirectoryHandle(basename(path))]) {
-			try {
-				return await get();
-			} catch (e) {
-				if (!(e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError'))) throw e;
-			}
-		}
-		return null;
+		return childHandle(folder, basename(path));
 	}
 
 	return {

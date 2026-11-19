@@ -4,6 +4,9 @@
 
 import type { Point } from './shapes.js';
 
+/** Snap distance in screen pixels (preview of Screen Capture, pages of Notes) */
+export const SNAP_PX = 6;
+
 export interface Rect {
 	x: number;
 	y: number;

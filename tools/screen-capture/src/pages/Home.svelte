@@ -2,12 +2,15 @@
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import AccessNotice from '@in-browser/files/AccessNotice.svelte';
-	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { displayPath } from '@in-browser/files/sources/registry.js';
-	import { parent } from '@in-browser/files/path.js';
-	import { BRAND, editorUrl } from '#lib/brand.js';
+	import { parent, stem } from '@in-browser/files/path.js';
+	import { supported, watchSettled } from '@in-browser/files/fs.js';
+	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
+	import { editorUrl } from '#lib/brand.js';
+	import { BRAND } from '@in-browser/brand/brand.js';
+	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import NewProjectDialog from '#lib/components/NewProjectDialog.svelte';
 	import RecordDialog from '#lib/components/RecordDialog.svelte';
 	import { IMAGE_ACCEPT, importImage, isImageFile } from '#lib/media/images.js';
@@ -20,6 +23,7 @@
 		listProjects,
 		chooseMediaFromFiles,
 		chooseNewProject,
+		chooseProject,
 		lastFolder,
 		PROJECT_EXT,
 		projectName,
@@ -27,16 +31,17 @@
 		storageEstimate
 	} from '#lib/storage/store.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-	import { formatDateTime, m } from '#lib/i18n/index.js';
+	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
+	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 
 	const missing = [
 		!('VideoEncoder' in window) && 'WebCodecs',
-		!navigator.storage?.getDirectory && 'Origin Private File System',
+		!supported() && 'Origin Private File System',
 		!navigator.mediaDevices?.getDisplayMedia && m.home.screenCapture
 	].filter(Boolean);
 	/** Phones and tablets: no screen capture in any mobile browser, the tool is for computers */
-	const desktopOnly = !navigator.mediaDevices?.getDisplayMedia && matchMedia('(pointer: coarse)').matches;
+	const desktopOnly = !navigator.mediaDevices?.getDisplayMedia && coarsePointer.current;
 
 	let projects = $state<Project[] | null>(null);
 	let usage = $state<string | null>(null);
@@ -49,11 +54,15 @@
 	async function refresh() {
 		projects = await listProjects();
 		const { usage: used = 0, quota = 0 } = await storageEstimate();
-		usage = m.home.storage((used / 1024 ** 3).toFixed(2), (quota / 1024 ** 3).toFixed(0));
+		usage = m.home.storage(formatSize(used, intlLocale), formatSize(quota, intlLocale));
 	}
 
 	$effect(() => {
-		if (missing.length === 0) refresh().catch((e) => toast(errorMessage(e), 'error'));
+		if (missing.length) return;
+		const update = () => refresh().catch((e) => toast(errorMessage(e), 'error'));
+		update();
+		// Projects appear, change or go (also by sync): list again
+		return watchSettled((paths) => paths.some((p) => p.includes(PROJECT_EXT)), 300, update);
 	});
 
 	async function startRecording() {
@@ -100,7 +109,7 @@
 		const files = Array.from(list ?? []).filter((f) => isMediaFile(f) || isImageFile(f));
 		if (!files.length || importing) return;
 		requestPersistence();
-		const name = files[0].name.replace(/\.\w+$/, '');
+		const name = stem(files[0].name);
 		let path: string | null = null;
 		const sources: Source[] = [];
 		const images: ImageAsset[] = [];
@@ -134,18 +143,21 @@
 
 	/** Any project in the shared file system */
 	async function openProject() {
-		const path = await chooseFile({ mode: 'open', folder: lastFolder(), accept: [PROJECT_EXT] });
+		const path = await chooseProject();
 		if (path) await goto(editorUrl(path));
 	}
 
 	/** Into the trash (the message offers to undo it) */
 	async function remove(project: Project) {
-		await deleteToTrash([project.id], () => void refresh());
-		await refresh();
+		try {
+			await deleteToTrash([project.id], () => void refresh());
+		} catch (e) {
+			toast(errorMessage(e), 'error', 8000);
+		}
 	}
 </script>
 
-<svelte:head><title>{BRAND.tool} · {BRAND.suite}</title></svelte:head>
+<svelte:head><title>{toolName('screen-capture')} · {BRAND.suite}</title></svelte:head>
 
 <!-- The whole page is a drop zone for video files -->
 <div
@@ -169,7 +181,7 @@
 >
 <main class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10">
 	<header class="flex flex-col gap-2">
-		<h1 class="text-4xl font-bold">{BRAND.tool}</h1>
+		<h1 class="text-4xl font-bold">{toolName('screen-capture')}</h1>
 		<p class="opacity-70">{m.home.tagline}</p>
 	</header>
 
@@ -249,14 +261,7 @@
 </div>
 
 {#if draggingFiles}
-	<div
-		class="border-selection bg-base-300/80 rounded-box pointer-events-none fixed inset-4 z-40 grid place-items-center border-4 border-dashed"
-	>
-		<div class="flex flex-col items-center gap-2 text-lg font-semibold">
-			<span class="icon-[material-symbols-light--upload-file] size-12" aria-hidden="true"></span>
-			{m.home.dropToCreate}
-		</div>
-	</div>
+	<DropOverlay label={m.home.dropToCreate} fixed />
 {/if}
 
 {#if recordingFor}

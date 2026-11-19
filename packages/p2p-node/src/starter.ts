@@ -1,13 +1,14 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { appendFileSync, existsSync, renameSync, statSync } from 'node:fs';
-import { mkdir, readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXIT_REMOVED, type FromPeer, type ToPeer } from './ipc.js';
 import { sandboxArgs } from './sandbox.js';
 import { install, uninstall } from './service.js';
-import { updater, writeAtomic } from './updates.js';
+import { readJson, writeAtomic } from './json.js';
+import { updater } from './updates.js';
 
 // The starter of the p2p-node (`starter.js`, installed once by `/p2p-node/install.sh` or `install.ps1`). It keeps
 // the instances, fetches the sync process from the site (signed, see `release.ts`), runs it with Node's permission
@@ -39,14 +40,6 @@ const instanceDir = (name: string) => join(home, 'instances', name);
 const self = fileURLToPath(import.meta.url);
 
 const log = (text: string) => console.log(new Date().toISOString(), text);
-
-async function readJson<T>(file: string): Promise<T | undefined> {
-	try {
-		return JSON.parse(await readFile(file, 'utf8')) as T;
-	} catch {
-		return undefined;
-	}
-}
 
 async function origin(): Promise<string> {
 	const configured = process.env.IN_BROWSER_ORIGIN || (await readJson<{ origin?: string }>(join(home, 'config.json')))?.origin;

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { openContextMenu } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { m } from '#lib/i18n/index.js';
-	import type { Tab, Workspace } from '#lib/workspace.svelte.js';
+	import type { Tab } from '#lib/tab.svelte.js';
+	import type { Workspace } from '#lib/workspace.svelte.js';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
 
 	// The open files; click shows, middle click or × closes, right click for more. A dot marks what is not saved and
 	// won't save itself (no place yet, or paused by a conflict or problem).
@@ -50,7 +52,7 @@
 		>
 			<span class={['max-w-48 truncate', tab.conflict === 'deleted' && 'line-through']}>{tab.name}</span>
 			{#if tab.dirty && !tab.pending && !tab.saving}
-				<span class="bg-base-content/60 size-2 shrink-0 rounded-full" title={m.status.notSaved}></span>
+				<span class="bg-base-content/60 size-2 shrink-0 rounded-full" title={brandMessages().save.notSaved}></span>
 			{/if}
 			<button
 				class="btn btn-ghost btn-xs btn-square"

@@ -27,14 +27,14 @@ const de: Messages = {
 	actions: {
 		new: 'Neu',
 		open: 'Öffnen',
-		openFromFiles: 'Aus Files öffnen …',
+		openFromFiles: 'Aus Dateien öffnen …',
 		openFromComputer: 'Vom Rechner öffnen …',
 		save: 'Speichern',
 		saveTo: 'Speichern …',
 		saveAs: 'Speichern unter …',
 		rename: 'Umbenennen',
 		download: 'Herunterladen',
-		showInFiles: 'In Files zeigen',
+		showInFiles: 'In Dateien zeigen',
 		close: 'Schließen',
 		closeOthers: 'Andere schließen'
 	},
@@ -88,9 +88,6 @@ const de: Messages = {
 		position: (line, column) => `Zeile ${line}, Spalte ${column}`,
 		selected: (chars) => `${chars} ausgewählt`,
 		plainText: 'Nur Text',
-		saving: 'Speichern …',
-		saved: 'Gespeichert',
-		notSaved: 'Noch nicht gespeichert',
 		deleted: 'Gelöscht',
 		lineEnding: 'Zeilenende',
 		encoding: 'Kodierung'

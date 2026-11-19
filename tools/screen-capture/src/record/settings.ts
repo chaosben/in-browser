@@ -1,5 +1,6 @@
 import { Quality, type VideoCodec } from 'mediabunny';
 import type { QualityPreset } from '#lib/export/settings.js';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
 export type RecordLevel = Exclude<QualityPreset, 'custom'>;
 
@@ -153,18 +154,9 @@ export function sanitizeRecordSettings(raw: unknown): RecordSettings {
 }
 
 export function loadRecordSettings(): RecordSettings {
-	try {
-		return sanitizeRecordSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null'));
-	} catch {
-		// localStorage not available or invalid JSON
-		return { ...DEFAULT_RECORD_SETTINGS };
-	}
+	return sanitizeRecordSettings(loadJson<unknown>(STORAGE_KEY, null));
 }
 
 export function storeRecordSettings(settings: RecordSettings) {
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-	} catch {
-		// ignore
-	}
+	storeJson(STORAGE_KEY, settings);
 }

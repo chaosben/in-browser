@@ -6,6 +6,7 @@
 
 import type { IconData } from '@in-browser/graphics/icons/types.js';
 import { DASHES, parseFit, type Dash, type ShapeFit } from '#lib/ink/shapes.js';
+import { FormatError, migrateFormat, type RawDocument } from '@in-browser/files/formats.js';
 
 export const FORMAT = 'notes';
 export const VERSION = 1;
@@ -136,30 +137,10 @@ export interface PageContent {
 /** Version of the page files; points are stored as drawn, i.e. already smoothed (see `ink/smooth.ts`) */
 const PAGE_VERSION = 1;
 
-export class FormatError extends Error {
-	constructor(readonly reason: 'unknown' | 'newer') {
-		super(reason === 'newer' ? 'created with a newer version' : 'unknown format');
-	}
-}
-
-type Raw = Record<string, unknown> & { version: number; format?: unknown };
+export { FormatError };
 
 /** Steps from version n to n + 1 (none yet) */
-const MIGRATIONS: Record<number, (p: Raw) => Raw> = {};
-
-/** Brings a saved notebook to the current format version; newer or unknown formats are rejected. */
-export function migrate(raw: unknown): Raw {
-	let p = raw as Raw;
-	if (!p || typeof p !== 'object' || typeof p.version !== 'number') throw new FormatError('unknown');
-	if (p.version > VERSION) throw new FormatError('newer');
-	while (p.version < VERSION) {
-		const step = MIGRATIONS[p.version];
-		if (!step) throw new FormatError('unknown');
-		p = step(p);
-	}
-	if (p.format !== FORMAT) throw new FormatError('unknown');
-	return p;
-}
+const MIGRATIONS: Record<number, (p: RawDocument) => RawDocument> = {};
 
 /** Asset names are plain file names inside `assets/` */
 const ASSET = /^[\w.-]+$/;
@@ -167,7 +148,7 @@ const ASSET = /^[\w.-]+$/;
 const isPaper = (v: unknown): v is Paper => PAPERS.includes(v as Paper);
 
 export function parseNotebook(raw: unknown): Notebook {
-	const p = migrate(raw);
+	const p = migrateFormat(raw, FORMAT, VERSION, MIGRATIONS);
 	if (!Array.isArray(p.pages)) throw new FormatError('unknown');
 	const pages = (p.pages as Partial<PageMeta>[])
 		.filter((page) => typeof page?.id === 'string')

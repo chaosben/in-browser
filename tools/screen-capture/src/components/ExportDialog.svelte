@@ -3,7 +3,6 @@
 	import {
 		estimateBytes,
 		fitToProject,
-		formatBytes,
 		FORMATS,
 		GIF_FRAME_RATES,
 		GIF_WIDTHS,
@@ -21,12 +20,13 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { writable } from '@in-browser/files/fs.js';
-	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
-	import { parent } from '@in-browser/files/path.js';
+	import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
+	import { extname, parent } from '@in-browser/files/path.js';
 	import type { Project } from '#lib/project/types.js';
 	import { duration } from '#lib/timeline/ops.js';
-	import { m } from '#lib/i18n/index.js';
+	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
+	import { downloadUrl } from '@in-browser/brand/download.js';
 
 	interface Props {
 		project: Project;
@@ -133,7 +133,7 @@
 		const path = await chooseFile({
 			mode: 'save',
 			folder: parent(project.id),
-			accept: [`.${result.name.split('.').pop()}`],
+			accept: [extname(result.name)],
 			name: result.name,
 			overwrite: true
 		});
@@ -148,11 +148,7 @@
 	}
 
 	function download() {
-		if (!result) return;
-		const a = document.createElement('a');
-		a.href = result.url;
-		a.download = result.name;
-		a.click();
+		if (result) downloadUrl(result.url, result.name);
 	}
 
 	function close() {
@@ -271,7 +267,7 @@
 					<span class="opacity-70">{m.export.videoBitrate}</span>
 					<span>{(bitrate / 1_000_000).toFixed(1)} Mbit/s</span>
 					<span class="opacity-70">{m.export.estimatedSize}</span>
-					<span class="font-semibold">≈ {formatBytes(estimate)}</span>
+					<span class="font-semibold">≈ {formatSize(estimate, intlLocale)}</span>
 				{/if}
 			</div>
 
@@ -305,7 +301,7 @@
 			<div class="flex flex-col gap-2 py-4">
 				<div role="status" class="alert alert-success">{m.export.finished}</div>
 				<p class="text-sm">
-					<strong>{result.name}</strong> · {formatBytes(result.size)} · {m.export.renderedIn(formatTime(result.seconds, 0))}
+					<strong>{result.name}</strong> · {formatSize(result.size, intlLocale)} · {m.export.renderedIn(formatTime(result.seconds, 0))}
 				</p>
 				<!-- What to do with the file: the two actions in full width -->
 				<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">

@@ -6,10 +6,24 @@ const en = {
 		cancel: 'Cancel'
 	},
 
+	/** Visible names of the tools (code, folders and addresses stay English: the key is the tool's folder) */
+	tools: {
+		files: 'Files',
+		notes: 'Notes',
+		'text-editor': 'Text Editor',
+		'screen-capture': 'Screen Capture'
+	},
+
 	brand: {
 		home: `${BRAND.suite} overview`,
 		allTools: `All tools from ${BRAND.suite}`,
 		toolHome: (tool: string) => `${tool} home`
+	},
+
+	save: {
+		saving: 'Saving …',
+		saved: 'Saved',
+		notSaved: 'Not saved yet'
 	},
 
 	bar: {

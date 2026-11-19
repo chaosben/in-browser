@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '#lib/i18n/index.js';
-	import type { Tab } from '#lib/workspace.svelte.js';
+	import type { Tab } from '#lib/tab.svelte.js';
 	import type { ViewSpec } from './registry.js';
 	import type { ViewHost } from './types.js';
 

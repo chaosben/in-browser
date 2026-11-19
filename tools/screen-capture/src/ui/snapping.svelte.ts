@@ -1,17 +1,10 @@
-const STORAGE_KEY = 'screen-capture:snapping';
+import { readStored, writeStored } from '@in-browser/brand/storage.js';
 
-function load(): boolean {
-	try {
-		return localStorage.getItem(STORAGE_KEY) !== 'off';
-	} catch {
-		// localStorage not available
-		return true;
-	}
-}
+const STORAGE_KEY = 'screen-capture:snapping';
 
 /** Snapping in the preview and the timeline (persisted); Alt while dragging does the opposite */
 class Snapping {
-	#enabled = $state(load());
+	#enabled = $state(readStored(STORAGE_KEY) !== 'off');
 
 	get enabled() {
 		return this.#enabled;
@@ -19,11 +12,7 @@ class Snapping {
 
 	set enabled(on: boolean) {
 		this.#enabled = on;
-		try {
-			localStorage.setItem(STORAGE_KEY, on ? 'on' : 'off');
-		} catch {
-			// ignore
-		}
+		writeStored(STORAGE_KEY, on ? 'on' : 'off');
 	}
 
 	/** Snap during this drag step? */

@@ -22,3 +22,15 @@ export function droppedPaths(e: DragEvent): string[] | null {
 
 /** Ctrl/Cmd (or Alt) copies instead of moving */
 export const copyKey = (e: DragEvent) => e.ctrlKey || e.metaKey || e.altKey;
+
+/** A drop onto `folder`: own entries go there (moved or copied), the computer's files are uploaded there */
+export function dropOnFolder(
+	e: DragEvent,
+	folder: string,
+	ondropitems: (paths: string[], folder: string, copy: boolean) => void,
+	ondropfiles: (data: DataTransfer, folder: string) => void
+) {
+	const paths = droppedPaths(e);
+	if (paths) ondropitems(paths, folder, copyKey(e));
+	else if (e.dataTransfer) ondropfiles(e.dataTransfer, folder);
+}

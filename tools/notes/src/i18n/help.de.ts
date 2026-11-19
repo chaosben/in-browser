@@ -18,13 +18,13 @@ const help: typeof enHelp = {
 			},
 			saving: {
 				title: 'Speichern',
-				text: 'Jede Änderung wird automatisch gesichert, einen Moment nachdem du den Stift absetzt; das Symbol unten links zeigt, ob alles gespeichert ist. Nichts wird hochgeladen. Ein Notizbuch ist eine Datei „Name.note“ im Browserspeicher; klicke oben auf seinen Namen, um es umzubenennen. In Files verschiebst, kopierst, löschst oder lädst du Notizbücher wie andere Dateien herunter. Ein Notizbuch kann nur in einem Tab gleichzeitig offen sein. Ändert es sich woanders (auf einem anderen Gerät, durch den Abgleich), werden die Seiten neu geladen, an denen du gerade nicht arbeitest – deine Änderungen hier bleiben erhalten.',
+				text: 'Jede Änderung wird automatisch gesichert, einen Moment nachdem du den Stift absetzt; das Symbol unten links zeigt, ob alles gespeichert ist. Nichts wird hochgeladen. Ein Notizbuch ist eine Datei „Name.note“ im Browserspeicher; klicke oben auf seinen Namen, um es umzubenennen. In Dateien verschiebst, kopierst, löschst oder lädst du Notizbücher wie andere Dateien herunter. Ein Notizbuch kann nur in einem Tab gleichzeitig offen sein. Ändert es sich woanders (auf einem anderen Gerät, durch den Abgleich), werden die Seiten neu geladen, an denen du gerade nicht arbeitest – deine Änderungen hier bleiben erhalten.',
 				tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Halte eine Kopie in einem Ordner auf deinem Rechner oder auf deinen anderen Geräten.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
 			connected: {
 				title: 'In einem verbundenen Ordner',
-				text: 'In den Dialogen für ein neues Notizbuch, „Öffnen …“ und den PDF-Import wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Notizbuch dort wird direkt in diesem Ordner auf deinem Rechner gespeichert. Die Startseite zeigt solche Notizbücher, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt. Ordner mit einer Wolke (live von deinen anderen Geräten) funktionieren genauso.',
+				text: 'In den Dialogen für ein neues Notizbuch, „Öffnen …“ und den PDF-Import wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Dateien verbunden hast („Verbunden“). Ein Notizbuch dort wird direkt in diesem Ordner auf deinem Rechner gespeichert. Die Startseite zeigt solche Notizbücher, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt. Ordner mit einer Wolke (live von deinen anderen Geräten) funktionieren genauso.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
 			sync: {
@@ -34,7 +34,7 @@ const help: typeof enHelp = {
 			},
 			install: {
 				title: 'Installieren und offline',
-				text: 'Notes läuft auf Telefonen, Tablets und Rechnern. Bietet dein Browser es an, installierst du es wie eine App; es startet dann auch ohne Internetverbindung.',
+				text: 'Notizen läuft auf Telefonen, Tablets und Rechnern. Bietet dein Browser es an, installierst du es wie eine App; es startet dann auch ohne Internetverbindung.',
 				link: { href: '/help/install', label: 'Installieren, offline und Browser' }
 			},
 			undo: {
@@ -175,7 +175,7 @@ const help: typeof enHelp = {
 		items: {
 			images: {
 				title: 'Bilder',
-				text: '„Einfügen“ bietet „Bild aus Files …“ und „Bild von diesem Gerät …“; du kannst ein Bild auch einfügen (Zwischenablage) oder auf die Seite ziehen. Es erscheint in natürlicher Größe, verkleinert, wenn es nicht auf die Seite passt, und ist gleich ausgewählt, damit du es verschieben und skalieren kannst. Sehr große Bilder werden verkleinert gespeichert, damit das Notizbuch klein bleibt. Der Radierer rührt Bilder nie an – lösche sie mit „Auswählen“.'
+				text: '„Einfügen“ bietet „Bild aus Dateien …“ und „Bild von diesem Gerät …“; du kannst ein Bild auch einfügen (Zwischenablage) oder auf die Seite ziehen. Es erscheint in natürlicher Größe, verkleinert, wenn es nicht auf die Seite passt, und ist gleich ausgewählt, damit du es verschieben und skalieren kannst. Sehr große Bilder werden verkleinert gespeichert, damit das Notizbuch klein bleibt. Der Radierer rührt Bilder nie an – lösche sie mit „Auswählen“.'
 			},
 			icons: {
 				title: 'Icons',
@@ -216,11 +216,11 @@ const help: typeof enHelp = {
 		items: {
 			importNew: {
 				title: 'PDF als neues Notizbuch',
-				text: '„PDF importieren“ auf der Startseite – „PDF aus Files …“ oder „PDF von diesem Gerät …“ – macht aus dem PDF ein neues Notizbuch: Jede PDF-Seite wird eine Seite, auf die du schreiben kannst. Du wählst, wohin das Notizbuch kommt; bei einem PDF aus Files startet der Dialog daneben. Ein PDF in Files zu öffnen, macht dasselbe. Mit Passwort geschützte PDFs lassen sich nicht öffnen.'
+				text: '„PDF importieren“ auf der Startseite – „PDF aus Dateien …“ oder „PDF von diesem Gerät …“ – macht aus dem PDF ein neues Notizbuch: Jede PDF-Seite wird eine Seite, auf die du schreiben kannst. Du wählst, wohin das Notizbuch kommt; bei einem PDF aus Dateien startet der Dialog daneben. Ein PDF in Dateien zu öffnen, macht dasselbe. Mit Passwort geschützte PDFs lassen sich nicht öffnen.'
 			},
 			importInto: {
 				title: 'PDF-Seiten in ein Notizbuch',
-				text: '„PDF aus Files …“ und „PDF von diesem Gerät …“ im Menü „Einfügen“ – oder ein eingefügtes oder hineingezogenes PDF – fügen alle seine Seiten nach der aktuellen Seite ein. Ein PDF ist ein Schritt zum Rückgängigmachen.'
+				text: '„PDF aus Dateien …“ und „PDF von diesem Gerät …“ im Menü „Einfügen“ – oder ein eingefügtes oder hineingezogenes PDF – fügen alle seine Seiten nach der aktuellen Seite ein. Ein PDF ist ein Schritt zum Rückgängigmachen.'
 			},
 			annotate: {
 				title: 'Auf ein PDF schreiben',
@@ -228,7 +228,7 @@ const help: typeof enHelp = {
 			},
 			export: {
 				title: 'Exportieren',
-				text: '„Exportieren“ in der oberen Leiste (oder „Exportieren …“ im Menü des Notizbuchs) schreibt das Notizbuch als Datei. Ist sie fertig, speichert „Herunterladen“ sie auf diesem Gerät, „In Files speichern …“ legt sie im Browserspeicher ab – standardmäßig neben dem Notizbuch.',
+				text: '„Exportieren“ in der oberen Leiste (oder „Exportieren …“ im Menü des Notizbuchs) schreibt das Notizbuch als Datei. Ist sie fertig, speichert „Herunterladen“ sie auf diesem Gerät, „In Dateien speichern …“ legt sie im Browserspeicher ab – standardmäßig neben dem Notizbuch.',
 				options: {
 					pdf: { label: 'PDF – alle Seiten', text: 'Alle Seiten in einem PDF. Striche, Formen und importierte PDF-Seiten bleiben in jeder Größe scharf; Bilder werden so eingebettet, wie sie sind.' },
 					png: { label: 'PNG – diese Seite', text: 'Die aktuelle Seite als Bild in Druckqualität (etwa 216 dpi, höchstens 4096 Pixel an der langen Seite) – für Nachrichten, Folien oder andere Apps.' }

@@ -7,10 +7,7 @@ import { pruneHistory } from '@in-browser/graphics/history.js';
 import { canvasSize, placeRecording, recordingSources, type Recording } from './project.js';
 import { newId, type ImageAsset, type Item, type Point, type Rect, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
 import { entriesUse } from './library.js';
-import { m } from '#lib/i18n/index.js';
-import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
-import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
+import { reportSaveFailure } from '@in-browser/files/documents.js';
 import { parseColor } from '@in-browser/graphics/color.js';
 
 const HISTORY_LIMIT = 100;
@@ -335,11 +332,6 @@ export class Editor {
 		if (size) this.resizeCanvas(size);
 	}
 
-	rename(name: string) {
-		this.project = { ...this.project, name: name.trim() || m.common.untitled };
-		this.#scheduleSave();
-	}
-
 	/** Canvas background color (`#rrggbb`) */
 	setBackground(color: string) {
 		this.project = { ...this.project, background: color };
@@ -429,29 +421,20 @@ export class Editor {
 
 	/** Is the source used in the timeline or in the project library? */
 	isSourceInTimeline(sourceId: string) {
-		return usesSource(this.project.timeline, sourceId) || entriesUse(this.project.library, sourceId);
+		return this.#inUse('sources', sourceId);
 	}
 
 	/** Is the source only kept alive by the undo/redo history? */
 	isSourceInHistory(sourceId: string) {
-		const uses = (s: Snapshot) => usesSource(s.timeline, sourceId);
-		return this.#undo.some(uses) || this.#redo.some(uses);
+		return this.#inHistory('sources', sourceId);
 	}
 
 	/**
 	 * Permanently deletes a source (including its file) that is not in the timeline. History steps that still
 	 * use it are dropped, so undo can no longer bring it back.
 	 */
-	async removeSource(sourceId: string) {
-		const source = this.source(sourceId);
-		if (!source || this.isSourceInTimeline(sourceId)) return;
-		const pruned = pruneHistory(this.#undo, this.#redo, (s) => usesSource(s.timeline, sourceId));
-		this.#undo = pruned.undo;
-		this.#redo = pruned.redo;
-		this.#lastMergeKey = null;
-		this.project = { ...this.project, sources: this.project.sources.filter((s) => s.id !== sourceId) };
-		await this.save();
-		await deleteMediaFile(this.project.id, source.file);
+	removeSource(sourceId: string) {
+		return this.#removeAsset('sources', sourceId);
 	}
 
 	image(id: string): ImageAsset | undefined {
@@ -465,25 +448,41 @@ export class Editor {
 	}
 
 	isImageInTimeline(imageId: string) {
-		return usesImage(this.project.timeline, imageId) || entriesUse(this.project.library, imageId);
+		return this.#inUse('images', imageId);
 	}
 
 	isImageInHistory(imageId: string) {
-		const uses = (s: Snapshot) => usesImage(s.timeline, imageId);
-		return this.#undo.some(uses) || this.#redo.some(uses);
+		return this.#inHistory('images', imageId);
 	}
 
 	/** Permanently deletes an image that is not in the timeline (like `removeSource`) */
-	async removeImage(imageId: string) {
-		const image = this.image(imageId);
-		if (!image || this.isImageInTimeline(imageId)) return;
-		const pruned = pruneHistory(this.#undo, this.#redo, (s) => usesImage(s.timeline, imageId));
+	removeImage(imageId: string) {
+		return this.#removeAsset('images', imageId);
+	}
+
+	#inUse(kind: AssetKind, id: string) {
+		return USES[kind](this.project.timeline, id) || entriesUse(this.project.library, id);
+	}
+
+	#inHistory(kind: AssetKind, id: string) {
+		const uses = (s: Snapshot) => USES[kind](s.timeline, id);
+		return this.#undo.some(uses) || this.#redo.some(uses);
+	}
+
+	async #removeAsset(kind: AssetKind, id: string) {
+		const asset = this.project[kind].find((a) => a.id === id);
+		if (!asset || this.#inUse(kind, id)) return;
+		const pruned = pruneHistory(this.#undo, this.#redo, (s) => USES[kind](s.timeline, id));
 		this.#undo = pruned.undo;
 		this.#redo = pruned.redo;
 		this.#lastMergeKey = null;
-		this.project = { ...this.project, images: this.project.images.filter((i) => i.id !== imageId) };
+		const p = this.project;
+		this.project =
+			kind === 'sources'
+				? { ...p, sources: p.sources.filter((s) => s.id !== id) }
+				: { ...p, images: p.images.filter((i) => i.id !== id) };
 		await this.save();
-		await deleteMediaFile(this.project.id, image.file);
+		await deleteMediaFile(this.project.id, asset.file);
 	}
 
 	/** `resized`: the canvas size changed too, so the preview must be rebuilt */
@@ -527,9 +526,7 @@ export class Editor {
 		} catch (e) {
 			// Reported once per run of failures; the save state in the footer keeps showing it, the next change tries again
 			console.error('[screen-capture] save', e);
-			const reported = this.saveError !== null;
-			this.saveError = filesErrorText(e);
-			if (!reported) toast(m.common.saveFailed(this.saveError), 'error', 10000, accessAction(e, () => void this.save()));
+			reportSaveFailure(this, e, () => void this.save());
 		} finally {
 			this.saving = false;
 		}
@@ -539,3 +536,7 @@ export class Editor {
 const usesSource = (t: Timeline, sourceId: string) => clipsOf(t).some((c) => c.sourceId === sourceId);
 const usesImage = (t: Timeline, imageId: string) =>
 	t.items.some((item) => item.type === 'annotation' && item.kind === 'image' && item.imageId === imageId);
+
+/** Media kinds of the media bin, as named in `Project` */
+type AssetKind = 'sources' | 'images';
+const USES: Record<AssetKind, (t: Timeline, id: string) => boolean> = { sources: usesSource, images: usesImage };

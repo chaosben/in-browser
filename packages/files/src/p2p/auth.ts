@@ -1,5 +1,5 @@
 import { decodeBase32, encodeBase32, normalizeBase32 } from './base32.js';
-import { randomBytes, sha256, toBase64Url, utf8 } from './bytes.js';
+import { randomBytes, sha256, toBase64Url, toHex, utf8 } from './bytes.js';
 import { deviceIdOf, sign, verify, type Identity } from './identity.js';
 import { mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
 
@@ -73,12 +73,16 @@ export function newInviteCode(): string {
 	return encodeBase32(randomBytes(13), 100);
 }
 
-/** Normalized key from what was typed or the pairing link (`…#pair=KEY`); `null` if it isn't one */
-export function parseInviteCode(text: string): string | null {
-	const fromLink = /[#&?]pair=([^&\s]+)/.exec(text)?.[1];
+/** Normalized key of the link parameter `kind` in `text` (or, with `typed`, `text` itself); `null` if there is none */
+function parseCode(text: string, kind: 'pair' | 'share', typed: boolean): string | null {
+	const fromLink = new RegExp(`[#&?]${kind}=([^&\\s]+)`).exec(text)?.[1];
+	if (!fromLink && !typed) return null;
 	const code = normalizeBase32(fromLink ? decodeURIComponent(fromLink) : text);
 	return code && code.length === 20 ? code : null;
 }
+
+/** Key from what was typed or the pairing link (`…#pair=KEY`) */
+export const parseInviteCode = (text: string) => parseCode(text, 'pair', true);
 
 async function hmac(code: string, message: string): Promise<string> {
 	const key = await crypto.subtle.importKey('raw', decodeBase32(code) as Uint8Array<ArrayBuffer>, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -90,20 +94,12 @@ export const pairProof = async (code: string, role: 'new' | 'inviter', fingerpri
 /** Proof of a guest share's key, bound to the connection like `pairProof` */
 export const shareProof = async (code: string, role: 'guest' | 'host', fingerprints: string) => hmac(code, `in-browser-share\n${role}\n${bound(fingerprints)}`);
 
-/** Normalized key of a guest share from its link (`…#share=KEY`); `null` if there is none */
-export function parseShareCode(text: string): string | null {
-	const fromLink = /[#&?]share=([^&\s]+)/.exec(text)?.[1];
-	if (!fromLink) return null;
-	const code = normalizeBase32(decodeURIComponent(fromLink));
-	return code && code.length === 20 ? code : null;
-}
+/** Key of a guest share from its link (`…#share=KEY`) */
+export const parseShareCode = (text: string) => parseCode(text, 'share', false);
 
 /** Room of the group, derived from its secret (relays only see a hash) */
 export async function roomId(prefix: 'group' | 'pair' | 'share', secret: string): Promise<string> {
-	return [...(await sha256(`in-browser-${prefix}\n${secret}`))]
-		.slice(0, 16)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	return toHex((await sha256(`in-browser-${prefix}\n${secret}`)).slice(0, 16));
 }
 
 /** New room secret (128 bits) */

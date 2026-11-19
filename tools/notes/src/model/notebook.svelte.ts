@@ -4,7 +4,7 @@
 
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
-import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
+import { reportSaveFailure } from '@in-browser/files/documents.js';
 import { isInside } from '@in-browser/files/path.js';
 import { itemBounds, union, type Box } from '#lib/ink/geometry.js';
 import { isIdentity, transformItem, type Transform } from '#lib/ink/lasso.js';
@@ -130,6 +130,13 @@ export class NotebookDoc {
 		return this.scenes.get(id) ?? null;
 	}
 
+	/** The page at an index with its loaded content, null if either is missing */
+	private sceneAt(pageIndex: number): { page: PageMeta; scene: PageScene } | null {
+		const page = this.pages[pageIndex];
+		const scene = page && this.scene(page.id);
+		return scene ? { page, scene } : null;
+	}
+
 	/** Loads a page's content (once) */
 	load(id: string): Promise<void> {
 		let pending = this.loading.get(id);
@@ -198,9 +205,9 @@ export class NotebookDoc {
 	}
 
 	private addInk(pageIndex: number, stroke: Ink): string | null {
-		const page = this.pages[pageIndex];
-		const scene = page && this.scene(page.id);
-		if (!scene) return null;
+		const found = this.sceneAt(pageIndex);
+		if (!found) return null;
+		const { page, scene } = found;
 		const add = (at?: number) => {
 			scene.add(stroke, at);
 			this.listener?.stroke(page.id, scene, stroke);
@@ -221,10 +228,10 @@ export class NotebookDoc {
 
 	/** Replaces a stroke by a shape (a recognized one, one undo step); the shape's id, null if the stroke is gone */
 	toShape(pageIndex: number, strokeId: string, fit: ShapeFit): string | null {
-		const page = this.pages[pageIndex];
-		const scene = page && this.scene(page.id);
-		const stroke = scene?.items.find((i) => i.id === strokeId);
-		if (!scene || !stroke || !isStroke(stroke)) return null;
+		const found = this.sceneAt(pageIndex);
+		const stroke = found?.scene.items.find((i) => i.id === strokeId);
+		if (!found || !stroke || !isStroke(stroke)) return null;
+		const { page, scene } = found;
 		const shape: ShapeItem = { id: crypto.randomUUID(), type: 'shape', fit, color: stroke.color, size: stroke.size };
 		this.applyOps(page.id, [{ removed: stroke, at: scene.items.indexOf(stroke), added: [shape] }]);
 		return shape.id;
@@ -252,9 +259,9 @@ export class NotebookDoc {
 
 	/** Replaces strokes by pieces of them (none = removed) at their place in the draw order */
 	private replace(pageIndex: number, cuts: { stroke: Ink; pieces: Float32Array[] }[]) {
-		const page = this.pages[pageIndex];
-		const scene = page && this.scene(page.id);
-		if (!scene) return;
+		const found = this.sceneAt(pageIndex);
+		if (!found) return;
+		const { page, scene } = found;
 		if (this.erasing && this.erasing.page !== page.id) this.eraseEnd();
 		this.erasing ??= { page: page.id, ops: [] };
 		let box: Box | null = null;
@@ -325,10 +332,8 @@ export class NotebookDoc {
 
 	/** Puts a picture on top of a page (one undo step) */
 	addPicture(pageIndex: number, picture: Picture) {
-		const page = this.pages[pageIndex];
-		const scene = page && this.scene(page.id);
-		if (!scene) return;
-		this.applyOps(page.id, [], [picture]);
+		const page = this.sceneAt(pageIndex)?.page;
+		if (page) this.applyOps(page.id, [], [picture]);
 	}
 
 	/** A picture finished loading: redraw it wherever it is shown */
@@ -343,15 +348,14 @@ export class NotebookDoc {
 
 	/** Items of a page by id, in draw order */
 	itemsById(pageIndex: number, ids: ReadonlySet<string>): Item[] {
-		const scene = this.scene(this.pages[pageIndex]?.id ?? '');
-		return scene ? scene.items.filter((s) => ids.has(s.id)) : [];
+		return this.sceneAt(pageIndex)?.scene.items.filter((s) => ids.has(s.id)) ?? [];
 	}
 
 	/** Takes items out of the page while they are dragged (drawn by the stage meanwhile) */
 	lift(pageIndex: number, ids: ReadonlySet<string>): Lifted | null {
-		const page = this.pages[pageIndex];
-		const scene = page && this.scene(page.id);
-		if (!scene) return null;
+		const found = this.sceneAt(pageIndex);
+		if (!found) return null;
+		const { page, scene } = found;
 		const items: { item: Item; at: number }[] = [];
 		let box: Box | null = null;
 		// From the back, so the recorded places stay valid when put back from the front
@@ -392,9 +396,9 @@ export class NotebookDoc {
 
 	/** Deletes items (one undo step) */
 	deleteItems(pageIndex: number, ids: ReadonlySet<string>) {
-		const page = this.pages[pageIndex];
-		if (!page) return;
-		const scene = this.scene(page.id)!;
+		const found = this.sceneAt(pageIndex);
+		if (!found) return;
+		const { page, scene } = found;
 		this.applyOps(page.id, this.itemsById(pageIndex, ids).map((item) => ({ removed: item, at: scene.items.indexOf(item), added: [] })));
 	}
 
@@ -405,9 +409,9 @@ export class NotebookDoc {
 
 	/** Changes items (one undo step): `change` gives the new version of an item, or null to leave it */
 	change(pageIndex: number, ids: ReadonlySet<string>, change: (item: Item) => Item | null) {
-		const page = this.pages[pageIndex];
-		if (!page) return;
-		const scene = this.scene(page.id)!;
+		const found = this.sceneAt(pageIndex);
+		if (!found) return;
+		const { page, scene } = found;
 		const ops = this.itemsById(pageIndex, ids).flatMap((item) => {
 			const changed = change(item);
 			return changed ? [{ removed: item, at: scene.items.indexOf(item), added: [changed] }] : [];
@@ -417,8 +421,8 @@ export class NotebookDoc {
 
 	/** Copies items a little offset, on top; the ids of the copies */
 	duplicate(pageIndex: number, ids: ReadonlySet<string>): Set<string> {
-		const page = this.pages[pageIndex];
-		if (!page || !this.scene(page.id)) return new Set();
+		const page = this.sceneAt(pageIndex)?.page;
+		if (!page) return new Set();
 		const copies = this.itemsById(pageIndex, ids).map((s) => transformItem({ ...s, id: crypto.randomUUID() }, { dx: 12, dy: 12, scale: 1, ox: 0, oy: 0 }));
 		this.applyOps(page.id, [], copies);
 		return new Set(copies.map((c) => c.id));
@@ -611,10 +615,7 @@ export class NotebookDoc {
 			for (const id of removed) this.removedPages.add(id);
 			this.metaDirty ||= meta;
 			console.error('[notes] save', e);
-			// Reported once per run of failures; the save state in the footer keeps showing it
-			const reported = this.saveError !== null;
-			this.saveError = filesErrorText(e);
-			if (!reported) toast(m.editor.saveFailed(this.saveError), 'error', 10000, accessAction(e, () => void this.save()));
+			reportSaveFailure(this, e, () => void this.save());
 		} finally {
 			this.saving = false;
 		}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatColor, parseColor, withAlpha } from './color';
+import { formatColor, parseColor } from './color';
 
 describe('parseColor', () => {
 	it('reads hex formats', () => {
@@ -17,7 +17,7 @@ describe('parseColor', () => {
 	});
 });
 
-describe('formatColor / withAlpha', () => {
+describe('formatColor', () => {
 	it('writes alpha only when needed', () => {
 		expect(formatColor('#EF4444', 1)).toBe('#ef4444');
 		expect(formatColor('#ef4444', 0.4)).toBe('#ef444466');
@@ -28,9 +28,5 @@ describe('formatColor / withAlpha', () => {
 		const c = formatColor('#3b82f6', 0.3);
 		expect(parseColor(c).hex).toBe('#3b82f6');
 		expect(parseColor(c).alpha).toBeCloseTo(0.3, 2);
-	});
-	it('withAlpha replaces the opacity', () => {
-		expect(withAlpha('rgba(255, 255, 255, 0.85)', 0.5)).toBe('#ffffff80');
-		expect(withAlpha('#facc15', 0.4)).toBe('#facc1566');
 	});
 });

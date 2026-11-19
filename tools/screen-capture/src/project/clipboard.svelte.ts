@@ -3,6 +3,7 @@
 // is its path in the shared file system) and are copied into the target project when pasting there.
 import { imageOf, sourceOf } from './library.js';
 import type { ImageAsset, Item, Project, Source } from './types.js';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
 const STORAGE_KEY = 'screen-capture:clipboard';
 
@@ -14,14 +15,9 @@ export interface ClipboardData {
 }
 
 function load(): ClipboardData | null {
-	try {
-		const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
-		const valid = raw && typeof raw.projectId === 'string' && [raw.items, raw.sources, raw.images].every(Array.isArray);
-		return valid ? raw : null;
-	} catch {
-		// localStorage not available or invalid JSON
-		return null;
-	}
+	const raw = loadJson<Partial<ClipboardData> | null>(STORAGE_KEY, null);
+	const valid = raw && typeof raw.projectId === 'string' && [raw.items, raw.sources, raw.images].every(Array.isArray);
+	return valid ? (raw as ClipboardData) : null;
 }
 
 class Clipboard {
@@ -55,11 +51,7 @@ class Clipboard {
 			images: project.images.filter((i) => imageIds.has(i.id))
 		});
 		this.#data = data;
-		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-		} catch {
-			// ignore: pasting still works in this tab
-		}
+		storeJson(STORAGE_KEY, data); // if that fails, pasting still works in this tab
 	}
 }
 

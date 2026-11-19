@@ -1,4 +1,5 @@
 import type { Snippet } from 'svelte';
+import { brandMessages } from './i18n/index.svelte.js';
 
 // The places in the BrandFooter a page of a tool fills: on the left the save state of the current document (an icon
 // in a fixed place) and the status of the current page (e.g. cursor position and encoding in the Text Editor). The
@@ -20,4 +21,12 @@ export function setBrandFooter({ status = null, save = null }: { status?: Snippe
 		brandFooter.status = null;
 		brandFooter.save = null;
 	};
+}
+
+/** Save state of a document that saves itself: `saveError` is the text of the last failure */
+export function saveStateOf(doc: { saving: boolean; saveError: string | null; dirty: boolean }): SaveState {
+	const t = brandMessages().save;
+	if (doc.saving) return { state: 'saving', text: t.saving };
+	if (doc.saveError) return { state: 'error', text: doc.saveError };
+	return doc.dirty ? { state: 'unsaved', text: t.notSaved } : { state: 'saved', text: t.saved };
 }

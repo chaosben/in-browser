@@ -1,43 +1,23 @@
 // Notebooks in the shared file system. A notebook is the package `<Name>.note/` (see `types.ts`); at runtime its
 // path is its identity.
 
-import { isPackage, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
-import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-import { FilesError, list, mkdir, move, read, readText, remove, stat, write } from '@in-browser/files/fs.js';
-import { basename, extname, join, normalize, parent, safeName, stem } from '@in-browser/files/path.js';
-import { connectedDocuments, forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
+import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
+import { documentName, packageDocuments } from '@in-browser/files/documents.js';
+import { FilesError, list, mkdir, read, readText, remove, stat, write } from '@in-browser/files/fs.js';
+import { join, normalize } from '@in-browser/files/path.js';
 import { m } from '#lib/i18n/index.js';
 import { GRACE_MS, unusedAssets } from './gc.js';
 import { assetsOf, backgroundAssets, newNotebook, newPage, NOTEBOOK_EXT, parseNotebook, parsePage, serializePage, type Notebook, type PageContent } from './types.js';
 
-/** Folder last used for a notebook (start of the open/save dialogs) */
-const FOLDER_KEY = 'notes:folder';
+const notebooks = packageDocuments('notes', NOTEBOOK_EXT);
 
 export const pagePath = (notebook: string, id: string) => join(notebook, 'pages', `${id}.json`);
 export const manifestPath = (notebook: string) => join(notebook, PACKAGE_MANIFEST);
 export const assetsPath = (notebook: string) => join(notebook, 'assets');
 
-export function lastFolder(): string {
-	try {
-		return localStorage.getItem(FOLDER_KEY) ?? '/';
-	} catch {
-		return '/';
-	}
-}
-
-export function rememberNotebook(path: string) {
-	// Connected folders aren't searched: notebooks there are listed because they are remembered
-	rememberConnected('notes', path);
-	try {
-		localStorage.setItem(FOLDER_KEY, parent(path));
-	} catch {
-		// Storage blocked: the dialogs just start at the top
-	}
-}
-
-export function notebookName(path: string): string {
-	return stem(basename(path));
-}
+export const lastFolder = notebooks.lastFolder;
+export const rememberNotebook = notebooks.remember;
+export const notebookName = documentName;
 
 export interface NotebookEntry {
 	path: string;
@@ -46,36 +26,14 @@ export interface NotebookEntry {
 	modified: number;
 }
 
-/** Paths of all notebooks anywhere in the file system (hidden folders and package contents skipped) */
-async function findNotebooks(folder: string, into: string[] = []): Promise<string[]> {
-	for (const entry of await list(folder)) {
-		// Not searched over the network: folders this device doesn't sync (and connected ones) are left out
-		if (entry.kind !== 'directory' || entry.name.startsWith('.') || entry.remote) continue;
-		if (extname(entry.name) === NOTEBOOK_EXT) into.push(entry.path);
-		else if (!isPackage(entry.name, 'directory')) await findNotebooks(entry.path, into);
-	}
-	return into;
-}
-
-/**
- * All notebooks, last changed first: those in My files and those remembered in connected folders; broken ones and
- * those the browser doesn't allow access to right now are skipped, gone ones are forgotten
- */
+/** All notebooks (see `packageDocuments`), last changed first */
 export async function listNotebooks(): Promise<NotebookEntry[]> {
-	const connected = connectedDocuments('notes');
-	const entries = await Promise.all(
-		[...new Set([...(await findNotebooks('/')), ...connected])].map(async (path): Promise<NotebookEntry | null> => {
-			try {
-				const notebook = await readNotebook(path);
-				const modified = (await stat(manifestPath(path)))?.modified ?? notebook.updatedAt;
-				return { path, name: notebookName(path), pages: notebook.pages.length, modified: Math.max(modified, notebook.updatedAt) };
-			} catch (e) {
-				if (connected.includes(path) && e instanceof FilesError && e.code === 'notFound') forgetConnected('notes', path);
-				return null;
-			}
-		})
-	);
-	return entries.filter((e): e is NotebookEntry => e !== null).sort((a, b) => b.modified - a.modified);
+	const entries = await notebooks.list(async (path): Promise<NotebookEntry> => {
+		const notebook = await readNotebook(path);
+		const modified = (await stat(manifestPath(path)))?.modified ?? notebook.updatedAt;
+		return { path, name: notebookName(path), pages: notebook.pages.length, modified: Math.max(modified, notebook.updatedAt) };
+	});
+	return entries.sort((a, b) => b.modified - a.modified);
 }
 
 export async function readNotebook(path: string): Promise<Notebook> {
@@ -117,13 +75,7 @@ export async function deletePageFile(path: string, id: string): Promise<void> {
 
 /** Asks where a new notebook goes and creates it; its path, `null` if canceled */
 export async function createNotebook(): Promise<string | null> {
-	const path = await chooseFile({
-		mode: 'save',
-		folder: lastFolder(),
-		accept: [NOTEBOOK_EXT],
-		name: safeName(m.home.untitled, m.home.untitled) + NOTEBOOK_EXT,
-		title: m.home.newTitle
-	});
+	const path = await notebooks.chooseNew(m.home.untitled, m.home.newTitle, m.home.untitled);
 	if (!path) return null;
 	await mkdir(join(path, 'pages'));
 	await writeNotebook(path, newNotebook());
@@ -136,13 +88,7 @@ export async function createNotebook(): Promise<string | null> {
  * it: the PDF in its assets, one page per PDF page. Its path, `null` if canceled.
  */
 export async function createNotebookFromPdf(pdf: Blob, name: string, sizes: { w: number; h: number }[], folder = lastFolder()): Promise<string | null> {
-	const path = await chooseFile({
-		mode: 'save',
-		folder,
-		accept: [NOTEBOOK_EXT],
-		name: safeName(name, m.home.untitled) + NOTEBOOK_EXT,
-		title: m.home.newTitle
-	});
+	const path = await notebooks.chooseNew(name, m.home.newTitle, m.home.untitled, folder);
 	if (!path) return null;
 	await mkdir(join(path, 'pages'));
 	const asset = await addAsset(path, pdf, 'pdf');
@@ -154,19 +100,10 @@ export async function createNotebookFromPdf(pdf: Blob, name: string, sizes: { w:
 }
 
 /** Lets the user pick a notebook in the shared file system */
-export async function chooseNotebook(): Promise<string | null> {
-	const path = await chooseFile({ mode: 'open', folder: lastFolder(), accept: [NOTEBOOK_EXT], title: m.home.openTitle });
-	if (path) rememberNotebook(path);
-	return path;
-}
+export const chooseNotebook = () => notebooks.choose(m.home.openTitle);
 
 /** Renames the package; the new path */
-export async function renameNotebook(path: string, name: string): Promise<string> {
-	const target = join(parent(path), safeName(name, m.home.untitled) + NOTEBOOK_EXT);
-	if (target === path) return path;
-	await move(path, target);
-	return target;
-}
+export const renameNotebook = (path: string, name: string) => notebooks.rename(path, name, m.home.untitled);
 
 /**
  * Deletes asset files no page references any more (after the grace period). Reads every page, so it runs in the

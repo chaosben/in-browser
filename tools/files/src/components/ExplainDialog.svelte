@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { BRAND } from '#lib/brand.js';
+	import { BRAND } from '@in-browser/brand/brand.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import { readStored, writeStored } from '@in-browser/brand/storage.js';
 	import { diagnostics, p2pStatus, type Diagnostics } from '@in-browser/files/p2p/p2p.svelte.js';
 	import { groupBase32 } from '@in-browser/files/p2p/base32.js';
 	import { boldParts } from '#lib/devices.svelte.js';
@@ -13,24 +14,12 @@
 	let { onclose, onnext }: { onclose: () => void; onnext?: () => void } = $props();
 
 	const MODE_KEY = 'files:explain-mode';
-	let mode = $state<'simple' | 'expert'>(readMode());
+	let mode = $state<'simple' | 'expert'>(readStored(MODE_KEY) === 'expert' ? 'expert' : 'simple');
 	let info = $state<Diagnostics | null>(null);
-
-	function readMode(): 'simple' | 'expert' {
-		try {
-			return localStorage.getItem(MODE_KEY) === 'expert' ? 'expert' : 'simple';
-		} catch {
-			return 'simple';
-		}
-	}
 
 	function setMode(next: 'simple' | 'expert') {
 		mode = next;
-		try {
-			localStorage.setItem(MODE_KEY, next);
-		} catch {
-			// Not remembered then
-		}
+		writeStored(MODE_KEY, next);
 	}
 
 	// Live diagnostics while the expert version is shown

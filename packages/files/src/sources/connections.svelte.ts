@@ -1,9 +1,10 @@
 import { FilesError, noticed } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import { connectionOf, connectionRoot, join } from '../path.js';
-import { idbGet } from '../sync/idb.js';
 import { listConnections, onConnectionsChanged, saveConnections, type Connection, type FolderConnection } from './registry.js';
 import { beginShare, endShareSession } from './share.js';
+import { syncedFolder } from '../sync/sync.svelte.js';
+import { diskFoldersSupported } from '../handles.js';
 
 // Connections for the UI (“Connected” in Files, the file dialog): list with access state, connect, rename,
 // disconnect, allow access again. Each tab watches its connected folders itself and announces outside changes
@@ -35,10 +36,8 @@ export function connectionLabel(c: ConnectionView): string {
 	return c.name ? t.connection(c.name, c.host ?? '') : t.pending;
 }
 
-/** Folders on disk can be connected (File System Access API, Chromium) */
-export function connectionsSupported(): boolean {
-	return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
-}
+/** Folders on disk can be connected */
+export const connectionsSupported = diskFoldersSupported;
 
 type Observer = { observe(handle: FileSystemHandle, options: { recursive: boolean }): Promise<void>; disconnect(): void };
 type ObserverRecord = { type: string; relativePathComponents: string[] };
@@ -126,7 +125,7 @@ export async function connectFolder(): Promise<{ path: string; alsoSynced: boole
 	}
 	const list = await listConnections();
 	for (const c of folders(list)) if (await c.handle.isSameEntry(handle)) return { path: connectionRoot(c.id), alsoSynced: false };
-	const synced = await idbGet<FileSystemDirectoryHandle>('handle');
+	const synced = await syncedFolder();
 	const alsoSynced = !!synced && (await synced.isSameEntry(handle));
 	const id = crypto.randomUUID().slice(0, 8);
 	await saveConnections([...list, { id, kind: 'folder', name: handle.name, handle }]);

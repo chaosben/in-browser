@@ -245,12 +245,6 @@ export function moveItems(timeline: Timeline, ids: string[], delta: number): Tim
 	};
 }
 
-/** Moves an item to start time `start` (see `moveItems`). */
-export function moveItem(timeline: Timeline, id: string, start: number): Timeline {
-	const item = findItem(timeline, id);
-	return item ? moveItems(timeline, [id], start - item.start) : timeline;
-}
-
 /** Sets the start time without regard to neighbors (not before 0); annotations keep their length. */
 export function shiftItem(timeline: Timeline, id: string, start: number): Timeline {
 	const item = findItem(timeline, id);

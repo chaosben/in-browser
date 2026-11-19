@@ -6,24 +6,24 @@ const help: typeof enHelp = {
 		items: {
 			startPage: {
 				title: 'Startseite',
-				text: 'Ist keine Datei offen, siehst du die Startseite: „Neu“ beginnt einen leeren Text, „Aus Files öffnen …“ wählt Dateien aus dem Browserspeicher, den alle Tools von in-browser teilen, „Vom Rechner öffnen …“ liest Dateien von deinem Rechner. Darunter listet „Zuletzt geöffnet“ die letzten zehn Dateien mit ihrem Ordner – ein Klick öffnet eine davon wieder. Du kannst Textdateien auch von deinem Rechner auf die Seite ziehen. Textdateien, die du in Files öffnest („Mit Text Editor öffnen“), landen ebenfalls hier.'
+				text: 'Ist keine Datei offen, siehst du die Startseite: „Neu“ beginnt einen leeren Text, „Aus Dateien öffnen …“ wählt Dateien aus dem Browserspeicher, den alle Tools von in-browser teilen, „Vom Rechner öffnen …“ liest Dateien von deinem Rechner. Darunter listet „Zuletzt geöffnet“ die letzten zehn Dateien mit ihrem Ordner – ein Klick öffnet eine davon wieder. Du kannst Textdateien auch von deinem Rechner auf die Seite ziehen. Textdateien, die du in Dateien öffnest („Mit Texteditor öffnen“), landen ebenfalls hier.'
 			},
 			tabs: {
 				title: 'Tabs',
-				text: 'Jede offene Datei bekommt einen Tab über dem Text. Klicke einen Tab an, um ihn zu zeigen; sein × oder die mittlere Maustaste schließt ihn. Ein Rechtsklick (auf Touchscreens langes Drücken) bietet „Schließen“, „Andere schließen“ und „In Files zeigen“. Ein Punkt im Tab heißt: geändert, nicht gespeichert, und die Datei speichert sich nicht selbst – sie hat noch keinen Ort, oder das Speichern pausiert. Öffnest du eine Datei, die schon offen ist, wechselst du nur zu ihrem Tab. Ein frischer, leerer Tab „Unbenannt“ macht der ersten Datei Platz, die du öffnest.'
+				text: 'Jede offene Datei bekommt einen Tab über dem Text. Klicke einen Tab an, um ihn zu zeigen; sein × oder die mittlere Maustaste schließt ihn. Ein Rechtsklick (auf Touchscreens langes Drücken) bietet „Schließen“, „Andere schließen“ und „In Dateien zeigen“. Ein Punkt im Tab heißt: geändert, nicht gespeichert, und die Datei speichert sich nicht selbst – sie hat noch keinen Ort, oder das Speichern pausiert. Öffnest du eine Datei, die schon offen ist, wechselst du nur zu ihrem Tab. Ein frischer, leerer Tab „Unbenannt“ macht der ersten Datei Platz, die du öffnest.'
 			},
 			fileMenu: {
 				title: 'Der Dateiname in der oberen Leiste',
-				text: 'Der Name der gezeigten Datei steht in der oberen Leiste. Klicke darauf, um die Datei umzubenennen (nur Dateien mit einem Ort im Browserspeicher). Der Pfeil daneben öffnet das Menü mit allen Aktionen für diese Datei: Speichern, Rückgängig, Suchen, Formatierung (Markdown), die Aktionen der Tabelle oder des Baums („Zeile hinzufügen“, „Spalte hinzufügen“, „Eintrag hinzufügen“), „Umbenennen“, „Herunterladen“, „In Files zeigen“, „Neu“, Öffnen und „Schließen“. Die häufigsten stehen auch als Knöpfe neben dem Namen; auf schmalen Bildschirmen nur in diesem Menü.'
+				text: 'Der Name der gezeigten Datei steht in der oberen Leiste. Klicke darauf, um die Datei umzubenennen (nur Dateien mit einem Ort im Browserspeicher). Der Pfeil daneben öffnet das Menü mit allen Aktionen für diese Datei: Speichern, Rückgängig, Suchen, Formatierung (Markdown), die Aktionen der Tabelle oder des Baums („Zeile hinzufügen“, „Spalte hinzufügen“, „Eintrag hinzufügen“), „Umbenennen“, „Herunterladen“, „In Dateien zeigen“, „Neu“, Öffnen und „Schließen“. Die häufigsten stehen auch als Knöpfe neben dem Namen; auf schmalen Bildschirmen nur in diesem Menü.'
 			},
 			restore: {
 				title: 'Wiederkommen',
-				text: 'Deine offenen Tabs kommen zurück, wenn du den Text Editor das nächste Mal öffnest – samt Änderungen, die noch nicht gespeichert waren, auch in „Unbenannt“-Texten und Dateien vom Rechner. Diese ungespeicherten Änderungen liegen privat in diesem Browser: Sie erscheinen nicht in Files und werden nicht abgeglichen. Der Tab einer Datei, die es nicht mehr gibt, kommt nur zurück, wenn er ungespeicherte Änderungen hatte.',
-				tip: 'Das ist ein Sicherheitsnetz, kein Ort zum Aufbewahren. Speichere Texte, die du behalten willst („Speichern …“), damit sie echte Dateien sind, die du in Files findest und die deine anderen Geräte erreichen.'
+				text: 'Deine offenen Tabs kommen zurück, wenn du den Texteditor das nächste Mal öffnest – samt Änderungen, die noch nicht gespeichert waren, auch in „Unbenannt“-Texten und Dateien vom Rechner. Diese ungespeicherten Änderungen liegen privat in diesem Browser: Sie erscheinen nicht in Dateien und werden nicht abgeglichen. Der Tab einer Datei, die es nicht mehr gibt, kommt nur zurück, wenn er ungespeicherte Änderungen hatte.',
+				tip: 'Das ist ein Sicherheitsnetz, kein Ort zum Aufbewahren. Speichere Texte, die du behalten willst („Speichern …“), damit sie echte Dateien sind, die du in Dateien findest und die deine anderen Geräte erreichen.'
 			},
 			install: {
 				title: 'Installieren, offline und Browser',
-				text: 'Bietet dein Browser es an, installierst du den Text Editor wie ein Programm; er startet dann auch ohne Internetverbindung. Die Syntax-Hervorhebung einer Sprache wird geladen, wenn du zum ersten Mal eine solche Datei öffnest – offline erscheint eine Datei einer noch nie genutzten Sprache ohne Farben, bis du wieder online bist.',
+				text: 'Bietet dein Browser es an, installierst du den Texteditor wie ein Programm; er startet dann auch ohne Internetverbindung. Die Syntax-Hervorhebung einer Sprache wird geladen, wenn du zum ersten Mal eine solche Datei öffnest – offline erscheint eine Datei einer noch nie genutzten Sprache ohne Farben, bis du wieder online bist.',
 				link: { href: '/help/install', label: 'Installieren, offline und unterstützte Browser' }
 			}
 		}
@@ -33,7 +33,7 @@ const help: typeof enHelp = {
 		items: {
 			open: {
 				title: 'Dateien öffnen',
-				text: '„Öffnen“ in der oberen Leiste hat zwei Wege: „Aus Files öffnen …“ wählt eine oder mehrere Dateien im Browserspeicher – sie öffnen sich mit ihrem Ort, jede Änderung wird also dort gespeichert. „Vom Rechner öffnen …“ (oder Dateien auf die Seite ziehen) liest eine Kopie der Dateien: Sie öffnen sich ohne Ort, und nichts wird geschrieben, bis du sie speicherst. Gezogene Ordner werden übersprungen. Dateien über 20 MB und Dateien, die kein Text sind (Bilder, Programme), öffnen sich nicht.',
+				text: '„Öffnen“ in der oberen Leiste hat zwei Wege: „Aus Dateien öffnen …“ wählt eine oder mehrere Dateien im Browserspeicher – sie öffnen sich mit ihrem Ort, jede Änderung wird also dort gespeichert. „Vom Rechner öffnen …“ (oder Dateien auf die Seite ziehen) liest eine Kopie der Dateien: Sie öffnen sich ohne Ort, und nichts wird geschrieben, bis du sie speicherst. Gezogene Ordner werden übersprungen. Dateien über 20 MB und Dateien, die kein Text sind (Bilder, Programme), öffnen sich nicht.',
 				tip: 'Willst du eine Datei von deinem Rechner hier weiter bearbeiten, auch auf anderen Geräten? Öffne sie vom Rechner und speichere sie einmal mit „Speichern …“ – ab dann speichert sie sich selbst. Brauchst du nur eine schnelle Änderung, bearbeite sie und nimm „Herunterladen“.'
 			},
 			autosave: {
@@ -43,7 +43,7 @@ const help: typeof enHelp = {
 			},
 			connected: {
 				title: 'Texte in einem verbundenen Ordner',
-				text: 'Die Auswahl vor dem Ordnerpfad im Öffnen- und Speichern-Dialog wechselt zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Text aus einem verbundenen Ordner öffnet und speichert sich direkt dort auf deinem Rechner, auch automatisch. Erlaubt der Browser den Zugriff nicht mehr (meist nach einem Neustart), zeigt das Speichern-Symbol in der unteren Leiste einen Fehler, und eine Meldung bietet „Zugriff erlauben“ an; deine Änderungen bleiben bis dahin erhalten und werden gespeichert, sobald du es erlaubst. Dasselbe gilt für Ordner mit einer Wolke (live von deinen anderen Geräten) und Ordner, die dir jemand geteilt hat.',
+				text: 'Die Auswahl vor dem Ordnerpfad im Öffnen- und Speichern-Dialog wechselt zwischen Meine Dateien und den Ordnern, die du in Dateien verbunden hast („Verbunden“). Ein Text aus einem verbundenen Ordner öffnet und speichert sich direkt dort auf deinem Rechner, auch automatisch. Erlaubt der Browser den Zugriff nicht mehr (meist nach einem Neustart), zeigt das Speichern-Symbol in der unteren Leiste einen Fehler, und eine Meldung bietet „Zugriff erlauben“ an; deine Änderungen bleiben bis dahin erhalten und werden gespeichert, sobald du es erlaubst. Dasselbe gilt für Ordner mit einer Wolke (live von deinen anderen Geräten) und Ordner, die dir jemand geteilt hat.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
 			saveNew: {
@@ -55,8 +55,8 @@ const help: typeof enHelp = {
 				text: '„Speichern unter …“ im Menü am Dateinamen schreibt den Text unter einem neuen Namen oder in einen anderen Ordner – der Tab arbeitet dann mit der neuen Datei weiter, die alte bleibt, wie sie war. Wählst du eine bestehende Datei, wird sie ersetzt.'
 			},
 			rename: {
-				title: 'Umbenennen, herunterladen, in Files zeigen',
-				text: 'Klicke auf den Dateinamen in der oberen Leiste (oder „Umbenennen“ in seinem Menü), um die Datei in ihrem Ordner umzubenennen; mit einer neuen Endung ändert sich die Hervorhebung mit. „Herunterladen“ legt eine Kopie im Download-Ordner deines Rechners ab, in der aktuellen Kodierung und mit dem aktuellen Zeilenende – auch für Texte, die noch keinen Ort haben. „In Files zeigen“ öffnet Files in einem neuen Browser-Tab, im Ordner der Datei.'
+				title: 'Umbenennen, herunterladen, in Dateien zeigen',
+				text: 'Klicke auf den Dateinamen in der oberen Leiste (oder „Umbenennen“ in seinem Menü), um die Datei in ihrem Ordner umzubenennen; mit einer neuen Endung ändert sich die Hervorhebung mit. „Herunterladen“ legt eine Kopie im Download-Ordner deines Rechners ab, in der aktuellen Kodierung und mit dem aktuellen Zeilenende – auch für Texte, die noch keinen Ort haben. „In Dateien zeigen“ öffnet Dateien in einem neuen Browser-Tab, im Ordner der Datei.'
 			},
 			close: {
 				title: 'Schließen',
@@ -75,7 +75,7 @@ const help: typeof enHelp = {
 		items: {
 			types: {
 				title: 'Dateitypen',
-				text: 'Der Editor öffnet reine Textdateien: .txt, .log, .csv, .tsv, Markdown, JSON, JSON Lines (.jsonl, .ndjson), YAML, TOML, INI und andere Einstellungsdateien, HTML, CSS, XML, JavaScript, TypeScript, Svelte, Python und Shell-Skripte. Die Endung des Dateinamens bestimmt, wie der Text eingefärbt wird und welche Ansicht er neben dem Text bekommt: eine Tabelle, einen Baum oder eine Vorschau (siehe unten); die untere Leiste zeigt die Sprache („Nur Text“ ohne). SVG-Bilder öffnen sich in Files als Bild – wähle „Mit Text Editor öffnen“ im Menü der Datei, um ihren Text hier zu bearbeiten, mit dem Bild daneben. Einstellungsdateien namens .env (auch .env.local …) sind in Files versteckt; öffne sie mit „Vom Rechner öffnen …“.'
+				text: 'Der Editor öffnet reine Textdateien: .txt, .log, .csv, .tsv, Markdown, JSON, JSON Lines (.jsonl, .ndjson), YAML, TOML, INI und andere Einstellungsdateien, HTML, CSS, XML, JavaScript, TypeScript, Svelte, Python und Shell-Skripte. Die Endung des Dateinamens bestimmt, wie der Text eingefärbt wird und welche Ansicht er neben dem Text bekommt: eine Tabelle, einen Baum oder eine Vorschau (siehe unten); die untere Leiste zeigt die Sprache („Nur Text“ ohne). SVG-Bilder öffnen sich in Dateien als Bild – wähle „Mit Texteditor öffnen“ im Menü der Datei, um ihren Text hier zu bearbeiten, mit dem Bild daneben. Einstellungsdateien namens .env (auch .env.local …) sind in Dateien versteckt; öffne sie mit „Vom Rechner öffnen …“.'
 			},
 			table: {
 				title: 'Tabelle (CSV, TSV, JSON Lines)',
@@ -212,7 +212,7 @@ const help: typeof enHelp = {
 			},
 			files: {
 				title: 'Dateien und Tabs',
-				text: 'Speichern („Speichern …“ bei einem Text ohne Ort), Speichern unter, Aus Files öffnen, Neu, Schließen',
+				text: 'Speichern („Speichern …“ bei einem Text ohne Ort), Speichern unter, Aus Dateien öffnen, Neu, Schließen',
 				keys: [['Strg', 'S'], ['Strg', 'Umschalt', 'S'], ['Strg', 'O'], ['Alt', 'N'], ['Alt', 'W']]
 			},
 			undo: { title: 'Rückgängig und wiederholen', text: 'Pro Tab', keys: [['Strg', 'Z'], ['Strg', 'Y']] },
@@ -263,7 +263,7 @@ const help: typeof enHelp = {
 		items: {
 			touch: {
 				title: 'Mit dem Finger bedienen',
-				text: 'Alles geht ohne Tastatur. Tippe auf den Pfeil neben dem Dateinamen in der oberen Leiste: Sein Menü enthält jede Aktion für die Datei, auch die, die auf breiten Bildschirmen Knöpfe sind (Rückgängig, Suchen, Formatierung), sowie „Neu“ und Öffnen. Halte den Finger auf einem Tab für sein Menü („Andere schließen“, „In Files zeigen“). Tippe in der unteren Leiste auf Zeilenende oder Kodierung, um sie zu ändern. In Tabelle oder Baum wählt ein Tippen aus, ein zweites Tippen auf dieselbe Zelle, denselben Schlüssel oder Wert bearbeitet ihn; langes Drücken (oder der ⋯-Knopf, der Spaltentitel, die Zeilennummer) öffnet das Menü.'
+				text: 'Alles geht ohne Tastatur. Tippe auf den Pfeil neben dem Dateinamen in der oberen Leiste: Sein Menü enthält jede Aktion für die Datei, auch die, die auf breiten Bildschirmen Knöpfe sind (Rückgängig, Suchen, Formatierung), sowie „Neu“ und Öffnen. Halte den Finger auf einem Tab für sein Menü („Andere schließen“, „In Dateien zeigen“). Tippe in der unteren Leiste auf Zeilenende oder Kodierung, um sie zu ändern. In Tabelle oder Baum wählt ein Tippen aus, ein zweites Tippen auf dieselbe Zelle, denselben Schlüssel oder Wert bearbeitet ihn; langes Drücken (oder der ⋯-Knopf, der Spaltentitel, die Zeilennummer) öffnet das Menü.'
 			},
 			mobileView: {
 				title: 'Lesen und schreiben auf kleinem Bildschirm',

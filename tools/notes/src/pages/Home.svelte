@@ -13,7 +13,7 @@
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { displayPath } from '@in-browser/files/sources/registry.js';
-	import { read, supported, watch } from '@in-browser/files/fs.js';
+	import { read, supported, watchSettled } from '@in-browser/files/fs.js';
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { basename, isInside, normalize, parent, stem } from '@in-browser/files/path.js';
 	import { editorUrl } from '#lib/brand.js';
@@ -45,17 +45,8 @@
 			void goto(resolve('/notes'), { replace: true });
 			void importFromFiles(normalize(pdf));
 		}
-		let timer: ReturnType<typeof setTimeout> | undefined;
-		const stop = watch((paths) => {
-			// Notebooks appear, change or go (also by sync): list again, a little later for bursts
-			if (!paths.some((p) => p.includes(NOTEBOOK_EXT))) return;
-			clearTimeout(timer);
-			timer = setTimeout(refresh, 300);
-		});
-		return () => {
-			stop();
-			clearTimeout(timer);
-		};
+		// Notebooks appear, change or go (also by sync): list again
+		return watchSettled((paths) => paths.some((p) => p.includes(NOTEBOOK_EXT)), 300, refresh);
 	});
 
 	const open = (path: string) => goto(editorUrl(path));
@@ -168,7 +159,7 @@
 					{#each notebooks as entry (entry.path)}
 						<li class="bg-base-100 border-base-300 rounded-box flex items-center border" oncontextmenu={(e) => openContextMenu(e, menu(entry))}>
 							<a class="flex min-w-0 flex-1 items-center gap-3 p-3" href={editorUrl(entry.path)}>
-								<FileIcon name={entry.path.split('/').pop() ?? ''} kind="directory" />
+								<FileIcon name={basename(entry.path)} kind="directory" />
 								<span class="flex min-w-0 flex-col">
 									<span class="truncate font-medium">{entry.name}</span>
 									<span class="truncate text-xs opacity-70">

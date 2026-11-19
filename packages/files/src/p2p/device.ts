@@ -1,7 +1,7 @@
 import { FilesError } from '../entry.js';
 import { basename, isHidden, isInside, normalize } from '../path.js';
 import { inTrash, trashInTree, untrashInTree } from '../trash.js';
-import { isActive, sharePath, tokenHash, type Share } from './shares.js';
+import { sharePath, tokenHash, type Share } from './shares.js';
 import {
 	answerHello,
 	checkHello,
@@ -22,11 +22,14 @@ import type { LogFn } from '../sync/log.js';
 import { createOp, heads, mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
-import { rpcLiveCall, serveLive } from './live.js';
+import { wireErrorOf } from './live.js';
+import { rpcLiveCall } from './live-client.js';
+import { serveLive } from './live-server.js';
 import { RemoteError, Rpc, type Handler, type Json } from './rpc.js';
 import { exclude as excludeFolder, include as includeFolder, inScope } from './scope.js';
 import { drive, Gate, serve, type DriveResult, type Tree } from './session.js';
 import { staleness } from './staleness.js';
+import { OFF_VIEW, type DeviceView, type P2pView, type ShareView } from './view.js';
 import type { P2pState, Store } from './store.js';
 
 // One device of a group: finds the others (rooms), signs them in, syncs with them, keeps the member log and what
@@ -40,49 +43,6 @@ const INTERVAL = 60_000;
 const OWN_WRITE_FOR = 10_000;
 /** A confirmation of held deletions counts for the sessions within this time (on both devices of a session) */
 const ALLOW_DELETES_FOR = 60_000;
-
-export interface DeviceView {
-	id: string;
-	name: string;
-	self: boolean;
-	online: boolean;
-	/** In the room, but no direct connection came about */
-	unreachable: boolean;
-	/** Has another protocol version */
-	outdated: boolean;
-	syncing: { done: number; total: number } | null;
-	lastSync: number;
-	lastSeen: number;
-	/** Changes it is missing, as far as known */
-	missing: { changes: number; more: boolean } | null;
-	scope: string[];
-}
-
-export interface P2pView {
-	state: 'off' | 'online' | 'removed';
-	self: { id: string; name: string } | null;
-	devices: DeviceView[];
-	invite: { code: string; expires: number } | null;
-	scope: string[];
-	pendingDeletes: number;
-	failed: number;
-	/** Last sync of this device with any other */
-	lastSync: number;
-	/** Folders shared with a guest right now */
-	shares: ShareView[];
-}
-
-export interface ShareView {
-	id: string;
-	folder: string;
-	mode: Share['mode'];
-	code: string;
-	expires: number | null;
-	/** A guest is connected right now */
-	connected: boolean;
-	/** A guest opened it (the link no longer works in another browser) */
-	used: boolean;
-}
 
 export type DeviceEvent =
 	| { type: 'conflicts'; paths: string[] }
@@ -164,31 +124,34 @@ export class Device {
 		this.group = resolve(this.state.ops);
 		this.log('device.start', { self: this.nameOf(this.identity.id), members: this.group ? [...this.group.members.keys()].map((id) => this.nameOf(id)) : [], scope: this.state.scope });
 		await this.connect();
-		for (const share of this.activeShares()) await this.listenForShare(share);
-		this.interval = setInterval(() => {
-			this.scheduleAll(0);
-			void this.expireShares();
-		}, INTERVAL);
+		for (const share of this.shares()) await this.listenForShare(share);
+		this.interval = setInterval(() => this.scheduleAll(0), INTERVAL);
 		this.emit();
 	}
 
 	stop() {
 		this.stopped = true;
 		clearInterval(this.interval);
-		for (const room of [...this.rooms.values(), ...this.pairRooms.values(), ...this.shareRooms.values()]) room.leave();
-		this.rooms.clear();
-		this.pairRooms.clear();
+		this.leaveDevices();
+		for (const room of this.shareRooms.values()) room.leave();
 		this.shareRooms.clear();
-		for (const peer of this.peers.values()) peer.rpc.close();
-		this.peers.clear();
 		for (const rpcs of this.guests.values()) for (const rpc of rpcs.keys()) rpc.close();
 		this.guests.clear();
 	}
 
+	/** Leaves the rooms of the group and of pairing and closes every connection to another device */
+	private leaveDevices() {
+		for (const room of [...this.rooms.values(), ...this.pairRooms.values()]) room.leave();
+		this.rooms.clear();
+		this.pairRooms.clear();
+		for (const peer of this.peers.values()) peer.rpc.close();
+		this.peers.clear();
+	}
+
 	// --- Guest shares (`shares.ts`) ---
 
-	private activeShares(): Share[] {
-		return (this.state.shares ?? []).filter((share) => isActive(share, this.now()));
+	private shares(): Share[] {
+		return this.state.shares ?? [];
 	}
 
 	/** Shares `folder` with a guest until ended; the link carries the returned share's code */
@@ -197,8 +160,8 @@ export class Device {
 		// Hidden folders (tool data, the trash) are never shared
 		if (isHidden(folder)) throw new FilesError('notFound', folder);
 		if (mode !== 'view' && mode !== 'edit') mode = 'view';
-		const share: Share = { id: crypto.randomUUID(), folder, mode, code: newInviteCode(), expires: null };
-		this.state.shares = [...this.activeShares(), share];
+		const share: Share = { id: crypto.randomUUID(), folder, mode, code: newInviteCode() };
+		this.state.shares = [...this.shares(), share];
 		await this.save();
 		await this.listenForShare(share);
 		this.log('share.start', { folder, mode });
@@ -228,10 +191,6 @@ export class Device {
 		this.emit();
 	}
 
-	private async expireShares() {
-		for (const share of this.state.shares ?? []) if (!isActive(share, this.now())) await this.endShare(share.id);
-	}
-
 	private async listenForShare(share: Share) {
 		if (this.shareRooms.has(share.code)) return;
 		const room = this.options.network.join(await roomId('share', share.code), share.code);
@@ -243,19 +202,18 @@ export class Device {
 	private attachGuest(id: string, link: Link) {
 		const rpc = new Rpc(link);
 		const current = () => {
-			const share = this.state.shares?.find((s) => s.id === id);
-			return share && isActive(share, this.now()) ? share : null;
+			return this.state.shares?.find((s) => s.id === id) ?? null;
 		};
 		let signedIn = false;
 		rpc.handle('share.hello', async (params) => {
 			const { proof, token } = params as { proof: string; token: string };
 			const share = current();
 			const fingerprints = link.fingerprints();
-			if (!share || proof !== (await shareProof(share.code, 'guest', fingerprints))) throw new Error('files:ended');
+			if (!share || proof !== (await shareProof(share.code, 'guest', fingerprints))) throw wireErrorOf('ended');
 			const guest = await tokenHash(token);
 			const rpcs = this.guests.get(id) ?? new Map<Rpc, string>();
 			// One guest at a time: another browser waits; the same one (a reload, another of its tabs) comes in
-			if ([...rpcs.values()].some((other) => other !== guest)) throw new Error('files:taken');
+			if ([...rpcs.values()].some((other) => other !== guest)) throw wireErrorOf('taken');
 			if (!share.used) {
 				share.used = true;
 				await this.save();
@@ -271,7 +229,7 @@ export class Device {
 		});
 		const guarded = (method: string, handler: Handler) =>
 			rpc.handle(method, async (params, upload) => {
-				if (!signedIn || !current()) throw new Error('files:ended');
+				if (!signedIn || !current()) throw wireErrorOf('ended');
 				return handler(params, upload);
 			});
 		const release = serveLive(guarded, {
@@ -385,11 +343,7 @@ export class Device {
 		this.epoch++;
 		this.log('device.reset');
 		const peers = Object.keys(this.state.devices);
-		for (const room of [...this.rooms.values(), ...this.pairRooms.values()]) room.leave();
-		this.rooms.clear();
-		this.pairRooms.clear();
-		for (const peer of this.peers.values()) peer.rpc.close();
-		this.peers.clear();
+		this.leaveDevices();
 		await this.options.store.clearBases(peers);
 		this.identity = await this.options.store.resetIdentity();
 		this.state = { ...this.state, ops: [], devices: {}, log: [], vector: {}, invites: [], removed: undefined };
@@ -764,11 +718,7 @@ export class Device {
 		if (this.group?.removed.has(this.identity.id)) {
 			this.log('members.selfRemoved');
 			this.state.removed = true;
-			for (const room of [...this.rooms.values(), ...this.pairRooms.values()]) room.leave();
-			this.rooms.clear();
-			this.pairRooms.clear();
-			for (const peer of this.peers.values()) peer.rpc.close();
-			this.peers.clear();
+			this.leaveDevices();
 		}
 		this.touchSelf();
 		await this.save();
@@ -909,7 +859,7 @@ export class Device {
 
 	view(): P2pView {
 		const group = this.group;
-		if (!this.identity || !this.state) return { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0, shares: [] };
+		if (!this.identity || !this.state) return OFF_VIEW;
 		if (this.state.removed) return { ...this.view0(), state: 'removed' };
 		if (!group) return this.view0();
 		const devices: DeviceView[] = [...group.members].map(([id, member]) => {
@@ -926,7 +876,7 @@ export class Device {
 				syncing: peer?.syncing ?? null,
 				lastSync: info?.lastSync ?? 0,
 				lastSeen: info?.lastSeen ?? 0,
-				missing: self || !info ? null : (({ changes, more }) => ({ changes, more }))(staleness(info, this.state.log)),
+				missing: self || !info ? null : staleness(info, this.state.log),
 				scope: info?.scope ?? []
 			};
 		});
@@ -950,14 +900,13 @@ export class Device {
 			pendingDeletes: [...this.pendingDeletes.values()].reduce((sum, n) => sum + n, 0),
 			failed: this.failed,
 			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0,
-			shares: this.activeShares().map((share) => ({
+			shares: this.shares().map((share) => ({
 				id: share.id,
 				folder: share.folder,
 				mode: share.mode,
 				code: share.code,
-				expires: share.expires,
 				connected: (this.guests.get(share.id)?.size ?? 0) > 0,
-				used: !!(share.used || share.guest)
+				used: !!share.used
 			}))
 		};
 	}

@@ -7,6 +7,7 @@
 	import { syncStatus } from '@in-browser/files/sync/sync.svelte.js';
 	import { safeName } from '@in-browser/files/path.js';
 	import { m } from '#lib/i18n/index.js';
+	import { downloadBlob } from '@in-browser/brand/download.js';
 
 	// Opt-in log of both syncs (devices and folder) for finding errors: switch, number of entries, export, clear
 
@@ -45,12 +46,7 @@
 		});
 		const device = safeName(p2pStatus.view.self?.name ?? '', 'device');
 		const date = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = m.log.fileName(device, date);
-		a.click();
-		setTimeout(() => URL.revokeObjectURL(url), 10_000);
+		downloadBlob(new Blob([text], { type: 'text/plain' }), m.log.fileName(device, date));
 	}
 </script>
 

@@ -5,7 +5,7 @@
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename } from '@in-browser/files/path.js';
 	import { endShare, p2pStatus, shareFolder } from '@in-browser/files/p2p/p2p.svelte.js';
-	import { intlLocale, m } from '#lib/i18n/index.js';
+	import { m } from '#lib/i18n/index.js';
 	import QrCode from './QrCode.svelte';
 
 	// Sharing a folder with a guest: first what they may, then the link and QR code with the state.
@@ -54,8 +54,6 @@
 	function start(dialog: HTMLDialogElement) {
 		dialog.showModal();
 	}
-
-	const until = (expires: number) => new Date(expires).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' });
 </script>
 
 <dialog
@@ -109,7 +107,7 @@
 				{/if}
 			</p>
 			<p class="text-xs opacity-70">
-				{share.mode === 'edit' ? m.share.edit : m.share.view} · {share.expires === null ? m.share.untilEnded : m.share.until(until(share.expires))}
+				{share.mode === 'edit' ? m.share.edit : m.share.view} · {m.share.untilEnded}
 			</p>
 			<div class="modal-action mt-0">
 				<button class="btn btn-error btn-outline" onclick={end}>{m.share.end}</button>

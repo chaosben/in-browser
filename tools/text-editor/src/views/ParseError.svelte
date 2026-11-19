@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '#lib/i18n/index.js';
-	import type { Tab } from '#lib/workspace.svelte.js';
+	import type { Tab } from '#lib/tab.svelte.js';
 	import type { ViewHost } from './types.js';
 
 	// The text doesn't parse: the view shows its last good state (read-only) until the text is fixed.

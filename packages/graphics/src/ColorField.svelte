@@ -1,13 +1,14 @@
 <script module lang="ts">
 	import { isDefaultPalette, loadPalette, placeColor, storePalette } from './palette.js';
-	import { loadRecent, pushRecent, storeRecent } from './recent-colors.js';
+	import { pushRecent } from '@in-browser/brand/recent-tools.js';
+	import { loadRecent, MAX_RECENT, storeRecent } from './recent-colors.js';
 
 	// Shared by all color fields, so a color picked in one is offered in the others right away
 	let recent = $state(loadRecent());
 	let palette = $state(loadPalette());
 
 	function remember(hex: string) {
-		recent = pushRecent(recent, hex);
+		recent = pushRecent(recent, hex, MAX_RECENT);
 		storeRecent(recent);
 	}
 

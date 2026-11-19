@@ -8,15 +8,6 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
-
-	// File System Access API (Chromium), missing from lib.dom
-	interface Window {
-		showDirectoryPicker(options?: {
-			id?: string;
-			mode?: 'read' | 'readwrite';
-			startIn?: string | FileSystemHandle;
-		}): Promise<FileSystemDirectoryHandle>;
-	}
 }
 
 export {};

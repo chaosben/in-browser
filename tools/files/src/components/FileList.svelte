@@ -2,11 +2,12 @@
 	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { extname, stem } from '@in-browser/files/path.js';
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
-	import { acceptsDrag, copyKey, droppedPaths, startDrag } from '#lib/dnd.js';
+	import { acceptsDrag, copyKey, dropOnFolder, startDrag } from '#lib/dnd.js';
 	import type { Item, SortKey } from '#lib/items.js';
 	import { clipboard, type Manager } from '#lib/manager.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
+	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 
 	interface Props {
 		manager: Manager;
@@ -30,7 +31,7 @@
 
 	function kindOf(item: Item) {
 		if (item.folder) return t.kinds.folder;
-		if (item.formats[0]) return t.kinds.package(item.formats[0].toolName);
+		if (item.formats[0]) return t.kinds.package(toolName(item.formats[0].tool));
 		const ext = extname(item.name).slice(1).toUpperCase();
 		return ext ? t.kinds.fileType(ext) : t.kinds.file;
 	}
@@ -82,9 +83,7 @@
 		e.preventDefault();
 		e.stopPropagation();
 		target = null;
-		const paths = droppedPaths(e);
-		if (paths) ondropitems(paths, item.path, copyKey(e));
-		else if (e.dataTransfer) ondropfiles(e.dataTransfer, item.path);
+		dropOnFolder(e, item.path, ondropitems, ondropfiles);
 	}
 
 	/** Rename field: select the name without extension, Enter keeps, Esc cancels, leaving keeps */

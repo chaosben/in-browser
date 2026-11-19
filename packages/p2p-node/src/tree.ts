@@ -3,6 +3,7 @@ import { mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { segments } from '@in-browser/files/path.js';
 import { ignored, type FileState, type Snapshot } from '@in-browser/files/sync/plan.js';
+import { DIR } from '@in-browser/files/sync/scan.js';
 import type { Tree } from '@in-browser/files/sync/tree.js';
 import { canFlush, syncDir } from './durable.js';
 
@@ -12,8 +13,6 @@ import { canFlush, syncDir } from './durable.js';
 //   deletions); only what is really gone (ENOENT) is missing.
 // - Where Node allows it (not in the sandbox, see `durable.ts`), writes reach the disk before they count (`flush`,
 //   and the folder after a rename), so a power cut never leaves an empty file in place of a synced one.
-
-const DIR: FileState = { kind: 'directory', size: 0, modified: 0 };
 
 const missing = (e: unknown) => (e as NodeJS.ErrnoException).code === 'ENOENT';
 

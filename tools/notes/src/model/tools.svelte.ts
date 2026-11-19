@@ -4,6 +4,7 @@
 import type { EraserMode, Tool, ToolState } from '#lib/input/controller.js';
 import { DASHES, PLAIN, SHAPE_KINDS, type Dash, type ShapeKind, type ShapeStyle } from '#lib/ink/shapes.js';
 import { SMOOTHING_LEVELS } from '#lib/ink/smooth.js';
+import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
 const KEY = 'notes:tools';
 
@@ -46,35 +47,31 @@ const HEX = /^#[0-9a-f]{6}$/;
 const FILL = /^#[0-9a-f]{8}$/;
 
 function load(): Saved {
-	try {
-		const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<Saved> | null;
-		if (!raw || typeof raw !== 'object') return structuredClone(DEFAULTS);
-		const ink = (v: unknown, d: { color: string; size: number }) => {
-			const o = v as { color?: unknown; size?: unknown } | undefined;
-			return {
-				color: typeof o?.color === 'string' && HEX.test(o.color) ? o.color : d.color,
-				size: typeof o?.size === 'number' && o.size > 0 && o.size < 100 ? o.size : d.size
-			};
-		};
+	const raw = loadJson<Partial<Saved> | null>(KEY, null);
+	if (!raw || typeof raw !== 'object') return structuredClone(DEFAULTS);
+	const ink = (v: unknown, d: { color: string; size: number }) => {
+		const o = v as { color?: unknown; size?: unknown } | undefined;
 		return {
-			tool: TOOLS.includes(raw.tool as Tool) ? raw.tool! : DEFAULTS.tool,
-			pen: ink(raw.pen, DEFAULTS.pen),
-			highlighter: ink(raw.highlighter, DEFAULTS.highlighter),
-			eraser: typeof raw.eraser === 'number' && raw.eraser > 0 ? raw.eraser : DEFAULTS.eraser,
-			eraserMode: raw.eraserMode === 'pixel' ? 'pixel' : 'stroke',
-			penOnly: raw.penOnly === true,
-			smoothing: SMOOTHING_LEVELS.includes(raw.smoothing as (typeof SMOOTHING_LEVELS)[number]) ? raw.smoothing! : DEFAULTS.smoothing,
-			shape: SHAPE_KINDS.includes(raw.shape as ShapeKind) ? raw.shape! : DEFAULTS.shape,
-			shapeStyle: {
-				fill: typeof raw.shapeStyle?.fill === 'string' && FILL.test(raw.shapeStyle.fill) ? raw.shapeStyle.fill : null,
-				dash: DASHES.includes(raw.shapeStyle?.dash as Dash) ? raw.shapeStyle!.dash : 'solid',
-				sketch: raw.shapeStyle?.sketch === true
-			},
-			snap: raw.snap !== false
+			color: typeof o?.color === 'string' && HEX.test(o.color) ? o.color : d.color,
+			size: typeof o?.size === 'number' && o.size > 0 && o.size < 100 ? o.size : d.size
 		};
-	} catch {
-		return structuredClone(DEFAULTS);
-	}
+	};
+	return {
+		tool: TOOLS.includes(raw.tool as Tool) ? raw.tool! : DEFAULTS.tool,
+		pen: ink(raw.pen, DEFAULTS.pen),
+		highlighter: ink(raw.highlighter, DEFAULTS.highlighter),
+		eraser: typeof raw.eraser === 'number' && raw.eraser > 0 ? raw.eraser : DEFAULTS.eraser,
+		eraserMode: raw.eraserMode === 'pixel' ? 'pixel' : 'stroke',
+		penOnly: raw.penOnly === true,
+		smoothing: SMOOTHING_LEVELS.includes(raw.smoothing as (typeof SMOOTHING_LEVELS)[number]) ? raw.smoothing! : DEFAULTS.smoothing,
+		shape: SHAPE_KINDS.includes(raw.shape as ShapeKind) ? raw.shape! : DEFAULTS.shape,
+		shapeStyle: {
+			fill: typeof raw.shapeStyle?.fill === 'string' && FILL.test(raw.shapeStyle.fill) ? raw.shapeStyle.fill : null,
+			dash: DASHES.includes(raw.shapeStyle?.dash as Dash) ? raw.shapeStyle!.dash : 'solid',
+			sketch: raw.shapeStyle?.sketch === true
+		},
+		snap: raw.snap !== false
+	};
 }
 
 class Tools {
@@ -128,23 +125,19 @@ class Tools {
 	}
 
 	store() {
-		try {
-			const saved: Saved = {
-				tool: this.tool,
-				pen: { ...this.pen },
-				highlighter: { ...this.highlighter },
-				eraser: this.eraser,
-				eraserMode: this.eraserMode,
-				penOnly: this.penOnly,
-				smoothing: this.smoothing,
-				shape: this.shape,
-				shapeStyle: { ...this.shapeStyle },
-				snap: this.snap
-			};
-			localStorage.setItem(KEY, JSON.stringify(saved));
-		} catch {
-			// Storage blocked: the settings just don't survive a reload
-		}
+		const saved: Saved = {
+			tool: this.tool,
+			pen: { ...this.pen },
+			highlighter: { ...this.highlighter },
+			eraser: this.eraser,
+			eraserMode: this.eraserMode,
+			penOnly: this.penOnly,
+			smoothing: this.smoothing,
+			shape: this.shape,
+			shapeStyle: { ...this.shapeStyle },
+			snap: this.snap
+		};
+		storeJson(KEY, saved);
 	}
 }
 

@@ -2,6 +2,37 @@
 
 type Movable<H extends FileSystemHandle = FileSystemHandle> = H & { move?: (dir: FileSystemDirectoryHandle, name: string) => Promise<void> };
 
+/** Folders on disk can be picked (File System Access API, Chromium): connecting and syncing a folder need it */
+export const diskFoldersSupported = () => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
+/** The error of a handle that isn't there (or is a folder where a file was asked for, and the other way round) */
+export const isMissing = (e: unknown) => e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError');
+
+/** File or folder `name` in `dir`, `null` if there is none */
+export async function childHandle(dir: FileSystemDirectoryHandle, name: string): Promise<FileSystemHandle | null> {
+	for (const get of [() => dir.getFileHandle(name), () => dir.getDirectoryHandle(name)]) {
+		try {
+			return await get();
+		} catch (e) {
+			if (!isMissing(e)) throw e;
+		}
+	}
+	return null;
+}
+
+/** Moves `handle` natively into `dir` as `name`; `false` where the browser can't (the caller copies instead) */
+export async function nativeMove(handle: FileSystemHandle, dir: FileSystemDirectoryHandle, name: string): Promise<boolean> {
+	const movable = handle as Movable;
+	if (!movable.move) return false;
+	try {
+		await movable.move(dir, name);
+		return true;
+	} catch (e) {
+		if (!(e instanceof DOMException) && !(e instanceof TypeError)) throw e;
+		return false;
+	}
+}
+
 /** Folder below `root` (`names` from the root), created if `create` */
 export async function dirAt(root: FileSystemDirectoryHandle, names: string[], create = false): Promise<FileSystemDirectoryHandle> {
 	let dir = root;
@@ -14,26 +45,19 @@ export async function dirAt(root: FileSystemDirectoryHandle, names: string[], cr
  * copied and then deleted – the source goes only once the copy is complete.
  */
 export async function moveFile(from: FileSystemDirectoryHandle, name: string, to: FileSystemDirectoryHandle, newName: string): Promise<void> {
-	const handle = (await from.getFileHandle(name)) as Movable<FileSystemFileHandle>;
-	if (handle.move) {
-		try {
-			await handle.move(to, newName);
-			return;
-		} catch (e) {
-			if (!(e instanceof DOMException) && !(e instanceof TypeError)) throw e;
-		}
-	}
+	const handle = await from.getFileHandle(name);
+	if (await nativeMove(handle, to, newName)) return;
 	const source = await handle.getFile();
 	await source.stream().pipeTo(await (await to.getFileHandle(newName, { create: true })).createWritable());
 	await from.removeEntry(name);
 }
 
-async function entry(dir: FileSystemDirectoryHandle, name: string): Promise<Movable> {
+async function entry(dir: FileSystemDirectoryHandle, name: string): Promise<FileSystemHandle> {
 	return dir.getFileHandle(name).catch(() => dir.getDirectoryHandle(name));
 }
 
 /** Copies a file or folder (with everything inside) into `to` as `name` */
-async function copyEntry(handle: FileSystemHandle, to: FileSystemDirectoryHandle, name: string): Promise<void> {
+export async function copyEntry(handle: FileSystemHandle, to: FileSystemDirectoryHandle, name: string): Promise<void> {
 	if (handle.kind === 'file') {
 		const source = await (handle as FileSystemFileHandle).getFile();
 		await source.stream().pipeTo(await (await to.getFileHandle(name, { create: true })).createWritable());
@@ -50,14 +74,7 @@ async function copyEntry(handle: FileSystemHandle, to: FileSystemDirectoryHandle
 export async function renameEntry(dir: FileSystemDirectoryHandle, name: string, newName: string): Promise<void> {
 	if (name === newName) return;
 	const handle = await entry(dir, name);
-	if (handle.move) {
-		try {
-			await handle.move(dir, newName);
-			return;
-		} catch (e) {
-			if (!(e instanceof DOMException) && !(e instanceof TypeError)) throw e;
-		}
-	}
+	if (await nativeMove(handle, dir, newName)) return;
 	const temp = `.moving-${crypto.randomUUID()}`;
 	await copyEntry(handle, dir, temp);
 	await dir.removeEntry(name, { recursive: true });

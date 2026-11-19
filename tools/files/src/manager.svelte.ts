@@ -1,4 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity';
+import { readStored, writeStored } from '@in-browser/brand/storage.js';
 import { FilesError, list, stat } from '@in-browser/files/fs.js';
 import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
@@ -9,13 +10,7 @@ import { matches, sortItems, toItem, type Item, type SortKey } from './items.js'
 
 const VIEW_KEY = 'files:view';
 
-function storedView(): 'list' | 'grid' {
-	try {
-		return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'list';
-	} catch {
-		return 'list';
-	}
-}
+const storedView = (): 'list' | 'grid' => (readStored(VIEW_KEY) === 'grid' ? 'grid' : 'list');
 
 /** Folders open in the tree on the left (shared by all tree nodes) */
 export const expanded = new SvelteSet<string>(['/']);
@@ -87,11 +82,7 @@ export class Manager {
 
 	setView(view: 'list' | 'grid') {
 		this.view = view;
-		try {
-			localStorage.setItem(VIEW_KEY, view);
-		} catch {
-			// Storage blocked: the choice just isn't remembered
-		}
+		writeStored(VIEW_KEY, view);
 	}
 
 	sortBy(key: SortKey) {
