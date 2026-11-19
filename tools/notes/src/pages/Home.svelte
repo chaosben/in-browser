@@ -9,8 +9,10 @@
 	import { debug } from '@in-browser/brand/debug.js';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import AccessNotice from '@in-browser/files/AccessNotice.svelte';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
-	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { displayPath } from '@in-browser/files/sources/registry.js';
 	import { read, supported, watch } from '@in-browser/files/fs.js';
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { basename, isInside, normalize, parent, stem } from '@in-browser/files/path.js';
@@ -156,6 +158,7 @@
 
 		<section class="flex flex-col gap-2" aria-labelledby="notebooks">
 			<h2 id="notebooks" class="text-lg font-semibold">{m.home.notebooks}</h2>
+			<AccessNotice tool="notes" onallowed={refresh} />
 			{#if notebooks === null}
 				<span class="loading loading-spinner opacity-60"></span>
 			{:else if notebooks.length === 0}
@@ -169,7 +172,7 @@
 								<span class="flex min-w-0 flex-col">
 									<span class="truncate font-medium">{entry.name}</span>
 									<span class="truncate text-xs opacity-70">
-										{m.home.pages(entry.pages)} · {formatDateTime(entry.modified)}{parent(entry.path) !== '/' ? ` · ${parent(entry.path)}` : ''}
+										{m.home.pages(entry.pages)} · {formatDateTime(entry.modified)}{parent(entry.path) !== '/' ? ` · ${displayPath(parent(entry.path), filesMessages().root)}` : ''}
 									</span>
 								</span>
 							</a>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { basename, extname, isHidden, isInside, join, nameProblem, normalize, parent, safeName, segments, stem, uniqueName } from './path';
+import { basename, connectionOf, extname, isConnected, isHidden, isInside, join, nameProblem, normalize, parent, placeRoot, safeName, segments, stem, uniqueName } from './path';
 
 describe('normalize', () => {
 	it('makes paths absolute without trailing slash', () => {
@@ -88,5 +88,24 @@ describe('safeName', () => {
 		expect(safeName('...', 'Project')).toBe('Project');
 		expect(safeName('CON', 'Project')).toBe('Project');
 		expect(safeName('', 'Project')).toBe('Project');
+	});
+});
+
+describe('connected paths', () => {
+	it('splits off the connection', () => {
+		expect(connectionOf('/:c/ab12/Docs/a.txt')).toEqual({ id: 'ab12', root: '/:c/ab12', inner: '/Docs/a.txt' });
+		expect(connectionOf('/:c/ab12')).toEqual({ id: 'ab12', root: '/:c/ab12', inner: '/' });
+		expect(connectionOf('/:c')).toBeNull();
+		expect(connectionOf('/Docs')).toBeNull();
+	});
+	it('place roots', () => {
+		expect(placeRoot('/:c/ab12/Docs')).toBe('/:c/ab12');
+		expect(placeRoot('/Docs')).toBe('/');
+		expect(isConnected('/:c/ab12/x')).toBe(true);
+		expect(isConnected('/x')).toBe(false);
+	});
+	it('no real name can reach the area', () => {
+		expect(nameProblem(':c')).toBe('chars');
+		expect(parent('/:c/ab12/Docs')).toBe('/:c/ab12');
 	});
 });

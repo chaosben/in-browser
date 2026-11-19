@@ -20,6 +20,7 @@ export type SuitePage = keyof Messages['help']['pages'];
 export const SUITE_PAGES: readonly { id: SuitePage; path: string; icon: string }[] = [
 	{ id: 'storage', path: '/help/storage', icon: 'icon-[material-symbols-light--folder-outline]' },
 	{ id: 'sync', path: '/help/sync', icon: 'icon-[material-symbols-light--sync]' },
+	{ id: 'connected', path: '/help/connected', icon: 'icon-[material-symbols-light--link]' },
 	{ id: 'p2pNode', path: '/help/p2p-node', icon: 'icon-[material-symbols-light--dns-outline]' },
 	{ id: 'install', path: '/help/install', icon: 'icon-[material-symbols-light--install-desktop]' }
 ];

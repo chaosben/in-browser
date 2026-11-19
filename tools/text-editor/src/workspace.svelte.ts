@@ -9,6 +9,7 @@ import { move, read, stat, write, type Entry } from '@in-browser/files/fs.js';
 import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 import { basename, isInside, join, parent } from '@in-browser/files/path.js';
+import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Decoded, type Encoding, type LineEnding } from '#lib/document.js';
 import { loadDraft, pruneDrafts, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
 import { markdownKeymap } from '#lib/editor/commands.js';
@@ -100,6 +101,8 @@ export class Tab {
 	stamp: FileStamp | null = null;
 	/** Changed or removed elsewhere while open */
 	conflict = $state<'changed' | 'deleted' | null>(null);
+	/** The last save failed (e.g. a connected folder without access): shown as the save state until a save works */
+	saveError = $state<string | null>(null);
 	/** Characters the encoding can't hold: automatic saving waits */
 	problem = $state<{ unmappable: number } | null>(null);
 	/** Automatic save is waiting for the pause after typing */
@@ -452,9 +455,18 @@ export class Workspace {
 			this.#remember(path);
 			this.#persist();
 			if (!located || as) toast(m.toasts.saved(tab.name), 'success', 2000);
+			tab.saveError = null;
 			return true;
 		} catch (e) {
-			fail(e);
+			// Automatic saving reports a failure once; the save state in the footer keeps showing it
+			const reported = auto && tab.saveError !== null;
+			tab.saveError = filesErrorText(e);
+			const allow = accessAction(e, () => void this.save(tab));
+			if (reported) console.error(e);
+			else if (allow) {
+				console.error(e);
+				toast(m.toasts.failed(tab.saveError), 'error', 10000, allow);
+			} else fail(e);
 			return false;
 		} finally {
 			tab.busy = tab.saving = false;

@@ -100,6 +100,24 @@ const de: Messages = {
 		used: (used, quota) => `${used} von ${quota} belegt`
 	},
 
+	connected: {
+		title: 'Verbunden',
+		connect: 'Ordner verbinden …',
+		connectHint: 'Öffnet einen Ordner auf deinem Rechner live – nichts wird in den Browser kopiert.',
+		unsupported: 'Ordner auf deinem Rechner verbinden geht nur mit Chrome oder Edge am Computer.',
+		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`,
+		allow: 'Zugriff erlauben',
+		allowHint: 'Tipp: Wähle „Bei jedem Besuch erlauben“, dann bleibt er verbunden.',
+		rename: 'Umbenennen',
+		disconnect: 'Trennen',
+		disconnectTitle: 'Ordner trennen?',
+		disconnectMessage: (name) =>
+			`In „${name}“ wird nichts gelöscht. Er taucht hier nur nicht mehr auf; du kannst ihn jederzeit wieder verbinden.`,
+		alsoSynced: (name) => `Meine Dateien werden schon mit „${name}“ abgeglichen – sein Inhalt erscheint jetzt doppelt.`,
+		live: (name) => `Live aus „${name}“ auf deinem Rechner`,
+		help: 'So funktionieren verbundene Ordner'
+	},
+
 	log: {
 		title: 'Fehlersuche',
 		record: 'Protokoll des Abgleichs aufzeichnen (Geräte und Ordner)',
@@ -272,7 +290,7 @@ const de: Messages = {
 		disconnect: 'Trennen',
 		disconnectTitle: 'Ordner trennen?',
 		disconnectMessage: (folder) =>
-			`Es wird nichts gelöscht – weder hier noch in „${folder}“. Der Abgleich hört nur auf; du kannst jederzeit wieder einen Ordner verbinden.`,
+			`Es wird nichts gelöscht – weder hier noch in „${folder}“. Der Abgleich hört nur auf; du kannst jederzeit wieder einen Ordner wählen.`,
 		lastSync: (time) => `Zuletzt abgeglichen ${time}`,
 		failed: (n) => (n === 1 ? '1 Datei ließ sich nicht abgleichen.' : `${n} Dateien ließen sich nicht abgleichen.`),
 		confirmDeletes: (n) => `Im Ordner auf deinem Rechner wurden ${n} Dateien gelöscht. Sollen sie auch hier gelöscht werden?`,
@@ -284,7 +302,7 @@ const de: Messages = {
 	trash: {
 		title: 'Papierkorb',
 		intro: 'Was du löschst, landet zuerst hier – auf all deinen Geräten, so kannst du es auf jedem zurückholen.',
-		elsewhere: 'In einem verbundenen Ordner auf deinem Rechner und beim p2p-node ist es der versteckte Ordner „.in-browser-trash“.',
+		elsewhere: 'Im abgeglichenen Ordner auf deinem Rechner und beim p2p-node ist es der versteckte Ordner „.in-browser-trash“.',
 		summary: (n, size) => (n === 1 ? `1 Element, ${size}` : `${n} Elemente, ${size}`),
 		nothing: 'Der Papierkorb ist leer.',
 		keep: 'Aufbewahren',

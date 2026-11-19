@@ -1,6 +1,6 @@
 import { lang, type Locale } from '@in-browser/brand/i18n/index.svelte.js';
 import { FilesError } from '../fs.js';
-import { basename } from '../path.js';
+import { displayName } from '../sources/registry.js';
 import de from './de.js';
 import en from './en.js';
 
@@ -17,7 +17,7 @@ export function filesMessages(): FilesMessages {
 
 /** Readable message for an error of a file operation */
 export function filesErrorText(e: unknown): string {
-	if (e instanceof FilesError) return filesMessages().errors[e.code](basename(e.path));
+	if (e instanceof FilesError) return filesMessages().errors[e.code](displayName(e.path));
 	return e instanceof Error ? e.message : String(e);
 }
 

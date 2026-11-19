@@ -100,6 +100,25 @@ const en = {
 		used: (used: string, quota: string) => `${used} of ${quota} used`
 	},
 
+	/** Folders on the computer opened live (sidebar section “Connected”) */
+	connected: {
+		title: 'Connected',
+		connect: 'Connect folder …',
+		connectHint: 'Opens a folder on your computer live – nothing is copied into the browser.',
+		unsupported: 'Connecting folders on your computer needs Chrome or Edge on a computer.',
+		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`,
+		allow: 'Allow access',
+		allowHint: 'Tip: choose “Allow on every visit”, then it stays connected.',
+		rename: 'Rename',
+		disconnect: 'Disconnect',
+		disconnectTitle: 'Disconnect the folder?',
+		disconnectMessage: (name: string) =>
+			`Nothing in “${name}” is deleted. It just no longer shows up here; you can connect it again at any time.`,
+		alsoSynced: (name: string) => `My files already sync with “${name}” – its content now shows up twice.`,
+		live: (name: string) => `Live from “${name}” on your computer`,
+		help: 'How connected folders work'
+	},
+
 	log: {
 		title: 'Troubleshooting',
 		record: 'Record a log of the sync (devices and folder)',
@@ -272,7 +291,7 @@ const en = {
 		disconnect: 'Disconnect',
 		disconnectTitle: 'Disconnect the folder?',
 		disconnectMessage: (folder: string) =>
-			`Nothing is deleted – neither here nor in “${folder}”. Syncing just stops; you can connect a folder again at any time.`,
+			`Nothing is deleted – neither here nor in “${folder}”. Syncing just stops; you can choose a folder again at any time.`,
 		lastSync: (time: string) => `Last synced ${time}`,
 		failed: (n: number) => (n === 1 ? '1 file could not be synced.' : `${n} files could not be synced.`),
 		confirmDeletes: (n: number) => `${n} files were deleted in the folder on your computer. Delete them here as well?`,
@@ -285,7 +304,7 @@ const en = {
 	trash: {
 		title: 'Trash',
 		intro: 'What you delete lands here first – on all your devices, so you can get it back on any of them.',
-		elsewhere: 'In a connected folder on your computer and with a p2p-node it is the hidden folder “.in-browser-trash”.',
+		elsewhere: 'In the synced folder on your computer and with a p2p-node it is the hidden folder “.in-browser-trash”.',
 		summary: (n: number, size: string) => (n === 1 ? `1 item, ${size}` : `${n} items, ${size}`),
 		nothing: 'The trash is empty.',
 		keep: 'Keep for',

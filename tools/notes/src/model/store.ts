@@ -5,6 +5,7 @@ import { isPackage, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 import { FilesError, list, mkdir, move, read, readText, remove, stat, write } from '@in-browser/files/fs.js';
 import { basename, extname, join, normalize, parent, safeName, stem } from '@in-browser/files/path.js';
+import { connectedDocuments, forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
 import { m } from '#lib/i18n/index.js';
 import { GRACE_MS, unusedAssets } from './gc.js';
 import { assetsOf, backgroundAssets, newNotebook, newPage, NOTEBOOK_EXT, parseNotebook, parsePage, serializePage, type Notebook, type PageContent } from './types.js';
@@ -25,6 +26,8 @@ export function lastFolder(): string {
 }
 
 export function rememberNotebook(path: string) {
+	// Connected folders aren't searched: notebooks there are listed because they are remembered
+	rememberConnected('notes', path);
 	try {
 		localStorage.setItem(FOLDER_KEY, parent(path));
 	} catch {
@@ -53,15 +56,20 @@ async function findNotebooks(folder: string, into: string[] = []): Promise<strin
 	return into;
 }
 
-/** All notebooks, last changed first; broken ones are skipped */
+/**
+ * All notebooks, last changed first: those in My files and those remembered in connected folders; broken ones and
+ * those the browser doesn't allow access to right now are skipped, gone ones are forgotten
+ */
 export async function listNotebooks(): Promise<NotebookEntry[]> {
+	const connected = connectedDocuments('notes');
 	const entries = await Promise.all(
-		(await findNotebooks('/')).map(async (path): Promise<NotebookEntry | null> => {
+		[...(await findNotebooks('/')), ...connected].map(async (path): Promise<NotebookEntry | null> => {
 			try {
 				const notebook = await readNotebook(path);
 				const modified = (await stat(manifestPath(path)))?.modified ?? notebook.updatedAt;
 				return { path, name: notebookName(path), pages: notebook.pages.length, modified: Math.max(modified, notebook.updatedAt) };
-			} catch {
+			} catch (e) {
+				if (connected.includes(path) && e instanceof FilesError && e.code === 'notFound') forgetConnected('notes', path);
 				return null;
 			}
 		})

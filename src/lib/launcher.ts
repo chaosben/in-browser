@@ -41,12 +41,9 @@ export interface Section {
 	tools: Tool[];
 }
 
-/**
- * Tools by main category in the order of `CATEGORIES`, without empty sections. Without a query the header tools
- * (Files) stay out of the grid; a search finds them too.
- */
+/** Tools by main category in the order of `CATEGORIES`, without empty sections; with a query only the matching ones */
 export function sections(tools: readonly Tool[], query: string): Section[] {
-	const shown = query.trim() ? tools.filter((tool) => matches(tool, query)) : tools.filter((tool) => !tool.launcher);
+	const shown = query.trim() ? tools.filter((tool) => matches(tool, query)) : tools;
 	return CATEGORIES.map((category) => ({ category, tools: shown.filter((tool) => tool.category === category) })).filter(
 		(section) => section.tools.length > 0
 	);

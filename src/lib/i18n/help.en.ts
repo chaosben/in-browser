@@ -48,6 +48,11 @@ const help = {
 						tabs: {
 							title: 'Several tabs',
 							text: 'All tabs of this browser see the same files. Changes from another tab appear by themselves. A document that is open for editing in one tab may be locked in a second one – the tool then says so.'
+						},
+						connected: {
+							title: 'Folders that stay on your computer',
+							text: 'Besides My files, Files can open folders on your computer live (“Connected”). They take no space in the browser storage.',
+							link: { href: '/help/connected', label: 'Connected folders' }
 						}
 					}
 				},
@@ -97,6 +102,11 @@ const help = {
 						direct: {
 							title: 'Directly between your devices',
 							text: 'Your devices exchange their files directly with each other, encrypted, without a cloud and without an account. Each device keeps a full copy of the synced files and works without the others.'
+						},
+						connected: {
+							title: 'Only My files',
+							text: 'What syncs is My files. Folders under “Connected” stay where they are and don’t travel to your other devices.',
+							link: { href: '/help/connected', label: 'Connected folders' }
 						},
 						when: {
 							title: 'When devices sync',
@@ -174,7 +184,7 @@ const help = {
 						},
 						folder: {
 							title: 'In a folder on disk',
-							text: 'In a connected folder on your computer and with a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files you delete in such a folder with another program are synced as deletions – the trash of your system keeps those.'
+							text: 'In the synced folder on your computer and with a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files you delete in such a folder with another program are synced as deletions – the trash of your system keeps those.'
 						}
 					}
 				},
@@ -225,6 +235,53 @@ const help = {
 			} satisfies HelpContent
 		},
 
+		connected: {
+			title: 'Connected folders',
+			summary: 'Open a folder on your computer live in every tool – nothing is copied into the browser',
+			topics: {
+				basics: {
+					title: 'My files and Connected',
+					items: {
+						rule: {
+							title: 'Two kinds of storage',
+							text: '“My files” lie in the storage of your browser and travel with your devices. A folder under “Connected” stays where it is: in-browser opens it live, reads and saves right there and keeps no copy. Disconnect it and nothing of it is left in the browser.'
+						},
+						everywhere: {
+							title: 'In every tool',
+							text: 'Connected folders appear in Files under “Connected” and in the open and save dialog of the tools (the choice in front of the folder path). Every tool opens and saves there directly: texts in the Text Editor, notebooks in Notes, projects and recordings in Screen Capture. The start pages of Notes and Screen Capture list notebooks and projects from connected folders once you have created or opened them there – connected folders are not searched, they can be large.'
+						},
+						notSynced: {
+							title: 'Not synced',
+							text: 'A connected folder is neither synced with your other devices nor with the folder you sync My files with. Each device has its own connections.',
+							tip: 'Want a folder on your computer to hold a copy of My files? Use the sync with a folder instead (Files → “Sync” → “Folder on your computer”). Want to work on files where they are, e.g. a project folder of another program? Connect it.',
+							link: { href: '/help/sync', label: 'Sync between your devices' }
+						}
+					}
+				},
+				use: {
+					title: 'Connecting a folder',
+					items: {
+						connect: {
+							title: 'Connect',
+							text: 'In Files, click “Connect folder …” in the sidebar and choose a folder; the browser asks whether in-browser may view and edit it. The folder then appears under “Connected” with its name. Only Chrome and Edge on a computer can do this.'
+						},
+						access: {
+							title: 'Access after a restart',
+							text: 'Browsers usually ask again for access after a restart. The folder then shows “Allow access”; one click and it is back. Tools that save there say so in their save state, and their messages, open dialogs and start pages offer “Allow access” as well.',
+							tip: 'Choose “Allow on every visit” when the browser asks – then it stays connected.'
+						},
+						manage: {
+							title: 'Rename and disconnect',
+							text: 'The menu of a connected folder (right-click in the sidebar, or the menu at its name in the top bar) has “Rename” – only the name shown here changes, not the folder – and “Disconnect”, which removes it from in-browser without deleting anything in it.'
+						},
+						deleting: {
+							title: 'Deleting',
+							text: 'A connected folder has no trash of in-browser. Deleting there asks first and then deletes for good; the trash of your system doesn’t get it either.'
+						}
+					}
+				}
+			}
+		},
 		p2pNode: {
 			title: 'p2p-node: an always-on device',
 			summary: 'Keep your files syncing on a computer or home server, even when no browser is open',

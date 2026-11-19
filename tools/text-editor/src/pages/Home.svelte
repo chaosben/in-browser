@@ -241,6 +241,7 @@
 		if (tab.conflict === 'deleted') return { state: 'error', text: m.status.deleted };
 		if (!tab.path) return tab.dirty ? { state: 'unsaved', text: m.status.notSaved } : null;
 		if (tab.pending || tab.saving) return { state: 'saving', text: m.status.saving };
+		if (tab.saveError) return { state: 'error', text: tab.saveError };
 		return tab.dirty ? { state: 'unsaved', text: m.status.notSaved } : { state: 'saved', text: m.status.saved };
 	}
 

@@ -14,6 +14,12 @@ const help: typeof enHelp = {
 				tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Halte eine Kopie in einem Ordner auf deinem Rechner oder auf deinen anderen Geräten. Ein Projekt, das in einem Tab offen ist, lässt sich nicht gleichzeitig in einem zweiten öffnen.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
+			connected: {
+				title: 'In einem verbundenen Ordner',
+				text: 'Wenn du ein Projekt beginnst oder „Öffnen …“ bzw. „Speichern unter …“ nutzt, wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Projekt dort – samt Aufnahmen – wird direkt in diesem Ordner auf deinem Rechner gespeichert und belegt keinen Browserspeicher. Die Startseite zeigt solche Projekte, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt; der Speicherstatus zeigt einen Fehler, bis es wieder geht.',
+				tip: 'Lange Aufnahmen landen direkt im Ordner – praktisch, wenn der Browserspeicher knapp ist. Erlaube den Zugriff vor der Aufnahme: Entzieht ihn der Browser währenddessen, wird die Aufnahme nicht weiter geschrieben.',
+				link: { href: '/help/connected', label: 'Verbundene Ordner' }
+			},
 			storage: {
 				title: 'Speicherplatz',
 				text: 'Die Startseite zeigt, wie viel vom Browserspeicher die Tools von in-browser belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst (auf der Startseite oder in Files), landet es im Papierkorb; sein Platz wird frei, wenn der Papierkorb geleert wird.',

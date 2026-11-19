@@ -15,6 +15,7 @@ const en = {
 		saving: 'Saving …',
 		saved: 'Saved',
 		notSaved: 'Not saved yet',
+		saveFailed: (error: string) => `Saving didn’t work: ${error}`,
 		importing: (name: string) => `Importing ${name} …`,
 		recordingName: (time: string) => `Recording ${time}`,
 		projectName: (time: string) => `Project ${time}`

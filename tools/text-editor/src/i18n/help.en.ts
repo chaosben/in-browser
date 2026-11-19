@@ -45,6 +45,11 @@ const help = {
 				text: 'A file with a place in the browser storage saves itself about a second after you stop typing, and right away when you switch tabs, close the tab or leave the page. The icon at the left of the bottom bar shows the state: saved, saving, not saved yet – hover over it for the text. Saving keeps the file’s encoding and line ending, so an unchanged file stays exactly as it was. Nothing is uploaded.',
 				link: { href: '/help/storage', label: 'Where your files are kept' }
 			},
+			connected: {
+				title: 'Texts in a connected folder',
+				text: 'The choice in front of the folder path of the open and save dialog switches between My files and the folders you connected in Files (“Connected”). A text from a connected folder opens and saves right there on your computer, also automatically. When the browser no longer allows access (usually after a restart), the save icon in the bottom bar shows an error, and a message offers “Allow access”; your changes are kept until then and saved after you allow it.',
+				link: { href: '/help/connected', label: 'Connected folders' }
+			},
 			saveNew: {
 				title: 'Saving a new text',
 				text: '“Untitled” texts and files opened from your computer have no place yet: the button “Save …” in the top bar (and Ctrl+S) asks for folder and name in the browser storage. The dialog starts in the folder you used last. After that the file saves itself like any other. The ending of the name decides the highlighting – “notes.md” becomes Markdown.'

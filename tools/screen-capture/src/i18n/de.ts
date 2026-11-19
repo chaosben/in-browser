@@ -14,6 +14,7 @@ const de: Messages = {
 		saving: 'Speichert …',
 		saved: 'Gespeichert',
 		notSaved: 'Noch nicht gespeichert',
+		saveFailed: (error) => `Speichern hat nicht geklappt: ${error}`,
 		importing: (name) => `Importiere ${name} …`,
 		recordingName: (time) => `Aufnahme ${time}`,
 		projectName: (time) => `Projekt ${time}`

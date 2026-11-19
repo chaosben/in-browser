@@ -3,7 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
+	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
+	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
@@ -12,7 +13,17 @@
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { supported, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { isInside, normalize, parent, segments } from '@in-browser/files/path.js';
+	import { isConnected, isInside, join, normalize, parent, placeRoot, segments } from '@in-browser/files/path.js';
+	import {
+		allowAccess,
+		connectFolder,
+		connections,
+		connectionsSupported,
+		disconnect,
+		renameConnection,
+		type ConnectionView
+	} from '@in-browser/files/sources/connections.svelte.js';
+	import { displayName } from '@in-browser/files/sources/registry.js';
 	import { parseInviteCode } from '@in-browser/files/p2p/auth.js';
 	import { includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
 	import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
@@ -28,6 +39,7 @@
 		transfer
 	} from '#lib/actions.js';
 	import { BRAND } from '#lib/brand.js';
+	import ConnectedSection from '#lib/components/ConnectedSection.svelte';
 	import FileList from '#lib/components/FileList.svelte';
 	import FolderTree from '#lib/components/FolderTree.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
@@ -71,7 +83,16 @@
 			: [])
 	];
 
-	const crumbs = $derived(segments(manager.folder).map((name, i, all) => ({ name, path: '/' + all.slice(0, i + 1).join('/') })));
+	/** My files (`/`) or the root of the connected folder the open folder lies in */
+	const root = $derived(placeRoot(manager.folder));
+	const connection = $derived(connections.list.find((c) => c.path === root) ?? null);
+	/** Levels from the first folder; in a connected folder starting with the connection */
+	const crumbs = $derived([
+		...(root === '/' ? [] : [{ name: connection?.name ?? displayName(root), path: root }]),
+		...segments(manager.folder)
+			.slice(segments(root).length)
+			.map((name, i, all) => ({ name, path: join(root, ...all.slice(0, i + 1)) }))
+	]);
 
 	/** The open folder as an entry (for its menu: download, properties) */
 	const current = $derived(toItem({ name: crumbs.at(-1)?.name ?? t.root, path: manager.folder, kind: 'directory' }));
@@ -98,15 +119,25 @@
 			{ separator: true },
 			{ label: m.menu.downloadZip, icon: 'icon-[material-symbols-light--folder-zip-outline]', run: () => downloadItems([folder]) },
 			{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', run: () => (properties = folder) },
+			...(connection && folder.path === connection.path ? [{ separator: true } as MenuEntry, ...connectionEntries(connection)] : []),
 			{ separator: true },
 			// Also in the sidebar, which is hidden on small screens
-			{ label: m.trash.title, icon: 'icon-[material-symbols-light--delete-outline]', run: () => openDevicesDialog('trash') }
+			{ label: m.trash.title, icon: 'icon-[material-symbols-light--delete-outline]', run: () => openDevicesDialog('trash') },
+			...connections.list.map((c) => ({ label: c.name, icon: 'icon-[material-symbols-light--link]', run: () => navigate(c.path) })),
+			...(connectionsSupported() ? [{ label: m.connected.connect, icon: 'icon-[material-symbols-light--add-link]', run: connect }] : [])
 		];
 		// The tool name stands for the top level: the levels start with the first folder, the menu of the top level
 		// hangs at the tool name
 		return setBrandBar({
 			crumbs: crumbs.map((level, i) =>
-				i < crumbs.length - 1 ? { label: level.name, onclick: () => navigate(level.path) } : { label: level.name, menu }
+				i < crumbs.length - 1
+					? { label: level.name, onclick: () => navigate(level.path) }
+					: {
+							label: level.name,
+							menu,
+							// The name of a connection is only how it is shown here
+							rename: connection && level.path === connection.path ? (name: string) => void renameConnection(connection.id, name) : undefined
+						}
 			),
 			menu,
 			primary: barPrimary,
@@ -171,6 +202,44 @@
 		else preview = item;
 	}
 
+	async function connect() {
+		try {
+			const result = await connectFolder();
+			if (!result) return;
+			if (result.alsoSynced) toast(m.connected.alsoSynced(connections.list.find((c) => c.path === result.path)?.name ?? ''), 'info', 8000);
+			navigate(result.path);
+		} catch (e) {
+			console.error(e);
+			toast(filesErrorText(e), 'error', 8000);
+		}
+	}
+
+	/** Actions of a connection: allow access again, rename, disconnect */
+	function connectionEntries(c: ConnectionView): MenuEntry[] {
+		return [
+			...(c.access === 'granted'
+				? []
+				: [{ label: m.connected.allow, icon: 'icon-[material-symbols-light--key-outline]', run: () => void allowAccess(c.id) }]),
+			{
+				label: m.connected.rename,
+				icon: 'icon-[material-symbols-light--edit-outline]',
+				run: () => {
+					if (manager.folder !== c.path) navigate(c.path);
+					// Renamed inline in the BrandBar once the connection is the open level
+					setTimeout(startRename, 50);
+				}
+			},
+			{ label: m.connected.disconnect, icon: 'icon-[material-symbols-light--link-off]', run: () => void disconnectConnection(c) }
+		];
+	}
+
+	async function disconnectConnection(c: ConnectionView) {
+		const ok = await ask({ title: m.connected.disconnectTitle, message: m.connected.disconnectMessage(c.name), confirm: m.connected.disconnect });
+		if (!ok) return;
+		await disconnect(c.id);
+		if (isInside(manager.folder, c.path)) navigate('/');
+	}
+
 	async function downloadItems(items: Item[]) {
 		if (items.length === 0) return;
 		const paths = items.map((i) => i.path);
@@ -210,7 +279,9 @@
 	}
 
 	async function dropItems(paths: string[], folder: string, copy: boolean) {
-		await transfer(paths, folder, copy ? 'copy' : 'move');
+		// Between My files and a connected folder dragging copies, as between drives
+		const across = paths.some((path) => placeRoot(path) !== placeRoot(folder));
+		await transfer(paths, folder, copy || across ? 'copy' : 'move');
 		manager.refresh();
 	}
 
@@ -275,7 +346,7 @@
 
 	/** Folders can be left out of the sync with the other devices on this device (or taken in again) */
 	function scopeEntries(item: Item | null | undefined): MenuEntry[] {
-		if (!item?.folder || p2pStatus.view.state !== 'online' || !canExclude(item.path)) return [];
+		if (!item?.folder || isConnected(item.path) || p2pStatus.view.state !== 'online' || !canExclude(item.path)) return [];
 		if (inScope(item.path, p2pStatus.view.scope)) {
 			return [{ label: m.scope.exclude, icon: 'icon-[material-symbols-light--sync-disabled]', run: () => (devicesUi.exclude = item.path) }];
 		}
@@ -333,7 +404,11 @@
 		{#if uploading}
 			<span class="flex items-center gap-1"><span class="loading loading-spinner loading-xs"></span>{m.toasts.uploading(uploading)}</span>
 		{/if}
-		{#if usage}<span class="hidden lg:inline">{usage}</span>{/if}
+		{#if connection}
+			<span class="hidden items-center gap-1 lg:flex">
+				<span class="icon-[material-symbols-light--link] size-4" aria-hidden="true"></span>{m.connected.live(connection.name)}
+			</span>
+		{:else if usage}<span class="hidden lg:inline">{usage}</span>{/if}
 		<span class="hidden truncate 2xl:inline">{m.list.hint}</span>
 	</span>
 {/snippet}
@@ -434,6 +509,13 @@
 					ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
 				/>
 			</ul>
+			<ConnectedSection
+				current={manager.folder}
+				onnavigate={navigate}
+				ondropitems={dropItems}
+				ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
+				onmenu={(e, c) => openContextMenu(e, connectionEntries(c))}
+			/>
 			<div class="mt-auto flex flex-col gap-2">
 				<TrashEntry />
 				<SyncEntry />
@@ -459,7 +541,13 @@
 				ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}
 				ondrop={areaDrop}
 			>
-				{#if manager.items === null}
+				{#if connection && connection.access !== 'granted'}
+					<div class="flex flex-col items-start gap-2 p-6">
+						<p>{m.connected.noAccess(connection.name)}</p>
+						<button class="btn btn-sm btn-primary" onclick={() => allowAccess(connection.id)}>{m.connected.allow}</button>
+						<p class="text-xs opacity-60">{m.connected.allowHint}</p>
+					</div>
+				{:else if manager.items === null}
 					<p class="p-6 text-sm opacity-60">{m.list.loading}</p>
 				{:else if manager.error}
 					<p class="text-error p-6">{manager.error}</p>

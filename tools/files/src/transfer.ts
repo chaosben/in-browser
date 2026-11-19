@@ -1,3 +1,4 @@
+import { displayName } from '@in-browser/files/sources/registry.js';
 import { downloadZip } from 'client-zip';
 import { list, mkdir, read, stat, writable } from '@in-browser/files/fs.js';
 import { basename, join, uniqueName } from '@in-browser/files/path.js';
@@ -122,6 +123,6 @@ export async function download(paths: string[], zipName: string): Promise<void> 
 
 /** Name of the ZIP for a selection: the single entry's name, otherwise the folder's */
 export function zipName(paths: string[], folder: string, rootName: string): string {
-	if (paths.length === 1) return basename(paths[0]) || rootName;
-	return basename(folder) || rootName;
+	if (paths.length === 1) return displayName(paths[0]) || rootName;
+	return displayName(folder) || rootName;
 }

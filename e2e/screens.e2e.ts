@@ -196,3 +196,34 @@ for (const scheme of ['light', 'dark'] as const) {
 		}
 	});
 }
+
+// A connected folder: the sidebar section, the open folder and the place choice of the file dialog
+for (const scheme of ['light', 'dark'] as const) {
+	test(`connected ${scheme}`, async ({ browser }) => {
+		const context = await browser.newContext({ colorScheme: scheme, viewport: { width: 1280, height: 720 } });
+		await context.addInitScript(() => {
+			window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('Projects', { create: true });
+		});
+		const page = await context.newPage();
+		await page.goto('/files');
+		await page.evaluate(async () => {
+			const disk = await (await navigator.storage.getDirectory()).getDirectoryHandle('Projects', { create: true });
+			await disk.getDirectoryHandle('Website', { create: true });
+			for (const name of ['plan.md', 'budget.csv']) {
+				const writable = await (await disk.getFileHandle(name, { create: true })).createWritable();
+				await writable.write('x');
+				await writable.close();
+			}
+		});
+		await page.locator('aside').getByRole('button', { name: 'Connect folder …' }).click();
+		await page.getByRole('option', { name: 'plan.md' }).waitFor();
+		await page.screenshot({ path: `${DIR}/connected-${scheme}.png` });
+		await page.goto('/text-editor');
+		await page.getByRole('button', { name: 'Open from Files …' }).click();
+		const dialog = page.getByRole('dialog');
+		await dialog.getByRole('combobox', { name: 'Place' }).selectOption({ label: 'Projects' });
+		await dialog.getByRole('option', { name: 'plan.md' }).waitFor();
+		await page.screenshot({ path: `${DIR}/connected-dialog-${scheme}.png` });
+		await context.close();
+	});
+}

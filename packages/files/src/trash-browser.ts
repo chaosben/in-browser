@@ -1,7 +1,9 @@
+import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { list, move, readText, remove, stat, write } from './fs.js';
 import { filesMessages } from './i18n/index.svelte.js';
-import { basename, join, parent, uniqueName } from './path.js';
+import { basename, isConnected, join, parent, uniqueName } from './path.js';
+import { displayName } from './sources/registry.js';
 import { opfsTree } from './sync/opfs-tree.js';
 import {
 	DEFAULT_RETENTION,
@@ -45,11 +47,26 @@ export async function moveToTrash(paths: string[]): Promise<TrashItem[]> {
 
 /**
  * What a delete action of the user does in every tool: into the trash, with a message offering to undo it
- * (`onUndo`: refresh the view afterwards)
+ * (`onUndo`: refresh the view afterwards). Connected folders have no trash: what lies there is deleted for good after
+ * a question. Returns whether anything was deleted.
  */
-export async function deleteToTrash(paths: string[], onUndo?: () => void): Promise<void> {
+export async function deleteToTrash(paths: string[], onUndo?: () => void): Promise<boolean> {
+	const connected = paths.filter(isConnected);
+	if (connected.length) {
+		const t = filesMessages().trash;
+		const ok = await ask({
+			title: t.forGoodTitle,
+			message: connected.length === 1 ? t.forGood(displayName(connected[0])) : t.forGoodMany(connected.length),
+			confirm: t.forGoodConfirm,
+			danger: true
+		});
+		if (!ok) return false;
+		for (const path of connected) await remove(path);
+		paths = paths.filter((path) => !isConnected(path));
+		if (!paths.length) return true;
+	}
 	const items = await moveToTrash(paths);
-	if (!items.length) return;
+	if (!items.length) return connected.length > 0;
 	const t = filesMessages().trash;
 	toast(items.length === 1 ? t.moved(basename(items[0].path)) : t.movedMany(items.length), 'info', 8000, {
 		label: t.undo,
@@ -58,6 +75,7 @@ export async function deleteToTrash(paths: string[], onUndo?: () => void): Promi
 			onUndo?.();
 		}
 	});
+	return true;
 }
 
 async function sizeOf(path: string): Promise<number> {

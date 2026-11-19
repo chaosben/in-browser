@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
-	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
-	import { recentTools } from '@in-browser/brand/recent-tools.js';
+import { recentTools } from '@in-browser/brand/recent-tools.js';
 	import { m } from '#lib/i18n/index.svelte.js';
 	import { sections } from '#lib/launcher.js';
 	import Shell from '#lib/Shell.svelte';
@@ -26,20 +25,8 @@
 		recent = recentTools().flatMap((url) => TOOLS.find((tool) => tool.url === url) ?? []);
 	});
 
-	$effect(() => setBrandBar({ actions: headerTools }));
-
-	const lacks = (tool: Tool) => (tool.requires && missing.includes(tool.requires) ? tool.requires : null);
+const lacks = (tool: Tool) => (tool.requires && missing.includes(tool.requires) ? tool.requires : null);
 </script>
-
-<!-- Infrastructure (Files) sits in the BrandBar instead of the grid -->
-{#snippet headerTools()}
-	{#each TOOLS.filter((tool) => tool.launcher === 'header') as tool (tool.id)}
-		<a href={tool.url} data-sveltekit-reload class="btn btn-sm gap-1.5">
-			<img src={tool.icon} alt="" class="size-5" width="20" height="20" />
-			{m.tools[tool.id].name}
-		</a>
-	{/each}
-{/snippet}
 
 {#snippet badge(need: Requirement)}
 	<span class="bg-base-100 border-base-300 grid size-5.5 place-items-center rounded-full border">

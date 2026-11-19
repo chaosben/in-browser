@@ -9,9 +9,9 @@ describe('launcher', () => {
 		expect(normalize('Notizbücher')).toBe('notizbucher');
 	});
 
-	it('shows every tile tool once, by main category, without Files', () => {
-		expect(ids('')).toEqual(['screenCapture', 'textEditor', 'notes']);
-		expect(sections(TOOLS, '').map((section) => section.category)).toEqual(['media', 'writing']);
+	it('shows every tool once, by main category', () => {
+		expect(ids('')).toEqual(['screenCapture', 'textEditor', 'notes', 'files']);
+		expect(sections(TOOLS, '').map((section) => section.category)).toEqual(['media', 'writing', 'organize']);
 	});
 
 	it('finds tools by name, keywords and categories in both languages', () => {
@@ -22,7 +22,6 @@ describe('launcher', () => {
 		// A further category only helps the search
 		expect(ids('drawing')).toEqual(['notes']);
 		expect(ids('zeichnen')).toEqual(['notes']);
-		// Files is found although it has no tile
 		expect(ids('dateien')).toContain('files');
 		expect(ids('xyz')).toEqual([]);
 	});

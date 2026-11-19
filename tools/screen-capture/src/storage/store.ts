@@ -3,6 +3,7 @@ import { isPackage, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
 import { FilesError, list, mkdir, read, readText, remove, stat, write, writable } from '@in-browser/files/fs.js';
 import { basename, extname, join, normalize, parent, safeName, stem } from '@in-browser/files/path.js';
+import { connectedDocuments, forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
 import { m } from '#lib/i18n/index.js';
 import { IMAGE_EXTENSIONS } from '#lib/media/images.js';
 import { MEDIA_EXTENSIONS } from '#lib/media/media.js';
@@ -36,6 +37,8 @@ export function lastFolder(): string {
 
 /** Remembers the folder of an opened or created project. */
 export function rememberProject(path: string) {
+	// Connected folders aren't searched: projects there are listed because they are remembered
+	rememberConnected('screen-capture', path);
 	try {
 		localStorage.setItem(FOLDER_KEY, parent(path));
 	} catch {
@@ -53,9 +56,20 @@ async function findProjects(folder: string, into: string[] = []): Promise<string
 	return into;
 }
 
-/** All projects in the file system, newest change first */
+/**
+ * All projects, newest change first: those in My files and those remembered in connected folders (gone ones are
+ * forgotten, those the browser doesn't allow access to right now are skipped)
+ */
 export async function listProjects(): Promise<Project[]> {
-	const projects = await Promise.all((await findProjects('/')).map((path) => loadProject(path).catch(() => null)));
+	const connected = connectedDocuments('screen-capture');
+	const projects = await Promise.all(
+		[...(await findProjects('/')), ...connected].map((path) =>
+			loadProject(path).catch((e: unknown) => {
+				if (connected.includes(path) && e instanceof FilesError && e.code === 'notFound') forgetConnected('screen-capture', path);
+				return null;
+			})
+		)
+	);
 	// Incomplete (e.g. aborted recording) or broken projects are skipped
 	return projects.filter((p): p is Project => p !== null).sort((a, b) => b.updatedAt - a.updatedAt);
 }

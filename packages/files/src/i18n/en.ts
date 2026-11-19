@@ -1,7 +1,7 @@
 // Texts of the file system components (file dialog, error messages). Defines the structure; de.ts must have the
 // same keys.
 const en = {
-	root: 'Files',
+	root: 'My files',
 	kinds: {
 		folder: 'Folder',
 		file: 'File',
@@ -26,7 +26,9 @@ const en = {
 		empty: 'Nothing here yet.',
 		exists: (name: string) => `“${name}” already exists here. Choose another name.`,
 		replace: 'Replace',
-		replaces: (name: string) => `“${name}” already exists here and will be replaced.`
+		replaces: (name: string) => `“${name}” already exists here and will be replaced.`,
+		/** Choice between My files and the connected folders */
+		place: 'Place'
 	},
 
 	errors: {
@@ -35,7 +37,10 @@ const en = {
 		collision: (name: string) => `There is already an entry that only differs in upper/lower case from “${name}”.`,
 		invalidName: (name: string) => `“${name}” is not a valid name.`,
 		intoItself: (name: string) => `“${name}” cannot be moved or copied into itself.`,
-		root: (_name: string) => 'This is not possible with the top folder.'
+		root: (_name: string) => 'This is not possible with the top folder.',
+		offline: (name: string) => `“${name}” can’t be reached right now.`,
+		denied: (name: string) => `The browser doesn’t allow access to “${name}” right now. Allow it in Files under “Connected”.`,
+		readOnly: (name: string) => `“${name}” can only be read.`
 	},
 
 	/** Sync status in the footer of every tool (`SyncIndicator`) */
@@ -58,7 +63,18 @@ const en = {
 	trash: {
 		moved: (name: string) => `“${name}” is in the trash.`,
 		movedMany: (n: number) => `${n} items are in the trash.`,
-		undo: 'Undo'
+		undo: 'Undo',
+		/** Deleting in a connected folder, which has no trash */
+		forGoodTitle: 'Delete for good?',
+		forGood: (name: string) => `“${name}” is in a connected folder, which has no trash. It will be deleted for good.`,
+		forGoodMany: (n: number) => `${n} items are in a connected folder, which has no trash. They will be deleted for good.`,
+		forGoodConfirm: 'Delete'
+	},
+
+	/** Connected folders (access, start pages of the tools) */
+	connected: {
+		allow: 'Allow access',
+		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`
 	},
 
 	/** Sync with a folder on disk */

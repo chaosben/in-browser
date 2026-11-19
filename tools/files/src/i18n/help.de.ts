@@ -12,7 +12,7 @@ const help: typeof enHelp = {
 			},
 			layout: {
 				title: 'Aufbau',
-				text: 'Links der Ordnerbaum, beginnend mit „Dateien“; darunter „Papierkorb“ und „Abgleich“ mit einem kurzen Status. In der Mitte der Inhalt des geöffneten Ordners. Die obere Leiste zeigt den Pfad des geöffneten Ordners – ein Klick auf eine Ebene führt dorthin zurück –, danach „Hochladen“ und „Neuer Ordner“; rechts die Suche und der Wechsel zwischen „Liste“ und „Kacheln“. Die untere Zeile zählt die Elemente des Ordners und die ausgewählten, zeigt ein laufendes Hochladen und wie viel Speicher belegt ist. Ganz rechts zeigt das Abgleich-Symbol den Stand des Abgleichs, wie in jedem Tool.'
+				text: 'Links der Ordnerbaum, beginnend mit „Meine Dateien“; darunter „Verbunden“ mit Ordnern auf deinem Rechner, die du live geöffnet hast, dann „Papierkorb“ und „Abgleich“ mit einem kurzen Status. In der Mitte der Inhalt des geöffneten Ordners. Die obere Leiste zeigt den Pfad des geöffneten Ordners – ein Klick auf eine Ebene führt dorthin zurück –, danach „Hochladen“ und „Neuer Ordner“; rechts die Suche und der Wechsel zwischen „Liste“ und „Kacheln“. Die untere Zeile zählt die Elemente des Ordners und die ausgewählten, zeigt ein laufendes Hochladen und wie viel Speicher belegt ist. Ganz rechts zeigt das Abgleich-Symbol den Stand des Abgleichs, wie in jedem Tool.'
 			},
 			menus: {
 				title: 'Wo die Aktionen sind',
@@ -132,7 +132,35 @@ const help: typeof enHelp = {
 			},
 			elsewhere: {
 				title: 'Papierkorb im Ordner auf deinem Rechner',
-				text: 'In einem verbundenen Ordner auf deinem Rechner und beim p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien dort werden nach derselben Einstellung entfernt.'
+				text: 'Im abgeglichenen Ordner auf deinem Rechner und beim p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien dort werden nach derselben Einstellung entfernt.'
+			}
+		}
+	},
+	connected: {
+		title: 'Verbundene Ordner',
+		items: {
+			connect: {
+				title: 'Einen Ordner verbinden',
+				text: 'Mit „Ordner verbinden …“ unter „Verbunden“ in der Seitenleiste wählst du einen Ordner auf deinem Rechner; der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf. Der Ordner erscheint mit seinem Namen unter „Verbunden“ und öffnet sich live: Du siehst und änderst die Dateien direkt dort, nichts wird in den Browserspeicher kopiert und nichts abgeglichen. Das können nur Chrome und Edge am Computer.',
+				tip: 'Verbinde einen Ordner, um Dateien dort zu bearbeiten, wo sie liegen (z. B. den Projektordner eines anderen Programms). Willst du stattdessen eine Kopie von Meine Dateien auf deinem Rechner? Nimm „Ordner auf deinem Rechner“ in den Abgleich-Einstellungen.',
+				link: { href: '/help/connected', label: 'Verbundene Ordner' }
+			},
+			use: {
+				title: 'Darin arbeiten',
+				text: 'Alles geht wie in Meine Dateien: Öffnen, Vorschau, Hochladen, Herunterladen, Umbenennen, Verschieben und Kopieren – auch zwischen Meine Dateien und einem verbundenen Ordner (Ziehen vom einen ins andere kopiert, wie zwischen Laufwerken). Die untere Zeile zeigt „Live aus …“ statt der Speicherbelegung. Notizbücher und Projekte öffnen sich direkt dort in ihrem Tool.'
+			},
+			access: {
+				title: '„Zugriff erlauben“',
+				text: 'Nach einem Neustart fragt der Browser meist erneut nach dem Zugriff. Der Ordner zeigt dann in der Seitenleiste und beim Öffnen „Zugriff erlauben“; klicke darauf und bestätige die Frage des Browsers.',
+				tip: 'Wähle „Bei jedem Besuch erlauben“ – dann bleibt er verbunden.'
+			},
+			manage: {
+				title: 'Umbenennen und trennen',
+				text: 'Klicke mit der rechten Maustaste auf einen verbundenen Ordner in der Seitenleiste oder öffne das Menü an seinem Namen in der oberen Leiste: „Umbenennen“ ändert nur den Namen hier (der Ordner behält seinen Namen), „Trennen“ entfernt ihn aus in-browser. Im Ordner wird nichts gelöscht.'
+			},
+			delete: {
+				title: 'Löschen in einem verbundenen Ordner',
+				text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser: „Löschen“ fragt erst „Endgültig löschen?“ und löscht dann sofort.'
 			}
 		}
 	},
@@ -140,7 +168,7 @@ const help: typeof enHelp = {
 		title: 'Ordner auf deinem Rechner',
 		items: {
 			connect: {
-				title: 'Einen Ordner verbinden',
+				title: 'Mit einem Ordner abgleichen',
 				text: '„Abgleich“ in der Seitenleiste (am Handy das Abgleich-Symbol in der oberen Leiste) öffnet die Abgleich-Einstellungen; klicke unter „Ordner auf deinem Rechner“ auf „Ordner wählen“ und wähle einen Ordner. Ab dann hält Files den Browserspeicher und diesen Ordner in beide Richtungen abgeglichen; wurde eine Datei auf beiden Seiten geändert, gewinnt die neuere Fassung. Der Abgleich läuft, solange ein Tool von in-browser in diesem Browser offen ist. Das können nur Chrome und Edge am Desktop-Rechner.',
 				tip: 'Wähle einen leeren Ordner oder einen nur für in-browser – alles darin wird Teil von Files. Ein Ordner, den dein Sync-Tool (Syncthing, Nextcloud, Dropbox …) mitnimmt, bringt deine Dokumente auch auf andere Rechner.',
 				link: { href: '/help/storage', label: 'Der Ordner auf deinem Rechner' }
@@ -157,7 +185,7 @@ const help: typeof enHelp = {
 			},
 			manage: {
 				title: 'Jetzt abgleichen und trennen',
-				text: '„Jetzt abgleichen“ gleicht sofort ab, statt auf die nächste Änderung zu warten. Lassen sich einzelne Dateien nicht abgleichen, sagt eine Zeile, wie viele. „Trennen“ beendet den Abgleich mit dem Ordner; es wird nichts gelöscht, weder in Files noch im Ordner, und du kannst jederzeit wieder einen Ordner verbinden.'
+				text: '„Jetzt abgleichen“ gleicht sofort ab, statt auf die nächste Änderung zu warten. Lassen sich einzelne Dateien nicht abgleichen, sagt eine Zeile, wie viele. „Trennen“ beendet den Abgleich mit dem Ordner; es wird nichts gelöscht, weder in Files noch im Ordner, und du kannst jederzeit wieder einen Ordner wählen.'
 			}
 		}
 	},

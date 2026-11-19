@@ -5,7 +5,9 @@
 	import { formatsOf } from './formats.js';
 	import { list, mkdir, type Entry } from './fs.js';
 	import { filesErrorText, filesMessages } from './i18n/index.svelte.js';
-	import { extname, join, nameKey, nameProblem, parent, segments } from './path.js';
+	import { extname, isConnected, join, nameKey, nameProblem, parent, placeRoot, segments } from './path.js';
+	import { FilesError } from './fs.js';
+	import { accessAction, connections } from './sources/connections.svelte.js';
 
 	// One instance per tool (in its layout); opened via `chooseFile()`.
 
@@ -21,6 +23,8 @@
 	let name = $state('');
 	let newFolder = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	/** The folder is connected and the browser asks for access again */
+	let access = $state<ReturnType<typeof accessAction>>(undefined);
 
 	const options = $derived(fileDialogState.current);
 	const accepts = (entry: Entry) => options?.accept.includes(extname(entry.name)) ?? false;
@@ -62,21 +66,27 @@
 		return selected.length > 1 ? t.dialog.openCount(selected.length) : t.dialog.open;
 	});
 
-	async function load(path: string) {
+	/** Shows a folder; the error if it can't be read (also shown) */
+	async function load(path: string): Promise<unknown> {
 		error = null;
+		access = undefined;
 		selected = [];
 		markedFolder = null;
 		anchor = null;
 		entries = null;
 		try {
-			await mkdir(path);
+			// Folders of My files the tool asks for are created; connected folders are only read
+			if (!isConnected(path)) await mkdir(path);
 			const result = await list(path);
 			folder = path;
 			entries = result;
+			return null;
 		} catch (e) {
 			console.error(e);
 			error = filesErrorText(e);
+			access = accessAction(e, () => void load(path));
 			entries = [];
+			return e;
 		}
 	}
 
@@ -86,7 +96,11 @@
 			if (!options) return;
 			name = options.name ?? '';
 			newFolder = null;
-			load(options.folder);
+			// A connected folder that is gone: My files instead
+			const start = options.folder;
+			void load(start).then((e) => {
+				if (e instanceof FilesError && e.code === 'notFound' && isConnected(start)) void load('/');
+			});
 		});
 		node.showModal();
 	}
@@ -149,7 +163,15 @@
 		}
 	}
 
-	const crumbs = $derived(segments(folder).map((part, i, all) => ({ name: part, path: '/' + all.slice(0, i + 1).join('/') })));
+	/** My files and the connected folders */
+	const places = $derived([{ path: '/', name: t.root }, ...connections.list.map((c) => ({ path: c.path, name: c.name }))]);
+	const root = $derived(placeRoot(folder));
+	const rootName = $derived(places.find((p) => p.path === root)?.name ?? t.root);
+	const crumbs = $derived(
+		segments(folder)
+			.slice(segments(root).length)
+			.map((part, i, all) => ({ name: part, path: join(root, ...all.slice(0, i + 1)) }))
+	);
 </script>
 
 {#if options}
@@ -169,15 +191,31 @@
 					<button
 						class="btn btn-ghost btn-sm btn-square"
 						onclick={() => load(parent(folder))}
-						disabled={folder === '/'}
+						disabled={folder === root}
 						title={t.dialog.up}
 						aria-label={t.dialog.up}
 					>
 						<span class="icon-[material-symbols-light--arrow-upward] size-5" aria-hidden="true"></span>
 					</button>
+					{#if places.length > 1}
+						<select
+							class="select select-sm w-auto max-w-40"
+							aria-label={t.dialog.place}
+							title={t.dialog.place}
+							value={root}
+							onchange={(e) => load(e.currentTarget.value)}
+						>
+							{#each places as place (place.path)}
+								<option value={place.path}>{place.name}</option>
+							{/each}
+						</select>
+					{/if}
 					<div class="breadcrumbs min-w-0 flex-1 py-0 text-sm">
 						<ul>
-							<li><button class="link link-hover" onclick={() => load('/')}>{t.root}</button></li>
+							<!-- With the place choice in front, its name is repeated only as the way back from deeper folders -->
+							{#if places.length === 1 || folder !== root}
+								<li><button class="link link-hover" onclick={() => load(root)}>{rootName}</button></li>
+							{/if}
 							{#each crumbs as crumb (crumb.path)}
 								<li><button class="link link-hover" onclick={() => load(crumb.path)}>{crumb.name}</button></li>
 							{/each}
@@ -248,7 +286,12 @@
 						<p class="text-warning text-sm">{t.dialog.replaces(existing.name)}</p>
 					{/if}
 				{/if}
-				{#if error}<p class="text-error text-sm">{error}</p>{/if}
+				{#if error}
+					<p class="text-error flex flex-wrap items-center gap-2 text-sm">
+						{error}
+						{#if access}<button class="btn btn-sm" onclick={access.run}>{access.label}</button>{/if}
+					</p>
+				{/if}
 
 				<div class="modal-action mt-0">
 					<button class="btn btn-ghost" onclick={() => closeFileDialog(null)}>{t.dialog.cancel}</button>

@@ -2,6 +2,7 @@
 	import { list } from '@in-browser/files/fs.js';
 	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { extname, parent } from '@in-browser/files/path.js';
+	import { displayPath } from '@in-browser/files/sources/registry.js';
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
 	import type { Item } from '#lib/items.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
@@ -63,7 +64,7 @@
 			<dt class="opacity-70">{m.properties.kind}</dt>
 			<dd>{kind}</dd>
 			<dt class="opacity-70">{m.properties.location}</dt>
-			<dd class="break-all">{parent(item.path) === '/' ? t.root : parent(item.path)}</dd>
+			<dd class="break-all">{displayPath(parent(item.path), t.root)}</dd>
 			<dt class="opacity-70">{m.properties.size}</dt>
 			<dd>{size === undefined ? m.properties.calculating : formatSize(size, intlLocale)}</dd>
 			{#if item.kind === 'directory'}

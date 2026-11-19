@@ -43,6 +43,7 @@
 	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 	import { copy, exists, FilesError, remove as removePath, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 	import { basename, join, normalize, parent } from '@in-browser/files/path.js';
 	import {
 		clampTimelineHeight,
@@ -86,6 +87,8 @@
 	let editor = $state<Editor | null>(null);
 	let player = $state<Player | null>(null);
 	let loadError = $state<string | null>(null);
+	/** Opening failed because the browser doesn't allow access to the connected folder right now */
+	let loadAccess = $state<ReturnType<typeof accessAction>>(undefined);
 	let dialog = $state<'record' | 'export' | null>(null);
 	let importing = $state<{ name: string; progress: number } | null>(null);
 	let fileInput = $state<HTMLInputElement>();
@@ -198,6 +201,7 @@
 				});
 			} catch (e) {
 				loadError = m.editor.loadFailed(errorMessage(e));
+				loadAccess = accessAction(e, () => location.reload());
 			}
 		})();
 
@@ -231,9 +235,11 @@
 				? null
 				: editor.saving
 					? { state: 'saving', text: m.common.saving }
-					: editor.dirty
-						? { state: 'unsaved', text: m.common.notSaved }
-						: { state: 'saved', text: m.common.saved }
+					: editor.saveError
+						? { state: 'error', text: editor.saveError }
+						: editor.dirty
+							? { state: 'unsaved', text: m.common.notSaved }
+							: { state: 'saved', text: m.common.saved }
 		})
 	);
 
@@ -670,6 +676,8 @@
 		let release: (() => void) | null = null;
 		try {
 			await editor.save();
+			// Not saved (the message said so): the copy would miss the latest changes
+			if (editor.saveError) return;
 			if (path === from) return toast(m.editor.savedAs(basename(path)), 'success');
 			if (await exists(path)) {
 				// Replacing a folder the project lies in would delete the project itself
@@ -851,7 +859,10 @@
 {#if loadError}
 	<main class="mx-auto max-w-xl p-10">
 		<div role="alert" class="alert alert-error">{loadError}</div>
-		<a class="btn mt-4" href={resolve('/screen-capture')}>{m.editor.backToOverview}</a>
+		<div class="mt-4 flex gap-2">
+			{#if loadAccess}<button class="btn btn-primary" onclick={loadAccess.run}>{loadAccess.label}</button>{/if}
+			<a class="btn" href={resolve('/screen-capture')}>{m.editor.backToOverview}</a>
+		</div>
 	</main>
 {:else if !editor || !player}
 	<main class="grid h-full place-items-center"><span class="loading loading-spinner loading-lg"></span></main>

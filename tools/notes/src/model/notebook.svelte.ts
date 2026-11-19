@@ -4,6 +4,7 @@
 
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 import { isInside } from '@in-browser/files/path.js';
 import { itemBounds, union, type Box } from '#lib/ink/geometry.js';
 import { isIdentity, transformItem, type Transform } from '#lib/ink/lasso.js';
@@ -73,6 +74,8 @@ export class NotebookDoc {
 	pages = $state.raw<PageMeta[]>([]);
 	saving = $state(false);
 	dirty = $state(false);
+	/** The last save failed (e.g. a connected folder without access); shown until a save works */
+	saveError = $state<string | null>(null);
 	canUndo = $state(false);
 	canRedo = $state(false);
 
@@ -601,13 +604,17 @@ export class NotebookDoc {
 				await writeNotebook(this.path, this.meta);
 			}
 			this.dirty = this.dirtyPages.size > 0 || this.removedPages.size > 0 || this.metaDirty;
+			this.saveError = null;
 		} catch (e) {
 			// Keep the changes for the next attempt
 			for (const id of pages) this.dirtyPages.add(id);
 			for (const id of removed) this.removedPages.add(id);
 			this.metaDirty ||= meta;
 			console.error('[notes] save', e);
-			toast(m.editor.saveFailed(filesErrorText(e)), 'error', 8000);
+			// Reported once per run of failures; the save state in the footer keeps showing it
+			const reported = this.saveError !== null;
+			this.saveError = filesErrorText(e);
+			if (!reported) toast(m.editor.saveFailed(this.saveError), 'error', 10000, accessAction(e, () => void this.save()));
 		} finally {
 			this.saving = false;
 		}

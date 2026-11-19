@@ -22,6 +22,11 @@ const help: typeof enHelp = {
 				tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Halte eine Kopie in einem Ordner auf deinem Rechner oder auf deinen anderen Geräten.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
+			connected: {
+				title: 'In einem verbundenen Ordner',
+				text: 'In den Dialogen für ein neues Notizbuch, „Öffnen …“ und den PDF-Import wechselt die Auswahl vor dem Ordnerpfad zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Notizbuch dort wird direkt in diesem Ordner auf deinem Rechner gespeichert. Die Startseite zeigt solche Notizbücher, sobald du sie hier angelegt oder geöffnet hast; verbundene Ordner durchsucht sie nicht. Nach einem Neustart fragt der Browser eventuell erneut: Die Startseite zeigt dann „Zugriff erlauben“, ebenso eine Meldung, wenn Speichern oder Öffnen nicht klappt.',
+				link: { href: '/help/connected', label: 'Verbundene Ordner' }
+			},
 			sync: {
 				title: 'Auf all deinen Geräten',
 				text: 'Notizbücher sind gewöhnliche Dateien des gemeinsamen Dateisystems und reisen deshalb mit dem Geräteabgleich mit – schreib auf dem Tablet, lies am Rechner.',

@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { list, mkdir, remove, write } from '@in-browser/files/fs.js';
-import { cleanupAssets, listNotebooks, readNotebook, readPage, writeNotebook, writePage } from './store';
+import { connectionRoot } from '@in-browser/files/path.js';
+import { saveConnections } from '@in-browser/files/sources/registry.js';
+import { connectedDocuments } from '@in-browser/files/sources/recent.js';
+import { cleanupAssets, listNotebooks, readNotebook, readPage, rememberNotebook, writeNotebook, writePage } from './store';
 import { newNotebook, type Stroke } from './types';
 
 // Notebooks against the real OPFS of headless Chromium
 
 afterEach(async () => {
 	for (const entry of await list('/')) await remove(entry.path);
+	await saveConnections([]);
+	localStorage.clear();
 });
 
 describe('notebook store', () => {
@@ -37,5 +42,23 @@ describe('notebook store', () => {
 		await write(`${path}/assets/fresh.png`, 'x');
 		await cleanupAssets(path, notebook, () => []);
 		expect((await list(`${path}/assets`)).map((e) => e.name)).toEqual(['fresh.png']);
+	});
+
+	it('works in a connected folder and lists notebooks remembered there', async () => {
+		const disk = await (await navigator.storage.getDirectory()).getDirectoryHandle('disk', { create: true });
+		await saveConnections([{ id: 'd1', kind: 'folder', name: 'Disk', handle: disk }]);
+		const path = `${connectionRoot('d1')}/Trip.note`;
+		await mkdir(`${path}/pages`);
+		await writeNotebook(path, newNotebook());
+		// Not searched: only listed once remembered
+		expect(await listNotebooks()).toEqual([]);
+		rememberNotebook(path);
+		expect((await listNotebooks()).map((n) => [n.path, n.name])).toEqual([[path, 'Trip']]);
+		expect((await disk.getDirectoryHandle('Trip.note')).kind).toBe('directory');
+		// A connection that is gone: forgotten
+		rememberNotebook(`${connectionRoot('gone')}/Old.note`);
+		await listNotebooks();
+		expect(connectedDocuments('notes')).toEqual([path]);
+		await (await navigator.storage.getDirectory()).removeEntry('disk', { recursive: true });
 	});
 });

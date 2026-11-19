@@ -14,7 +14,7 @@ const help = {
 			},
 			layout: {
 				title: 'Layout',
-				text: 'Left: the folder tree, starting with “Files”; below it “Trash” and “Sync” with a short status. Middle: the content of the open folder. The top bar shows the path of the open folder – click a level to go back to it – followed by “Upload” and “New folder”; on the right the search and the switch between “List” and “Tiles”. The bottom line counts the items of the folder and the selected ones, shows a running upload and how much storage is used. At its right end the sync symbol shows the state of syncing, as in every tool.'
+				text: 'Left: the folder tree, starting with “My files”; below it “Connected” with folders on your computer you opened live, then “Trash” and “Sync” with a short status. Middle: the content of the open folder. The top bar shows the path of the open folder – click a level to go back to it – followed by “Upload” and “New folder”; on the right the search and the switch between “List” and “Tiles”. The bottom line counts the items of the folder and the selected ones, shows a running upload and how much storage is used. At its right end the sync symbol shows the state of syncing, as in every tool.'
 			},
 			menus: {
 				title: 'Where the actions are',
@@ -134,7 +134,35 @@ const help = {
 			},
 			elsewhere: {
 				title: 'Trash in the folder on your computer',
-				text: 'In a connected folder on your computer and on a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files there are removed according to the same setting.'
+				text: 'In the synced folder on your computer and on a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files there are removed according to the same setting.'
+			}
+		}
+	},
+	connected: {
+		title: 'Connected folders',
+		items: {
+			connect: {
+				title: 'Connecting a folder',
+				text: '“Connect folder …” under “Connected” in the sidebar lets you choose a folder on your computer; the browser asks whether in-browser may view and edit it. The folder appears under “Connected” with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced. Only Chrome and Edge on a computer can do this.',
+				tip: 'Connect a folder to work on files where they are (e.g. a project folder of another program). Want a copy of My files on your computer instead? Use “Folder on your computer” in the sync settings.',
+				link: { href: '/help/connected', label: 'Connected folders' }
+			},
+			use: {
+				title: 'Working in it',
+				text: 'Everything works as in My files: opening, preview, uploading, downloading, renaming, moving and copying – also between My files and a connected folder (dragging from one to the other copies, as between drives). The bottom line shows “Live from …” instead of the storage use. Notebooks and projects open right there in their tool.'
+			},
+			access: {
+				title: '“Allow access”',
+				text: 'After a restart the browser usually asks again for access. The folder then shows “Allow access” in the sidebar and when you open it; click it and confirm the browser’s question.',
+				tip: 'Choose “Allow on every visit” – then it stays connected.'
+			},
+			manage: {
+				title: 'Rename and disconnect',
+				text: 'Right-click a connected folder in the sidebar, or open the menu at its name in the top bar: “Rename” changes only the name shown here (the folder keeps its name), “Disconnect” removes it from in-browser. Nothing in the folder is deleted.'
+			},
+			delete: {
+				title: 'Deleting in a connected folder',
+				text: 'A connected folder has no trash of in-browser: “Delete” asks “Delete for good?” first and then deletes right away.'
 			}
 		}
 	},
@@ -142,7 +170,7 @@ const help = {
 		title: 'Folder on your computer',
 		items: {
 			connect: {
-				title: 'Connecting a folder',
+				title: 'Syncing with a folder',
 				text: '“Sync” in the sidebar (on phones the sync symbol in the top bar) opens the sync settings; under “Folder on your computer” click “Choose folder” and pick a folder. From then on Files keeps the browser storage and that folder in sync in both directions; when a file was changed on both sides, the newer version wins. Syncing runs while any in-browser tool is open in this browser. Only Chrome and Edge on a desktop computer can do this.',
 				tip: 'Choose an empty folder or one meant only for in-browser – everything in it becomes part of Files. A folder your sync tool (Syncthing, Nextcloud, Dropbox …) carries along gets your documents to other computers as well.',
 				link: { href: '/help/storage', label: 'The folder on your computer' }
@@ -159,7 +187,7 @@ const help = {
 			},
 			manage: {
 				title: 'Sync now and disconnecting',
-				text: '“Sync now” syncs right away instead of waiting for the next change. If single files can’t be synced, a line says how many. “Disconnect” ends syncing with the folder; nothing is deleted, neither in Files nor in the folder, and you can connect a folder again at any time.'
+				text: '“Sync now” syncs right away instead of waiting for the next change. If single files can’t be synced, a line says how many. “Disconnect” ends syncing with the folder; nothing is deleted, neither in Files nor in the folder, and you can choose a folder again at any time.'
 			}
 		}
 	},

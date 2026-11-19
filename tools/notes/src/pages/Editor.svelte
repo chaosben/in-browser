@@ -16,6 +16,7 @@
 	import { read, watch } from '@in-browser/files/fs.js';
 	import type { IconData } from '@in-browser/graphics/icons/types.js';
 	import { normalize } from '@in-browser/files/path.js';
+	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 	import { BRAND, editorUrl } from '#lib/brand.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import PerfOverlay from '#lib/components/PerfOverlay.svelte';
@@ -36,6 +37,8 @@
 
 	let doc = $state<NotebookDoc | null>(null);
 	let error = $state<string | null>(null);
+	/** Opening failed because the browser doesn't allow access to the connected folder right now */
+	let access = $state<ReturnType<typeof accessAction>>(undefined);
 	let stage = $state.raw<Stage | null>(null);
 	let selection = $state.raw<Selection | null>(null);
 	let suggestion = $state.raw<ShapeSuggestion | null>(null);
@@ -91,6 +94,7 @@
 			} catch (e) {
 				console.error('[notes] open', e);
 				error = loadError(e);
+				access = accessAction(e, () => location.reload());
 			}
 		})();
 
@@ -466,9 +470,11 @@
 			save: doc
 				? doc.saving
 					? { state: 'saving', text: m.editor.saving }
-					: doc.dirty
-						? { state: 'unsaved', text: m.editor.notSaved }
-						: { state: 'saved', text: m.editor.saved }
+					: doc.saveError
+						? { state: 'error', text: doc.saveError }
+						: doc.dirty
+							? { state: 'unsaved', text: m.editor.notSaved }
+							: { state: 'saved', text: m.editor.saved }
 				: null
 		})
 	);
@@ -513,7 +519,10 @@
 	{#if error}
 		<div class="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
 			<p class="max-w-md">{error}</p>
-			<a class="btn" href={resolve('/notes')}>{m.editor.back}</a>
+			<div class="flex gap-2">
+				{#if access}<button class="btn btn-primary" onclick={access.run}>{access.label}</button>{/if}
+				<a class="btn" href={resolve('/notes')}>{m.editor.back}</a>
+			</div>
 		</div>
 	{:else if doc}
 		{#key doc}

@@ -1,7 +1,7 @@
 import type { FilesMessages } from './index.svelte.js';
 
 const de: FilesMessages = {
-	root: 'Dateien',
+	root: 'Meine Dateien',
 	kinds: {
 		folder: 'Ordner',
 		file: 'Datei',
@@ -26,7 +26,8 @@ const de: FilesMessages = {
 		empty: 'Hier ist noch nichts.',
 		exists: (name) => `„${name}“ gibt es hier schon. Wähle einen anderen Namen.`,
 		replace: 'Ersetzen',
-		replaces: (name) => `„${name}“ gibt es hier schon und wird ersetzt.`
+		replaces: (name) => `„${name}“ gibt es hier schon und wird ersetzt.`,
+		place: 'Ort'
 	},
 
 	errors: {
@@ -35,7 +36,10 @@ const de: FilesMessages = {
 		collision: (name) => `Es gibt schon einen Eintrag, der sich von „${name}“ nur in Groß-/Kleinschreibung unterscheidet.`,
 		invalidName: (name) => `„${name}“ ist kein gültiger Name.`,
 		intoItself: (name) => `„${name}“ lässt sich nicht in sich selbst verschieben oder kopieren.`,
-		root: (_name) => 'Mit dem obersten Ordner geht das nicht.'
+		root: (_name) => 'Mit dem obersten Ordner geht das nicht.',
+		offline: (name) => `„${name}“ ist gerade nicht erreichbar.`,
+		denied: (name) => `Der Browser erlaubt gerade keinen Zugriff auf „${name}“. Erlaube ihn in Files unter „Verbunden“.`,
+		readOnly: (name) => `„${name}“ lässt sich nur lesen.`
 	},
 
 	indicator: {
@@ -56,7 +60,16 @@ const de: FilesMessages = {
 	trash: {
 		moved: (name) => `„${name}“ liegt im Papierkorb.`,
 		movedMany: (n) => `${n} Elemente liegen im Papierkorb.`,
-		undo: 'Rückgängig'
+		undo: 'Rückgängig',
+		forGoodTitle: 'Endgültig löschen?',
+		forGood: (name) => `„${name}“ liegt in einem verbundenen Ordner, der keinen Papierkorb hat. Es wird endgültig gelöscht.`,
+		forGoodMany: (n) => `${n} Elemente liegen in einem verbundenen Ordner, der keinen Papierkorb hat. Sie werden endgültig gelöscht.`,
+		forGoodConfirm: 'Löschen'
+	},
+
+	connected: {
+		allow: 'Zugriff erlauben',
+		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`
 	},
 
 	folderSync: {

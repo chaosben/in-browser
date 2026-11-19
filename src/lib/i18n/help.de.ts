@@ -44,6 +44,11 @@ const help: typeof enHelp = {
 						tabs: {
 							title: 'Mehrere Tabs',
 							text: 'Alle Tabs dieses Browsers sehen dieselben Dateien. Änderungen aus einem anderen Tab erscheinen von selbst. Ein Dokument, das in einem Tab zum Bearbeiten offen ist, kann in einem zweiten gesperrt sein – das Tool sagt es dann.'
+						},
+						connected: {
+							title: 'Ordner, die auf deinem Rechner bleiben',
+							text: 'Neben Meine Dateien kann Files Ordner auf deinem Rechner live öffnen („Verbunden“). Sie belegen keinen Platz im Browserspeicher.',
+							link: { href: '/help/connected', label: 'Verbundene Ordner' }
 						}
 					}
 				},
@@ -93,6 +98,11 @@ const help: typeof enHelp = {
 						direct: {
 							title: 'Direkt zwischen deinen Geräten',
 							text: 'Deine Geräte tauschen ihre Dateien direkt miteinander aus, verschlüsselt, ohne Cloud und ohne Konto. Jedes Gerät hat eine vollständige Kopie der abgeglichenen Dateien und funktioniert auch ohne die anderen.'
+						},
+						connected: {
+							title: 'Nur Meine Dateien',
+							text: 'Abgeglichen werden Meine Dateien. Ordner unter „Verbunden“ bleiben, wo sie sind, und reisen nicht zu deinen anderen Geräten.',
+							link: { href: '/help/connected', label: 'Verbundene Ordner' }
 						},
 						when: {
 							title: 'Wann sich Geräte abgleichen',
@@ -170,7 +180,7 @@ const help: typeof enHelp = {
 						},
 						folder: {
 							title: 'In einem Ordner auf der Festplatte',
-							text: 'In einem verbundenen Ordner auf deinem Rechner und bei einem p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien, die du in so einem Ordner mit einem anderen Programm löschst, werden als Löschung abgeglichen – die behält der Papierkorb deines Systems.'
+							text: 'Im abgeglichenen Ordner auf deinem Rechner und bei einem p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien, die du in so einem Ordner mit einem anderen Programm löschst, werden als Löschung abgeglichen – die behält der Papierkorb deines Systems.'
 						}
 					}
 				},
@@ -221,6 +231,53 @@ const help: typeof enHelp = {
 			}
 		},
 
+		connected: {
+			title: 'Verbundene Ordner',
+			summary: 'Öffne einen Ordner auf deinem Rechner live in jedem Tool – nichts wird in den Browser kopiert',
+			topics: {
+				basics: {
+					title: 'Meine Dateien und Verbunden',
+					items: {
+						rule: {
+							title: 'Zwei Arten von Speicher',
+							text: '„Meine Dateien“ liegen im Speicher deines Browsers und reisen mit deinen Geräten. Ein Ordner unter „Verbunden“ bleibt, wo er ist: in-browser öffnet ihn live, liest und speichert direkt dort und behält keine Kopie. Trennst du ihn, bleibt nichts davon im Browser.'
+						},
+						everywhere: {
+							title: 'In jedem Tool',
+							text: 'Verbundene Ordner erscheinen in Files unter „Verbunden“ und im Öffnen- und Speichern-Dialog der Tools (die Auswahl vor dem Ordnerpfad). Jedes Tool öffnet und speichert direkt dort: Texte im Text Editor, Notizbücher in Notes, Projekte und Aufnahmen in Screen Capture. Die Startseiten von Notes und Screen Capture zeigen Notizbücher und Projekte aus verbundenen Ordnern, sobald du sie dort angelegt oder geöffnet hast – verbundene Ordner werden nicht durchsucht, sie können groß sein.'
+						},
+						notSynced: {
+							title: 'Nicht abgeglichen',
+							text: 'Ein verbundener Ordner wird weder mit deinen anderen Geräten abgeglichen noch mit dem Ordner, mit dem du Meine Dateien abgleichst. Jedes Gerät hat seine eigenen Verbindungen.',
+							tip: 'Soll ein Ordner auf deinem Rechner eine Kopie von Meine Dateien halten? Nimm stattdessen den Abgleich mit einem Ordner (Files → „Abgleich“ → „Ordner auf deinem Rechner“). Willst du Dateien dort bearbeiten, wo sie liegen, z. B. den Projektordner eines anderen Programms? Verbinde ihn.',
+							link: { href: '/help/sync', label: 'Abgleich zwischen deinen Geräten' }
+						}
+					}
+				},
+				use: {
+					title: 'Einen Ordner verbinden',
+					items: {
+						connect: {
+							title: 'Verbinden',
+							text: 'Klicke in Files in der Seitenleiste auf „Ordner verbinden …“ und wähle einen Ordner; der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf. Der Ordner erscheint dann mit seinem Namen unter „Verbunden“. Das können nur Chrome und Edge am Computer.'
+						},
+						access: {
+							title: 'Zugriff nach einem Neustart',
+							text: 'Browser fragen nach einem Neustart meist erneut nach dem Zugriff. Der Ordner zeigt dann „Zugriff erlauben“; ein Klick, und er ist wieder da. Tools, die dort speichern, sagen es in ihrem Speicherstatus, und ihre Meldungen, Öffnen-Dialoge und Startseiten bieten ebenfalls „Zugriff erlauben“ an.',
+							tip: 'Wähle „Bei jedem Besuch erlauben“, wenn der Browser fragt – dann bleibt er verbunden.'
+						},
+						manage: {
+							title: 'Umbenennen und trennen',
+							text: 'Das Menü eines verbundenen Ordners (Rechtsklick in der Seitenleiste oder das Menü an seinem Namen in der oberen Leiste) hat „Umbenennen“ – das ändert nur den Namen hier, nicht den Ordner – und „Trennen“, das ihn aus in-browser entfernt, ohne darin etwas zu löschen.'
+						},
+						deleting: {
+							title: 'Löschen',
+							text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser. Löschen fragt dort vorher und löscht dann endgültig; auch im Papierkorb deines Systems landet es nicht.'
+						}
+					}
+				}
+			}
+		},
 		p2pNode: {
 			title: 'p2p-node: ein Gerät, das immer läuft',
 			summary: 'Halte den Abgleich auf einem Rechner oder Heimserver am Laufen, auch wenn kein Browser offen ist',

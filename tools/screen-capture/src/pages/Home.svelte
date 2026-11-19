@@ -3,7 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
+	import AccessNotice from '@in-browser/files/AccessNotice.svelte';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { displayPath } from '@in-browser/files/sources/registry.js';
 	import { parent } from '@in-browser/files/path.js';
 	import { BRAND, editorUrl } from '#lib/brand.js';
 	import NewProjectDialog from '#lib/components/NewProjectDialog.svelte';
@@ -210,6 +212,7 @@
 				<h2 class="text-xl font-semibold">{m.home.projects}</h2>
 				{#if usage}<span class="text-xs opacity-60">{usage}</span>{/if}
 			</div>
+			<AccessNotice tool="screen-capture" onallowed={() => refresh().catch((e) => toast(errorMessage(e), 'error'))} />
 			{#if projects === null}
 				<span class="loading loading-dots"></span>
 			{:else if projects.length === 0}
@@ -227,7 +230,7 @@
 									<a
 										class="link link-hover"
 										href="{resolve('/files')}?path={encodeURIComponent(parent(project.id))}"
-										data-sveltekit-reload>{m.home.inFolder(parent(project.id) === '/' ? filesMessages().root : parent(project.id))}</a
+										data-sveltekit-reload>{m.home.inFolder(displayPath(parent(project.id), filesMessages().root))}</a
 									>
 								</div>
 							</div>

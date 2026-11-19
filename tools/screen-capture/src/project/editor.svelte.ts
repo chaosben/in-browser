@@ -8,6 +8,9 @@ import { canvasSize, placeRecording, recordingSources, type Recording } from './
 import { newId, type ImageAsset, type Item, type Point, type Rect, type LibraryEntry, type Project, type Selection, type Source, type Timeline, type TrackState } from './types.js';
 import { entriesUse } from './library.js';
 import { m } from '#lib/i18n/index.js';
+import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 import { parseColor } from '@in-browser/graphics/color.js';
 
 const HISTORY_LIMIT = 100;
@@ -25,6 +28,8 @@ export class Editor {
 	project: Project = $state.raw()!;
 	#selection = $state<Selection>(null);
 	saving = $state(false);
+	/** The last save failed (e.g. a connected folder without access); shown until a save works */
+	saveError = $state<string | null>(null);
 	/** Open question whether to grow the canvas for new material that is shown shrunk */
 	canvasOffer = $state.raw<{ size: Size; sourceIds: string[] } | null>(null);
 	/** Clip in crop mode; ends when the selection no longer contains it */
@@ -502,9 +507,9 @@ export class Editor {
 		this.#saveTimer = setTimeout(() => this.save(), 400);
 	}
 
-	/** Changes wait for saving or are being saved */
+	/** Changes wait for saving, are being saved or couldn't be saved */
 	get dirty() {
-		return this.#saveTimer !== undefined || this.saving;
+		return this.#saveTimer !== undefined || this.saving || this.saveError !== null;
 	}
 
 	/** Date of `project.json` after our own last save: a different one means it was changed elsewhere (sync) */
@@ -518,6 +523,13 @@ export class Editor {
 			this.project = { ...this.project, updatedAt: Date.now() };
 			await saveProject(this.project);
 			this.lastWrite = (await projectFileDate(this.project.id)) ?? 0;
+			this.saveError = null;
+		} catch (e) {
+			// Reported once per run of failures; the save state in the footer keeps showing it, the next change tries again
+			console.error('[screen-capture] save', e);
+			const reported = this.saveError !== null;
+			this.saveError = filesErrorText(e);
+			if (!reported) toast(m.common.saveFailed(this.saveError), 'error', 10000, accessAction(e, () => void this.save()));
 		} finally {
 			this.saving = false;
 		}

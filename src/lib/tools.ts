@@ -17,8 +17,6 @@ export interface Tool {
 	also?: Category[];
 	/** Browser feature it can't run without; without it the tool runs everywhere */
 	requires?: Requirement;
-	/** Infrastructure rather than a tool (Files): a button in the BrandBar instead of a tile; found by the search */
-	launcher?: 'header';
 }
 
 /** Order of the sections */
@@ -41,8 +39,7 @@ export const TOOLS: readonly Tool[] = [
 		id: 'files',
 		url: '/files',
 		icon: '/files/favicon.svg',
-		category: 'organize',
-		launcher: 'header'
+		category: 'organize'
 	},
 	{
 		id: 'textEditor',

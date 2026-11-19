@@ -1,3 +1,4 @@
+import { startConnections } from '../sources/connections.svelte.js';
 import { watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
@@ -27,7 +28,7 @@ import { startP2p } from '../p2p/p2p.svelte.js';
 //   first run that restores everything from the folder.
 
 export interface SyncStatus {
-	/** Name of the connected folder, `null` without one */
+	/** Name of the synced folder, `null` without one */
 	folder: string | null;
 	/** `paused`: no access (permission needed); `idle`: waiting for the next run */
 	state: 'off' | 'paused' | 'idle' | 'syncing';
@@ -78,6 +79,7 @@ function send(request: Request) {
 /** Starts the sync machinery in this tab (once per tab; call in the layout of every tool). */
 export function startSync() {
 	startP2p();
+	startConnections();
 	startTrashCleaning();
 	if (started || !syncSupported()) return;
 	started = true;
@@ -87,7 +89,7 @@ export function startSync() {
 			if (!syncLeader.current) Object.assign(syncStatus, e.data.status);
 		} else if (syncLeader.current) onRequest(e.data.request);
 	};
-	// Show the connected folder right away; the leader fills in the rest
+	// Show the synced folder right away; the leader fills in the rest
 	idbGet<FileSystemDirectoryHandle>(HANDLE).then((h) => h && !syncLeader.current && Object.assign(syncStatus, { folder: h.name }));
 	channel.postMessage({ request: 'status?' } satisfies Message);
 	navigator.locks.request('files:sync-leader', () => {

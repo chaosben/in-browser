@@ -94,3 +94,33 @@ export function safeName(title: string, fallback: string): string {
 	if (new TextEncoder().encode(name).length > 200) name = name.slice(0, 100).trim();
 	return !name || nameProblem(name) ? fallback : name;
 }
+
+// --- Connected sources (`sources/`) ---
+
+/**
+ * Connected sources (a folder on disk, later servers and shares) are opened live under `/:c/<id>/…`. `:` is not
+ * allowed in names, so no real folder can clash, and the area lies outside the OPFS: the syncs never see it.
+ */
+export const CONNECTED = '/:c';
+
+/** Root path of the connection `id` */
+export function connectionRoot(id: string): string {
+	return `${CONNECTED}/${id}`;
+}
+
+/** Connection of a path: its id, root and the path inside it (`/` for the root); `null` for paths of My files */
+export function connectionOf(path: string): { id: string; root: string; inner: string } | null {
+	const parts = segments(path);
+	if (parts[0] !== CONNECTED.slice(1) || parts.length < 2) return null;
+	return { id: parts[1], root: connectionRoot(parts[1]), inner: '/' + parts.slice(2).join('/') };
+}
+
+/** The path lies in a connected source */
+export function isConnected(path: string): boolean {
+	return connectionOf(path) !== null;
+}
+
+/** Root of the place a path lies in: `/` for My files, the connection's root otherwise */
+export function placeRoot(path: string): string {
+	return connectionOf(path)?.root ?? '/';
+}

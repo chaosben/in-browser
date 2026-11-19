@@ -41,6 +41,11 @@ const help: typeof enHelp = {
 				text: 'Eine Datei mit einem Ort im Browserspeicher speichert sich etwa eine Sekunde, nachdem du aufhörst zu tippen, und sofort, wenn du den Tab wechselst, den Tab schließt oder die Seite verlässt. Das Symbol links in der unteren Leiste zeigt den Stand: gespeichert, wird gespeichert, noch nicht gespeichert – fahr mit der Maus darüber für den Text. Beim Speichern bleiben Kodierung und Zeilenende der Datei erhalten, eine unveränderte Datei bleibt also genau so, wie sie war. Nichts wird hochgeladen.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
+			connected: {
+				title: 'Texte in einem verbundenen Ordner',
+				text: 'Die Auswahl vor dem Ordnerpfad im Öffnen- und Speichern-Dialog wechselt zwischen Meine Dateien und den Ordnern, die du in Files verbunden hast („Verbunden“). Ein Text aus einem verbundenen Ordner öffnet und speichert sich direkt dort auf deinem Rechner, auch automatisch. Erlaubt der Browser den Zugriff nicht mehr (meist nach einem Neustart), zeigt das Speichern-Symbol in der unteren Leiste einen Fehler, und eine Meldung bietet „Zugriff erlauben“ an; deine Änderungen bleiben bis dahin erhalten und werden gespeichert, sobald du es erlaubst.',
+				link: { href: '/help/connected', label: 'Verbundene Ordner' }
+			},
 			saveNew: {
 				title: 'Einen neuen Text speichern',
 				text: '„Unbenannt“-Texte und Dateien vom Rechner haben noch keinen Ort: Der Knopf „Speichern …“ in der oberen Leiste (und Strg+S) fragt nach Ordner und Namen im Browserspeicher. Der Dialog startet im zuletzt benutzten Ordner. Danach speichert sich die Datei selbst wie jede andere. Die Endung des Namens bestimmt die Hervorhebung – „notizen.md“ wird Markdown.'

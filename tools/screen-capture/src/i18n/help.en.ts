@@ -18,6 +18,12 @@ const help = {
 				tip: 'Browser storage is tied to this browser and can be lost when site data is cleared. Keep a copy in a folder on your computer or on your other devices. A project open in one tab cannot be opened in a second one at the same time.',
 				link: { href: '/help/storage', label: 'Where your files are kept' }
 			},
+			connected: {
+				title: 'In a connected folder',
+				text: 'When you start a project or use “Open …” or “Save as …”, the choice in front of the folder path switches between My files and the folders you connected in Files (“Connected”). A project there – recordings included – is saved right in that folder on your computer and takes no browser storage. The start page lists such projects once you have created or opened them here; it doesn’t search connected folders. After a restart the browser may ask again: the start page then shows “Allow access”, and so does a message when saving or opening fails; the save state shows an error until it works again.',
+				tip: 'Long recordings go straight to the folder – handy when the browser storage is small. Allow access before you record: if the browser withdraws it during a recording, the recording stops being written.',
+				link: { href: '/help/connected', label: 'Connected folders' }
+			},
 			storage: {
 				title: 'Storage space',
 				text: 'The start page shows how much of the browser storage the in-browser tools use. Recordings and imported media are the largest part; deleting a project (on the start page or in Files) moves it to the trash; its space is freed when the trash is emptied.',

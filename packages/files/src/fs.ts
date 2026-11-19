@@ -1,33 +1,16 @@
-import { basename, nameKey, nameProblem, normalize, parent, segments } from './path.js';
+import { FilesError, type Entry } from './entry.js';
+import { basename, connectionOf, join, nameKey, nameProblem, normalize, parent, segments } from './path.js';
+import { sourceAt } from './sources/registry.js';
+import type { Source } from './sources/source.js';
 
 // The shared file system of all tools, stored in the Origin Private File System (OPFS):
-//   files/…          root `/` of the file system: visible in Files and mirrored into a real folder (sync)
+//   files/…          root `/` of the file system (“My files”): visible in Files and mirrored into a real folder (sync)
 //   cache/<tool>/…   private local data of a tool (see cache.ts), neither shown nor synced
 // Data a tool wants to carry along to other computers belongs under `/.apps/<tool>/` (hidden, but synced).
-// Changes are announced to every tab (`watch`).
+// Paths under `/:c/<id>` belong to connected sources (`sources/`, e.g. a folder on disk): every function routes them
+// there, so tools work with them like with any other path. Changes are announced to every tab (`watch`).
 
-export interface Entry {
-	name: string;
-	path: string;
-	kind: 'file' | 'directory';
-	/** Bytes (files only) */
-	size?: number;
-	/** Last change in ms (files only; OPFS folders have no date) */
-	modified?: number;
-}
-
-export type FilesErrorCode = 'notFound' | 'exists' | 'collision' | 'invalidName' | 'intoItself' | 'root';
-
-/** Error with a code the UI translates (`filesMessages().errors`) */
-export class FilesError extends Error {
-	constructor(
-		readonly code: FilesErrorCode,
-		readonly path: string
-	) {
-		super(`${code}: ${path}`);
-		this.name = 'FilesError';
-	}
-}
+export { FilesError, type Entry, type FilesErrorCode } from './entry.js';
 
 const ROOT_DIR = 'files';
 
@@ -123,11 +106,66 @@ export function changed(...paths: string[]) {
 	listeners.forEach((l) => l(paths));
 }
 
+/** Announces changes this tab noticed on its own (each tab watches connected folders itself) */
+export function noticed(...paths: string[]) {
+	listeners.forEach((l) => l(paths));
+}
+
 /** Calls `listener` with the paths of every change (also from other tabs); returns the unsubscribe function. */
 export function watch(listener: Listener): () => void {
 	ensureChannel();
 	listeners.add(listener);
 	return () => listeners.delete(listener);
+}
+
+// --- Connected sources ---
+
+interface At {
+	source: Source;
+	root: string;
+	inner: string;
+}
+
+/** Runs an action of a source; its errors name the full path (`denied`: the connection) */
+async function inSource<T>(at: At, action: () => Promise<T>): Promise<T> {
+	try {
+		return await action();
+	} catch (e) {
+		if (e instanceof FilesError) throw new FilesError(e.code, join(at.root, e.path));
+		throw e;
+	}
+}
+
+function writableAt(at: At, path: string) {
+	if (at.source.caps.readOnly) throw new FilesError('readOnly', path);
+}
+
+/** The same checks as `checkNew` for a source */
+async function checkNewAt(at: At, path: string) {
+	const name = basename(path);
+	if (nameProblem(name)) throw new FilesError('invalidName', path);
+	const key = nameKey(name);
+	const siblings = await inSource(at, () => at.source.list(parent(at.inner)));
+	if (siblings.some((other) => other.name !== name && nameKey(other.name) === key)) throw new FilesError('collision', path);
+}
+
+async function mkdirAt(base: At, path: string): Promise<boolean> {
+	writableAt(base, path);
+	let created = false;
+	let current = base.root;
+	let inner = '/';
+	for (const name of segments(base.inner)) {
+		current = join(current, name);
+		inner = join(inner, name);
+		const here = { ...base, inner };
+		const entry = await inSource(here, () => base.source.stat(inner));
+		if (entry?.kind === 'directory') continue;
+		if (entry) throw new FilesError('exists', current);
+		await checkNewAt(here, current);
+		await inSource(here, () => base.source.mkdir(inner));
+		created = true;
+	}
+	return created;
 }
 
 // --- Reading ---
@@ -141,6 +179,11 @@ async function entryOf(path: string, handle: FileSystemHandle): Promise<Entry> {
 /** Entries of a folder (unsorted), including hidden ones */
 export async function list(path: string): Promise<Entry[]> {
 	path = normalize(path);
+	const source = await sourceAt(path);
+	if (source) {
+		const entries = await inSource(source, () => source.source.list(source.inner));
+		return entries.map((entry) => ({ ...entry, path: join(source.root, entry.path) }));
+	}
 	const dir = await dirHandle(path);
 	const entries: Promise<Entry>[] = [];
 	for await (const [name, handle] of dir.entries()) entries.push(entryOf(path === '/' ? `/${name}` : `${path}/${name}`, handle));
@@ -150,16 +193,26 @@ export async function list(path: string): Promise<Entry[]> {
 /** File or folder at `path`, `null` if there is none */
 export async function stat(path: string): Promise<Entry | null> {
 	path = normalize(path);
+	const source = await sourceAt(path);
+	if (source) {
+		const entry = await inSource(source, () => source.source.stat(source.inner));
+		return entry && { ...entry, name: basename(path), path };
+	}
 	const handle = await anyHandle(path);
 	return handle && entryOf(path, handle);
 }
 
 export async function exists(path: string): Promise<boolean> {
-	return (await anyHandle(normalize(path))) !== null;
+	path = normalize(path);
+	if (connectionOf(path)) return (await stat(path)) !== null;
+	return (await anyHandle(path)) !== null;
 }
 
 export async function read(path: string): Promise<File> {
-	return (await fileHandle(normalize(path))).getFile();
+	path = normalize(path);
+	const source = await sourceAt(path);
+	if (source) return inSource(source, () => source.source.read(source.inner));
+	return (await fileHandle(path)).getFile();
 }
 
 export async function readText(path: string): Promise<string> {
@@ -171,6 +224,11 @@ export async function readText(path: string): Promise<string> {
 /** Creates the folder and its parents (no error if it exists). */
 export async function mkdir(path: string): Promise<void> {
 	path = normalize(path);
+	const source = await sourceAt(path);
+	if (source) {
+		if (await mkdirAt(source, path)) changed(path);
+		return;
+	}
 	let handle = await rootDir();
 	let current = '';
 	let created = false;
@@ -194,12 +252,30 @@ export async function write(path: string, data: Blob | BufferSource | string): P
 	path = normalize(path);
 	await mkdir(parent(path));
 	await navigator.locks.request(`files:${path}`, async () => {
-		if (!(await exists(path))) await checkNew(await dirHandle(parent(path)), path);
-		const writable = await (await fileHandle(path, true)).createWritable();
-		await writable.write(data);
-		await writable.close();
+		const stream = await openWritable(path);
+		const writer = stream.getWriter();
+		try {
+			await writer.write(data);
+			await writer.close();
+		} catch (e) {
+			await writer.abort(e).catch(() => {});
+			throw e;
+		}
 	});
 	changed(path);
+}
+
+/** A writable for `path` (its parent exists); the content is replaced when it closes */
+async function openWritable(path: string): Promise<WritableStream<FileSystemWriteChunkType>> {
+	const source = await sourceAt(path);
+	if (source) {
+		writableAt(source, path);
+		if (!basename(source.inner)) throw new FilesError('root', path);
+		if (!(await exists(path))) await checkNewAt(source, path);
+		return inSource(source, () => source.source.writable(source.inner));
+	}
+	if (!(await exists(path))) await checkNew(await dirHandle(parent(path)), path);
+	return (await fileHandle(path, true)).createWritable();
 }
 
 /**
@@ -210,15 +286,14 @@ export async function write(path: string, data: Blob | BufferSource | string): P
 export async function writable(path: string): Promise<WritableStream<FileSystemWriteChunkType>> {
 	path = normalize(path);
 	await mkdir(parent(path));
-	if (!(await exists(path))) await checkNew(await dirHandle(parent(path)), path);
-	const inner = await (await fileHandle(path, true)).createWritable();
+	const writer = (await openWritable(path)).getWriter();
 	return new WritableStream<FileSystemWriteChunkType>({
-		write: (chunk) => inner.write(chunk),
+		write: (chunk) => writer.write(chunk),
 		close: async () => {
-			await inner.close();
+			await writer.close();
 			changed(path);
 		},
-		abort: (reason) => inner.abort(reason)
+		abort: (reason) => writer.abort(reason)
 	});
 }
 
@@ -226,6 +301,14 @@ export async function writable(path: string): Promise<WritableStream<FileSystemW
 export async function remove(path: string): Promise<void> {
 	path = normalize(path);
 	const name = basename(path);
+	const source = await sourceAt(path);
+	if (source) {
+		if (source.inner === '/') throw new FilesError('root', path);
+		writableAt(source, path);
+		await inSource(source, () => source.source.remove(source.inner));
+		changed(path);
+		return;
+	}
 	if (!name) throw new FilesError('root', path);
 	try {
 		await (await dirHandle(parent(path))).removeEntry(name, { recursive: true });
@@ -240,11 +323,29 @@ export async function copy(from: string, to: string): Promise<void> {
 	from = normalize(from);
 	to = normalize(to);
 	if (to === from || to.startsWith(from + '/')) throw new FilesError('intoItself', to);
+	if (connectionOf(from) || connectionOf(to)) {
+		const entry = await stat(from);
+		if (!entry) throw new FilesError('notFound', from);
+		if (await exists(to)) throw new FilesError('exists', to);
+		await copyAcross(entry, to);
+		changed(to);
+		return;
+	}
 	const source = await anyHandle(from);
 	if (!source) throw new FilesError('notFound', from);
 	if (await exists(to)) throw new FilesError('exists', to);
 	await copyHandle(source, to);
 	changed(to);
+}
+
+/** Copies between places (My files and connected sources) through the path functions, file by file as streams */
+async function copyAcross(entry: Entry, to: string): Promise<void> {
+	if (entry.kind === 'file') {
+		await (await read(entry.path)).stream().pipeTo(await writable(to));
+		return;
+	}
+	await mkdir(to);
+	for (const child of await list(entry.path)) await copyAcross(child, join(to, child.name));
 }
 
 async function copyHandle(source: FileSystemHandle, to: string): Promise<void> {
@@ -264,6 +365,21 @@ export async function move(from: string, to: string): Promise<void> {
 	to = normalize(to);
 	if (to === from) return;
 	if (to.startsWith(from + '/')) throw new FilesError('intoItself', to);
+	const fromAt = connectionOf(from);
+	const toAt = connectionOf(to);
+	if (fromAt || toAt) {
+		if (fromAt?.id === toAt?.id) await moveInSource(from, to);
+		else {
+			// Between places: copy, then delete the original once the copy is complete
+			const entry = await stat(from);
+			if (!entry || !basename(from)) throw new FilesError(basename(from) ? 'notFound' : 'root', from);
+			if (await exists(to)) throw new FilesError('exists', to);
+			await copyAcross(entry, to);
+			await remove(from);
+		}
+		changed(from, to);
+		return;
+	}
 	const source = await anyHandle(from);
 	if (!source || !basename(from)) throw new FilesError(basename(from) ? 'notFound' : 'root', from);
 	const caseOnly = parent(from) === parent(to) && nameKey(basename(from)) === nameKey(basename(to));
@@ -289,6 +405,21 @@ export async function move(from: string, to: string): Promise<void> {
 		if (caseOnly) await move(target, to);
 	}
 	changed(from, to);
+}
+
+/** Moves inside one connected source */
+async function moveInSource(from: string, to: string): Promise<void> {
+	const source = (await sourceAt(from))!;
+	const target = (await sourceAt(to))!;
+	if (source.inner === '/') throw new FilesError('root', from);
+	writableAt(source, from);
+	if (!(await stat(from))) throw new FilesError('notFound', from);
+	const caseOnly = parent(from) === parent(to) && nameKey(basename(from)) === nameKey(basename(to));
+	if (!caseOnly && (await exists(to))) throw new FilesError('exists', to);
+	if (nameProblem(basename(to))) throw new FilesError('invalidName', to);
+	await mkdir(parent(to));
+	if (!caseOnly) await checkNewAt(target, to);
+	await inSource(source, () => source.source.move(source.inner, target.inner));
 }
 
 /**
