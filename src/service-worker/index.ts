@@ -83,6 +83,17 @@ async function cacheFirst(path: string, request: Request): Promise<Response> {
 /** Bytes per response: video elements ask for open ranges and come back for the rest */
 const LIVE_CHUNK = 4 * 1024 * 1024;
 const LIVE_TIMEOUT = 30_000;
+/**
+ * Only media elements may load these: the bytes come from anywhere (another device, a guest share, a folder on disk),
+ * and opened as a page an SVG or HTML file would run in our origin
+ */
+const LIVE_DESTINATIONS = new Set<RequestDestination>(['image', 'video', 'audio', 'track']);
+/** Never a document of our origin, never sniffed into something else */
+// (SVG images apply it too: their own styles and embedded images stay allowed)
+const LIVE_HEADERS = {
+	'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; sandbox",
+	'X-Content-Type-Options': 'nosniff'
+};
 
 type LiveAnswer = { size: number; type: string } | { bytes: Uint8Array } | { unknown: true } | { error: string };
 
@@ -116,11 +127,12 @@ async function readBytes(client: Client, token: string, start: number, end: numb
 }
 
 async function live(event: FetchEvent, request: Request, url: URL): Promise<Response> {
+	if (!LIVE_DESTINATIONS.has(request.destination)) return new Response('Forbidden', { status: 403, headers: LIVE_HEADERS });
 	const token = url.pathname.split('/')[2] ?? '';
 	const found = await liveClient(event, token);
 	if (!found) return new Response('Not found', { status: 404 });
 	const { client, size, type } = found;
-	const headers = { 'Content-Type': type || 'application/octet-stream', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+	const headers = { ...LIVE_HEADERS, 'Content-Type': type || 'application/octet-stream', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
 	const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('Range') ?? '');
 	if (range) {
 		let start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));

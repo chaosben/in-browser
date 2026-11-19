@@ -303,7 +303,7 @@ const help = {
 						},
 						guest: {
 							title: 'As a guest',
-							text: 'The shared folder appears in Files under “Connected” as “Folder” from the device that shares it, with a lock if you may only view. You can open the files in every tool, download them or copy them into your own files. “Disconnect” or closing the tab ends it for you; the link opens it again as long as the share lasts. If another browser is in it right now, Files says so and tries again by itself. When the sharing device ends the share, you see “The share has ended.” right away – “Remove” takes it away; what you copied into your own files stays. If the sharing device can’t be reached, Files says so: in-browser has to be open there.'
+							text: 'The shared folder appears in Files under “Connected” as “Folder” from the device that shares it, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. “Disconnect” or closing the tab ends it for you; the link opens it again as long as the share lasts. If another browser is in it right now, Files says so and tries again by itself. When the sharing device ends the share, you see “The share has ended.” right away – “Remove” takes it away; what you copied into your own files stays. If the sharing device can’t be reached, Files says so: in-browser has to be open there.'
 						},
 						end: {
 							title: 'Ending a share',

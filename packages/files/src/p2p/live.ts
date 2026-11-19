@@ -1,5 +1,5 @@
 import { FilesError, type Entry, type FilesErrorCode } from '../entry.js';
-import { basename, join, normalize } from '../path.js';
+import { basename, join, nameProblem, normalize } from '../path.js';
 import { blockReader } from '../sources/blocks.js';
 import type { RandomAccess, Source, SourceCaps } from '../sources/source.js';
 import { receive } from '../sync/apply.js';
@@ -20,6 +20,8 @@ import { RemoteError, type Handler, type Json, type Rpc } from './rpc.js';
 export const PIECE = 1024 * 1024;
 /** A write session without a piece for this long is dropped */
 const SESSION_IDLE = 10 * 60 * 1000;
+/** Open write sessions per connection (more are refused: they hold files and memory on the answering side) */
+const MAX_SESSIONS = 16;
 
 type WireEntry = [name: string, kind: 'f' | 'd', size: number, modified: number];
 
@@ -49,10 +51,17 @@ export interface LiveServerOptions {
 	untrash?: (ref: TrashRef) => Promise<string>;
 	/** A request was answered (e.g. to keep a share alive) */
 	onRequest?: () => void;
+	/**
+	 * The asker is a guest: deleting always goes into the trash, the root it reaches (the shared folder) can't be
+	 * deleted or moved, and only its own deletions can be undone
+	 */
+	guest?: boolean;
 }
 
 interface Session {
 	path: string;
+	/** End of what was written so far (pieces may not leave gaps) */
+	end: number;
 	expect: FileState | null;
 	writer: WritableStreamDefaultWriter<FileSystemWriteChunkType>;
 	done: Promise<unknown>;
@@ -64,6 +73,8 @@ interface Session {
 export function serveLive(handle: (method: string, handler: Handler) => void, options: LiveServerOptions): () => void {
 	const { tree } = options;
 	const sessions = new Map<string, Session>();
+	/** Trash entries this connection made (a guest may only undo those) */
+	const trashed = new Set<string>();
 	const readOnly = () => (typeof options.readOnly === 'function' ? options.readOnly() : !!options.readOnly);
 
 	function at(path: unknown): string {
@@ -75,6 +86,19 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 	function writing(path: unknown): string {
 		if (readOnly()) throw new Error('files:readOnly');
 		return at(path);
+	}
+	/** A path whose entry goes away (deleted, moved): for a guest never the root it reaches */
+	function changing(path: unknown): string {
+		if (options.guest && normalize(String(path ?? '/')) === '/') throw new Error('files:root');
+		return writing(path);
+	}
+	async function toTrash(path: unknown): Promise<TrashRef> {
+		const real = changing(path);
+		if (!options.trash) throw new Error('files:readOnly');
+		const ref = await options.trash(real);
+		trashed.add(ref.entry);
+		// The asker gets its own path back (a guest never learns where the shared folder lies)
+		return { entry: ref.entry, path: normalize(String(path)) };
 	}
 	const on = (method: string, handler: Handler) =>
 		handle(method, async (params, upload) => {
@@ -103,27 +127,31 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		return { value: state && ([state.kind === 'file' ? 'f' : 'd', state.size, state.modified] as Json) };
 	});
 	on('live.read', async (params) => {
-		const { path, start, end } = params as { path: string; start?: number; end?: number };
+		const { path, start, end } = params as { path: string; start?: unknown; end?: unknown };
 		const file = await tree.read(at(path));
-		const part = start === undefined ? file : file.slice(start, end);
+		const part = start === undefined ? file : file.slice(offset(start), end === undefined ? undefined : offset(end));
 		return { value: { size: file.size, modified: file.lastModified, type: file.type }, download: part.stream() };
 	});
 	on('live.mkdir', async (params) => void (await tree.mkdir(writing((params as { path: string }).path))));
-	on('live.remove', async (params) => void (await tree.remove(writing((params as { path: string }).path))));
+	on('live.remove', async (params) => {
+		const path = (params as { path: string }).path;
+		// A guest never deletes for good
+		if (options.guest) await toTrash(path);
+		else await tree.remove(changing(path));
+	});
 	on('live.move', async (params) => {
 		const { from, to } = params as { from: string; to: string };
-		await tree.move(writing(from), writing(to));
+		await tree.move(changing(from), writing(to));
 	});
-	on('live.trash', async (params) => {
-		const path = writing((params as { path: string }).path);
-		if (!options.trash) throw new Error('files:readOnly');
-		return { value: (await options.trash(path)) as unknown as Json };
-	});
+	on('live.trash', async (params) => ({ value: (await toTrash((params as { path: string }).path)) as unknown as Json }));
 	on('live.untrash', async (params) => {
-		const ref = params as unknown as TrashRef;
-		writing(ref.path);
+		const ref = (params ?? {}) as unknown as Partial<TrashRef>;
+		if (typeof ref.entry !== 'string' || typeof ref.path !== 'string') throw new Error('files:notFound');
+		const path = writing(ref.path);
 		if (!options.untrash) throw new Error('files:readOnly');
-		await options.untrash({ ...ref, path: at(ref.path) });
+		if (options.guest && !trashed.has(ref.entry)) throw new Error('files:notFound');
+		await options.untrash({ entry: ref.entry, path });
+		trashed.delete(ref.entry);
 	});
 
 	// --- Writing in pieces ---
@@ -140,6 +168,7 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 	};
 	on('live.open', async (params) => {
 		const path = writing((params as { path: string }).path);
+		if (sessions.size >= MAX_SESSIONS) throw new Error('Too many open writes');
 		const id = crypto.randomUUID();
 		const expect = await tree.stat(path);
 		let ready!: (writer: WritableStreamDefaultWriter<FileSystemWriteChunkType>) => void;
@@ -158,18 +187,22 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 			await writer.close();
 		}, { expect });
 		done.catch(() => {});
-		const session: Session = { path, expect, writer: await writerReady, done, finish, timer: setTimeout(() => {}, 0) };
+		const session: Session = { path, end: 0, expect, writer: await writerReady, done, finish, timer: setTimeout(() => {}, 0) };
 		touch(id, session);
 		sessions.set(id, session);
 		return { value: id };
 	});
 	on('live.chunk', async (params, upload) => {
-		const { id, position } = params as { id: string; position: number };
+		const { id, position } = params as { id: string; position: unknown };
 		const session = sessions.get(id);
 		if (!session || !upload) throw new Error('files:notFound');
 		touch(id, session);
-		const data = new Uint8Array(await new Response(upload).arrayBuffer());
-		await session.writer.write({ type: 'write', position, data });
+		// No gaps (a far position would make a huge file) and no piece larger than the asking side sends
+		const at = offset(position);
+		if (at > session.end) throw new Error('Gap in a write');
+		const data = await limited(upload, PIECE);
+		await session.writer.write({ type: 'write', position: at, data: data as Uint8Array<ArrayBuffer> });
+		session.end = Math.max(session.end, at + data.length);
 	});
 	on('live.close', async (params) => {
 		const id = params as string;
@@ -185,6 +218,26 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 	return () => {
 		for (const id of [...sessions.keys()]) drop(id, false);
 	};
+}
+
+/** A byte offset from the other side: a whole number ≥ 0 */
+function offset(value: unknown): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error('Bad offset');
+	return value;
+}
+
+/** Reads an upload completely, refusing more than `max` bytes */
+async function limited(upload: ReadableStream<Uint8Array>, max: number): Promise<Uint8Array> {
+	const reader = upload.getReader();
+	const parts: Uint8Array[] = [];
+	let size = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) return concat(parts);
+		size += value.length;
+		if (size > max) throw new Error('Piece too large');
+		parts.push(value);
+	}
 }
 
 // --- The asking side ---
@@ -224,15 +277,22 @@ export function liveSource(call: LiveCall, caps: SourceCaps): Source {
 	};
 	const toEntry = (path: string, [name, kind, size, modified]: WireEntry): Entry =>
 		kind === 'f' ? { name, path: join(path, name), kind: 'file', size, modified } : { name, path: join(path, name), kind: 'directory' };
+	const count = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : 0);
+	/**
+	 * Only entries that stay inside the listed folder: the other side's names are not trusted (`..` or `a/b` would
+	 * point into this browser's own files)
+	 */
+	const valid = (wire: unknown): wire is WireEntry =>
+		Array.isArray(wire) && typeof wire[0] === 'string' && !nameProblem(wire[0]) && (wire[1] === 'f' || wire[1] === 'd');
 
 	async function open(path: string): Promise<RandomAccess> {
 		const stat = (await ask('live.stat', { path }, path)).value as WireEntry extends [string, ...infer R] ? R | null : never;
 		if (!stat) throw new FilesError('notFound', path);
 		if (stat[0] !== 'f') throw new FilesError('notFound', path);
 		return blockReader({
-			size: stat[1],
+			size: count(stat[1]),
 			type: '',
-			modified: stat[2],
+			modified: count(stat[2]),
 			blockSize: PIECE,
 			fetch: async (start, end) => (await ask('live.read', { path, start, end }, path)).bytes ?? new Uint8Array(0)
 		});
@@ -240,7 +300,11 @@ export function liveSource(call: LiveCall, caps: SourceCaps): Source {
 
 	return {
 		caps,
-		list: async (path) => ((await ask('live.list', { path }, path)).value as unknown as WireEntry[]).map((e) => toEntry(path, e)),
+		async list(path) {
+			const wire = (await ask('live.list', { path }, path)).value;
+			if (!Array.isArray(wire)) return [];
+			return wire.filter(valid).map(([name, kind, size, modified]) => toEntry(path, [name, kind, count(size), count(modified)]));
+		},
 		async stat(path) {
 			const state = (await ask('live.stat', { path }, path)).value as [string, number, number] | null;
 			if (!state) return null;

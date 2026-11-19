@@ -11,7 +11,7 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-	import { stat, supported, watch } from '@in-browser/files/fs.js';
+	import { FilesError, stat, supported, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, isConnected, isInside, join, normalize, parent, placeRoot, segments } from '@in-browser/files/path.js';
 	import {
@@ -85,10 +85,10 @@
 
 	/** Uploading whole folders needs `webkitdirectory` (missing on iOS) */
 	const folderUpload = 'webkitdirectory' in HTMLInputElement.prototype;
-	const uploadEntries = (): MenuEntry[] => [
-		{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() },
+	const uploadEntries = (locked = false): MenuEntry[] => [
+		{ label: m.toolbar.uploadFiles, icon: 'icon-[material-symbols-light--upload-file]', disabled: locked, run: () => fileInput?.click() },
 		...(folderUpload
-			? [{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', run: () => folderInput?.click() }]
+			? [{ label: m.toolbar.uploadFolder, icon: 'icon-[material-symbols-light--drive-folder-upload-outline]', disabled: locked, run: () => folderInput?.click() }]
 			: [])
 	];
 
@@ -110,8 +110,21 @@
 	/** My files (`/`) or the root of the connected folder the open folder lies in */
 	const root = $derived(placeRoot(manager.folder));
 	const connection = $derived(connections.list.find((c) => c.path === root) ?? null);
-	/** A guest share for viewing: nothing can be added here */
+	/** A guest share for viewing: nothing can be added, changed or deleted here */
 	const readOnlyPlace = $derived(connection?.mode === 'view');
+
+	/** `path` lies in a guest share for viewing */
+	function readOnlyAt(path: string): boolean {
+		const place = placeRoot(path);
+		return connections.list.find((c) => c.path === place)?.mode === 'view';
+	}
+
+	/** Shortcuts and drops into such a place: says why nothing happens */
+	function refusedAt(path: string): boolean {
+		if (!readOnlyAt(path)) return false;
+		toast(filesErrorText(new FilesError('readOnly', path)), 'error');
+		return true;
+	}
 	/** Levels from the first folder; in a connected folder starting with the connection */
 	const crumbs = $derived([
 		...(root === '/' ? [] : [{ name: connection ? connectionLabel(connection) : displayName(root), path: root }]),
@@ -131,11 +144,12 @@
 	$effect(() => {
 		const folder = current;
 		const canPaste = !!clipboard.current;
+		const locked = readOnlyPlace;
 		const menu: MenuEntry[] = [
-			{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
-			{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
-			...uploadEntries(),
-			{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', disabled: !canPaste, run: () => paste(manager) },
+			{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', disabled: locked, run: () => newFolder(manager) },
+			{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', disabled: locked, run: () => newTextFile(manager) },
+			...uploadEntries(locked),
+			{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', disabled: locked || !canPaste, run: () => paste(manager) },
 			{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() },
 			{ separator: true },
 			// The view switch on the right is hidden on small screens
@@ -406,6 +420,7 @@
 	}
 
 	async function dropItems(paths: string[], folder: string, copy: boolean) {
+		if (refusedAt(folder)) return;
 		// Between My files and a connected folder dragging copies, as between drives
 		const across = paths.some((path) => placeRoot(path) !== placeRoot(folder));
 		await transfer(paths, folder, copy || across ? 'copy' : 'move');
@@ -425,6 +440,8 @@
 	 */
 	function itemEntries(items: Item[], rename: (item: Item) => void = (item) => (manager.renaming = item.path)): MenuEntry[] {
 		const one = items.length === 1 ? items[0] : null;
+		// In a guest share for viewing: only opening, looking and copying out
+		const locked = items.some((item) => readOnlyAt(item.path));
 		return [
 					...(one?.folder ? [{ label: m.menu.open, icon: 'icon-[material-symbols-light--folder-open-outline]', run: () => open(one) }] : []),
 					...(one && !one.folder
@@ -444,25 +461,29 @@
 					},
 					{ separator: true },
 					{ label: m.menu.copy, icon: 'icon-[material-symbols-light--content-copy]', keys: 'Ctrl+C', run: () => toClipboard(items, 'copy') },
-					{ label: m.menu.cut, icon: 'icon-[material-symbols-light--content-cut]', keys: 'Ctrl+X', run: () => toClipboard(items, 'cut') },
-					...(one?.folder && clipboard.current
-						? [{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', run: () => paste(manager, one.path) }]
-						: []),
-					{ label: m.menu.duplicate, icon: 'icon-[material-symbols-light--folder-copy-outline]', run: () => duplicate(manager, items) },
-					{ label: m.menu.moveTo, icon: 'icon-[material-symbols-light--drive-file-move-outline]', run: () => moveTo(items) },
-					{ separator: true },
-					{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && rename(one) },
-					{
-						label: m.menu.delete,
-						icon: 'icon-[material-symbols-light--delete-outline]',
-						keys: 'Del',
-						run: async () => {
-							await removeItems(manager, items);
-							// The open folder was in it (deleted from the tree): show where it was
-							const gone = items.find((i) => isInside(manager.folder, i.path));
-							if (gone) navigate(parent(gone.path));
-						}
-					},
+					...(locked
+						? []
+						: [
+								{ label: m.menu.cut, icon: 'icon-[material-symbols-light--content-cut]', keys: 'Ctrl+X', run: () => toClipboard(items, 'cut') },
+								...(one?.folder && clipboard.current
+									? [{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', run: () => paste(manager, one.path) }]
+									: []),
+								{ label: m.menu.duplicate, icon: 'icon-[material-symbols-light--folder-copy-outline]', run: () => duplicate(manager, items) },
+								{ label: m.menu.moveTo, icon: 'icon-[material-symbols-light--drive-file-move-outline]', run: () => moveTo(items) },
+								{ separator: true } as MenuEntry,
+								{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !one, run: () => one && rename(one) },
+								{
+									label: m.menu.delete,
+									icon: 'icon-[material-symbols-light--delete-outline]',
+									keys: 'Del',
+									run: async () => {
+										await removeItems(manager, items);
+										// The open folder was in it (deleted from the tree): show where it was
+										const gone = items.find((i) => isInside(manager.folder, i.path));
+										if (gone) navigate(parent(gone.path));
+									}
+								}
+							]),
 					{ separator: true },
 					...(coarsePointer.current
 						? [{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', run: () => manager.selectAll() }]
@@ -480,11 +501,11 @@
 		const entries: MenuEntry[] = item
 			? itemEntries(manager.selected)
 			: [
-					{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', run: () => newFolder(manager) },
-					{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => newTextFile(manager) },
-					...uploadEntries(),
+					{ label: m.toolbar.newFolder, icon: 'icon-[material-symbols-light--create-new-folder-outline]', disabled: readOnlyPlace, run: () => newFolder(manager) },
+					{ label: m.toolbar.newTextFile, icon: 'icon-[material-symbols-light--note-add-outline]', disabled: readOnlyPlace, run: () => newTextFile(manager) },
+					...uploadEntries(readOnlyPlace),
 					{ separator: true },
-					{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', keys: 'Ctrl+V', disabled: !clipboard.current, run: () => paste(manager) },
+					{ label: m.menu.paste, icon: 'icon-[material-symbols-light--content-paste]', keys: 'Ctrl+V', disabled: readOnlyPlace || !clipboard.current, run: () => paste(manager) },
 					{ label: m.menu.selectAll, icon: 'icon-[material-symbols-light--select-all]', keys: 'Ctrl+A', run: () => manager.selectAll() },
 					{ label: m.toolbar.refresh, icon: 'icon-[material-symbols-light--refresh]', run: () => manager.refresh() }
 				];
@@ -517,10 +538,12 @@
 		const handled = () => e.preventDefault();
 		if (mod && e.key === 'a') return handled(), manager.selectAll();
 		if (mod && e.key === 'c') return handled(), toClipboard(items, 'copy');
-		if (mod && e.key === 'x') return handled(), toClipboard(items, 'cut');
-		if (mod && e.key === 'v') return handled(), paste(manager);
-		if (e.key === 'Delete') return handled(), removeItems(manager, items);
-		if (e.key === 'F2' && items.length === 1) return handled(), (manager.renaming = items[0].path);
+		// In a guest share for viewing nothing changes (cutting would delete the originals when pasting)
+		const changes = (path: string | undefined) => !!path && !refusedAt(path);
+		if (mod && e.key === 'x') return handled(), changes(items[0]?.path) && toClipboard(items, 'cut');
+		if (mod && e.key === 'v') return handled(), changes(manager.folder) && paste(manager);
+		if (e.key === 'Delete') return handled(), changes(items[0]?.path) && removeItems(manager, items);
+		if (e.key === 'F2' && items.length === 1) return handled(), changes(items[0].path) && (manager.renaming = items[0].path);
 		if (e.key === 'Enter' && (focused ?? items[0])) return handled(), open((focused ?? items[0])!);
 		if (e.key === ' ' && items.length === 1 && items[0].kind === 'file') return handled(), (preview = items[0]);
 		if (e.key === 'Escape') return manager.clearSelection();
@@ -540,7 +563,13 @@
 		dropping = false;
 		if (!e.dataTransfer || e.dataTransfer.types.includes(DRAG_TYPE)) return;
 		e.preventDefault();
-		uploadAll(fromDrop(e.dataTransfer), manager.folder);
+		dropFiles(e.dataTransfer, manager.folder);
+	}
+
+	/** Files from the computer dropped on a folder: uploaded there */
+	function dropFiles(data: DataTransfer, folder: string) {
+		if (refusedAt(folder)) return;
+		uploadAll(fromDrop(data), folder);
 	}
 </script>
 
@@ -661,14 +690,14 @@
 					current={manager.folder}
 					onnavigate={navigate}
 					ondropitems={dropItems}
-					ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
+					ondropfiles={dropFiles}
 				/>
 			</ul>
 			<ConnectedSection
 				current={manager.folder}
 				onnavigate={navigate}
 				ondropitems={dropItems}
-				ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
+				ondropfiles={dropFiles}
 				onmenu={(e, c) => openContextMenu(e, connectionEntries(c))}
 				onfoldermenu={treeMenu}
 			/>
@@ -740,7 +769,7 @@
 						onopen={open}
 						onmenu={menu}
 						ondropitems={dropItems}
-						ondropfiles={(data, folder) => uploadAll(fromDrop(data), folder)}
+						ondropfiles={dropFiles}
 						onrename={commitRename}
 					/>
 					{#if manager.visible.length === 0}

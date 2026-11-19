@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { shareClient } from '../sources/share.js';
+import { trashInTree, untrashInTree } from '../trash.js';
 import { Device } from './device.js';
 import type { Network } from './network.js';
 import { memoryStore } from './store.js';
@@ -60,8 +61,57 @@ describe('guest shares', () => {
 		expect(await readText(tree, '/Trip/note.txt')).toBe('from the guest');
 		const ref = await source.trash!('/photo.txt');
 		expect(await tree.stat('/Trip/photo.txt')).toBeNull();
-		expect(ref.path).toBe('/Trip/photo.txt');
+		// The guest never learns where the shared folder lies
+		expect(ref.path).toBe('/photo.txt');
+		await source.untrash!(ref);
+		expect(await readText(tree, '/Trip/photo.txt')).toBe('sunny');
+	});
 
+	it('keeps an editing guest inside the shared folder and its own deletions', async () => {
+		const network = hub();
+		const { device, tree } = await host(network);
+		const share = await device.share('/Trip', 'edit');
+		const source = guest(network, share.code);
+		await writeText(tree, '/Other/Trip/photo.txt', 'elsewhere');
+
+		// Made-up trash references never reach outside (`..` would name the root of My files)
+		for (const entry of ['..', '../Private', '../Other']) {
+			await expect(source.untrash!({ entry, path: '/photo.txt' })).rejects.toMatchObject({ code: 'notFound' });
+		}
+		expect(await readText(tree, '/Private/secret.txt')).toBe('no');
+		expect(await readText(tree, '/Other/Trip/photo.txt')).toBe('elsewhere');
+		expect(await readText(tree, '/Trip/photo.txt')).toBe('sunny');
+
+		// Deleting goes into the trash, the shared folder itself stays
+		await expect(source.remove('/')).rejects.toMatchObject({ code: 'root' });
+		await expect(source.move('/', '/x')).rejects.toBeTruthy();
+		await source.remove('/photo.txt');
+		expect(await tree.stat('/Trip/photo.txt')).toBeNull();
+		expect((await tree.names('/.in-browser-trash')).length).toBe(1);
+
+		// Writes without gaps (a far position would make a huge file on the host)
+		const writer = (await source.writable('/big.bin')).getWriter();
+		await writer.write({ type: 'write', position: 1e12, data: new Uint8Array(4) });
+		// Pieces are sent when complete: the refusal comes with closing
+		await expect(writer.close()).rejects.toBeTruthy();
+		expect(await tree.stat('/Trip/big.bin')).toBeNull();
+	});
+
+	it('restores only real trash entries of exactly that path (references may come from other devices)', async () => {
+		const tree = await folderTree('share-untrash');
+		stops.push(() => tree.clear());
+		await writeText(tree, '/Trip/photo.txt', 'sunny');
+		await writeText(tree, '/Other/Trip/photo.txt', 'elsewhere');
+		const ref = await trashInTree(tree, '/Trip/photo.txt');
+		const bad = [
+			{ entry: '..', path: '/Trip/photo.txt' },
+			{ entry: '../Other', path: '/Trip/photo.txt' },
+			{ entry: `${ref.entry}/..`, path: '/Trip/photo.txt' },
+			{ entry: ref.entry, path: '/Other/Trip/photo.txt' }
+		];
+		for (const r of bad) await expect(untrashInTree(tree, r)).rejects.toMatchObject({ code: 'notFound' });
+		expect(await readText(tree, '/Other/Trip/photo.txt')).toBe('elsewhere');
+		expect(await untrashInTree(tree, ref)).toBe('/Trip/photo.txt');
 	});
 
 	it('lets one guest in at a time, and the same guest again', async () => {

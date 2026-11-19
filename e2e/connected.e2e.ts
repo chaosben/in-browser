@@ -101,7 +101,7 @@ test('connect a folder, work in it live, save from the Text Editor and Notes, de
 	expect(await diskNames(page)).toEqual(['Mine', 'Notebook.note', 'Photos']);
 });
 
-test('videos play in pieces through the Service Worker, also from My files', async ({ page, problems: _ }) => {
+test('videos play in pieces through the Service Worker, also from My files', async ({ page, problems }) => {
 	await page.goto('/files');
 	// The Service Worker has to control the page (first visit: it installs; the next load is controlled)
 	await page.evaluate(() => navigator.serviceWorker.ready);
@@ -135,4 +135,15 @@ test('videos play in pieces through the Service Worker, also from My files', asy
 	const video = page.getByRole('dialog').locator('video');
 	await expect(video).toHaveAttribute('src', /^\/_live\//);
 	await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(1);
+	// Only media elements get the bytes: opened as a page (an SVG or HTML file would run in our origin) or fetched → 403
+	const src = (await video.getAttribute('src'))!;
+	expect(await page.evaluate((url) => fetch(url).then((r) => r.status), src)).toBe(403);
+	// The browser reports the refused request itself – expected here
+	await expect.poll(() => problems.some((p) => p.includes('403'))).toBe(true);
+	problems.splice(0, problems.length, ...problems.filter((p) => !p.includes('403')));
+	const tab = await page.context().newPage();
+	const response = await tab.goto(src);
+	expect(response?.status()).toBe(403);
+	expect(response?.headers()['content-security-policy']).toContain('sandbox');
+	await tab.close();
 });

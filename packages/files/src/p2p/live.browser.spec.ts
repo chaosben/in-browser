@@ -105,3 +105,24 @@ describe('live access to another device', () => {
 		await expect(through(b).stat('/Docs')).rejects.toBeInstanceOf(FilesError);
 	});
 });
+
+describe('live source', () => {
+	it('drops names of the other side that would point outside the listed folder', async () => {
+		const answers: Record<string, unknown> = {
+			'live.list': [
+				['ok.txt', 'f', 3, 1],
+				['..', 'd', 0, 0],
+				['../../Mine', 'd', 0, 0],
+				['a/b', 'f', 1, 1],
+				['', 'f', 1, 1],
+				['odd', 'x', 1, 1],
+				'junk',
+				['big.bin', 'f', -5, Number.NaN]
+			]
+		};
+		const source = liveSource(async (method) => ({ value: answers[method] as never }), { readOnly: true, trash: false });
+		const entries = await source.list('/:c/share/Folder');
+		expect(entries.map((e) => e.path)).toEqual(['/:c/share/Folder/ok.txt', '/:c/share/Folder/big.bin']);
+		expect(entries[1]).toMatchObject({ size: 0, modified: 0 });
+	});
+});

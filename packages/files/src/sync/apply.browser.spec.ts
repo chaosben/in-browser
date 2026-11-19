@@ -86,6 +86,19 @@ describe('runSync between two trees', () => {
 		expect(await disk.names('/')).toEqual(['a.txt']);
 	});
 
+	it('skips files removed on either side since the plan (e.g. the trash emptied meanwhile), without an error', async () => {
+		await writeText(mine, '/.in-browser-trash/e1/.trashinfo.json', '{}');
+		await writeText(disk, '/from-disk.txt', 'there');
+		const [local, remote] = [await mine.scan(), await disk.scan()];
+		await mine.remove('/.in-browser-trash/e1');
+		await disk.remove('/from-disk.txt');
+		const result = await runSync(mine, treeSide(disk), local, remote, options());
+		expect(result.failed).toBe(0);
+		expect(result.skipped).toBe(2);
+		expect(await disk.stat('/.in-browser-trash/e1/.trashinfo.json')).toBeNull();
+		expect(await mine.stat('/from-disk.txt')).toBeNull();
+	});
+
 	it('renames in upper/lower case instead of copying and deleting', async () => {
 		await writeText(mine, '/notes.txt', 'text');
 		await sync();

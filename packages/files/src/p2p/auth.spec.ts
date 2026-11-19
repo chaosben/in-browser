@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { answerHello, checkHello, newInviteCode, pairProof, parseInviteCode, PROTOCOL } from './auth.js';
+import { answerHello, checkHello, newInviteCode, pairProof, parseInviteCode, PROTOCOL, shareProof } from './auth.js';
 import { groupBase32 } from './base32.js';
 import { createIdentity, type Identity } from './identity.js';
 import { createOp, heads, type Op } from './members.js';
@@ -59,5 +59,16 @@ describe('one-time keys', () => {
 		expect(await pairProof(code, 'new', 'fp')).toBe(await pairProof(code, 'new', 'fp'));
 		expect(await pairProof(code, 'new', 'fp')).not.toBe(await pairProof(code, 'inviter', 'fp'));
 		expect(await pairProof(code, 'new', 'fp')).not.toBe(await pairProof(newInviteCode(), 'new', 'fp'));
+	});
+});
+
+describe('without connection fingerprints', () => {
+	it('signs and proves nothing, and accepts nothing (a proof over nothing would hold for any connection)', async () => {
+		const code = newInviteCode();
+		await expect(answerHello(a, log, 'n', '')).rejects.toThrow('fingerprints');
+		await expect(pairProof(code, 'new', '')).rejects.toThrow('fingerprints');
+		await expect(shareProof(code, 'guest', '')).rejects.toThrow('fingerprints');
+		const answer = await answerHello(a, log, 'n', 'fp');
+		expect(await checkHello(answer, 'n', '', log)).toEqual({ ok: false, reason: 'signature' });
 	});
 });

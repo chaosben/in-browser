@@ -299,7 +299,7 @@ const help: typeof enHelp = {
 						},
 						guest: {
 							title: 'Als Gast',
-							text: 'Der geteilte Ordner erscheint in Files unter „Verbunden“ als „Ordner“ von dem Gerät, das ihn teilt, mit einem Schloss, wenn du nur ansehen darfst. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. „Trennen“ oder das Schließen des Tabs beendet es für dich; der Link öffnet es wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Files das und versucht es selbst wieder. Beendet das teilende Gerät die Freigabe, siehst du sofort „Die Freigabe wurde beendet.“ – „Entfernen“ nimmt sie weg; was du in deine eigenen Dateien kopiert hast, bleibt. Ist das teilende Gerät nicht erreichbar, sagt Files das: Dort muss in-browser offen sein.'
+							text: 'Der geteilte Ordner erscheint in Files unter „Verbunden“ als „Ordner“ von dem Gerät, das ihn teilt, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. „Trennen“ oder das Schließen des Tabs beendet es für dich; der Link öffnet es wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Files das und versucht es selbst wieder. Beendet das teilende Gerät die Freigabe, siehst du sofort „Die Freigabe wurde beendet.“ – „Entfernen“ nimmt sie weg; was du in deine eigenen Dateien kopiert hast, bleibt. Ist das teilende Gerät nicht erreichbar, sagt Files das: Dort muss in-browser offen sein.'
 						},
 						end: {
 							title: 'Eine Freigabe beenden',

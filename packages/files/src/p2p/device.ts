@@ -1,5 +1,5 @@
 import { FilesError } from '../entry.js';
-import { basename, isInside } from '../path.js';
+import { basename, isHidden, isInside, normalize } from '../path.js';
 import { inTrash, trashInTree, untrashInTree } from '../trash.js';
 import { isActive, sharePath, tokenHash, type Share } from './shares.js';
 import {
@@ -193,6 +193,10 @@ export class Device {
 
 	/** Shares `folder` with a guest until ended; the link carries the returned share's code */
 	async share(folder: string, mode: Share['mode']): Promise<Share> {
+		folder = normalize(folder);
+		// Hidden folders (tool data, the trash) are never shared
+		if (isHidden(folder)) throw new FilesError('notFound', folder);
+		if (mode !== 'view' && mode !== 'edit') mode = 'view';
 		const share: Share = { id: crypto.randomUUID(), folder, mode, code: newInviteCode(), expires: null };
 		this.state.shares = [...this.activeShares(), share];
 		await this.save();
@@ -277,6 +281,7 @@ export class Device {
 				return share ? sharePath(share, path) : null;
 			},
 			readOnly: () => current()?.mode !== 'edit',
+			guest: true,
 			trash: (path) => trashInTree(this.options.tree, path, this.now()),
 			untrash: (ref) => untrashInTree(this.options.tree, ref)
 		});

@@ -28,10 +28,19 @@ export function nonce(): string {
 	return toBase64Url(randomBytes(16));
 }
 
+/**
+ * The DTLS fingerprints a proof is bound to. Without them (no connection found) a proof would hold for any connection,
+ * so nothing is signed or accepted then.
+ */
+function bound(fingerprints: string): string {
+	if (!fingerprints) throw new Error('No connection fingerprints');
+	return fingerprints;
+}
+
 const helloContent = (nonce: string, fingerprints: string, id: string) => `in-browser-hello\n${nonce}\n${fingerprints}\n${id}`;
 
 export async function answerHello(identity: Identity, ops: Op[], nonce: string, fingerprints: string): Promise<HelloAnswer> {
-	return { v: PROTOCOL, id: identity.id, key: identity.key, sig: await sign(identity, helloContent(nonce, fingerprints, identity.id)), ops };
+	return { v: PROTOCOL, id: identity.id, key: identity.key, sig: await sign(identity, helloContent(nonce, bound(fingerprints), identity.id)), ops };
 }
 
 export type HelloCheck =
@@ -40,6 +49,7 @@ export type HelloCheck =
 
 /** Checks the answer to our `hello`; on success also returns the merged member log */
 export async function checkHello(answer: HelloAnswer, nonce: string, fingerprints: string, ours: Op[]): Promise<HelloCheck> {
+	if (!fingerprints) return { ok: false, reason: 'signature' };
 	if (answer.v !== PROTOCOL) return { ok: false, reason: 'version' };
 	if ((await deviceIdOf(answer.key)) !== answer.id) return { ok: false, reason: 'signature' };
 	if (!(await verify(answer.key, answer.sig, helloContent(nonce, fingerprints, answer.id)))) return { ok: false, reason: 'signature' };
@@ -75,10 +85,10 @@ async function hmac(code: string, message: string): Promise<string> {
 	return toBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, utf8(message))));
 }
 
-export const pairProof = (code: string, role: 'new' | 'inviter', fingerprints: string) => hmac(code, `in-browser-pair\n${role}\n${fingerprints}`);
+export const pairProof = async (code: string, role: 'new' | 'inviter', fingerprints: string) => hmac(code, `in-browser-pair\n${role}\n${bound(fingerprints)}`);
 
 /** Proof of a guest share's key, bound to the connection like `pairProof` */
-export const shareProof = (code: string, role: 'guest' | 'host', fingerprints: string) => hmac(code, `in-browser-share\n${role}\n${fingerprints}`);
+export const shareProof = async (code: string, role: 'guest' | 'host', fingerprints: string) => hmac(code, `in-browser-share\n${role}\n${bound(fingerprints)}`);
 
 /** Normalized key of a guest share from its link (`…#share=KEY`); `null` if there is none */
 export function parseShareCode(text: string): string | null {

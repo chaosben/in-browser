@@ -1,5 +1,5 @@
 import { FilesError } from './entry.js';
-import { basename, isInside, join, parent, segments, uniqueName } from './path.js';
+import { basename, isInside, join, normalize, parent, segments, uniqueName } from './path.js';
 import type { Tree } from './sync/tree.js';
 
 // The trash: what the user deletes (in Files, or a notebook or project in its tool) is moved into the hidden folder
@@ -125,8 +125,22 @@ export async function trashInTree(tree: Pick<Tree, 'stat' | 'write' | 'move'>, p
 	return { entry, path };
 }
 
-/** Puts an item back where it was (under a free name if that is taken now) and removes its entry */
-export async function untrashInTree(tree: Pick<Tree, 'stat' | 'names' | 'move' | 'remove'>, ref: TrashRef): Promise<string> {
+/**
+ * Puts an item back where it was (under a free name if that is taken now) and removes its entry. `ref` may come from
+ * another device or a guest: only a real entry whose info names exactly `ref.path` is touched.
+ */
+export async function untrashInTree(tree: Pick<Tree, 'stat' | 'read' | 'names' | 'move' | 'remove'>, ref: TrashRef): Promise<string> {
+	const entry = typeof ref?.entry === 'string' ? ref.entry : '';
+	const path = typeof ref?.path === 'string' ? normalize(ref.path) : '/';
+	if (parseEntry(entry) === null || path === '/' || inTrash(path)) throw new FilesError('notFound', path);
+	let info: Partial<TrashInfo> | null = null;
+	try {
+		info = JSON.parse(await (await tree.read(infoPath(entry))).text()) as Partial<TrashInfo>;
+	} catch {
+		// No readable info: not an entry this can restore
+	}
+	if (!info || typeof info.path !== 'string' || normalize(info.path) !== path) throw new FilesError('notFound', path);
+	ref = { entry, path };
 	const item = itemPath(ref.entry, ref.path);
 	if (!(await tree.stat(item))) throw new FilesError('notFound', ref.path);
 	const target = join(parent(ref.path), uniqueName(basename(ref.path), await tree.names(parent(ref.path))));

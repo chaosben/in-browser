@@ -1,4 +1,4 @@
-import { runSync, treeSide, type Other, type Outcome, type SyncResult } from '../sync/apply.js';
+import { GONE, runSync, treeSide, type Other, type Outcome, type SyncResult } from '../sync/apply.js';
 import type { LogFn } from '../sync/log.js';
 import type { Base, FileState, Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
@@ -81,6 +81,8 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, al
 	rpc.handle('snapshot', async () => ({ value: { scope: scope?.(), entries: toWire(await tree.scan()) } as unknown as Json }));
 	rpc.handle('hash', async (params) => ({ value: await side.hash(params as string[]) }));
 	rpc.handle('get', async (params) => {
+		// Gone since the plan: the asking side skips the step (`isGone`)
+		if (!(await tree.stat(params as string))) throw new Error(GONE);
 		const file = await tree.read(params as string);
 		return { value: stateToJson(stateOf(file)), download: file.stream() };
 	});

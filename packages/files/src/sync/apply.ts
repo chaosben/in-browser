@@ -145,6 +145,15 @@ export async function renameIn(tree: Tree, from: string, to: string, expect: Fil
 	return 'done';
 }
 
+/**
+ * Answer of `get` when the file is no longer there (removed since the plan, e.g. the trash was emptied meanwhile): the
+ * step is skipped like any other change since the plan, the next run plans again. Travels as the error message.
+ */
+export const GONE = 'sync:gone';
+
+/** The other side no longer had the file (`GONE`, also from another device) */
+export const isGone = (e: unknown) => e instanceof Error && e.message === GONE;
+
 /** A tree as the other side (the folder on disk of the folder sync; what a device answers in `serve`) */
 export function treeSide(tree: Tree, { onWrite = () => {}, log }: { onWrite?: (path: string) => void; log?: LogFn } = {}): Other {
 	return {
@@ -154,6 +163,10 @@ export function treeSide(tree: Tree, { onWrite = () => {}, log }: { onWrite?: (p
 			return out;
 		},
 		async get(path, target) {
+			if (!(await tree.stat(path))) {
+				await target.abort(GONE).catch(() => {});
+				throw new Error(GONE);
+			}
 			const file = await tree.read(path);
 			await file.stream().pipeTo(target);
 			return stateOf(file);
@@ -345,11 +358,18 @@ async function apply(
 	switch (op.type) {
 		case 'toLocal': {
 			if (!validName(path)) throw new Error(`Invalid name: ${path}`);
-			const received = await receive(mine, path, (target) => other.get(path, target), {
-				keep: op.both ? options.conflictLabel('mine') : undefined,
-				expect: local.get(path) ?? null,
-				onWrite: write
-			});
+			let received: Awaited<ReturnType<typeof receive<FileState>>>;
+			try {
+				received = await receive(mine, path, (target) => other.get(path, target), {
+					keep: op.both ? options.conflictLabel('mine') : undefined,
+					expect: local.get(path) ?? null,
+					onWrite: write
+				});
+			} catch (e) {
+				// Gone there since the plan
+				if (isGone(e)) return 'skipped';
+				throw e;
+			}
 			if ('stale' in received) return 'skipped';
 			if (received.copy) {
 				result.conflicts.push(path);
@@ -359,8 +379,16 @@ async function apply(
 			return 'applied';
 		}
 		case 'toDisk': {
-			const file = await mine.read(path);
-			const reply = await other.put(path, file.stream(), { keep: op.both ? options.conflictLabel('theirs') : undefined, expect: remote.get(path) ?? null });
+			let file: File;
+			let reply: PutResult;
+			try {
+				file = await mine.read(path);
+				reply = await other.put(path, file.stream(), { keep: op.both ? options.conflictLabel('theirs') : undefined, expect: remote.get(path) ?? null });
+			} catch (e) {
+				// Gone here since the plan (e.g. the trash was emptied while a large entry was on its way)
+				if ((await mine.stat(path).catch(() => undefined)) === null) return 'skipped';
+				throw e;
+			}
 			if ('stale' in reply) return 'skipped';
 			if (reply.copy) {
 				result.conflicts.push(path);
