@@ -23,7 +23,14 @@ function diskText(page: Page, name: string): Promise<string | null> {
 	}, name);
 }
 
-test('connect a folder, work in it live, save from the Text Editor and Notes, delete, disconnect', async ({ page, problems: _ }) => {
+/** Opens a side panel of Files (a click on an open one would close it) */
+async function openPanel(page: Page, id: string) {
+	const button = page.locator(`[data-panel="${id}"]`);
+	if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
+	await expect(page.getByTestId('panel')).toBeVisible();
+}
+
+test('connect a folder, save into it from the Text Editor, delete (asked first), disconnect', async ({ page, problems: _ }) => {
 	await page.addInitScript(() => {
 		window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('disk', { create: true });
 	});
@@ -37,27 +44,13 @@ test('connect a folder, work in it live, save from the Text Editor and Notes, de
 	});
 
 	// Connecting opens the folder: its content, its name in the path, nothing copied into My files
-	const sidebar = page.locator('aside');
+	const sidebar = page.getByTestId('panel');
+	await openPanel(page, 'folders');
 	await sidebar.getByRole('button', { name: 'Connect folder …' }).click();
 	await expect(page.getByRole('option', { name: 'notes.txt' })).toBeVisible();
 	await expect(page.getByRole('option', { name: 'Photos' })).toBeVisible();
 	await expect(sidebar.getByRole('treeitem', { name: 'disk' })).toBeVisible();
 	await expect(page.getByText('Live from “disk” on your computer')).toBeVisible();
-
-	// Copying from My files into it (dragging across copies; here via the clipboard)
-	await page.goto('/files');
-	await page.getByRole('button', { name: 'Actions for “Files”' }).click();
-	await page.getByRole('menuitem', { name: 'New folder' }).click();
-	const input = page.getByRole('textbox', { name: 'Rename' });
-	await input.fill('Mine');
-	await input.press('Enter');
-	await page.getByRole('option', { name: 'Mine' }).click();
-	await page.keyboard.press('Control+c');
-	await sidebar.getByRole('treeitem', { name: 'disk' }).getByRole('button', { name: 'disk' }).click();
-	await expect(page.getByRole('option', { name: 'notes.txt' })).toBeVisible();
-	await page.keyboard.press('Control+v');
-	await expect(page.getByRole('option', { name: 'Mine' })).toBeVisible();
-	expect(await diskNames(page)).toEqual(['Mine', 'Photos', 'notes.txt']);
 
 	// The Text Editor saves right into the folder
 	await page.getByRole('option', { name: 'notes.txt' }).dblclick();
@@ -70,27 +63,16 @@ test('connect a folder, work in it live, save from the Text Editor and Notes, de
 	await expect.poll(() => diskText(page, 'notes.txt')).toBe('first line and more');
 
 	// Deleting there asks first: no trash
-	await page.goBack();
+	await page.goto('/files');
+	await openPanel(page, 'folders');
+	await sidebar.getByRole('treeitem', { name: 'disk' }).getByRole('button', { name: 'disk' }).click();
 	await page.getByRole('option', { name: 'notes.txt' }).click();
 	await page.keyboard.press('Delete');
 	const question = page.getByRole('dialog');
 	await expect(question.getByText('Delete for good?')).toBeVisible();
 	await question.getByRole('button', { name: 'Delete' }).click();
 	await expect(page.getByRole('option', { name: 'notes.txt' })).toHaveCount(0);
-	expect(await diskNames(page)).toEqual(['Mine', 'Photos']);
-
-	// Notes keeps a notebook right in the folder and lists it on its start page
-	await page.goto('/notes');
-	await page.getByRole('button', { name: 'New notebook' }).click();
-	const dialog = page.getByRole('dialog');
-	await dialog.getByRole('combobox', { name: 'Place' }).selectOption({ label: 'disk' });
-	await expect(dialog.getByRole('option', { name: 'Photos' })).toBeVisible();
-	await dialog.getByRole('button', { name: 'Save' }).click();
-	await expect(page).toHaveURL(/notes\/editor/);
-	await expect.poll(() => diskNames(page)).toContain('Notebook.note');
-	await page.goto('/notes');
-	await expect(page.getByRole('link', { name: /Notebook/ }).first()).toBeVisible();
-	await page.goto('/files');
+	expect(await diskNames(page)).toEqual(['Photos']);
 
 	// Disconnecting leaves the folder as it is
 	await sidebar.getByRole('treeitem', { name: 'disk' }).click({ button: 'right' });
@@ -98,7 +80,7 @@ test('connect a folder, work in it live, save from the Text Editor and Notes, de
 	await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
 	await expect(sidebar.getByRole('treeitem', { name: 'disk' })).toHaveCount(0);
 	await expect(page).toHaveURL(/\/files$/);
-	expect(await diskNames(page)).toEqual(['Mine', 'Notebook.note', 'Photos']);
+	expect(await diskNames(page)).toEqual(['Photos']);
 });
 
 test('videos play in pieces through the Service Worker, also from My files', async ({ page, problems }) => {

@@ -18,9 +18,20 @@
 		contextMenu.close();
 	}
 
-	function run(entry: MenuAction) {
+	function run(entry: MenuAction, e?: MouseEvent) {
 		close();
-		entry.run();
+		// Like a link: Ctrl/⌘+click opens where it leads in a new tab
+		if (entry.href && e && (e.ctrlKey || e.metaKey)) window.open(entry.href, '_blank', 'noopener');
+		else entry.run();
+	}
+
+	/** The middle mouse button on an entry with `href`: a new tab (not the browser's scrolling) */
+	function middle(e: MouseEvent, entry: MenuAction) {
+		if (e.button !== 1 || !entry.href) return;
+		e.preventDefault();
+		if (e.type !== 'auxclick') return;
+		close();
+		window.open(entry.href, '_blank', 'noopener');
 	}
 
 	const buttons = () => [...menu.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
@@ -52,7 +63,8 @@
 	}
 
 	// Popover in the top layer at the mouse position, shifted into the window; closes on anything outside.
-	// Scrolling inside the menu keeps it open; a resize (mobile URL bar, keyboard) only moves it back into the window.
+	// Scrolling closes it only where it was opened (the page, or a box around that point) – not inside the menu, not
+	// elsewhere (a bar that scrolls to a new tab); a resize (mobile URL bar, keyboard) only moves it back into the window.
 	$effect(() => {
 		if (!contextMenu.open) return;
 		menu.showPopover();
@@ -62,12 +74,22 @@
 			if (!menu.contains(e.target as Node)) close();
 		};
 		window.addEventListener('pointerdown', outside, { capture: true });
-		window.addEventListener('scroll', outside, { capture: true });
+		const scrolled = (e: Event) => {
+			const target = e.target;
+			if (target instanceof Element && target !== document.scrollingElement) {
+				if (menu.contains(target)) return;
+				const r = target.getBoundingClientRect();
+				const { x, y } = contextMenu;
+				if (x < r.left || x > r.right || y < r.top - 4 || y > r.bottom + 4) return;
+			}
+			close();
+		};
+		window.addEventListener('scroll', scrolled, { capture: true });
 		window.addEventListener('resize', place);
 		window.addEventListener('blur', close);
 		return () => {
 			window.removeEventListener('pointerdown', outside, { capture: true });
-			window.removeEventListener('scroll', outside, { capture: true });
+			window.removeEventListener('scroll', scrolled, { capture: true });
 			window.removeEventListener('resize', place);
 			window.removeEventListener('blur', close);
 			if (menu.matches(':popover-open')) menu.hidePopover();
@@ -96,13 +118,24 @@
 						role="menuitem"
 						disabled={entry.disabled}
 						class={entry.disabled ? 'pointer-events-none opacity-40' : ''}
-						onclick={() => run(entry)}
+						onclick={(e) => run(entry, e)}
+						onmousedown={(e) => middle(e, entry)}
+						onauxclick={(e) => middle(e, entry)}
 						onpointerenter={() => hover(entry)}
 						onpointerleave={() => hover(undefined)}
 						onfocus={() => hover(entry)}
 					>
-						<span class="{entry.icon ?? ''} size-4 shrink-0" aria-hidden="true"></span>
+						{#if entry.glyph}
+							<svg class="size-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+								{#each typeof entry.glyph === 'string' ? [entry.glyph] : entry.glyph as points, i (i)}
+									<polyline {points} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+								{/each}
+							</svg>
+						{:else}
+							<span class="{entry.icon ?? ''} size-4 shrink-0" aria-hidden="true"></span>
+						{/if}
 						<span class="min-w-0 flex-1 truncate">{entry.label}</span>
+						{#if entry.checked}<span class="icon-[material-symbols-light--check] size-4 shrink-0" aria-hidden="true"></span>{/if}
 						{#if entry.keys}<kbd class="kbd kbd-xs pointer-coarse:hidden">{entry.keys}</kbd>{/if}
 					</button>
 				</li>

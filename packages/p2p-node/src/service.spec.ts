@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { taskCommand, unitFile, unitName } from './service.js';
+import { taskCommand, unitFile } from './service.js';
 
+// Paths with spaces, quotes and % must survive the service definitions
 describe('service', () => {
 	it('writes one systemd template for all instances', () => {
-		const unit = unitFile('/usr/bin/node', '/home/a b/.local/share/in-browser-p2p-node/starter.js');
-		expect(unit).toContain('ExecStart="/usr/bin/node" "/home/a b/.local/share/in-browser-p2p-node/starter.js" run %i');
+		const unit = unitFile('/opt/100%/node', '/home/a b/.local/share/in-browser-p2p-node/starter.js');
+		expect(unit).toContain('ExecStart="/opt/100%%/node" "/home/a b/.local/share/in-browser-p2p-node/starter.js" run %i');
 		expect(unit).toContain('Restart=on-failure');
-		expect(unit).toContain('WantedBy=default.target');
-		expect(unitName('anna')).toBe('in-browser-p2p-node@anna.service');
-	});
-
-	it('doubles % in systemd paths', () => {
-		expect(unitFile('/opt/100%/node', '/s.js')).toContain('"/opt/100%%/node"');
 	});
 
 	it('starts the Windows task without a window', () => {

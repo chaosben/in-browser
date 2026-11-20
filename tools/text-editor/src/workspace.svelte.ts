@@ -5,29 +5,29 @@ import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 import { resolve } from '$app/paths';
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
-import { move, read, stat, write } from '@in-browser/files/fs.js';
+import { chooseFile } from '@in-browser/files/dialog.svelte.js';
+import { read, stat, write } from '@in-browser/files/fs.js';
 import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
-import { basename, isInside, join, parent } from '@in-browser/files/path.js';
+import { basename, isInside, parent } from '@in-browser/files/path.js';
 import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
+import { forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
 import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Encoding, type LineEnding } from '#lib/document.js';
-import { pruneDrafts, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
+import { loadDraft, newDraftId, pathDraftId, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
 import { markdownKeymap } from '#lib/editor/commands.js';
 import { isMarkdown, languageOf } from '#lib/editor/languages.js';
 import { languageSlot, wrapping, wrapSlot } from '#lib/editor/setup.js';
-import { loadTabs, restoreTab, storeTabs } from '#lib/session.js';
 import { sameStamp, stampOf, Tab } from '#lib/tab.svelte.js';
 import type { ViewId } from '#lib/views/registry.js';
 import type { ViewUi } from '#lib/views/types.js';
 import { intlLocale, m } from '#lib/i18n/index.js';
 import { downloadBlob } from '@in-browser/brand/download.js';
 
-// Open files as tabs: one CodeMirror state per tab, shown by the one `EditorView` of the page. Files with a place in
-// the file system save themselves shortly after typing (never with a question: conflicts and characters the encoding
-// can't hold pause it and show a bar); files without one (untitled, opened from the computer) wait for "Save …".
-// Saving keeps the encoding and line ending; changes made elsewhere (other tabs, the sync) are noticed via
-// `watch()`. Unsaved changes are kept as drafts, open tabs in `localStorage` (`session.ts`).
+// One file per page (`ui.md` “One document per page”), shown by the one `EditorView` of the editor page. Files with a
+// place in the file system save themselves shortly after typing (never with a question: conflicts and characters the
+// encoding can't hold pause it and show a bar); files without one (new, opened from the computer) wait for "Save …".
+// Saving keeps the encoding and line ending; changes made elsewhere (other browser tabs, the sync) are noticed via
+// `watch()`. Unsaved changes are kept as drafts (`drafts.ts`) and come back with the file's address.
 
 const RECENT_KEY = 'text-editor:recent';
 const WRAP_KEY = 'text-editor:wrap';
@@ -39,6 +39,8 @@ const VIEWS_KEY = 'text-editor:views';
 const HEADER_KEY = 'text-editor:table-header';
 const FONT_KEY = 'text-editor:font-size';
 const MAX_RECENT = 10;
+/** Folder of the last open/save dialog (kept across the pages of this browser tab) */
+let lastFolder = '/';
 /** Pause after typing before saving automatically */
 const SAVE_DELAY = 1000;
 export const FONT_SIZES = { min: 10, default: 14, max: 28 };
@@ -52,15 +54,16 @@ export function encodingName(encoding: Encoding) {
 	return encoding.bom ? m.encoding.withBom(name) : name;
 }
 
-function fail(e: unknown) {
+/** An error as a toast (and in the console); `retry` runs again once the browser allows access to a connected folder */
+function fail(e: unknown, retry?: () => void) {
 	console.error(e);
-	toast(m.toasts.failed(filesErrorText(e)), 'error', 8000);
+	const allow = retry && accessAction(e, retry);
+	toast(m.toasts.failed(filesErrorText(e)), 'error', allow ? 10000 : 8000, allow);
 }
 
 export class Workspace {
-	tabs = $state<Tab[]>([]);
-	activeId = $state<string | null>(null);
-	active = $derived(this.tabs.find((t) => t.id === this.activeId) ?? null);
+	/** The shown file (null while it loads, or when it couldn't be opened) */
+	file = $state.raw<Tab | null>(null);
 	/** Wrapped by default on phones and narrow windows (no horizontal scrolling there) */
 	wrap = $state(loadJson(WRAP_KEY, typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 47.99rem)').matches));
 	layout = $state<Layout>(loadJson<Layout | null>(LAYOUT_KEY, null) ?? (loadJson(OLD_PREVIEW_KEY, true) ? 'split' : 'text'));
@@ -71,31 +74,29 @@ export class Workspace {
 	tableHeader = $state(loadJson(HEADER_KEY, true));
 	/** Menus and status of the view that is shown */
 	viewUi = $state.raw<ViewUi | null>(null);
-	recent = $state<string[]>(loadJson(RECENT_KEY, []));
 	fontSize = $state(loadJson(FONT_KEY, FONT_SIZES.default));
-	/** Folder of the last open/save dialog */
-	folder = '/';
+	/** A file without a place got one (“Save”, “Save as …”): the page takes over its address */
+	onplaced: ((path: string) => void) | null = null;
 
 	#view: EditorView | null = null;
-	#draftTimers = new Map<string, ReturnType<typeof setTimeout>>();
-	#saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	#draftTimer: ReturnType<typeof setTimeout> | undefined;
+	#saveTimer: ReturnType<typeof setTimeout> | undefined;
 
 	// --- The editor view ---
 
 	/** Called by the editor component once its view exists; returns the cleanup */
 	attach(view: EditorView) {
 		this.#view = view;
-		if (this.active) this.#show(this.active);
+		if (this.file) this.#show(this.file);
 		return () => {
-			if (this.active) this.active.scroll = view.scrollSnapshot();
 			this.#view = null;
 			view.destroy();
 		};
 	}
 
-	/** Every transaction of the view (the active tab) */
+	/** Every transaction of the view */
 	update(view: EditorView, transactions: readonly Transaction[]) {
-		const tab = this.active;
+		const tab = this.file;
 		if (!tab) return;
 		tab.state = view.state;
 		if (transactions.some((tr) => tr.docChanged)) {
@@ -115,9 +116,9 @@ export class Workspace {
 		};
 	}
 
-	/** Applies a change to a tab, whether it is shown or not */
+	/** Applies a change to the file, whether the view shows it yet or not */
 	#apply(tab: Tab, spec: TransactionSpec) {
-		if (tab === this.active && this.#view) this.#view.dispatch(spec);
+		if (tab === this.file && this.#view) this.#view.dispatch(spec);
 		else {
 			tab.state = tab.state.update(spec).state;
 			tab.version++;
@@ -128,7 +129,6 @@ export class Workspace {
 		const view = this.#view;
 		if (!view) return;
 		view.setState(tab.state);
-		if (tab.scroll) view.dispatch({ effects: tab.scroll });
 		this.update(view, []);
 		view.focus();
 	}
@@ -137,10 +137,10 @@ export class Workspace {
 		this.#view?.focus();
 	}
 
-	/** Runs an editor command (toolbar, menus) on the active tab; `focus: false` leaves the focus where it is (views) */
+	/** Runs an editor command (ribbon, menus) on the text; `focus: false` leaves the focus where it is (views) */
 	run(command: (view: EditorView) => boolean, { focus = true } = {}) {
 		const view = this.#view;
-		if (!view || !this.active) return;
+		if (!view || !this.file) return;
 		command(view);
 		if (focus) view.focus();
 	}
@@ -157,33 +157,16 @@ export class Workspace {
 		this.#apply(tab, { selection, scrollIntoView: scroll });
 	}
 
-	// --- Tabs ---
+	// --- Opening and leaving ---
 
-	activate(tab: Tab) {
-		if (tab === this.active) return this.focus();
-		if (this.active) this.#saveNow(this.active);
-		if (this.active && this.#view) this.active.scroll = this.#view.scrollSnapshot();
-		this.activeId = tab.id;
+	/** Shows a file read by `load` or `loadDraft` */
+	open(tab: Tab) {
+		this.file = tab;
 		this.#show(tab);
-		this.#persist();
-	}
-
-	#add(tab: Tab) {
-		// A fresh empty "Untitled" gives way to the first file opened
-		const blank = this.tabs.length === 1 && !this.tabs[0].path && !this.tabs[0].dirty && this.tabs[0].state.doc.length === 0;
-		if (blank) this.tabs = [tab];
-		else this.tabs.push(tab);
-		this.activate(tab);
 		this.#loadLanguage(tab);
-	}
-
-	newTab() {
-		const used = new Set(this.tabs.filter((t) => !t.path).map((t) => t.untitled));
-		let untitled = 1;
-		while (used.has(untitled)) untitled++;
-		const tab = new Tab({ path: null, untitled, text: '', saved: '', wrap: this.wrap });
-		this.tabs.push(tab);
-		this.activate(tab);
+		if (tab.path) this.#remember(tab.path);
+		// Changes from the last visit that can be saved go out now
+		if (tab.dirty && tab.path && !tab.conflict) this.#changed(tab);
 	}
 
 	async #loadLanguage(tab: Tab) {
@@ -199,85 +182,82 @@ export class Workspace {
 		}
 	}
 
-	/** Reads a file: its bytes and stamp, or `null` (and a message) if it can't be opened */
-	async #readFile(path: string): Promise<{ bytes: Uint8Array; stamp: FileStamp } | null> {
+	/** Reads a file: its bytes and stamp, `null` if it isn't there, or why it can't be opened */
+	async #readFile(path: string): Promise<{ bytes: Uint8Array; stamp: FileStamp } | string | null> {
 		const entry = await stat(path);
-		if (!entry || entry.kind !== 'file') {
-			toast(m.toasts.notFound(basename(path)), 'error');
-			this.forget(path);
-			return null;
-		}
-		if ((entry.size ?? 0) > MAX_SIZE) {
-			toast(m.toasts.tooLarge(entry.name, formatSize(MAX_SIZE, intlLocale)), 'error', 8000);
-			return null;
-		}
+		if (!entry || entry.kind !== 'file') return null;
+		if ((entry.size ?? 0) > MAX_SIZE) return m.toasts.tooLarge(entry.name, formatSize(MAX_SIZE, intlLocale));
 		const file = await read(path);
 		return { bytes: new Uint8Array(await file.arrayBuffer()), stamp: { size: file.size, modified: file.lastModified } };
 	}
 
-	async open(path: string) {
-		const existing = this.tabs.find((t) => t.path === path);
-		if (existing) return this.activate(existing);
-		try {
-			const file = await this.#readFile(path);
-			if (!file) return;
-			const decoded = decode(file.bytes);
-			if (!decoded) return toast(m.toasts.binary(basename(path)), 'error');
-			const tab = new Tab({ path, untitled: 0, text: decoded.text, saved: decoded.text, wrap: this.wrap });
-			tab.setSaved(decoded, file.stamp);
-			this.#add(tab);
-			this.#remember(path);
-		} catch (e) {
-			fail(e);
+	/**
+	 * Reads the file at `path` with the unsaved changes of the last visit (its draft), or why it can't be opened; errors
+	 * of the file system (e.g. no access to a connected folder) are thrown.
+	 */
+	async load(path: string): Promise<Tab | string> {
+		const id = await pathDraftId(path);
+		const [file, draft] = await Promise.all([this.#readFile(path), loadDraft(id)]);
+		if (typeof file === 'string') return file;
+		if (!file && !draft) {
+			forgetRecent(path);
+			return m.toasts.notFound(basename(path));
 		}
+		const decoded = file && decode(file.bytes);
+		if (file && !decoded) return m.toasts.binary(basename(path));
+		const tab = new Tab({ id, path, text: draft?.text ?? decoded!.text, saved: decoded?.text ?? '', wrap: this.wrap });
+		tab.encoding = tab.savedEncoding = decoded?.encoding ?? { charset: 'utf-8', bom: false };
+		tab.eol = tab.savedEol = decoded?.eol ?? '\n';
+		tab.stamp = draft ? draft.stamp : file!.stamp;
+		if (draft) {
+			tab.encoding = draft.encoding;
+			tab.eol = draft.eol;
+			// Changed or gone elsewhere since the changes started: the conflict bar decides
+			if (!file) tab.conflict = 'deleted';
+			else if (!sameStamp(file.stamp, draft.stamp)) tab.conflict = 'changed';
+		}
+		if (!tab.dirty && draft) void removeDraft(id);
+		return tab;
 	}
 
-	async openDialog() {
-		const paths = await chooseFiles({
-			mode: 'open',
-			multiple: true,
-			folder: this.#dialogFolder(),
-			accept: EDITABLE_EXTENSIONS,
-			title: m.dialogs.open
-		});
-		if (!paths?.length) return;
-		this.folder = parent(paths[0]);
-		for (const path of paths) await this.open(path);
+	/** Reads a file without a place (`?draft=`): new, or opened from the computer, with what was typed so far */
+	async loadDraft(id: string): Promise<Tab> {
+		const draft = await loadDraft(id);
+		const tab = new Tab({ id, path: null, fileName: draft?.fileName, text: draft?.text ?? '', saved: '', wrap: this.wrap });
+		if (draft) {
+			tab.encoding = tab.savedEncoding = draft.encoding;
+			tab.eol = tab.savedEol = draft.eol;
+		}
+		return tab;
 	}
 
-	#dialogFolder() {
-		return this.active?.path ? parent(this.active.path) : this.folder;
-	}
-
-	async close(tab: Tab) {
-		// A file with a place saves first; only what can't be saved that way needs a question
+	/**
+	 * Before another file replaces this one (or the start page does): a file with a place saves first; only what can't
+	 * be saved that way asks before its changes are thrown away. `false`: stay.
+	 */
+	async leave(): Promise<boolean> {
+		const tab = this.file;
+		if (!tab) return true;
 		if (tab.dirty && tab.path && !tab.conflict && !tab.problem) await this.save(tab, { auto: true });
 		if (tab.dirty && !(await this.#confirmDiscard(tab))) return false;
-		this.#cancelSave(tab);
+		this.#cancelSave();
 		this.#dropDraft(tab.id);
-		const index = this.tabs.indexOf(tab);
-		const wasActive = tab === this.active;
-		this.tabs.splice(index, 1);
-		if (wasActive) {
-			const next = this.tabs[Math.min(index, this.tabs.length - 1)];
-			this.activeId = null;
-			if (next) this.activate(next);
-		}
-		this.#persist();
 		return true;
 	}
 
-	async closeOthers(keep: Tab) {
-		for (const tab of [...this.tabs]) {
-			if (tab !== keep && !(await this.close(tab))) return;
-		}
-		this.activate(keep);
+	/** The page shows another file or goes: pending saves and drafts go out (done when settled), the file goes */
+	dispose(): Promise<unknown> {
+		const done = this.flush();
+		clearTimeout(this.#saveTimer);
+		this.file = null;
+		this.viewUi = null;
+		return done;
 	}
 
 	// --- Saving ---
 
 	/**
-	 * Saves the tab. Manually (Ctrl+S, "Save …"): asks for a place if needed and asks before replacing a newer
+	 * Saves the file. Manually (Ctrl+S, "Save …"): asks for a place if needed and asks before replacing a newer
 	 * version or losing characters. Automatically: never asks – a conflict or unmappable characters pause it instead.
 	 */
 	async save(tab: Tab, { as = false, auto = false } = {}): Promise<boolean> {
@@ -286,17 +266,17 @@ export class Workspace {
 			if (auto) return false;
 			path = await chooseFile({
 				mode: 'save',
-				folder: tab.path ? parent(tab.path) : this.folder,
+				folder: tab.path ? parent(tab.path) : lastFolder,
 				accept: EDITABLE_EXTENSIONS,
 				name: tab.suggestedName,
 				title: m.dialogs.saveAs,
 				overwrite: true
 			});
 			if (!path) return false;
-			this.folder = parent(path);
+			lastFolder = parent(path);
 		}
 		if (auto && tab.conflict === 'changed') return false;
-		this.#cancelSave(tab);
+		this.#cancelSave();
 
 		let encoding = tab.encoding;
 		const text = () => tab.state.doc.sliceString(0, tab.state.doc.length, tab.eol);
@@ -333,7 +313,12 @@ export class Workspace {
 			const eol = tab.eol;
 			await write(path, encoded.bytes);
 			const entry = await stat(path);
-			const renamed = path !== tab.path;
+			const moved = path !== tab.path;
+			if (moved) {
+				// Its drafts follow the place
+				this.#dropDraft(tab.id);
+				tab.id = await pathDraftId(path);
+			}
 			tab.path = path;
 			tab.fileName = null;
 			// Typing goes on while saving: what counts as saved is what was written
@@ -342,10 +327,13 @@ export class Workspace {
 			tab.changedText = !tab.state.doc.eq(doc);
 			if (tab.dirty) this.#changed(tab);
 			else this.#dropDraft(tab.id);
-			if (renamed) this.#loadLanguage(tab);
+			if (moved) {
+				this.#loadLanguage(tab);
+				this.onplaced?.(path);
+			}
 			this.#remember(path);
-			this.#persist();
-			if (!located || as) toast(m.toasts.saved(tab.name), 'success', 2000);
+			// A new place: where it is now
+			if (!located || as) toast(m.toasts.saved(tab.name), 'success', 6000, { label: m.actions.showInFiles, run: () => this.showInFiles(tab) });
 			tab.saveError = null;
 			return true;
 		} catch (e) {
@@ -364,29 +352,26 @@ export class Workspace {
 		}
 	}
 
-	/** After every change of a tab: keep a draft and, for files with a place, save after a pause */
+	/** After every change: keep a draft and, for files with a place, save after a pause */
 	#changed(tab: Tab) {
 		this.#scheduleDraft(tab);
 		if (!tab.path) return;
-		this.#cancelSave(tab);
+		this.#cancelSave();
 		tab.pending = true;
-		this.#saveTimers.set(
-			tab.id,
-			setTimeout(() => this.#saveNow(tab), SAVE_DELAY)
-		);
+		this.#saveTimer = setTimeout(() => this.#saveNow(tab), SAVE_DELAY);
 	}
 
-	#cancelSave(tab: Tab) {
-		clearTimeout(this.#saveTimers.get(tab.id));
-		this.#saveTimers.delete(tab.id);
-		tab.pending = false;
+	#cancelSave() {
+		clearTimeout(this.#saveTimer);
+		if (this.file) this.file.pending = false;
 	}
 
 	/** Runs a pending automatic save right away */
 	async #saveNow(tab: Tab) {
 		if (!tab.pending) return;
-		this.#cancelSave(tab);
-		if (!this.tabs.includes(tab) || !tab.dirty) return;
+		clearTimeout(this.#saveTimer);
+		tab.pending = false;
+		if (!tab.dirty) return;
 		// Still writing the previous version: try again afterwards
 		if (tab.saving) return this.#changed(tab);
 		await this.save(tab, { auto: true });
@@ -400,33 +385,13 @@ export class Workspace {
 		else this.#scheduleDraft(tab);
 	}
 
-	async rename(tab: Tab, name: string) {
-		name = name.trim();
-		if (!tab.path || !name || name === tab.name) return;
-		const to = join(parent(tab.path), name);
-		tab.busy = true;
-		try {
-			await move(tab.path, to);
-			const entry = await stat(to);
-			tab.path = to;
-			if (entry) tab.stamp = stampOf(entry);
-			this.#loadLanguage(tab);
-			this.#remember(to);
-			this.#persist();
-		} catch (e) {
-			fail(e);
-		} finally {
-			tab.busy = false;
-		}
-	}
-
 	download(tab: Tab) {
 		const { bytes } = encode(tab.state.doc.sliceString(0, tab.state.doc.length, tab.eol), tab.encoding);
 		downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), tab.suggestedName);
 	}
 
 	showInFiles(tab: Tab) {
-		if (tab.path) window.open(`${resolve('/files')}?path=${encodeURIComponent(parent(tab.path))}`, '_blank', 'noopener');
+		if (tab.path) showFolderOf(tab.path);
 	}
 
 	// --- Encoding and line ending ---
@@ -442,13 +407,13 @@ export class Workspace {
 		this.#changed(tab);
 	}
 
-	/** Reads the file again, in `charset` or the tab's current one */
+	/** Reads the file again, in `charset` or the current one */
 	async reload(tab: Tab, charset: Charset = tab.encoding.charset) {
 		if (!tab.path) return;
 		tab.busy = true;
 		try {
 			const file = await this.#readFile(tab.path);
-			if (!file) return;
+			if (!file || typeof file === 'string') return void toast(file ?? m.toasts.notFound(tab.name), 'error', 8000);
 			const decoded = decode(file.bytes, charset);
 			if (!decoded) return;
 			const head = Math.min(tab.state.selection.main.head, decoded.text.length);
@@ -457,16 +422,16 @@ export class Workspace {
 				selection: EditorSelection.cursor(head)
 			});
 			tab.setSaved(decoded, file.stamp);
-			this.#cancelSave(tab);
+			this.#cancelSave();
 			this.#dropDraft(tab.id);
 		} catch (e) {
-			fail(e);
+			fail(e, () => void this.reload(tab, charset));
 		} finally {
 			tab.busy = false;
 		}
 	}
 
-	/** Asks before throwing away the unsaved changes of a tab */
+	/** Asks before throwing away the unsaved changes */
 	#confirmDiscard(tab: Tab) {
 		return ask({ ...m.questions.discard, message: m.questions.discard.message(tab.name), danger: true });
 	}
@@ -480,10 +445,9 @@ export class Workspace {
 
 	/** Paths changed somewhere (`watch()` of the file system) */
 	changed(paths: string[]) {
-		for (const tab of this.tabs) {
-			const path = tab.path;
-			if (path && !tab.busy && paths.some((p) => isInside(path, p))) this.#check(tab);
-		}
+		const tab = this.file;
+		const path = tab?.path;
+		if (tab && path && !tab.busy && paths.some((p) => isInside(path, p))) void this.#check(tab);
 	}
 
 	async #check(tab: Tab) {
@@ -501,8 +465,14 @@ export class Workspace {
 		}
 		if (tab.dirty) tab.conflict = 'changed';
 		else {
+			// Asked first (once per version, the answer may be kept while the file is open)
+			const silent = tab.external.silent;
+			if (!(await tab.external.shouldReload(tab.name, `${stamp.size}:${stamp.modified}`))) return;
+			if (tab.busy || tab.path !== path) return;
+			// Typed into meanwhile: a conflict after all
+			if (tab.dirty) return void (tab.conflict = 'changed');
 			await this.reload(tab);
-			toast(m.toasts.reloaded(tab.name));
+			if (silent) toast(m.toasts.reloaded(tab.name));
 		}
 	}
 
@@ -514,49 +484,34 @@ export class Workspace {
 		if (tab.dirty) this.#changed(tab);
 	}
 
-	// --- Persistence: open tabs, drafts, recent files, settings ---
-
-	#persist() {
-		storeTabs(this.tabs, this.activeId);
-	}
+	// --- Drafts, recently opened, settings ---
 
 	#remember(path: string) {
-		this.recent = [path, ...this.recent.filter((p) => p !== path)].slice(0, MAX_RECENT);
-		storeJson(RECENT_KEY, this.recent);
-	}
-
-	forget(path: string) {
-		this.recent = this.recent.filter((p) => p !== path);
-		storeJson(RECENT_KEY, this.recent);
+		storeJson(RECENT_KEY, [path, ...recentFiles().filter((p) => p !== path)].slice(0, MAX_RECENT));
+		// Connected folders: the start page's access notice knows about it
+		rememberConnected('text-editor', path);
 	}
 
 	#scheduleDraft(tab: Tab) {
-		this.#cancelDraft(tab.id);
-		this.#draftTimers.set(
-			tab.id,
-			setTimeout(() => {
-				this.#draftTimers.delete(tab.id);
-				this.#writeDraft(tab);
-			}, 800)
-		);
-	}
-
-	#cancelDraft(id: string) {
-		clearTimeout(this.#draftTimers.get(id));
-		this.#draftTimers.delete(id);
+		clearTimeout(this.#draftTimer);
+		this.#draftTimer = setTimeout(() => {
+			this.#draftTimer = undefined;
+			this.#writeDraft(tab);
+		}, 800);
 	}
 
 	/** No unsaved changes left: no draft either */
 	#dropDraft(id: string) {
-		this.#cancelDraft(id);
-		removeDraft(id);
+		clearTimeout(this.#draftTimer);
+		this.#draftTimer = undefined;
+		void removeDraft(id);
 	}
 
 	#writeDraft(tab: Tab) {
-		if (!this.tabs.includes(tab)) return;
 		if (!tab.dirty) return removeDraft(tab.id);
 		return saveDraft(tab.id, {
 			path: tab.path,
+			fileName: tab.fileName,
 			text: tab.state.doc.toString(),
 			encoding: tab.encoding,
 			eol: tab.eol,
@@ -564,42 +519,23 @@ export class Workspace {
 		}).catch((e) => console.error(e));
 	}
 
-	/** Writes pending saves and drafts right away (page is being hidden or closed) */
-	flush() {
-		for (const tab of this.tabs) this.#saveNow(tab);
-		for (const id of [...this.#draftTimers.keys()]) {
-			const tab = this.tabs.find((t) => t.id === id);
-			this.#cancelDraft(id);
-			if (tab) this.#writeDraft(tab);
+	/** Writes a pending save and draft right away (the page is being hidden, closed or left) */
+	flush(): Promise<unknown> {
+		const tab = this.file;
+		if (!tab) return Promise.resolve();
+		const jobs: Promise<unknown>[] = [this.#saveNow(tab)];
+		if (this.#draftTimer !== undefined) {
+			clearTimeout(this.#draftTimer);
+			this.#draftTimer = undefined;
+			jobs.push(this.#writeDraft(tab));
 		}
-	}
-
-	/** Brings back the tabs of the last visit, with their unsaved changes */
-	async restore() {
-		const stored = loadTabs();
-		for (const entry of stored.tabs) {
-			try {
-				const tab = await restoreTab(entry, this.wrap);
-				if (tab) this.tabs.push(tab);
-			} catch (e) {
-				console.error(e);
-			}
-		}
-		await pruneDrafts(new Set(this.tabs.map((t) => t.id)));
-		const active = this.tabs.find((t) => t.id === stored.active) ?? this.tabs.at(-1);
-		if (active) this.activate(active);
-		for (const tab of this.tabs) {
-			this.#loadLanguage(tab);
-			// Changes from the last visit that could be saved here go out now
-			if (tab.dirty && tab.path && !tab.conflict) this.#changed(tab);
-		}
-		this.#persist();
+		return Promise.allSettled(jobs);
 	}
 
 	setWrap(wrap: boolean) {
 		this.wrap = wrap;
 		storeJson(WRAP_KEY, wrap);
-		for (const tab of this.tabs) this.#apply(tab, { effects: wrapSlot.reconfigure(wrapping(wrap)) });
+		if (this.file) this.#apply(this.file, { effects: wrapSlot.reconfigure(wrapping(wrap)) });
 	}
 
 	setLayout(layout: Layout) {
@@ -629,31 +565,50 @@ export class Workspace {
 		storeJson(FONT_KEY, this.fontSize);
 		this.#view?.requestMeasure();
 	}
+}
 
-	// --- Files from the computer ---
+/** Files in a new browser tab, in the folder of `path` */
+export function showFolderOf(path: string) {
+	window.open(`${resolve('/files')}?path=${encodeURIComponent(parent(path))}`, '_blank', 'noopener');
+}
 
-	/** Opens files from the computer as tabs without a place; they land in the file system only when saved */
-	async openLocal(files: File[]) {
-		for (const file of files) {
-			try {
-				if (file.size > MAX_SIZE) {
-					toast(m.toasts.tooLarge(file.name, formatSize(MAX_SIZE, intlLocale)), 'error', 8000);
-					continue;
-				}
-				const decoded = decode(new Uint8Array(await file.arrayBuffer()));
-				if (!decoded) {
-					toast(m.toasts.binary(file.name), 'error');
-					continue;
-				}
-				const tab = new Tab({ path: null, untitled: 0, fileName: file.name, text: decoded.text, saved: '', wrap: this.wrap });
-				tab.encoding = tab.savedEncoding = decoded.encoding;
-				tab.eol = tab.savedEol = decoded.eol;
-				this.#add(tab);
-				this.#scheduleDraft(tab);
-				this.#persist();
-			} catch (e) {
-				fail(e);
-			}
+/** The paths of “Recently opened” (start page), newest first */
+export const recentFiles = () => loadJson<string[]>(RECENT_KEY, []);
+
+/** Forgets a file of “Recently opened” */
+export function forgetRecent(path: string) {
+	storeJson(RECENT_KEY, recentFiles().filter((p) => p !== path));
+	forgetConnected('text-editor', path);
+}
+
+/** “Open from Files …”: the chosen file's path; the dialog starts next to `near` (the shown file), else where it was last */
+export async function chooseFileToOpen(near?: string | null): Promise<string | null> {
+	const folder = near ? parent(near) : lastFolder;
+	const path = await chooseFile({ mode: 'open', folder, accept: EDITABLE_EXTENSIONS, title: m.dialogs.open });
+	if (path) lastFolder = parent(path);
+	return path;
+}
+
+/**
+ * A file from the computer becomes a draft without a place (never uploaded on its own); returns its id for the
+ * address, or `null` (and a message) when it can't be opened.
+ */
+export async function draftFromComputer(file: File): Promise<string | null> {
+	try {
+		if (file.size > MAX_SIZE) {
+			toast(m.toasts.tooLarge(file.name, formatSize(MAX_SIZE, intlLocale)), 'error', 8000);
+			return null;
 		}
+		const decoded = decode(new Uint8Array(await file.arrayBuffer()));
+		if (!decoded) {
+			toast(m.toasts.binary(file.name), 'error');
+			return null;
+		}
+		const id = newDraftId();
+		await saveDraft(id, { path: null, fileName: file.name, text: decoded.text, encoding: decoded.encoding, eol: decoded.eol, stamp: null });
+		return id;
+	} catch (e) {
+		fail(e);
+		return null;
 	}
 }

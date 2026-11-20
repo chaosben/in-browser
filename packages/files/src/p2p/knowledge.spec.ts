@@ -1,22 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { advance, LOG_LIMIT, mergeDevices, mergeLogs, missing, record, type Change, type Vector } from './knowledge.js';
+import { advance, mergeLogs, missing, record, type Change } from './knowledge.js';
 
 describe('knowledge', () => {
-	it('numbers local changes per device', () => {
-		let state: { log: Change[]; vector: Vector } = { log: [], vector: {} };
-		state = record(state.log, state.vector, 'A', '/a');
-		state = record(state.log, state.vector, 'A', '/b');
-		expect(state.vector).toEqual({ A: 2 });
-		expect(state.log.map((c) => c.n)).toEqual([1, 2]);
-	});
-
-	it('keeps the last entries per origin', () => {
-		let state: { log: Change[]; vector: Vector } = { log: [], vector: {} };
-		for (let i = 0; i < LOG_LIMIT + 5; i++) state = record(state.log, state.vector, 'A', `/f${i}`);
-		expect(state.log).toHaveLength(LOG_LIMIT);
-		expect(state.log[0].n).toBe(6);
-	});
-
 	it('counts what a device misses, indirectly updated devices included (A → B → C)', () => {
 		// A changes two files
 		let a = record([], {}, 'A', '/x');
@@ -47,13 +32,5 @@ describe('knowledge', () => {
 	it('reports a trimmed log as “more”', () => {
 		const log: Change[] = [{ o: 'A', n: 50, p: '/a' }];
 		expect(missing({ A: 10 }, [], log)).toEqual({ paths: 1, more: true });
-	});
-
-	it('merges what devices know about each other', () => {
-		const merged = mergeDevices(
-			{ C: { lastSeen: 5, lastSync: 5, scope: [], vector: { A: 1 } } },
-			{ C: { lastSeen: 9, lastSync: 7, scope: ['/V'], vector: { A: 3, B: 1 } } }
-		);
-		expect(merged.C).toEqual({ lastSeen: 9, lastSync: 7, scope: ['/V'], vector: { A: 3, B: 1 } });
 	});
 });

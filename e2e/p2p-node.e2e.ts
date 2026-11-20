@@ -48,7 +48,8 @@ test('a p2p-node passes changes on while the other devices are offline', async (
 	try {
 		// The laptop sets up the devices and adds the phone
 		await a.goto('/files');
-		await a.locator('aside').getByRole('button', { name: /^Sync/ }).click();
+		await a.locator('[data-tab="sync"]').click();
+		await a.locator('[data-command="syncSettings"]:visible').click();
 		await a.getByRole('button', { name: 'Connect devices' }).click();
 		await a.getByRole('button', { name: 'Next' }).click();
 		await a.getByLabel('Name of this device').fill('Laptop');
@@ -58,7 +59,7 @@ test('a p2p-node passes changes on while the other devices are offline', async (
 		await b.getByLabel('Name of this device').fill('Phone');
 		await b.getByRole('button', { name: 'Connect', exact: true }).click();
 		await expect(b.getByText('Connected.')).toBeVisible({ timeout: 30_000 });
-		await b.getByRole('button', { name: 'Close' }).click();
+		await b.getByRole('button', { name: 'Close', exact: true }).click();
 
 		// …and the node, with a new key
 		await a.getByRole('button', { name: 'Add another device' }).click();
@@ -66,15 +67,16 @@ test('a p2p-node passes changes on while the other devices are offline', async (
 		key = (await a.getByRole('dialog').locator('code').textContent())!.trim();
 		expect(await node('pair', `http://localhost/files#pair=${key.replace(/-/g, '')}`, 'Server'), output.join('')).toBe(0);
 		await expect(a.getByText('Server was added.')).toBeVisible({ timeout: 30_000 });
-		await a.getByRole('button', { name: 'Close' }).click();
-		await a.getByRole('dialog').getByRole('button', { name: 'Close' }).last().click();
+		await a.getByRole('button', { name: 'Close', exact: true }).click();
+		await a.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).last().click();
 
 		void node('run');
-		await expect(a.locator('aside').getByText('2 of 2 devices connected')).toBeVisible({ timeout: 60_000 });
+		await expect(a.getByRole('contentinfo').getByRole('button', { name: 'Sync status: 2 of 2 devices connected' })).toBeVisible({ timeout: 60_000 });
 
 		// The phone goes offline; the laptop adds a folder, the node takes it, then the laptop goes offline too
 		await b.close();
-		await a.getByRole('button', { name: 'New folder' }).first().click();
+		await a.locator('[data-tab="home"]').click();
+		await a.locator('[data-command="newFolder"]:visible').click();
 		const input = a.getByRole('textbox', { name: /name/i });
 		await input.fill('Projects');
 		await input.press('Enter');

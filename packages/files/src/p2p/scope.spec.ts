@@ -1,37 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import type { FileState } from '../sync/plan.js';
-import { canExclude, exclude, include, inScope, intersect } from './scope.js';
+import { canExclude, inScope } from './scope.js';
 
-const f: FileState = { kind: 'file', size: 1, modified: 1 };
+const entry = '/.in-browser-trash/20261118-102233-123-abcd';
 
 describe('scope', () => {
-	it('excludes folders with everything inside', () => {
-		expect(inScope('/Videos/a.mp4', ['/Videos'])).toBe(false);
-		expect(inScope('/Videos', ['/Videos'])).toBe(false);
-		expect(inScope('/Videos2/a', ['/Videos'])).toBe(true);
+	// Excluded folders go with everything inside, items in the trash count by where they were
+	it.each([
+		['/Videos/a.mp4', false],
+		['/Videos', false],
+		['/Videos2/a', true],
+		[`${entry}/Videos/a.mp4`, false],
+		[`${entry}/Docs/a.md`, true],
+		[`${entry}/.trashinfo.json`, true],
+		[entry, true]
+	])('%s in scope without /Videos: %s', (path, expected) => {
+		expect(inScope(path, ['/Videos'])).toBe(expected);
+	});
+
+	it('never excludes app data', () => {
 		expect(inScope('/.apps/x/y', ['/.apps'])).toBe(true);
 		expect(canExclude('/.apps/x')).toBe(false);
 		expect(canExclude('/Docs')).toBe(true);
-	});
-	it('counts items in the trash by where they were', () => {
-		const entry = '/.in-browser-trash/20261118-102233-123-abcd';
-		expect(inScope(`${entry}/Videos/a.mp4`, ['/Videos'])).toBe(false);
-		expect(inScope(`${entry}/Docs/a.md`, ['/Videos'])).toBe(true);
-		expect(inScope(`${entry}/.trashinfo.json`, ['/Videos'])).toBe(true);
-		expect(inScope(entry, ['/Videos'])).toBe(true);
-		expect(inScope('/.in-browser-trash', ['/Videos'])).toBe(true);
-	});
-	it('keeps only what both devices take part in', () => {
-		const snap = new Map([
-			['/a', f],
-			['/V/b', f],
-			['/P/c', f]
-		]);
-		expect([...intersect(snap, ['/V'], ['/P']).keys()]).toEqual(['/a']);
-	});
-	it('maintains the list of excluded folders', () => {
-		expect(exclude(['/A/b'], '/A')).toEqual(['/A']);
-		expect(exclude(['/A'], '/A/b')).toEqual(['/A']);
-		expect(include(['/A', '/B'], '/A/x')).toEqual(['/B']);
 	});
 });

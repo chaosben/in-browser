@@ -1,9 +1,10 @@
 <script lang="ts">
 	// Measurements of the drawing surface (`?perf` in the address): frame time, input-to-pixel latency, input rate.
 	import { m } from '#lib/i18n/index.js';
-	import type { Stage, StageStats } from '#lib/render/stage.js';
+	import type { StageStats } from '@in-browser/ink/render/stage.js';
+	import type { NotesStage } from '#lib/render/surface.js';
 
-	let { stage }: { stage: Stage } = $props();
+	let { stage }: { stage: NotesStage } = $props();
 	let stats = $state<StageStats>({ frame: 0, latency: 0, rate: 0, tiles: 0 });
 
 	$effect(() => {

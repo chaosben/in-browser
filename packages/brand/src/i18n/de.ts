@@ -10,7 +10,8 @@ const de: BrandMessages = {
 		files: 'Dateien',
 		notes: 'Notizen',
 		'text-editor': 'Texteditor',
-		'screen-capture': 'Bildschirmaufnahme'
+		'screen-capture': 'Bildschirmaufnahme',
+		'pdf-editor': 'PDF-Editor'
 	},
 
 	brand: {
@@ -26,8 +27,67 @@ const de: BrandMessages = {
 	},
 
 	bar: {
+		settings: 'Einstellungen'
+	},
+
+	ribbon: {
+		label: 'Befehle',
+		tabs: 'Registerkarten',
+		file: 'Datei',
+		more: 'Mehr',
+		options: 'Gruppenoptionen',
+		display: 'Menüband-Anzeige',
+		modes: { classic: 'Klassisch', simplified: 'Vereinfacht', tabs: 'Nur Registerkarten' },
+		modeHints: {
+			classic: 'Gruppen mit großen Schaltflächen und ihren Namen',
+			simplified: 'Eine kompakte Zeile',
+			tabs: 'Nur die Registerkarten; eine Registerkarte öffnet sich über der Seite'
+		},
+		collapse: 'Nur Registerkarten zeigen (Strg+F1)',
+		expand: 'Menüband zeigen (Strg+F1)'
+	},
+
+	pick: {
 		actions: (name) => `Aktionen für „${name}“`,
-		rename: 'Zum Umbenennen klicken'
+		clear: 'Auswahl aufheben',
+		selectAll: 'Alles auswählen'
+	},
+
+	inspector: {
+		label: 'Eigenschaften',
+		close: 'Eigenschaften ausblenden',
+		resize: 'Breite der Eigenschaften',
+		search: 'Eigenschaften durchsuchen',
+		clearSearch: 'Suche leeren',
+		noMatches: 'Keine passende Eigenschaft.'
+	},
+
+	panels: {
+		label: 'Seitenleisten',
+		close: 'Seitenleiste schließen',
+		resize: 'Breite der Seitenleiste',
+		failed: 'Die Seitenleiste konnte nicht geladen werden.'
+	},
+
+	keys: {
+		ctrl: 'Strg',
+		shift: 'Umschalt',
+		alt: 'Alt',
+		named: {
+			Delete: 'Entf',
+			Backspace: 'Rücktaste',
+			Home: 'Pos1',
+			End: 'Ende',
+			PageUp: 'Bild↑',
+			PageDown: 'Bild↓',
+			' ': 'Leertaste',
+			Escape: 'Esc',
+			Enter: 'Eingabe',
+			ArrowLeft: '←',
+			ArrowRight: '→',
+			ArrowUp: '↑',
+			ArrowDown: '↓'
+		}
 	},
 
 	theme: {

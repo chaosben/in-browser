@@ -6,21 +6,18 @@ import type { Messages } from './index.js';
 const de: Messages = {
 	common: {
 		cancel: 'Abbrechen',
-		untitled: (n) => (n > 1 ? `Unbenannt ${n}` : 'Unbenannt')
+		untitled: 'Unbenannt'
 	},
 
 	brand: {
 		description:
-			'Text, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Tabs und Syntax-Hervorhebung, CSV als Tabelle, JSON, YAML und XML als Baum, beides bearbeitbar – kostenlos und komplett im Browser.'
+			'Text, Markdown, JSON, YAML, CSV und Code bearbeiten – mit Syntax-Hervorhebung, CSV als Tabelle, JSON, YAML und XML als Baum, beides bearbeitbar – kostenlos und komplett im Browser.'
 	},
 
 	home: {
 		tagline:
-			'Text, Markdown, JSON, YAML, CSV und Code – mit Tabs, Syntax-Hervorhebung, Vorschau, Tabellen und Bäumen. Deine Dateien bleiben in deinem Browser.',
-		unsupported: 'Dieser Browser hat kein Dateisystem für Webseiten (OPFS). Bitte nutze einen aktuellen Browser.',
-		recent: 'Zuletzt geöffnet',
+			'Text, Markdown, JSON, YAML, CSV und Code – mit Syntax-Hervorhebung, Vorschau, Tabellen und Bäumen. Deine Dateien bleiben in deinem Browser.',
 		noRecent: 'Dateien, die du öffnest, erscheinen hier.',
-		inFolder: (folder) => `in ${folder}`,
 		dropHint: 'Oder zieh Textdateien von deinem Rechner hierher.'
 	},
 
@@ -30,53 +27,95 @@ const de: Messages = {
 		openFromFiles: 'Aus Dateien öffnen …',
 		openFromComputer: 'Vom Rechner öffnen …',
 		save: 'Speichern',
-		saveTo: 'Speichern …',
 		saveAs: 'Speichern unter …',
-		rename: 'Umbenennen',
 		download: 'Herunterladen',
 		showInFiles: 'In Dateien zeigen',
 		close: 'Schließen',
-		closeOthers: 'Andere schließen'
+		removeRecent: 'Aus Liste entfernen'
 	},
 
 	edit: {
 		undo: 'Rückgängig',
 		redo: 'Wiederholen',
-		search: 'Suchen',
 		find: 'Suchen',
 		replace: 'Ersetzen',
-		gotoLine: 'Gehe zu Zeile'
+		gotoLine: 'Gehe zu Zeile',
+		cut: 'Ausschneiden',
+		copy: 'Kopieren',
+		paste: 'Einfügen',
+		selectAll: 'Alles auswählen',
+		toggleComment: 'Kommentar',
+		toggleCommentTip: 'Kommentiert die Zeilen aus oder wieder ein (in Code)',
+		indent: 'Einrücken',
+		outdent: 'Ausrücken',
+		lineUp: 'Zeile nach oben',
+		lineDown: 'Zeile nach unten',
+		clipboardFailed: 'Der Browser hat den Zugriff auf die Zwischenablage nicht erlaubt.'
 	},
 
 	format: {
-		title: 'Formatierung',
 		bold: 'Fett',
 		italic: 'Kursiv',
 		link: 'Link',
-		paragraph: 'Absatz',
 		heading: (level) => `Überschrift ${level}`,
 		bulletList: 'Aufzählung',
 		numberedList: 'Nummerierte Liste',
 		taskList: 'Aufgabe',
 		quote: 'Zitat',
 		codeBlock: 'Code-Block',
-		inlineCode: 'Code im Text'
+		inlineCode: 'Code im Text',
+		onlyMarkdown: 'Nur in Markdown-Dateien'
 	},
 
 	view: {
-		title: 'Ansicht',
 		wrap: 'Zeilenumbruch',
 		textOnly: 'Nur Text',
-		split: 'Text und Ansicht',
+		split: 'Nebeneinander',
 		viewOnly: 'Nur Ansicht',
-		toggle: (view) => `${view} zeigen`,
+		viewType: 'Ansichtsart',
 		fontLarger: 'Schrift größer',
 		fontSmaller: 'Schrift kleiner',
 		fontReset: 'Standard-Schriftgröße'
 	},
 
+	ribbon: {
+		tabs: {
+			home: 'Start',
+			format: 'Format',
+			view: 'Ansicht',
+			table: 'Tabelle',
+			tree: 'Baum'
+		},
+		groups: {
+			new: 'Neu',
+			file: 'Datei',
+			clipboard: 'Zwischenablage',
+			find: 'Suchen',
+			edit: 'Bearbeiten',
+			text: 'Text',
+			paragraph: 'Absatz',
+			lists: 'Listen',
+			layout: 'Layout',
+			cell: 'Zelle',
+			rows: 'Zeilen',
+			columns: 'Spalten',
+			sortFilter: 'Sortieren & Filtern',
+			options: 'Optionen',
+			selection: 'Auswahl',
+			insert: 'Einfügen',
+			arrange: 'Anordnen',
+			show: 'Anzeigen'
+		}
+	},
+
+	editor: {
+		openElsewhere: 'Diese Datei ist schon in einem anderen Tab oder Fenster geöffnet.',
+		loadFailed: (error) => `Die Datei konnte nicht geöffnet werden: ${error}`,
+		back: 'Zur Startseite'
+	},
+
 	dialogs: {
-		open: 'Textdateien öffnen',
+		open: 'Textdatei öffnen',
 		saveAs: 'Speichern unter'
 	},
 
@@ -100,7 +139,7 @@ const de: Messages = {
 	},
 
 	conflict: {
-		changed: (name) => `„${name}“ wurde woanders geändert (in einem anderen Tab oder durch den Abgleich). Speichern pausiert.`,
+		changed: (name) => `„${name}“ wurde woanders geändert (in einem anderen Tab oder durch das Synchronisieren). Speichern pausiert.`,
 		deleted: (name) => `„${name}“ wurde gelöscht oder verschoben. Speichern legt die Datei wieder an.`,
 		reload: 'Neu laden',
 		keepMine: 'Meine Version behalten'
@@ -137,6 +176,7 @@ const de: Messages = {
 		binary: (name) => `„${name}“ ist keine Textdatei.`,
 		tooLarge: (name, max) => `„${name}“ ist zu groß für den Editor (mehr als ${max}).`,
 		notFound: (name) => `„${name}“ gibt es nicht mehr.`,
+		onlyFirst: (name) => `Nur „${name}“ wurde geöffnet – eine Datei auf einmal.`,
 		foldersSkipped: (count) => (count === 1 ? 'Ein Ordner wurde übersprungen.' : `${count} Ordner wurden übersprungen.`),
 		failed: (error) => `Das hat nicht geklappt: ${error}`
 	},
@@ -178,23 +218,28 @@ const de: Messages = {
 		errorStale: (line) =>
 			`Der Text hat einen Fehler in Zeile ${line}. Hier steht der letzte Stand ohne Fehler; behebe ihn, um hier wieder zu bearbeiten.`,
 		showError: 'Im Text zeigen',
-		apply: 'Übernehmen'
+		apply: 'Übernehmen',
+		selectAll: 'Alles auswählen',
+		clearSelection: 'Auswahl aufheben'
 	},
 
 	table: {
 		title: 'Tabelle',
 		column: 'Spalte',
 		rowTitle: (n) => `Zeile ${n}`,
+		rowsTitle: (n) => `${n} Zeilen`,
 		columnMenu: (name) => `Spalte „${name}“: sortieren, filtern, einfügen …`,
 		rowMenu: (n) => `Zeile ${n}: einfügen, verschieben, löschen …`,
 		cellLabel: (column, row) => `${column}, Zeile ${row}`,
 		edit: 'Zelle bearbeiten',
+		clearCells: 'Zellen leeren',
 		sortUp: 'Aufsteigend sortieren',
 		sortDown: 'Absteigend sortieren',
 		filter: 'Filtern …',
 		filterPlaceholder: 'enthält …',
 		filterLabel: (column) => `Spalte „${column}“ filtern`,
 		removeFilter: 'Filter entfernen',
+		removeFilters: 'Alle Filter entfernen',
 		rename: 'Spalte umbenennen',
 		insertLeft: 'Spalte links einfügen',
 		insertRight: 'Spalte rechts einfügen',
@@ -205,9 +250,8 @@ const de: Messages = {
 		insertBelow: 'Zeile unterhalb einfügen',
 		moveUp: 'Nach oben verschieben',
 		moveDown: 'Nach unten verschieben',
-		removeRow: 'Zeile löschen',
+		removeRows: 'Zeilen löschen',
 		addRow: 'Zeile hinzufügen',
-		addColumn: 'Spalte hinzufügen',
 		newColumn: 'Spalte',
 		header: 'Erste Zeile als Spaltennamen',
 		delimiter: 'Trennzeichen',
@@ -231,8 +275,8 @@ const de: Messages = {
 		addAttribute: 'Attribut hinzufügen',
 		addText: 'Text hinzufügen',
 		addSection: 'Abschnitt hinzufügen',
+		insert: 'Einfügen',
 		newSection: 'abschnitt',
-		add: 'Eintrag hinzufügen',
 		insertBefore: 'Davor einfügen',
 		insertAfter: 'Danach einfügen',
 		duplicate: 'Duplizieren',
@@ -241,7 +285,6 @@ const de: Messages = {
 		type: 'Typ',
 		types: { string: 'Text', number: 'Zahl', boolean: 'Ja/Nein (Boolean)', null: 'Leer (null)', object: 'Objekt', array: 'Liste' },
 		remove: 'Löschen',
-		deleteKey: 'Entf',
 		newKey: 'schlüssel',
 		newElement: 'element',
 		newAttribute: 'name',

@@ -3,7 +3,7 @@
 	"id": "/files",
 	"name": "Dateien – in-browser",
 	"short_name": "Dateien",
-	"description": "Verwalte die Dateien deiner in-browser-Tools und gleiche sie mit einem Ordner auf deinem Rechner ab.",
+	"description": "Verwalte die Dateien deiner in-browser-Tools und synchronisiere sie mit einem Ordner auf deinem Rechner.",
 	"start_url": "/files",
 	"scope": "/files",
 	"display": "standalone",

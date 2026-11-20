@@ -37,11 +37,12 @@
 	</div>
 {/snippet}
 
-<!-- Compact: icon buttons with tooltip, so the line fits the small window -->
+<!-- Compact: icon buttons with tooltip, so the line fits the small window; in the dialog Pause/Resume keep one width,
+	 so Stop never moves -->
 {#snippet buttons(rec: Recorder)}
 	{#if rec.state === 'recording'}
 		<button
-			class="btn {compact ? 'btn-sm btn-square' : ''}"
+			class="btn {compact ? 'btn-sm btn-square' : 'w-36'}"
 			title={compact ? m.record.pause : undefined}
 			aria-label={compact ? m.record.pause : undefined}
 			onclick={() => rec.pause()}
@@ -50,7 +51,7 @@
 		>
 	{:else if rec.state === 'paused'}
 		<button
-			class="btn {compact ? 'btn-sm btn-square' : ''}"
+			class="btn {compact ? 'btn-sm btn-square' : 'w-36'}"
 			title={compact ? m.record.resume : undefined}
 			aria-label={compact ? m.record.resume : undefined}
 			onclick={() => rec.resume()}
@@ -59,7 +60,7 @@
 		>
 	{/if}
 	<button
-		class="btn btn-error {compact ? 'btn-sm btn-square' : ''}"
+		class="btn {compact ? 'btn-sm btn-square' : ''}"
 		title={compact ? m.record.stop : undefined}
 		aria-label={compact ? m.record.stop : undefined}
 		disabled={rec.state !== 'recording' && rec.state !== 'paused'}

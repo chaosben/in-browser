@@ -2,18 +2,24 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ChangeSpec } from '@codemirror/state';
+	import MoreButton from '@in-browser/brand/MoreButton.svelte';
+	import PickMark from '@in-browser/brand/PickMark.svelte';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import CellEditor from '../CellEditor.svelte';
+	import { entryOf, TREE, viewKey, type ViewCommandSpec } from '../commands.js';
 	import ParseError from '../ParseError.svelte';
 	import { parsedView, undoKeys } from '../parsed.svelte.js';
 	import { VisibleRows } from '../rows.svelte.js';
-	import type { ViewProps } from '../types.js';
-	import { freeKey, guessKind, nodeAt, type ChildKind, type NewChild, type TreeFormat, type TreeNode, type TreeParse, type ValueKind } from './model.js';
+	import type { ViewAction, ViewProps } from '../types.js';
+	import { chainChanges, freeKey, guessKind, nodeAt, type ChildKind, type NewChild, type TreeFormat, type TreeNode, type TreeParse, type ValueKind } from './model.js';
 
 	// A tree of the text (JSON, YAML, TOML, INI, XML …): nodes open and close, keys and values are edited in place.
 	// Only the rows in sight are rendered; every edit goes through the format into the text, the filter only hides.
+	// Nodes are picked like entries in Files (`Picker`); the commands of the ribbon tab "Tree" and of the menus act
+	// on the picked nodes, else on the current one.
 
 	let { tab, host, format: anyFormat }: ViewProps = $props();
 	const format = untrack(() => anyFormat as TreeFormat);
@@ -101,16 +107,38 @@
 		filterInput?.focus();
 	}
 
+	function closeFilter() {
+		filter = null;
+		rows.scroller?.focus();
+	}
+
 	// --- Layout: fixed row height, only the rows in sight ---
 
 	const rows = new VisibleRows(() => lines.length);
 
-	// --- Selection and editing ---
+	// --- Picked nodes, current node and editing ---
 
+	const picker = new Picker<string>();
+	const order = $derived(lines.map((l) => l.node.id));
+	// Nodes that are hidden or gone are no longer picked
+	$effect(() => {
+		const ids = order;
+		untrack(() => picker.keep(ids));
+	});
+
+	/** The current node (keys go from here; the text marks it) */
 	let selected = $state<string | null>(null);
 	const current = $derived(lines.find((l) => l.node.id === selected) ?? null);
 	let editing = $state<{ id: string; field: 'key' | 'value'; text: string } | null>(null);
 	let input = $state<HTMLInputElement>();
+	/**
+	 * A node just added: its name (or value) is typed into the same undo step – `version` is the text right after
+	 * adding it, `make` adds it again with what was typed
+	 */
+	let fresh: { id: string; text: string; version: number; make: (text: string) => void } | null = null;
+
+	/** The nodes the commands act on: the picked ones, else the current one (in the order shown) */
+	const targets = (): Line[] => (picker.selected.size ? lines.filter((l) => picker.has(l.node.id)) : current ? [current] : []);
 
 	/** Finds a node of the current tree by id, with its parent */
 	function find(root: TreeNode, id: string): { node: TreeNode; parent: TreeNode } | null {
@@ -132,6 +160,19 @@
 			const found = find(t.root, id);
 			return found ? make(doc, found.node, found.parent) : null;
 		});
+	}
+
+	/** Applies an edit to several nodes as one change: one after another, each found anew in the text before it */
+	function applyEach(ids: string[], make: (doc: string, node: TreeNode, parent: TreeNode) => ChangeSpec | null) {
+		return parsed.apply((doc) =>
+			chainChanges(
+				doc,
+				ids.map((id) => (text: string) => {
+					const found = find(format.parse(text).root, id);
+					return found ? make(text, found.node, found.parent) : null;
+				})
+			)
+		);
 	}
 
 	function select(line: Line, reveal = true) {
@@ -179,15 +220,24 @@
 		const e = editing;
 		if (!e) return;
 		editing = null;
-		apply(e.id, (doc, node) => {
-			if (e.field === 'key') return e.text && e.text !== node.key ? format.rename(doc, node, e.text) : null;
-			return e.text === node.value ? null : format.setValue(doc, node, { kind: kindFor(node, e.text), text: e.text });
-		});
+		const added = fresh;
+		fresh = null;
+		if (added && added.id === e.id && added.version === tab.version && e.text && e.text !== added.text) {
+			// The new node and its name become one step: take the node back, add it with what was typed
+			host.undo();
+			added.make(e.text);
+		} else {
+			apply(e.id, (doc, node) => {
+				if (e.field === 'key') return e.text && e.text !== node.key ? format.rename(doc, node, e.text) : null;
+				return e.text === node.value ? null : format.setValue(doc, node, { kind: kindFor(node, e.text), text: e.text });
+			});
+		}
 		rows.scroller?.focus();
 	}
 
 	function cancel() {
 		editing = null;
+		fresh = null;
 		rows.scroller?.focus();
 	}
 
@@ -201,39 +251,47 @@
 		text: () => m.tree.addText
 	};
 
-	function newChild(parent: TreeNode, kind: ChildKind): NewChild {
+	/** A new child; `text` is its key, or the value where it has none */
+	function newChild(parent: TreeNode, kind: ChildKind, text?: string): NewChild {
 		switch (kind) {
 			case 'entry':
-				return { kind, key: freeKey(parent, m.tree.newKey), value: { kind: 'string', text: '' } };
+				return { kind, key: text ?? freeKey(parent, m.tree.newKey), value: { kind: 'string', text: '' } };
 			case 'item':
-				return { kind, value: { kind: 'string', text: '' } };
+				return { kind, value: { kind: 'string', text: text ?? '' } };
 			case 'element':
-				return { kind, key: m.tree.newElement };
+				return { kind, key: text ?? m.tree.newElement };
 			case 'attribute':
-				return { kind, key: freeKey(parent, m.tree.newAttribute, '-'), value: '' };
+				return { kind, key: text ?? freeKey(parent, m.tree.newAttribute, '-'), value: '' };
 			case 'text':
-				return { kind, value: m.tree.newText };
+				return { kind, value: text ?? m.tree.newText };
 		}
 	}
 
-	/** Adds a child and starts editing what the user will want to type first */
+	/** Adds a child and starts editing what the user will want to type first (both one undo step) */
 	async function add(parentId: string, index: number, kind: ChildKind) {
 		const parent = find(parsed.now().root, parentId)?.node;
 		if (!parent) return;
 		if (!apply(parentId, (doc, p) => format.insert(doc, p, index, newChild(p, kind)))) return;
 		if (parentId) open.add(parentId);
 		await tick();
-		const fresh = find(parsed.now().root, parentId)?.node;
-		const node = fresh?.children?.[Math.min(index, fresh.children.length - 1)];
+		const inParent = find(parsed.now().root, parentId)?.node;
+		const node = inParent?.children?.[Math.min(index, inParent.children.length - 1)];
 		if (!node) return;
 		selected = node.id;
+		picker.only(node.id);
 		await tick();
 		scrollTo(node.id);
-		if (node.can.rename) startEdit(node, 'key');
-		else if (node.can.edit) startEdit(node, 'value');
+		const field = node.can.rename ? 'key' : node.can.edit ? 'value' : null;
+		if (!field) return;
+		fresh = {
+			id: node.id,
+			text: (field === 'key' ? node.key : node.value) ?? '',
+			version: tab.version,
+			make: (text) => apply(parentId, (doc, p) => format.insert(doc, p, index, newChild(p, kind, text)))
+		};
+		startEdit(node, field);
 	}
 
-	/** Kind of a new neighbour of `node` */
 	/** INI: a new section at the end, its name ready to type */
 	async function addSection() {
 		const root = parsed.now().root;
@@ -243,25 +301,78 @@
 		const node = parsed.now().root.children?.findLast((c) => c.kind === 'section');
 		if (!node) return;
 		selected = node.id;
+		picker.only(node.id);
 		await tick();
 		scrollTo(node.id);
+		fresh = { id: node.id, text: name, version: tab.version, make: (text) => apply('', (doc, r) => format.addSection?.(doc, r, text) ?? null) };
 		startEdit(node, 'key');
 	}
 
+	/** Kind of a new neighbour of `node` */
 	function siblingKind(parent: TreeNode, node: TreeNode): ChildKind | undefined {
 		const kinds = parent.can.add ?? [];
 		if (node.kind === 'attribute') return kinds.includes('attribute') ? 'attribute' : undefined;
 		return kinds.find((k) => k !== 'attribute');
 	}
 
-	function moveNode(line: Line, delta: -1 | 1) {
-		const id = line.node.id;
-		apply(id, (doc, node, parent) => format.move(doc, parent, node, delta));
+	/** Picked nodes without those inside another picked one (they go with it) */
+	function outermost(list: Line[]): Line[] {
+		const ids = list.map((l) => l.node.id);
+		return list.filter((l) => !ids.some((id) => id !== l.node.id && l.node.id.startsWith(`${id}/`)));
 	}
 
-	function remove(line: Line) {
-		const next = lines[lines.indexOf(line) + 1] ?? lines[lines.indexOf(line) - 1];
-		if (apply(line.node.id, (doc, node, parent) => format.remove(doc, parent, node))) selected = next?.parent === line.parent ? null : (next?.node.id ?? null);
+	/** Last in the text first: what comes before keeps its place and id */
+	const fromEnd = (list: Line[]) => [...list].sort((a, b) => b.node.range.from - a.node.range.from).map((l) => l.node.id);
+
+	function canMove(delta: -1 | 1) {
+		const list = targets();
+		if (!editable || !list.length) return false;
+		const ids = new Set(list.map((l) => l.node.id));
+		return list.every((l) => {
+			if (!l.node.can.move) return false;
+			// A neighbour that moves along is fine; the first (last) of a block needs a free one
+			let i = l.index + delta;
+			const siblings = l.parent.children ?? [];
+			while (siblings[i] && ids.has(siblings[i].id)) i += delta;
+			return !!siblings[i]?.can.move;
+		});
+	}
+
+	async function moveNodes(delta: -1 | 1) {
+		const list = targets();
+		// Up: the first first, down: the last first – each passes the neighbour that doesn't move
+		const ordered = [...list].sort((a, b) => delta * (b.node.range.from - a.node.range.from));
+		const places = ordered.map((l) => ({ parent: l.parent.id, index: l.index + delta }));
+		if (!applyEach(ordered.map((l) => l.node.id), (doc, node, parent) => format.move(doc, parent, node, delta))) return;
+		// Ids of items follow their place: find the moved nodes there
+		await tick();
+		const root = parsed.now().root;
+		const moved = places.map((p) => find(root, p.parent)?.node.children?.[p.index]?.id).filter((id): id is string => !!id);
+		if (picker.selected.size) picker.set(moved);
+		const at = current && list.indexOf(current) >= 0 ? moved[ordered.indexOf(current)] : undefined;
+		if (at) {
+			selected = at;
+			tick().then(() => scrollTo(at));
+		}
+	}
+
+	function removeNodes() {
+		const list = outermost(targets());
+		const after = lines.slice(lines.indexOf(list[list.length - 1]) + 1).find((l) => !list.some((r) => l.node.id.startsWith(`${r.node.id}/`)));
+		if (!applyEach(fromEnd(list), (doc, node, parent) => format.remove(doc, parent, node))) return;
+		picker.clear();
+		selected = after && after.parent !== list[0].parent ? after.node.id : null;
+	}
+
+	function duplicateNodes() {
+		applyEach(fromEnd(outermost(targets())), (doc, node, parent) => format.duplicate(doc, parent, node));
+	}
+
+	function setType(kind: ValueKind) {
+		const ids = targets()
+			.filter((l) => l.node.can.types?.includes(kind) && l.node.kind !== kind)
+			.map((l) => l.node.id);
+		applyEach(ids, (doc, n) => format.setValue(doc, n, { kind, text: n.value ?? '' }));
 	}
 
 	const TYPE_LABELS: Record<ValueKind, () => string> = {
@@ -273,53 +384,80 @@
 		array: () => m.tree.types.array
 	};
 
-	function entries(line: Line): MenuEntry[] {
-		const { node, parent, index } = line;
-		const can = node.can;
-		const disabled = !editable;
-		const sibling = siblingKind(parent, node);
-		const siblings = parent.children ?? [];
+	/** Adding inside the current node, next to it, or (INI) a section */
+	function insertEntries(): MenuEntry[] {
 		const out: MenuEntry[] = [];
-		if (can.edit) out.push({ label: m.tree.edit, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'Enter', disabled, run: () => startEdit(node, 'value') });
-		if (can.rename) out.push({ label: m.tree.rename, icon: 'icon-[material-symbols-light--text-fields]', keys: 'F2', disabled, run: () => startEdit(node, 'key') });
-		if (out.length) out.push({ separator: true });
-		for (const kind of can.add ?? []) {
-			out.push({ label: ADD_LABELS[kind](), icon: 'icon-[material-symbols-light--add]', disabled, run: () => add(node.id, kind === 'attribute' ? (node.children?.filter((c) => c.kind === 'attribute').length ?? 0) : (node.children?.length ?? 0), kind) });
-		}
-		if (sibling) {
-			out.push({ label: m.tree.insertBefore, icon: 'icon-[material-symbols-light--vertical-align-top]', disabled, run: () => add(parent.id, index, sibling) });
-			out.push({ label: m.tree.insertAfter, icon: 'icon-[material-symbols-light--vertical-align-bottom]', disabled, run: () => add(parent.id, index + 1, sibling) });
-		}
-		if (can.duplicate) {
-			out.push({ label: m.tree.duplicate, icon: 'icon-[material-symbols-light--content-copy-outline]', disabled, run: () => apply(node.id, (doc, n, p) => format.duplicate(doc, p, n)) });
-		}
-		if (can.move) {
-			out.push({ label: m.tree.moveUp, icon: 'icon-[material-symbols-light--arrow-upward]', keys: 'Alt+↑', disabled: disabled || !siblings[index - 1]?.can.move, run: () => moveNode(line, -1) });
-			out.push({ label: m.tree.moveDown, icon: 'icon-[material-symbols-light--arrow-downward]', keys: 'Alt+↓', disabled: disabled || !siblings[index + 1]?.can.move, run: () => moveNode(line, 1) });
-		}
-		const types = can.types ?? [];
-		if (types.length > 1) {
-			out.push({ separator: true }, { heading: m.tree.type });
-			for (const kind of types) {
-				out.push({
-					label: TYPE_LABELS[kind](),
-					icon: node.kind === kind ? 'icon-[material-symbols-light--check]' : undefined,
-					disabled: disabled || node.kind === kind,
-					run: () => apply(node.id, (doc, n) => format.setValue(doc, n, { kind, text: n.value ?? '' }))
-				});
+		const line = current;
+		if (line) {
+			const { node, parent, index } = line;
+			for (const kind of node.can.add ?? []) {
+				const at = kind === 'attribute' ? (node.children?.filter((c) => c.kind === 'attribute').length ?? 0) : (node.children?.length ?? 0);
+				out.push({ label: ADD_LABELS[kind](), icon: 'icon-[material-symbols-light--add]', run: () => add(node.id, at, kind) });
 			}
+			const sibling = siblingKind(parent, node);
+			if (sibling) {
+				out.push({ label: m.tree.insertBefore, icon: 'icon-[material-symbols-light--vertical-align-top]', run: () => add(parent.id, index, sibling) });
+				out.push({ label: m.tree.insertAfter, icon: 'icon-[material-symbols-light--vertical-align-bottom]', run: () => add(parent.id, index + 1, sibling) });
+			}
+		} else {
+			// Nothing chosen: a new entry at the end of the top level
+			const kind = tree.root.can.add?.find((k) => k !== 'attribute');
+			if (kind) out.push({ label: ADD_LABELS[kind](), icon: 'icon-[material-symbols-light--add]', run: () => add(tree.root.id, tree.root.children?.length ?? 0, kind) });
 		}
-		if (can.remove) {
-			out.push({ separator: true }, { label: m.tree.remove, icon: 'icon-[material-symbols-light--delete-outline]', keys: m.tree.deleteKey, disabled, run: () => remove(line) });
-		}
+		if (format.addSection) out.push({ label: m.tree.addSection, icon: 'icon-[material-symbols-light--add-box-outline]', run: addSection });
 		return out;
 	}
 
-	function menu(e: MouseEvent, line: Line, below = false) {
+	/** Kinds every target can become (the type of a single node is checked) */
+	function typeEntries(): MenuEntry[] {
+		const list = targets();
+		const kinds = (list[0]?.node.can.types ?? []).filter((k) => list.every((l) => l.node.can.types?.includes(k)));
+		if (kinds.length < 2) return [];
+		return kinds.map((kind) => ({ label: TYPE_LABELS[kind](), checked: list.every((l) => l.node.kind === kind), run: () => setType(kind) }));
+	}
+
+	// --- Commands (ribbon tab "Tree", menus, keys) ---
+
+	const can = (test: () => boolean) => () => editable && test();
+	const actions: Partial<Record<string, ViewAction>> = {
+		[TREE.editValue.id]: { enabled: can(() => !!current?.node.can.edit), run: () => current && startEdit(current.node, 'value') },
+		[TREE.rename.id]: { enabled: can(() => !!current?.node.can.rename), run: () => current && startEdit(current.node, 'key') },
+		[TREE.duplicate.id]: { enabled: can(() => targets().length > 0 && targets().every((l) => l.node.can.duplicate)), run: duplicateNodes },
+		[TREE.remove.id]: { enabled: can(() => targets().length > 0 && targets().every((l) => l.node.can.remove)), run: removeNodes },
+		[TREE.insert.id]: { enabled: can(() => insertEntries().length > 0), menu: insertEntries },
+		[TREE.moveUp.id]: { enabled: () => canMove(-1), run: () => moveNodes(-1) },
+		[TREE.moveDown.id]: { enabled: () => canMove(1), run: () => moveNodes(1) },
+		[TREE.type.id]: { enabled: can(() => typeEntries().length > 0), menu: typeEntries },
+		[TREE.expandAll.id]: { run: () => setAll(true) },
+		[TREE.collapseAll.id]: { run: () => setAll(false) },
+		[TREE.filter.id]: { run: showFilter },
+		[TREE.selectAll.id]: { enabled: () => lines.length > 0, run: () => picker.selectAll(order) },
+		[TREE.clearSelection.id]: { enabled: () => picker.selected.size > 0, run: () => picker.clear() }
+	};
+
+	const entries = (...specs: ViewCommandSpec[]): MenuEntry[] => specs.flatMap((spec) => entryOf(spec, actions[spec.id]));
+
+	/** The menu of a node: what the ribbon tab "Tree" offers for it */
+	const nodeEntries = (): MenuEntry[] => [
+		...entries(TREE.editValue, TREE.rename),
+		...entries(TREE.insert),
+		...entries(TREE.duplicate, TREE.moveUp, TREE.moveDown),
+		...entries(TREE.type),
+		{ separator: true },
+		...entries(TREE.remove)
+	];
+
+	/** The ⋯ of a row: its menu acts on it (and on the other picked ones when it is one of them) */
+	function pickFor(line: Line) {
+		if (!picker.has(line.node.id)) picker.only(line.node.id);
 		select(line);
-		const list = entries(line);
-		if (below) openMenuBelow(e, list);
-		else openContextMenu(e, list);
+	}
+
+	/** Right click or long press: the node is picked (touch: the selection mode starts) and its menu opens */
+	function menu(e: MouseEvent, line: Line) {
+		picker.menu(e, line.node.id);
+		select(line);
+		openContextMenu(e, nodeEntries());
 	}
 
 	// --- Keyboard ---
@@ -329,9 +467,24 @@
 		if (editing || (e.target as Element).closest('input, textarea, button')) return;
 		if (undoKeys(e, host)) return;
 		const handled = () => e.preventDefault();
+		if (e.key === 'Escape') {
+			// First the selection ends, then the text gets the focus
+			handled();
+			if (picker.selected.size > 1 || picker.selecting) picker.clear();
+			else host.focusText();
+			return;
+		}
+		// Enter opens or closes what has no value to edit
+		if (e.key === 'Enter' && current && !current.node.can.edit) return handled(), toggle(current.node);
+		if (viewKey(e, TREE, actions)) return;
 		const index = current ? lines.indexOf(current) : -1;
-		const go = (i: number) => lines[i] && select(lines[i]);
-		if (e.altKey && current && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return handled(), moveNode(current, e.key === 'ArrowUp' ? -1 : 1);
+		const go = (i: number) => {
+			const line = lines[i];
+			if (!line) return;
+			if (e.shiftKey) picker.extend(line.node.id, order);
+			else picker.only(line.node.id);
+			select(line);
+		};
 		if (e.key === 'ArrowDown') return handled(), go(index + 1);
 		if (e.key === 'ArrowUp') return handled(), go(Math.max(0, index - 1));
 		if (e.key === 'Home') return handled(), go(0);
@@ -354,9 +507,6 @@
 			return;
 		}
 		if (e.key === ' ') return handled(), toggle(node);
-		if (e.key === 'Enter') return handled(), node.can.edit ? startEdit(node, 'value') : toggle(node);
-		if (e.key === 'F2') return handled(), startEdit(node, 'key');
-		if (e.key === 'Delete' && node.can.remove) return handled(), remove(current);
 	}
 
 	function editKey(e: KeyboardEvent) {
@@ -365,9 +515,18 @@
 		if (e.key === 'Escape') return e.preventDefault(), cancel();
 	}
 
-	/** Touch: a tap on the key or value of the selected node edits it */
-	function tap(line: Line, field: 'key' | 'value') {
-		if (coarsePointer.current && selected === line.node.id && (field === 'key' ? line.node.can.rename : line.node.can.edit)) {
+	/**
+	 * A click or tap on a row (`field`: on its key or value): picks it (Ctrl/Shift, touch selection mode) or makes
+	 * it the current node; by touch a tap on the key or value of the current node edits it
+	 */
+	function rowClick(e: MouseEvent, line: Line, field?: 'key' | 'value') {
+		const id = line.node.id;
+		const result = picker.click(e, id, order);
+		if (result === 'picked') {
+			selected = id;
+			return;
+		}
+		if (result === 'open' && field && selected === id && (field === 'key' ? line.node.can.rename : line.node.can.edit)) {
 			return startEdit(line.node, field);
 		}
 		select(line);
@@ -384,6 +543,7 @@
 			if (!node) return;
 			for (const above of path.slice(0, -1)) open.add(above.id);
 			selected = node.id;
+			if (!picker.selecting) picker.only(node.id);
 			tick().then(() => scrollTo(node.id));
 		});
 	});
@@ -407,24 +567,9 @@
 
 	onMount(() =>
 		host.register({
-			actions: [
-				{ heading: m.tree.title },
-				{
-					label: m.tree.add,
-					icon: 'icon-[material-symbols-light--add]',
-					run: () => {
-						const target = current && current.node.can.add?.length ? current.node : tree.root;
-						const kind = target.can.add?.find((k) => k !== 'attribute');
-						if (kind) add(target.id, target.children?.length ?? 0, kind);
-					}
-				},
-				...(format.addSection ? [{ label: m.tree.addSection, icon: 'icon-[material-symbols-light--add-box-outline]', run: addSection }] : [])
-			],
-			view: [
-				{ label: m.tree.expandAll, icon: 'icon-[material-symbols-light--unfold-more]', run: () => setAll(true) },
-				{ label: m.tree.collapseAll, icon: 'icon-[material-symbols-light--unfold-less]', run: () => setAll(false) },
-				{ label: m.tree.filter, icon: 'icon-[material-symbols-light--filter-alt-outline]', run: showFilter }
-			],
+			kind: 'tree',
+			actions,
+			picked: () => picker.selected.size,
 			status: () => (selected ? pathOf(selected) || null : null)
 		})
 	);
@@ -478,8 +623,8 @@
 		<span
 			class={['truncate', cls, text === '' && which === 'value' && 'opacity-50']}
 			title={text.length > 40 || text.includes('\n') ? text : undefined}
-			onclick={(e) => (e.stopPropagation(), tap(line, which))}
-			ondblclick={(e) => (e.stopPropagation(), startEdit(line.node, which))}>{text === '' && which === 'value' ? m.tree.emptyValue : showValue(text)}</span
+			onclick={(e) => (e.stopPropagation(), rowClick(e, line, which))}
+			ondblclick={(e) => (e.stopPropagation(), !coarsePointer.current && startEdit(line.node, which))}>{text === '' && which === 'value' ? m.tree.emptyValue : showValue(text)}</span
 		>
 	{/if}
 {/snippet}
@@ -492,8 +637,14 @@
 		<div class="border-base-300 flex items-center gap-2 border-b px-2 py-1.5" role="search">
 			<label class="input input-sm flex-1 gap-1 pr-1">
 				<span class="icon-[material-symbols-light--filter-alt-outline] size-5 opacity-70" aria-hidden="true"></span>
-				<input bind:this={filterInput} bind:value={filter} placeholder={m.tree.filterPlaceholder} aria-label={m.tree.filter} />
-				<button class="btn btn-ghost btn-xs btn-square" title={m.tree.removeFilter} aria-label={m.tree.removeFilter} onclick={() => (filter = null)}>
+				<input
+					bind:this={filterInput}
+					bind:value={filter}
+					placeholder={m.tree.filterPlaceholder}
+					aria-label={m.tree.filter}
+					onkeydown={(e) => e.key === 'Escape' && (e.preventDefault(), closeFilter())}
+				/>
+				<button class="btn btn-ghost btn-xs btn-square" title={m.tree.removeFilter} aria-label={m.tree.removeFilter} onclick={closeFilter}>
 					<span class="icon-[material-symbols-light--close] size-4" aria-hidden="true"></span>
 				</button>
 			</label>
@@ -521,31 +672,36 @@
 			aria-label={m.tree.title}
 			onscroll={rows.onscroll}
 			onkeydown={onkey}
+			onpointerdown={(e) => picker.pointerdown(e)}
 		>
 			<div class="relative min-w-full" style:width="max-content" style:height="{lines.length * rows.height}px">
 				{#each lines.slice(rows.first, rows.last) as line, i (line.node.id)}
 					{@const node = line.node}
 					{@const key = keyOf(line)}
-					{@const isSelected = selected === node.id}
+					{@const isCurrent = selected === node.id}
+					{@const isPicked = picker.has(node.id)}
 					{@const container = isContainer(node)}
 					<div
 						role="treeitem"
 						tabindex="-1"
-						aria-selected={isSelected}
+						aria-selected={isPicked || isCurrent}
 						aria-expanded={container ? open.has(node.id) || !!query : undefined}
 						aria-level={line.depth + 1}
 						class={[
 							'group absolute left-0 flex min-w-full items-center gap-1 pr-2 whitespace-nowrap',
-							isSelected ? 'bg-selection/20' : 'hover:bg-base-200'
+							isPicked ? 'bg-selection/20' : isCurrent ? 'bg-selection/10' : 'hover:bg-base-200'
 						]}
 						style:top="{(rows.first + i) * rows.height}px"
 						style:height="{rows.height}px"
 						style:padding-left="{line.depth * 1.25 + 0.25}rem"
-						onclick={() => select(line)}
-						ondblclick={() => (node.can.edit ? startEdit(node, 'value') : toggle(node))}
+						onclick={(e) => rowClick(e, line)}
+						ondblclick={() => !coarsePointer.current && (node.can.edit ? startEdit(node, 'value') : toggle(node))}
 						oncontextmenu={(e) => menu(e, line)}
 						onkeydown={() => {}}
 					>
+						{#if picker.marking}
+							<PickMark picked={isPicked} class="shrink-0" />
+						{/if}
 						{#if container && node.children?.length}
 							<button
 								class="btn btn-ghost btn-xs btn-square shrink-0"
@@ -579,18 +735,22 @@
 							<span class="text-base-content/60 truncate">{summary(node)}</span>
 						{/if}
 						{#if node.note}<span class="badge badge-ghost badge-sm shrink-0">{node.note}</span>{/if}
-						<button
-							class={[
-								'btn btn-ghost btn-xs btn-square ml-auto shrink-0',
-								!isSelected && !coarsePointer.current && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
-							]}
-							tabindex="-1"
-							title={m.tree.menu}
-							aria-label={m.tree.menu}
-							onclick={(e) => menu(e, line, true)}
-						>
-							<span class="icon-[material-symbols-light--more-horiz] size-5" aria-hidden="true"></span>
-						</button>
+						{#if coarsePointer.current}
+							<MoreButton class="ml-auto" name={keyOf(line) ?? m.tree.title} entries={() => (pickFor(line), nodeEntries())} />
+						{:else}
+							<button
+								class={[
+									'btn btn-ghost btn-xs btn-square ml-auto shrink-0',
+									!isPicked && !isCurrent && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+								]}
+								tabindex="-1"
+								title={m.tree.menu}
+								aria-label={m.tree.menu}
+								onclick={(e) => (pickFor(line), openMenuBelow(e, nodeEntries()))}
+							>
+								<span class="icon-[material-symbols-light--more-horiz] size-5" aria-hidden="true"></span>
+							</button>
+						{/if}
 					</div>
 				{/each}
 			</div>

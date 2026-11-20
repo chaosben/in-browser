@@ -110,7 +110,7 @@
 				{share.mode === 'edit' ? m.share.edit : m.share.view} · {m.share.untilEnded}
 			</p>
 			<div class="modal-action mt-0">
-				<button class="btn btn-error btn-outline" onclick={end}>{m.share.end}</button>
+				<button class="btn" onclick={end}>{m.share.end}</button>
 				<button class="btn" onclick={onclose}>{m.devices.close}</button>
 			</div>
 		{/if}

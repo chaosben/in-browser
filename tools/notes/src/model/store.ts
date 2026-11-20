@@ -102,8 +102,6 @@ export async function createNotebookFromPdf(pdf: Blob, name: string, sizes: { w:
 /** Lets the user pick a notebook in the shared file system */
 export const chooseNotebook = () => notebooks.choose(m.home.openTitle);
 
-/** Renames the package; the new path */
-export const renameNotebook = (path: string, name: string) => notebooks.rename(path, name, m.home.untitled);
 
 /**
  * Deletes asset files no page references any more (after the grace period). Reads every page, so it runs in the

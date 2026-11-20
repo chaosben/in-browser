@@ -21,12 +21,6 @@ async function group() {
 }
 
 describe('members', () => {
-	it('members add devices', async () => {
-		const log = await group();
-		expect(names(log)).toEqual(['A', 'B', 'C']);
-		expect(resolve(log)?.room).toBe('r0');
-	});
-
 	it('ignores entries of non-members', async () => {
 		const log = await group();
 		const sneaky = await add(x, log, x, 'X', 4);

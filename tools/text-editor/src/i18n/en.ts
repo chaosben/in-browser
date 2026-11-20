@@ -4,21 +4,18 @@ import help from './help.en.js';
 const en = {
 	common: {
 		cancel: 'Cancel',
-		untitled: (n: number) => (n > 1 ? `Untitled ${n}` : 'Untitled')
+		untitled: 'Untitled'
 	},
 
 	brand: {
 		description:
-			'Edit text, Markdown, JSON, YAML, CSV and code with tabs and syntax highlighting – CSV as a table, JSON, YAML and XML as a tree, both editable – free and entirely in the browser.'
+			'Edit text, Markdown, JSON, YAML, CSV and code with syntax highlighting – CSV as a table, JSON, YAML and XML as a tree, both editable – free and entirely in the browser.'
 	},
 
 	home: {
 		tagline:
-			'Text, Markdown, JSON, YAML, CSV and code – with tabs, syntax highlighting, preview, tables and trees. Your files stay in your browser.',
-		unsupported: 'This browser has no file system for websites (OPFS). Please use a current browser.',
-		recent: 'Recently opened',
+			'Text, Markdown, JSON, YAML, CSV and code – with syntax highlighting, preview, tables and trees. Your files stay in your browser.',
 		noRecent: 'Files you open will appear here.',
-		inFolder: (folder: string) => `in ${folder}`,
 		dropHint: 'Or drag text files from your computer here.'
 	},
 
@@ -28,54 +25,101 @@ const en = {
 		openFromFiles: 'Open from Files …',
 		openFromComputer: 'Open from computer …',
 		save: 'Save',
-		saveTo: 'Save …',
 		saveAs: 'Save as …',
-		rename: 'Rename',
 		download: 'Download',
 		showInFiles: 'Show in Files',
 		close: 'Close',
-		closeOthers: 'Close others'
+		/** Start page: an entry of “Recently opened” */
+		removeRecent: 'Remove from list'
 	},
 
 	edit: {
 		undo: 'Undo',
 		redo: 'Redo',
-		search: 'Search',
 		find: 'Find',
 		replace: 'Replace',
-		gotoLine: 'Go to line'
+		gotoLine: 'Go to line',
+		cut: 'Cut',
+		copy: 'Copy',
+		paste: 'Paste',
+		selectAll: 'Select all',
+		toggleComment: 'Comment',
+		toggleCommentTip: 'Comments the lines out or back in (in code)',
+		indent: 'Indent',
+		outdent: 'Outdent',
+		lineUp: 'Move line up',
+		lineDown: 'Move line down',
+		clipboardFailed: 'The browser didn’t allow access to the clipboard.'
 	},
 
 	format: {
-		title: 'Formatting',
 		bold: 'Bold',
 		italic: 'Italic',
 		link: 'Link',
-		paragraph: 'Paragraph',
 		heading: (level: number) => `Heading ${level}`,
 		bulletList: 'Bulleted list',
 		numberedList: 'Numbered list',
 		taskList: 'Task',
 		quote: 'Quote',
 		codeBlock: 'Code block',
-		inlineCode: 'Inline code'
+		inlineCode: 'Inline code',
+		/** Tooltip while the file is not Markdown */
+		onlyMarkdown: 'Only in Markdown files'
 	},
 
 	view: {
-		title: 'View',
 		wrap: 'Word wrap',
 		textOnly: 'Text only',
-		split: 'Text and view',
+		split: 'Side by side',
 		viewOnly: 'View only',
-		/** Phones: switch between text and view */
-		toggle: (view: string) => `Show ${view}`,
+		/** Which view a file type with several shows (JSON Lines: table or tree) */
+		viewType: 'View type',
 		fontLarger: 'Larger text',
 		fontSmaller: 'Smaller text',
 		fontReset: 'Default text size'
 	},
 
+	/** Tabs and groups of the ribbon */
+	ribbon: {
+		tabs: {
+			home: 'Home',
+			format: 'Format',
+			view: 'View',
+			// Shown while that view is shown
+			table: 'Table',
+			tree: 'Tree'
+		},
+		groups: {
+			new: 'New',
+			file: 'File',
+			clipboard: 'Clipboard',
+			find: 'Find',
+			edit: 'Edit',
+			text: 'Text',
+			paragraph: 'Paragraph',
+			lists: 'Lists',
+			layout: 'Layout',
+			cell: 'Cell',
+			rows: 'Rows',
+			columns: 'Columns',
+			sortFilter: 'Sort & filter',
+			options: 'Options',
+			selection: 'Selection',
+			insert: 'Insert',
+			arrange: 'Arrange',
+			show: 'Show'
+		}
+	},
+
+	/** The editor page (`/text-editor/editor`) */
+	editor: {
+		openElsewhere: 'This file is already open in another tab or window.',
+		loadFailed: (error: string) => `The file could not be opened: ${error}`,
+		back: 'To the start page'
+	},
+
 	dialogs: {
-		open: 'Open text files',
+		open: 'Open a text file',
 		saveAs: 'Save as'
 	},
 
@@ -136,6 +180,8 @@ const en = {
 		binary: (name: string) => `“${name}” is not a text file.`,
 		tooLarge: (name: string, max: string) => `“${name}” is too large for the editor (more than ${max}).`,
 		notFound: (name: string) => `“${name}” no longer exists.`,
+		/** Several files dropped or chosen: one opens */
+		onlyFirst: (name: string) => `Only “${name}” was opened – one file at a time.`,
 		foldersSkipped: (count: number) => (count === 1 ? 'A folder was skipped.' : `${count} folders were skipped.`),
 		failed: (error: string) => `That didn’t work: ${error}`
 	},
@@ -179,23 +225,28 @@ const en = {
 		errorStale: (line: number) =>
 			`The text has an error in line ${line}. This shows the last version without errors; fix it to edit here again.`,
 		showError: 'Show in text',
-		apply: 'Apply'
+		apply: 'Apply',
+		selectAll: 'Select all',
+		clearSelection: 'Clear selection'
 	},
 
 	table: {
 		title: 'Table',
 		column: 'Column',
 		rowTitle: (n: number) => `Row ${n}`,
+		rowsTitle: (n: number) => `${n} rows`,
 		columnMenu: (name: string) => `Column “${name}”: sort, filter, insert …`,
 		rowMenu: (n: number) => `Row ${n}: insert, move, delete …`,
 		cellLabel: (column: string, row: number) => `${column}, row ${row}`,
 		edit: 'Edit cell',
+		clearCells: 'Clear cells',
 		sortUp: 'Sort ascending',
 		sortDown: 'Sort descending',
 		filter: 'Filter …',
 		filterPlaceholder: 'contains …',
 		filterLabel: (column: string) => `Filter column “${column}”`,
 		removeFilter: 'Remove filter',
+		removeFilters: 'Remove filters',
 		rename: 'Rename column',
 		insertLeft: 'Insert column left',
 		insertRight: 'Insert column right',
@@ -206,9 +257,8 @@ const en = {
 		insertBelow: 'Insert row below',
 		moveUp: 'Move up',
 		moveDown: 'Move down',
-		removeRow: 'Delete row',
+		removeRows: 'Delete rows',
 		addRow: 'Add row',
-		addColumn: 'Add column',
 		newColumn: 'Column',
 		header: 'First row as column names',
 		delimiter: 'Delimiter',
@@ -232,8 +282,8 @@ const en = {
 		addAttribute: 'Add attribute',
 		addText: 'Add text',
 		addSection: 'Add section',
+		insert: 'Insert',
 		newSection: 'section',
-		add: 'Add entry',
 		insertBefore: 'Insert before',
 		insertAfter: 'Insert after',
 		duplicate: 'Duplicate',
@@ -242,7 +292,6 @@ const en = {
 		type: 'Type',
 		types: { string: 'Text', number: 'Number', boolean: 'Yes/no (boolean)', null: 'Empty (null)', object: 'Object', array: 'List' },
 		remove: 'Delete',
-		deleteKey: 'Del',
 		newKey: 'key',
 		newElement: 'element',
 		newAttribute: 'name',

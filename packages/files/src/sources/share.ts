@@ -125,41 +125,66 @@ export function shareClient(
 		room?.leave();
 		room = net.join(await roomId('share', session.code), session.code);
 		const joined = room;
-		const link = await new Promise<Link>((resolve, reject) => {
-			const timer = setTimeout(() => reject(new FilesError('offline', '/')), timeout);
-			joined.onLink((l) => {
+		// Other guests of the share are in the room too: every link is asked, the first that proves to be the host wins
+		// (a guest answers "unknown request" or not at all) – all within one time limit
+		return new Promise<Rpc>((resolve, reject) => {
+			let done = false;
+			const asking = new Set<Rpc>();
+			const finish = (result: { rpc: Rpc } | { error: unknown }) => {
+				if (done) return;
+				done = true;
 				clearTimeout(timer);
-				resolve(l);
+				for (const other of asking) if (!('rpc' in result) || other !== result.rpc) other.close();
+				asking.clear();
+				if ('rpc' in result) resolve(result.rpc);
+				else reject(result.error);
+			};
+			const timer = setTimeout(() => finish({ error: new FilesError('offline', '/') }), timeout);
+			joined.onLink((link) => {
+				if (done) return link.close();
+				const rpc = new Rpc(link);
+				asking.add(rpc);
+				void hello(link, rpc).then(
+					() => {
+						if (done) return rpc.close();
+						rpc.handle('share.ended', async () => end(new FilesError('ended', '/')));
+						link.onClose(() => {
+							if (connecting) connecting = null;
+						});
+						finish({ rpc });
+					},
+					(e: unknown) => {
+						asking.delete(rpc);
+						rpc.close();
+						const error = filesErrorOf(e, '/');
+						if (error?.code === 'ended') {
+							end(error);
+							finish({ error });
+						} else if (error?.code === 'taken') {
+							// Another guest is in: out of the room until the next attempt (the host stops offering meanwhile)
+							room?.leave();
+							room = null;
+							finish({ error });
+						}
+						// Else not the host: wait for the next link
+					}
+				);
 			});
 		});
-		const rpc = new Rpc(link);
-		rpc.handle('share.ended', async () => end(new FilesError('ended', '/')));
-		link.onClose(() => {
-			if (connecting) connecting = null;
-		});
+	}
+
+	/** Signs in on a link; fails unless the other end proves to be the sharing device */
+	async function hello(link: Link, rpc: Rpc) {
 		const fingerprints = link.fingerprints();
-		let reply: { proof: string; folder: string; host: string; mode: 'view' | 'edit' };
-		try {
-			reply = (await rpc.call('share.hello', { proof: await shareProof(session.code, 'guest', fingerprints), token: session.token })) as typeof reply;
-		} catch (e) {
-			rpc.close();
-			const error = filesErrorOf(e, '/');
-			if (error?.code === 'ended') {
-				end(error);
-				throw error;
-			}
-			// Another guest is in it: out of the room until the next attempt (the host stops offering meanwhile)
-			room?.leave();
-			room = null;
-			throw error?.code === 'taken' ? error : e;
-		}
-		if (reply.proof !== (await shareProof(session.code, 'host', fingerprints))) {
-			rpc.close();
-			throw new FilesError('offline', '/');
-		}
+		const reply = (await rpc.call('share.hello', { proof: await shareProof(session.code, 'guest', fingerprints), token: session.token })) as {
+			proof: string;
+			folder: string;
+			host: string;
+			mode: 'view' | 'edit';
+		};
+		if (reply.proof !== (await shareProof(session.code, 'host', fingerprints))) throw new Error('Not the sharing device');
 		caps.readOnly = reply.mode !== 'edit';
 		onInfo({ folder: reply.folder, host: reply.host, mode: reply.mode });
-		return rpc;
 	}
 
 	const call: LiveCall = async (method, params, upload) => {

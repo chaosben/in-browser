@@ -1,0 +1,25 @@
+{
+	"name": "@in-browser/pdf-editor",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "PDF Editor of in-browser: view, annotate, organize and fill in PDFs in place (included as source code, routes under /pdf-editor)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"imports": {
+		"#lib": "./src/index.js",
+		"#lib/*": "./src/*"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@in-browser/files": "*",
+		"@in-browser/graphics": "*",
+		"@in-browser/ink": "*",
+		"@in-browser/pdf": "*"
+	}
+}

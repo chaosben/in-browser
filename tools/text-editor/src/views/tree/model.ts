@@ -217,6 +217,25 @@ export function nodeAt(root: TreeNode, pos: number): TreeNode[] {
 	return path;
 }
 
+/**
+ * Edits one after another as one change (one undo step): each step gets the text as the steps before left it, so
+ * it must find its place anew (parse, then look the node up by id).
+ */
+export function chainChanges(doc: string, steps: readonly ((doc: string) => ChangeSpec | null)[]): ChangeSet | null {
+	let total: ChangeSet | null = null;
+	let text = Text.of(doc.split('\n'));
+	let current = doc;
+	for (const step of steps) {
+		const spec = step(current);
+		if (!spec) continue;
+		const set = ChangeSet.of(spec, current.length);
+		total = total ? total.compose(set) : set;
+		text = set.apply(text);
+		current = text.toString();
+	}
+	return total;
+}
+
 /** Applies changes to a text, exactly as CodeMirror does (tests, and formats that build on an edited text) */
 export function applyChanges(doc: string, spec: ChangeSpec | null): string {
 	if (!spec) return doc;

@@ -26,11 +26,67 @@ const en = {
 		refresh: 'Refresh'
 	},
 
+	/** Names and tooltips of commands that have no other text */
+	commands: {
+		undo: 'Undo',
+		undoTip: 'Takes back the last renaming, moving, pasting or duplicating',
+		openWith: 'Open with',
+		downloadTip: 'The selection, else the open folder (several entries and folders as ZIP)',
+		shareTip: 'Shares the selected folder, else the open one, with a guest',
+		syncSettings: 'Sync settings',
+		syncHere: 'Sync on this device',
+		syncHereTip: 'Whether the selected folder, else the open one, is kept on this device',
+		up: 'Up one folder'
+	},
+
+	ribbon: {
+		tabs: {
+			home: 'Home',
+			share: 'Share',
+			connect: 'Connect',
+			sync: 'Sync',
+			view: 'View',
+			// Shown while entries are selected
+			selection: 'Selection',
+			// Shown while the trash is open
+			trash: 'Trash'
+		},
+		groups: {
+			new: 'New',
+			clipboard: 'Clipboard',
+			organize: 'Organize',
+			select: 'Select',
+			find: 'Find',
+			share: 'Share',
+			download: 'Download',
+			sync: 'Sync',
+			devices: 'Devices',
+			trash: 'Trash',
+			show: 'Show',
+			panels: 'Panels',
+			open: 'Open',
+			entries: 'Entries'
+		}
+	},
+
+	panels: {
+		folders: 'Folders'
+	},
+
+	view: {
+		sortBy: 'Sort by',
+		ascending: 'Ascending',
+		descending: 'Descending'
+	},
+
 	columns: {
 		name: 'Name',
 		kind: 'Type',
 		size: 'Size',
-		modified: 'Modified'
+		modified: 'Modified',
+		// In the trash
+		origin: 'Original location',
+		deleted: 'Deleted'
 	},
 
 	menu: {
@@ -49,8 +105,6 @@ const en = {
 		selectAll: 'Select all',
 		moveTo: 'Move to …',
 		moveHere: 'Move here',
-		more: (name: string) => `Actions for “${name}”`,
-		selection: 'Actions for the selection',
 		clearSelection: 'Clear selection'
 	},
 
@@ -64,7 +118,7 @@ const en = {
 		newFolderName: 'New folder',
 		newTextFileName: 'New text file.txt',
 		dropHere: (folder: string) => `Drop to upload into “${folder}”`,
-		hint: 'Double-click opens, right-click shows all actions. Drag items onto a folder to move them, hold Ctrl to copy.'
+		hint: 'Double-click opens, right-click shows all actions, a click on the name of the selected item renames it. Drag items onto a folder to move them, hold Ctrl to copy.'
 	},
 
 
@@ -90,6 +144,10 @@ const en = {
 		uploading: (name: string) => `Uploading ${name} …`,
 		pasted: (n: number) => (n === 1 ? '1 item pasted' : `${n} items pasted`),
 		moved: (n: number) => (n === 1 ? '1 item moved' : `${n} items moved`),
+		copied: (n: number) => (n === 1 ? '1 item copied' : `${n} items copied`),
+		duplicated: (n: number) => (n === 1 ? '1 item duplicated' : `${n} items duplicated`),
+		renamed: (name: string) => `Renamed to “${name}”`,
+		undo: 'Undo',
 		zipping: 'Preparing the ZIP file …'
 	},
 
@@ -159,7 +217,6 @@ const en = {
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`,
 		allow: 'Allow access',
 		allowHint: 'Tip: choose “Allow on every visit”, then it stays connected.',
-		rename: 'Rename',
 		disconnect: 'Disconnect',
 		disconnectTitle: 'Disconnect the folder?',
 		disconnectMessage: (name: string) =>
@@ -181,15 +238,7 @@ const en = {
 	},
 
 	syncHub: {
-		title: 'Sync',
-		open: 'Open sync settings',
-		off: 'Not set up',
-		devices: (online: number, total: number) => `${online} of ${total} devices connected`,
-		alone: 'Waiting for a second device',
-		waiting: 'Waiting for your devices',
-		removed: 'Removed from your devices',
-		folder: (name: string) => `Folder “${name}”`,
-		folderPaused: 'Folder paused'
+		title: 'Sync'
 	},
 
 	devices: {
@@ -348,24 +397,25 @@ const en = {
 		runsWhileOpen: 'Syncing runs while any in-browser tool is open in this browser.'
 	},
 
-	/** The trash: what the user deleted, on every device (sidebar, menu at the tool name) */
+	/** The trash: what the user deleted, on every device (a special folder at the end of the panel “Folders”) */
 	trash: {
 		title: 'Trash',
 		intro: 'What you delete lands here first – on all your devices, so you can get it back on any of them.',
 		elsewhere: 'In the synced folder on your computer and with a p2p-node it is the hidden folder “.in-browser-trash”.',
 		summary: (n: number, size: string) => (n === 1 ? `1 item, ${size}` : `${n} items, ${size}`),
 		nothing: 'The trash is empty.',
-		keep: 'Keep for',
-		days: (n: number) => (n === 1 ? '1 day' : `${n} days`),
-		forever: 'Until I empty it',
-		keepHint: 'Applies to all your devices.',
+		kept: (days: number | null) => (days === null ? 'Items stay until you empty the trash.' : `Items stay ${days} days, then they are removed for good.`),
+		changeKept: 'Change in the settings',
 		from: (folder: string) => `from ${folder}`,
 		when: (time: string, size: string) => `deleted ${time} · ${size}`,
 		restore: 'Restore',
 		restored: (path: string) => `Restored as “${path}”.`,
+		restoredMany: (n: number) => `${n} items restored.`,
+		picked: (n: number) => (n === 0 ? 'Select items to restore or delete them' : n === 1 ? '1 selected' : `${n} selected`),
 		remove: 'Delete for good',
 		removeTitle: 'Delete for good?',
 		removeMessage: (name: string) => `“${name}” cannot be restored afterwards – on none of your devices.`,
+		removeMessageMany: (n: number) => `${n} items cannot be restored afterwards – on none of your devices.`,
 		empty: 'Empty trash',
 		emptyTitle: 'Empty the trash?',
 		emptyMessage: (n: number) => (n === 1 ? '1 item is deleted for good, on all your devices.' : `${n} items are deleted for good, on all your devices.`),

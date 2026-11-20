@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import MoreButton from '@in-browser/brand/MoreButton.svelte';
+	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { list } from '@in-browser/files/fs.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename } from '@in-browser/files/path.js';
+	import { folderUrl, openTab } from '#lib/actions.js';
 	import { acceptsDrag, dropOnFolder } from '#lib/dnd.js';
 	import { sortItems, toItem, type Item } from '#lib/items.js';
 	import { expanded, treeVersion } from '#lib/manager.svelte.js';
@@ -20,10 +24,12 @@
 		label?: string;
 		/** Roots only: a connected folder (live, not in My files) */
 		connected?: boolean;
-		/** Roots only: menu of the row (right-click / long press) */
-		onmenu?: (e: MouseEvent) => void;
+		/** Roots only: menu of the row (right-click, long press, ⋯ on touch) */
+		menu?: () => MenuEntry[];
 		/** Menu of every folder below the root (the same actions as in the list) */
-		onfoldermenu?: (e: MouseEvent, path: string) => void;
+		foldermenu?: (item: Item) => MenuEntry[];
+		/** Folders below the root: the entry (for its menu) */
+		item?: Item;
 		/** Opened live from another device (cloud icon) */
 		remote?: boolean;
 		/** Roots only: a folder another device shares with this browser (guest), possibly only for viewing */
@@ -31,9 +37,9 @@
 		readOnly?: boolean;
 	}
 
-	let { path, current, onnavigate, ondropitems, ondropfiles, label: rootLabel, connected = false, onmenu, onfoldermenu, remote = false, shared = false, readOnly = false }: Props = $props();
+	let { path, current, onnavigate, ondropitems, ondropfiles, label: rootLabel, connected = false, menu, foldermenu, item, remote = false, shared = false, readOnly = false }: Props = $props();
 	/** Roots have their own menu; a folder below them gets the folder's actions */
-	const rowMenu = $derived(onmenu ?? (onfoldermenu && !rootLabel && path !== '/' ? (e: MouseEvent) => onfoldermenu(e, path) : undefined));
+	const rowMenu = $derived(menu ?? (foldermenu && item ? () => foldermenu(item) : undefined));
 
 	let children = $state<Item[] | null>(null);
 	let target = $state(false);
@@ -79,17 +85,14 @@
 	<div
 		class={[
 			'rounded-field flex items-center gap-0.5 pr-2 text-sm',
-			path === current ? 'bg-selection/20 font-semibold' : 'hover:bg-base-300',
+			// The open folder is the current position, not a selection: the lighter tint
+			path === current ? 'bg-selection/10 font-semibold' : 'hover:bg-base-300',
 			target && 'outline-selection outline-2'
 		]}
 		ondragover={dragOver}
 		ondragleave={() => (target = false)}
 		ondrop={drop}
-		oncontextmenu={rowMenu &&
-			((e) => {
-				e.preventDefault();
-				rowMenu(e);
-			})}
+		oncontextmenu={rowMenu && ((e) => openContextMenu(e, rowMenu()))}
 		role="treeitem"
 		tabindex="-1"
 		aria-selected={path === current}
@@ -102,7 +105,17 @@
 				></span>
 			{/if}
 		</button>
-		<button class="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left" onclick={() => onnavigate(path)}>
+		<!-- The middle mouse button opens the folder in a new tab (like a link) -->
+		<button
+			class="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left"
+			onclick={() => onnavigate(path)}
+			onmousedown={(e) => e.button === 1 && e.preventDefault()}
+			onauxclick={(e) => {
+				if (e.button !== 1) return;
+				e.preventDefault();
+				openTab(folderUrl(path));
+			}}
+		>
 			{#if path === '/'}
 				<span class="icon-[material-symbols-light--hard-drive-outline] size-5 shrink-0" aria-hidden="true"></span>
 			{:else if shared}
@@ -117,11 +130,14 @@
 				<span class="icon-[material-symbols-light--lock-outline] size-4 shrink-0 opacity-60" title={filesMessages().share.viewOnly} aria-label={filesMessages().share.viewOnly}></span>
 			{/if}
 		</button>
+		{#if rowMenu && coarsePointer.current}
+			<MoreButton name={label} entries={rowMenu} class="-my-1" />
+		{/if}
 	</div>
 	{#if open && children?.length}
 		<ul class="ml-3" role="group">
 			{#each children as child (child.path)}
-				<FolderTree path={child.path} remote={child.remote} {current} {onnavigate} {ondropitems} {ondropfiles} {onfoldermenu} />
+				<FolderTree path={child.path} item={child} remote={child.remote} {current} {onnavigate} {ondropitems} {ondropfiles} {foldermenu} />
 			{/each}
 		</ul>
 	{/if}

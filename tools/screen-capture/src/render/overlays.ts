@@ -1,6 +1,7 @@
 import { hasShadow, isDrawable, type Annotation, type BlurAnnotation, type DrawableAnnotation, type CalloutAnnotation, type SpotlightAnnotation, type Point, type Rect, type TextAnnotation } from '#lib/project/types.js';
 import { fadeAlpha } from '#lib/timeline/ops.js';
 import { parseColor } from '@in-browser/graphics/color.js';
+import { textBoxSize, wrapText, type TextLine, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Ctx2D } from './compositor.js';
 import { fontCss } from './fonts.svelte.js';
 import { iconPicture, imagePicture } from './images.svelte.js';
@@ -8,7 +9,8 @@ import { drawClick } from './click.js';
 import { arrowHead, arrowWings, partialStrokes, strokesOf } from './sketch.js';
 
 
-const LINE_HEIGHT = 1.25;
+/** Line height of text boxes (× font size) */
+export const LINE_HEIGHT = 1.25;
 
 /** Copies the already drawn image, blurred by `radius` (content pixels), into the current clip */
 function blurCopy(ctx: Ctx2D, radius: number) {
@@ -339,45 +341,6 @@ export function calloutTail(box: Rect, tip: Point): [Point, Point, Point] | null
 	return area > 0 ? [a, tip, b] : [b, tip, a];
 }
 
-export interface TextLine {
-	text: string;
-	/** Ends a paragraph (stays left-aligned in justified text) */
-	last: boolean;
-}
-
-/**
- * Breaks text into lines: paragraphs at `\n`, without `maxWidth` nothing else. With it, lines wrap between
- * words; a word that is too long on its own is split between characters.
- */
-export function wrapText(text: string, measure: (s: string) => number, maxWidth?: number): TextLine[] {
-	const lines: TextLine[] = [];
-	for (const paragraph of text.split('\n')) {
-		if (maxWidth === undefined) {
-			lines.push({ text: paragraph, last: true });
-			continue;
-		}
-		let line = '';
-		for (const word of paragraph.split(' ').filter(Boolean)) {
-			const candidate = line ? `${line} ${word}` : word;
-			if (measure(candidate) <= maxWidth) {
-				line = candidate;
-				continue;
-			}
-			if (line) lines.push({ text: line, last: false });
-			line = word;
-			// Too long on its own: split between characters (at least one per line)
-			while (measure(line) > maxWidth && line.length > 1) {
-				let n = line.length - 1;
-				while (n > 1 && measure(line.slice(0, n)) > maxWidth) n--;
-				lines.push({ text: line.slice(0, n), last: false });
-				line = line.slice(n);
-			}
-		}
-		lines.push({ text: line, last: true });
-	}
-	return lines;
-}
-
 /** How far the glyphs of the lines reach past their start and advance width (left-aligned) */
 function inkOverhang(ctx: Ctx2D, lines: TextLine[]) {
 	let left = 0;
@@ -407,12 +370,15 @@ export function textBox(ctx: Ctx2D, a: TextAnnotation | CalloutAnnotation, W: nu
 		const again = inkOverhang(ctx, lines);
 		ink = { left: Math.max(ink.left, again.left), right: Math.max(ink.right, again.right) };
 	}
-	const width = fixed ?? Math.max(...lines.map((l) => measure(l.text))) + ink.left + ink.right + 2 * pad;
+	const content = { w: Math.max(...lines.map((l) => measure(l.text))) + ink.left + ink.right + 2 * pad, h: lines.length * font * LINE_HEIGHT + 2 * pad };
+	const sizing: TextSizing = fixed === undefined ? 'auto-width' : a.boxHeight === undefined ? 'auto-height' : 'fixed';
+	const { w: width, h: height } = textBoxSize(sizing, { w: fixed ?? 0, h: (a.boxHeight ?? 0) * H }, content);
 	return {
 		x: a.x * W,
 		y: a.y * H,
 		w: width,
-		h: lines.length * font * LINE_HEIGHT + 2 * pad,
+		/** The box; text that doesn't fit a fixed size runs out below it */
+		h: height,
 		font,
 		pad,
 		/** Start of the text and the width available to a line */

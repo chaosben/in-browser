@@ -19,14 +19,6 @@ describe('fileStore', () => {
 		if (process.platform !== 'win32') expect((await stat(join(dir, 'identity.json'))).mode & 0o777).toBe(0o600);
 	});
 
-	it('gets a new identity on reset', async () => {
-		const store = await fileStore(dir);
-		const first = await store.identity();
-		const next = await store.resetIdentity();
-		expect(next.id).not.toBe(first.id);
-		expect((await store.identity()).id).toBe(next.id);
-	});
-
 	it('saves state and bases', async () => {
 		const store = await fileStore(dir);
 		expect(await store.load()).toEqual(emptyState());

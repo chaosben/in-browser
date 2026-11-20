@@ -1,13 +1,14 @@
 <script lang="ts">
 	// Frame of the overview pages (home page, help pages and error page): header, footer, metadata, language switch, PWA
 	// (the launcher installs as the app of the whole suite)
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount, type Component, type Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
 	import { sourceUrl } from '@in-browser/brand/build.js';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
+	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import { applyBrowserLocale, lang, m } from '#lib/i18n/index.svelte.js';
 
@@ -26,6 +27,14 @@
 	// Functions, not $derived: `m` is no state, the {#key} below re-runs them after the language switch
 	const fullTitle = () => (title ? `${title} · ${BRAND.suite}` : `${BRAND.suite} – ${m.brand.claim}`);
 	const canonical = $derived(`${BRAND.suiteUrl}${path}`);
+
+	// The suite settings (gear in the BrandBar), loaded on first use: the overview itself never touches the files
+	let SettingsDialog = $state<Component | null>(null);
+	async function openSettings() {
+		const [dialog, store] = await Promise.all([import('@in-browser/files/SettingsDialog.svelte'), import('@in-browser/files/suite-settings.svelte.js')]);
+		SettingsDialog = dialog.default;
+		store.openSettings();
+	}
 
 	// Prerendered in English; if the browser language differs, {#key} re-renders everything once
 	onMount(() => {
@@ -54,7 +63,7 @@
 
 {#key lang.current}
 	<div class="flex min-h-full flex-col">
-		<BrandBar helpHref={resolve('/help')} />
+		<BrandBar helpHref={resolve('/help')} onsettings={openSettings} />
 		{@render children()}
 		<footer
 			class="border-base-300 mx-auto mt-auto flex w-full max-w-5xl flex-wrap items-baseline gap-x-4 border-t px-4 py-6 text-sm opacity-70"
@@ -70,5 +79,7 @@
 			<CommitLink />
 		</footer>
 	</div>
+	{#if SettingsDialog}<SettingsDialog />{/if}
 {/key}
+<Toasts />
 <UpdateBanner />

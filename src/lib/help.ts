@@ -7,6 +7,8 @@ import filesDe from '@in-browser/files-app/i18n/help.de.js';
 import filesEn from '@in-browser/files-app/i18n/help.en.js';
 import notesDe from '@in-browser/notes/i18n/help.de.js';
 import notesEn from '@in-browser/notes/i18n/help.en.js';
+import pdfEditorDe from '@in-browser/pdf-editor/i18n/help.de.js';
+import pdfEditorEn from '@in-browser/pdf-editor/i18n/help.en.js';
 import screenCaptureDe from '@in-browser/screen-capture/i18n/help.de.js';
 import screenCaptureEn from '@in-browser/screen-capture/i18n/help.en.js';
 import textEditorDe from '@in-browser/text-editor/i18n/help.de.js';
@@ -22,6 +24,7 @@ export const SUITE_PAGES: readonly { id: SuitePage; path: string; icon: string }
 	{ id: 'sync', path: '/help/sync', icon: 'icon-[material-symbols-light--sync]' },
 	{ id: 'connected', path: '/help/connected', icon: 'icon-[material-symbols-light--link]' },
 	{ id: 'p2pNode', path: '/help/p2p-node', icon: 'icon-[material-symbols-light--dns-outline]' },
+	{ id: 'settings', path: '/help/settings', icon: 'icon-[material-symbols-light--settings-outline]' },
 	{ id: 'install', path: '/help/install', icon: 'icon-[material-symbols-light--install-desktop]' }
 ];
 
@@ -30,7 +33,8 @@ export const TOOL_HELP: Record<Tool['id'], Record<Locale, HelpContent>> = {
 	screenCapture: { en: screenCaptureEn, de: screenCaptureDe },
 	files: { en: filesEn, de: filesDe },
 	textEditor: { en: textEditorEn, de: textEditorDe },
-	notes: { en: notesEn, de: notesDe }
+	notes: { en: notesEn, de: notesDe },
+	pdfEditor: { en: pdfEditorEn, de: pdfEditorDe }
 };
 
 /** Address of a tool's help page: `/help/<tool>` */

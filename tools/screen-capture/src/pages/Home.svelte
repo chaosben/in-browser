@@ -51,6 +51,12 @@
 	let importing = $state<{ name: string; progress: number } | null>(null);
 	let fileInput = $state<HTMLInputElement>();
 
+	/** An error as a toast and in the console */
+	function failed(what: string, e: unknown) {
+		console.error(`[screen-capture] ${what}`, e);
+		toast(errorMessage(e), 'error', 8000);
+	}
+
 	async function refresh() {
 		projects = await listProjects();
 		const { usage: used = 0, quota = 0 } = await storageEstimate();
@@ -59,7 +65,7 @@
 
 	$effect(() => {
 		if (missing.length) return;
-		const update = () => refresh().catch((e) => toast(errorMessage(e), 'error'));
+		const update = () => refresh().catch((e) => failed('list projects', e));
 		update();
 		// Projects appear, change or go (also by sync): list again
 		return watchSettled((paths) => paths.some((p) => p.includes(PROJECT_EXT)), 300, update);
@@ -72,20 +78,24 @@
 			// The name typed in the save dialog wins over the suggestion
 			if (path) recordingFor = { path, name: projectName(path) };
 		} catch (e) {
-			toast(errorMessage(e), 'error', 8000);
+			failed('new recording', e);
 		}
 	}
 
 	async function recorded(recording: Recording) {
 		const { path, name } = recordingFor!;
 		recordingFor = null;
-		await createProject(path, name, recording);
-		await goto(editorUrl(path));
+		try {
+			await createProject(path, name, recording);
+			await goto(editorUrl(path));
+		} catch (e) {
+			failed('create project', e);
+		}
 	}
 
 	function cancelRecording() {
 		// Remove the package of the project that was never created
-		deleteProject(recordingFor!.path).catch(() => {});
+		deleteProject(recordingFor!.path).catch((e) => console.warn('[screen-capture] remove unused project', e));
 		recordingFor = null;
 	}
 
@@ -98,7 +108,7 @@
 			await createProject(path, projectName(path), [], size);
 			await goto(editorUrl(path));
 		} catch (e) {
-			toast(errorMessage(e), 'error', 8000);
+			failed('empty project', e);
 		}
 	}
 
@@ -124,8 +134,8 @@
 			await createProject(path, projectName(path), sources, undefined, images);
 			await goto(editorUrl(path));
 		} catch (e) {
-			toast(errorMessage(e), 'error', 8000);
-			if (path && sources.length + images.length === 0) await deleteProject(path).catch(() => {});
+			failed('import', e);
+			if (path && sources.length + images.length === 0) await deleteProject(path).catch((err) => console.warn('[screen-capture] remove unused project', err));
 		} finally {
 			importing = null;
 			if (fileInput) fileInput.value = '';
@@ -135,24 +145,28 @@
 	/** New project from media in the shared file system (copied into it, like an import from the computer) */
 	async function importFromFiles() {
 		try {
-			importFiles(await chooseMediaFromFiles(lastFolder()));
+			await importFiles(await chooseMediaFromFiles(lastFolder()));
 		} catch (e) {
-			toast(errorMessage(e), 'error', 8000);
+			failed('import from Files', e);
 		}
 	}
 
 	/** Any project in the shared file system */
 	async function openProject() {
-		const path = await chooseProject();
-		if (path) await goto(editorUrl(path));
+		try {
+			const path = await chooseProject();
+			if (path) await goto(editorUrl(path));
+		} catch (e) {
+			failed('open project', e);
+		}
 	}
 
 	/** Into the trash (the message offers to undo it) */
 	async function remove(project: Project) {
 		try {
-			await deleteToTrash([project.id], () => void refresh());
+			await deleteToTrash([project.id], () => void refresh().catch((err) => failed('list projects', err)));
 		} catch (e) {
-			toast(errorMessage(e), 'error', 8000);
+			failed('delete project', e);
 		}
 	}
 </script>
@@ -212,19 +226,20 @@
 			/>
 		</section>
 
-		{#if importing}
-			<div class="flex items-center gap-3">
-				<span class="text-sm">{m.common.importing(importing.name)}</span>
-				<progress class="progress progress-primary w-64" value={importing.progress} max="1"></progress>
-			</div>
-		{/if}
+		<!-- A fixed place for the progress of an import, so nothing below moves when it starts or ends -->
+		<div class="flex h-6 items-center gap-3" role="status">
+			{#if importing}
+				<span class="truncate text-sm">{m.common.importing(importing.name)}</span>
+				<progress class="progress progress-primary w-64 shrink-0" value={importing.progress} max="1"></progress>
+			{/if}
+		</div>
 
 		<section class="flex flex-col gap-3">
 			<div class="flex items-baseline justify-between">
 				<h2 class="text-xl font-semibold">{m.home.projects}</h2>
 				{#if usage}<span class="text-xs opacity-60">{usage}</span>{/if}
 			</div>
-			<AccessNotice tool="screen-capture" onallowed={() => refresh().catch((e) => toast(errorMessage(e), 'error'))} />
+			<AccessNotice tool="screen-capture" onallowed={() => refresh().catch((e) => failed('list projects', e))} />
 			{#if projects === null}
 				<span class="loading loading-dots"></span>
 			{:else if projects.length === 0}
@@ -247,7 +262,7 @@
 								</div>
 							</div>
 							<a class="btn btn-sm" href={editorUrl(project.id)}>{m.common.open}</a>
-							<button class="btn btn-sm btn-ghost text-error" onclick={() => remove(project)} aria-label={m.common.delete}><span class="icon-[material-symbols-light--delete-outline] size-5" aria-hidden="true"></span></button>
+							<button class="btn btn-sm btn-ghost btn-square" onclick={() => remove(project)} title={m.common.delete} aria-label={m.common.delete}><span class="icon-[material-symbols-light--delete-outline] size-5" aria-hidden="true"></span></button>
 						</li>
 					{/each}
 				</ul>

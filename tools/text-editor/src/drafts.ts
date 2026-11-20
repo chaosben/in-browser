@@ -1,8 +1,9 @@
 import { cacheDir } from '@in-browser/files/cache.js';
 import type { Encoding, LineEnding } from './document.js';
 
-// Unsaved changes of the tabs, kept privately in `cache/text-editor/drafts/<tab id>.json` (not shown, not synced),
-// so closing the browser tab loses nothing. Writes and deletes run one after the other.
+// Unsaved changes, kept privately in `cache/text-editor/drafts/<id>.json` (not shown, not synced), so closing the
+// browser tab loses nothing: a file with a place under an id derived from its path (`pathDraftId`), a new file under
+// the id in its address (`?draft=`). Writes and deletes run one after the other.
 
 export interface FileStamp {
 	size: number;
@@ -11,6 +12,8 @@ export interface FileStamp {
 
 export interface Draft {
 	path: string | null;
+	/** Name of a file opened from the computer (not saved here yet) */
+	fileName?: string | null;
 	text: string;
 	encoding: Encoding;
 	eol: LineEnding;
@@ -57,12 +60,13 @@ export function removeDraft(id: string) {
 	});
 }
 
-/** Deletes the drafts of tabs that no longer exist */
-export function pruneDrafts(keep: Set<string>) {
-	return enqueue(async () => {
-		const dir = await folder();
-		for await (const name of dir.keys()) {
-			if (!keep.has(name.replace(/\.json$/, ''))) await dir.removeEntry(name).catch(() => {});
-		}
-	});
+/** Ids in addresses (`?draft=`): only what a file name can hold */
+export const isDraftId = (id: string) => /^[\w-]{1,64}$/.test(id);
+
+export const newDraftId = () => crypto.randomUUID();
+
+/** The draft id of a file with a place */
+export async function pathDraftId(path: string) {
+	const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(path)));
+	return `file-${Array.from(hash.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('')}`;
 }

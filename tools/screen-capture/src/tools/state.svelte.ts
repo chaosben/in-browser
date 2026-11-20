@@ -1,31 +1,9 @@
-import { readStored, writeStored } from '@in-browser/brand/storage.js';
-
-const STORAGE_KEY = 'screen-capture:tool-panel';
-
-/** Open group; `''` stored means collapsed */
-function loadGroup(): string | null {
-	const raw = readStored(STORAGE_KEY);
-	return raw === null ? 'media' : raw || null;
+/**
+ * The open side panel: `PanelRail` binds it (and keeps it as `screen-capture:panel`); others open one, e.g. the media
+ * after an import or the library after saving to it
+ */
+class PanelState {
+	open = $state<string | null>(null);
 }
 
-/** State of the left tool rail: open group (persisted) and active tab per group */
-class ToolState {
-	#group = $state(loadGroup());
-	tabs = $state<Record<string, string>>({});
-
-	get group() {
-		return this.#group;
-	}
-
-	set group(id: string | null) {
-		this.#group = id;
-		writeStored(STORAGE_KEY, id ?? '');
-	}
-
-	/** Click on the group icon: open it, or collapse it if already active */
-	toggle(id: string) {
-		this.group = this.#group === id ? null : id;
-	}
-}
-
-export const toolState = new ToolState();
+export const panelState = new PanelState();

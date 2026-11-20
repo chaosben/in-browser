@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { degrees, PDFDocument, rgb } from 'pdf-lib';
-import type { ImageItem, PageMeta, ShapeItem, Stroke } from '#lib/model/types.js';
-import { PdfBackgrounds } from '#lib/render/backgrounds.js';
-import { readPdfPages } from '#lib/render/pdf.js';
-import { PictureCache } from '#lib/render/pictures.js';
-import { PageScene } from '#lib/render/scene.js';
+import { pdfLib } from '@in-browser/pdf/pdf-lib.js';
+import type { ImageItem, Item, PageMeta, ShapeItem, Stroke } from '#lib/model/types.js';
+import { PdfPages } from '@in-browser/pdf/pages.js';
+import { readPdfPages } from '@in-browser/pdf/pdfjs.js';
+import { PictureCache } from '@in-browser/ink/render/pictures.js';
+import type { PageScene } from '@in-browser/ink/render/scene.js';
+import { pageScene } from '#lib/render/surface.js';
 import { exportPdf } from './pdf';
 import { exportPng } from './png';
 import type { ExportSource } from './source';
@@ -13,6 +14,7 @@ import type { ExportSource } from './source';
 
 /** Page 1: 200×100 pt, left half red; page 2 the same, rotated by 90° (shown 100×200, top half red) */
 async function sourcePdf(): Promise<Blob> {
+	const { degrees, PDFDocument, rgb } = await pdfLib();
 	const doc = await PDFDocument.create();
 	for (const rotate of [0, 90]) {
 		const page = doc.addPage([200, 100]);
@@ -48,19 +50,21 @@ async function notebook(): Promise<ExportSource> {
 		{ id: 'p3', w: 200, h: 100, paper: 'lined' }
 	];
 	const shape: ShapeItem = { id: 'r', type: 'shape', fit: { kind: 'line', x0: 10, y0: 180, x1: 90, y1: 180 }, color: '#0000ff', size: 6 };
+	// A see-through pen stroke going there and back: where it overlaps itself it stays as light
+	const back: Stroke = { id: 'b', tool: 'pen', color: '#0000ff80', size: 6, points: new Float32Array([20, 88, 0.5, 80, 88, 0.5, 20, 88, 0.5]) };
 	const image: ImageItem = { id: 'i', type: 'image', asset: 'g.png', x: 20, y: 20, w: 40, h: 40 };
-	const scenes: Record<string, PageScene> = {
-		p1: new PageScene({ items: [line('s', 110, 190, 80, '#0000ff')] }, pictures),
-		p2: new PageScene({ items: [shape] }, pictures),
-		p3: new PageScene({ items: [image, line('h', 100, 180, 50, '#ffff00', 'highlighter')] }, pictures)
+	const scenes: Record<string, PageScene<Item>> = {
+		p1: pageScene({ items: [line('s', 110, 190, 80, '#0000ff')] }, pictures),
+		p2: pageScene({ items: [shape] }, pictures),
+		p3: pageScene({ items: [image, line('h', 100, 180, 50, '#ffff00', 'highlighter'), back] }, pictures)
 	};
-	return { pages, scene: (id) => scenes[id], pictures, backgrounds: new PdfBackgrounds(readAsset, () => {}), readAsset };
+	return { pages, scene: (id) => scenes[id], pictures, backgrounds: new PdfPages(readAsset, () => {}), readAsset };
 }
 
 /** Renders page `n` of a PDF at 1 px per point and reads pixels */
 async function rendered(pdf: Blob, n: number) {
-	const backgrounds = new PdfBackgrounds(async () => pdf, () => {});
-	const canvas = await backgrounds.render({ asset: 'x.pdf', page: n }, 1);
+	const pages = new PdfPages(async () => pdf, () => {});
+	const canvas = await pages.render('x.pdf', n, 1);
 	const ctx = canvas.getContext('2d')!;
 	return (x: number, y: number) => [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3);
 }
@@ -92,6 +96,8 @@ describe('PDF export', () => {
 		const marker = p3(140, 50);
 		expect(marker[2]).toBeLessThan(220);
 		expect(marker[0]).toBeGreaterThan(220);
+		// See-through ink: half blue on white, also where it covers itself twice
+		expect(near(p3(50, 88), [127, 127, 255])).toBe(true);
 	});
 });
 

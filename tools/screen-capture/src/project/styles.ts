@@ -21,6 +21,7 @@ const NOT_STYLE: ReadonlySet<string> = new Set([
 	'x',
 	'y',
 	'boxWidth',
+	'boxHeight',
 	'tip',
 	'text',
 	'number',

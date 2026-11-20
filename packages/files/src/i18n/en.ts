@@ -76,12 +76,23 @@ const en = {
 	/** Connected folders (access, start pages of the tools) */
 	document: {
 		saveFailed: (error: string) => `Saving failed: ${error}`,
-		renameFailed: (error: string) => `Renaming failed: ${error}`
+		changedTitle: (name: string) => `“${name}” was changed elsewhere`,
+		changedMessage: 'Another version was saved – on another device, in another tab or by another program. Reload to see it here; you have no unsaved changes.',
+		reload: 'Reload',
+		keep: 'Don’t reload',
+		dontAsk: 'Don’t ask again while it is open'
 	},
 
 	connected: {
 		allow: 'Allow access',
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`
+	},
+
+	/** Start pages of the tools (`StartPage`) */
+	start: {
+		recent: 'Recently opened',
+		unsupported: 'This browser has no file system for websites (OPFS). Please use a current browser.',
+		open: 'Open'
 	},
 
 	/** Guest shares: one folder for a browser outside your devices */
@@ -128,6 +139,27 @@ const en = {
 		paired: 'This device is now connected with your devices.',
 		oldCopy: (name: string) =>
 			`“${name}” isn’t synced on this device and now opens live from your other devices – the old copy that was still here is in the trash.`
+	},
+
+	/** The suite settings (`settings.ts`): one entry per category and setting, named so it explains itself */
+	settings: {
+		title: 'Settings',
+		open: 'Settings',
+		close: 'Close',
+		back: 'All settings',
+		categoriesLabel: 'Categories',
+		synced: 'Applies on all your devices.',
+		saveFailed: (error: string) => `The setting couldn’t be saved: ${error}`,
+		categories: { profile: 'Profile', trash: 'Trash' },
+		profile: {
+			name: { label: 'Your name' }
+		},
+		trash: {
+			days: {
+				label: 'Remove deleted items for good after',
+				option: (days: number | null) => (days === null ? 'Never' : `${days} days`)
+			}
+		}
 	},
 
 	/** Why a name is not allowed (shown while typing) */

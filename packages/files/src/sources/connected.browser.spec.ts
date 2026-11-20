@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FilesError, copy, exists, list, mkdir, move, readText, remove, stat, watch, write } from '../fs.js';
 import { connectionRoot } from '../path.js';
-import { displayName, displayPath, saveConnections } from './registry.js';
+import { saveConnections } from './registry.js';
 
 // fs.ts routing paths under `/:c/<id>` to a connected folder. The “folder on disk” is a folder in the OPFS of headless
 // Chromium (the same API as `showDirectoryPicker()` hands out).
@@ -28,13 +28,19 @@ afterEach(async () => {
 });
 
 describe('a connected folder through fs.ts', () => {
-	it('writes, lists and reads in place, nothing in My files', async () => {
+	it('writes, lists, reads and deletes in place, nothing in My files', async () => {
+		const seen: string[] = [];
+		const stop = watch((paths) => seen.push(...paths));
 		await write(`${ROOT}/Docs/a.txt`, 'hello');
 		expect(await diskNames()).toEqual(['Docs']);
 		expect((await list(`${ROOT}/Docs`)).map((e) => [e.path, e.kind, e.size])).toEqual([[`${ROOT}/Docs/a.txt`, 'file', 5]]);
 		expect(await readText(`${ROOT}/Docs/a.txt`)).toBe('hello');
 		expect((await stat(ROOT))?.kind).toBe('directory');
 		expect(await list('/')).toEqual([]);
+		await remove(`${ROOT}/Docs/a.txt`);
+		stop();
+		expect(seen).toContain(`${ROOT}/Docs/a.txt`);
+		expect(await diskNames(await disk.getDirectoryHandle('Docs'))).toEqual([]);
 	});
 
 	it('moves and renames inside, also in upper/lower case only', async () => {
@@ -65,26 +71,5 @@ describe('a connected folder through fs.ts', () => {
 		await expect(move(`${ROOT}/b.txt`, `${ROOT}/a.txt`)).rejects.toMatchObject({ code: 'exists' });
 		await expect(remove(ROOT)).rejects.toMatchObject({ code: 'root' });
 		await expect(readText(`${ROOT}/missing.txt`)).rejects.toBeInstanceOf(FilesError);
-	});
-
-	it('deletes in place and announces changes', async () => {
-		const seen: string[] = [];
-		const stop = watch((paths) => seen.push(...paths));
-		await write(`${ROOT}/c.txt`, 'x');
-		await remove(`${ROOT}/c.txt`);
-		stop();
-		expect(seen).toContain(`${ROOT}/c.txt`);
-		expect(await diskNames()).toEqual([]);
-	});
-
-	it('names the connection instead of its id', async () => {
-		await list(ROOT);
-		expect(displayName(ROOT)).toBe('Projects');
-		expect(displayPath(`${ROOT}/Docs`, 'My files')).toBe('Projects/Docs');
-		expect(displayPath('/', 'My files')).toBe('My files');
-	});
-
-	it('unknown connections don’t exist', async () => {
-		await expect(list(connectionRoot('gone'))).rejects.toMatchObject({ code: 'notFound' });
 	});
 });

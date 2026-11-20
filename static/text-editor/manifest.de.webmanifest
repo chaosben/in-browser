@@ -3,7 +3,7 @@
 	"id": "/text-editor",
 	"name": "Texteditor – in-browser",
 	"short_name": "Texteditor",
-	"description": "Text, Markdown, JSON, YAML und Code mit Tabs und Syntax-Hervorhebung bearbeiten – komplett im Browser.",
+	"description": "Text, Markdown, JSON, YAML und Code mit Syntax-Hervorhebung bearbeiten – komplett im Browser.",
 	"start_url": "/text-editor",
 	"scope": "/text-editor",
 	"display": "standalone",

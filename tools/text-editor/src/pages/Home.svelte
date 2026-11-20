@@ -1,316 +1,97 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
-	import { redo, undo } from '@codemirror/commands';
-	import { gotoLine, openSearchPanel } from '@codemirror/search';
-	import type { EditorView } from '@codemirror/view';
+	// The start page (`ui.md` “Start page”): new, open from Files, open from the computer and “Recently opened”. Each
+	// file opens on the editor page (`/text-editor/editor`), one file per page.
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
-	import { saveStateOf, setBrandFooter, type SaveState } from '@in-browser/brand/brand-footer.svelte.js';
-	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
-	import { openMenuBelow, type MenuAction, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
-	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-	import FileIcon from '@in-browser/files/FileIcon.svelte';
-	import { supported, watch } from '@in-browser/files/fs.js';
-	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
-	import { basename, normalize, parent } from '@in-browser/files/path.js';
-	import Editor from '#lib/components/Editor.svelte';
-	import StatusBar from '#lib/components/StatusBar.svelte';
-	import TabBar from '#lib/components/TabBar.svelte';
-	import { bold, codeBlock, inlineCode, insertLink, italic, openReplace, toggleLinePrefix } from '#lib/editor/commands.js';
-	import { isMarkdown } from '#lib/editor/languages.js';
-	import { m } from '#lib/i18n/index.js';
-	import DataView from '#lib/views/DataView.svelte';
-	import { viewsOf, type ViewId } from '#lib/views/registry.js';
-	import SplitView from '#lib/views/SplitView.svelte';
-	import type { ViewHost } from '#lib/views/types.js';
-	import type { Tab } from '#lib/tab.svelte.js';
-	import { encodingName, FONT_SIZES, Workspace, type Layout } from '#lib/workspace.svelte.js';
+	import { installCommandKeys, type Command } from '@in-browser/brand/commands.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
-	import { flushWhenHidden } from '@in-browser/files/documents.js';
+	import { formatDateTime } from '@in-browser/brand/i18n/tool.js';
+	import { type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { stat, supported } from '@in-browser/files/fs.js';
+	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
+	import { normalize } from '@in-browser/files/path.js';
+	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
+	import { draftUrl, editorUrl } from '#lib/brand.js';
+	import { droppedFile, hasFiles } from '#lib/drop.js';
+	import { SHORTCUTS as S } from '#lib/editor/shortcuts.js';
+	import { intlLocale, m } from '#lib/i18n/index.js';
+	import { migrateTabs } from '#lib/session.js';
+	import { chooseFileToOpen, draftFromComputer, forgetRecent, recentFiles, showFolderOf } from '#lib/workspace.svelte.js';
 
-	const workspace = new Workspace();
-	const active = $derived(workspace.active);
-	const markdown = $derived(!!active && isMarkdown(active.name));
-	let ready = $state(false);
+	/** “Recently opened” with their dates (null while loading); gone files drop off */
+	let entries = $state<StartEntry[] | null>(null);
 	let dropping = $state(false);
 	let fileInput = $state<HTMLInputElement>();
-	/** Below `md` there is no room for text and view side by side: one of them fills the page */
-	const narrow = new MediaQuery('max-width: 47.99rem', false);
-	/** Phones: the view instead of the text */
-	let viewOnPhone = $state(false);
 
-	// The views of the active file (table, tree, preview …) and the one chosen for its type
-	const fileViews = $derived(active ? viewsOf(active.name, () => active.state.doc.toString()) : null);
-	const spec = $derived(fileViews && (fileViews.views.find((v) => v.id === workspace.views[fileViews.type]) ?? fileViews.views[0]));
-	const layout = $derived<Layout>(!spec ? 'text' : narrow.current ? (viewOnPhone ? 'view' : 'text') : workspace.layout);
-	const textShown = $derived(layout !== 'view');
-	const viewShown = $derived(layout !== 'text');
-
-	const VIEW_ICONS: Record<ViewId, string> = {
-		markdown: 'icon-[material-symbols-light--preview]',
-		html: 'icon-[material-symbols-light--preview]',
-		svg: 'icon-[material-symbols-light--image-outline]',
-		table: 'icon-[material-symbols-light--table-outline]',
-		tree: 'icon-[material-symbols-light--account-tree-outline]'
-	};
-	const viewName = (id: ViewId) => m.views[id];
-
-	/** The button in the bar: view on or off (desktop: side by side, phones: instead of the text) */
-	function toggleView() {
-		if (narrow.current) viewOnPhone = !viewOnPhone;
-		else workspace.setLayout(viewShown ? 'text' : 'split');
+	async function refresh() {
+		const found = await Promise.all(
+			recentFiles().map(async (path): Promise<StartEntry | null> => {
+				try {
+					const entry = await stat(path);
+					if (!entry || entry.kind !== 'file') {
+						forgetRecent(path);
+						return null;
+					}
+					return { path, modified: entry.modified ?? null };
+				} catch {
+					return { path, modified: null };
+				}
+			})
+		);
+		entries = found.filter((e) => e !== null);
 	}
-
-	function setLayout(next: Layout) {
-		if (narrow.current) viewOnPhone = next === 'view';
-		else workspace.setLayout(next);
-	}
-
-	/** What a view may do with the text of the active tab */
-	function hostFor(tab: Tab): ViewHost {
-		return {
-			edit: (changes) => workspace.edit(tab, changes),
-			reveal: (from, to) => workspace.reveal(tab, from, to, textShown),
-			undo: () => workspace.run(undo, { focus: false }),
-			redo: () => workspace.run(redo, { focus: false }),
-			register(ui) {
-				workspace.viewUi = ui;
-				return () => {
-					if (workspace.viewUi === ui) workspace.viewUi = null;
-				};
-			},
-			async showText(pos) {
-				if (narrow.current) viewOnPhone = false;
-				else if (workspace.layout === 'view') workspace.setLayout('split');
-				await tick();
-				workspace.reveal(tab, pos);
-				workspace.focus();
-			},
-			get textVisible() {
-				return textShown;
-			},
-			get tableHeader() {
-				return workspace.tableHeader;
-			},
-			set tableHeader(on) {
-				workspace.setTableHeader(on);
-			}
-		};
-	}
-	const host = $derived(active ? hostFor(active) : null);
 
 	onMount(() => {
 		if (!supported()) return;
-		const stop = watch((paths) => workspace.changed(paths));
-		// Pending saves and drafts go out before the page is hidden or closed
-		const stopFlush = flushWhenHidden(() => workspace.flush());
-		workspace.restore().finally(() => (ready = true));
-		return () => {
-			stop();
-			stopFlush();
-			workspace.flush();
-		};
-	});
-
-	// `?path=` (e.g. from Files) opens that file; the parameter goes away so a reload doesn't bring back a closed tab
-	$effect(() => {
+		// Old links (`/text-editor?path=…`) open the file on the editor page
 		const path = page.url.searchParams.get('path');
-		if (!ready || !path) return;
-		untrack(async () => {
-			await workspace.open(normalize(path));
-			goto(resolve('/text-editor'), { replace: true, shallow: true });
+		if (path) return void goto(editorUrl(normalize(path)), { replace: true });
+		void migrateTabs().then((target) => {
+			if (target) void goto('path' in target ? editorUrl(target.path) : draftUrl(target.draft), { replace: true });
+			else void refresh();
 		});
 	});
 
-	const run = (command: (view: EditorView) => boolean) => () => workspace.run(command);
-
-	/** Every action once: the buttons next to the file name and the menu at the file name use the same entries */
-	const cmd = $derived.by(() => {
-		const tab = active;
-		const history = tab?.history ?? { undo: 0, redo: 0 };
-		return {
-			save: {
-				label: tab?.path ? m.actions.save : m.actions.saveTo,
-				icon: 'icon-[material-symbols-light--save-outline]',
-				keys: 'Ctrl+S',
-				run: () => tab && workspace.save(tab)
-			},
-			saveAs: {
-				label: m.actions.saveAs,
-				icon: 'icon-[material-symbols-light--save-as-outline]',
-				keys: 'Ctrl+Shift+S',
-				run: () => tab && workspace.save(tab, { as: true })
-			},
-			undo: { label: m.edit.undo, icon: 'icon-[material-symbols-light--undo]', keys: 'Ctrl+Z', disabled: !history.undo, run: run(undo) },
-			redo: { label: m.edit.redo, icon: 'icon-[material-symbols-light--redo]', keys: 'Ctrl+Y', disabled: !history.redo, run: run(redo) },
-			find: { label: m.edit.find, icon: 'icon-[material-symbols-light--search]', keys: 'Ctrl+F', run: run(openSearchPanel) },
-			replace: { label: m.edit.replace, icon: 'icon-[material-symbols-light--find-replace]', keys: 'Ctrl+H', run: run(openReplace) },
-			gotoLine: { label: m.edit.gotoLine, icon: 'icon-[material-symbols-light--move-down]', keys: 'Ctrl+G', run: run(gotoLine) },
-			bold: { label: m.format.bold, icon: 'icon-[material-symbols-light--format-bold]', keys: 'Ctrl+B', run: run(bold) },
-			italic: { label: m.format.italic, icon: 'icon-[material-symbols-light--format-italic]', keys: 'Ctrl+I', run: run(italic) },
-			link: { label: m.format.link, icon: 'icon-[material-symbols-light--link]', keys: 'Ctrl+K', run: run(insertLink) },
-			rename: { label: m.actions.rename, icon: 'icon-[material-symbols-light--edit-outline]', run: startRename },
-			download: { label: m.actions.download, icon: 'icon-[material-symbols-light--download]', run: () => tab && workspace.download(tab) },
-			showInFiles: {
-				label: m.actions.showInFiles,
-				icon: 'icon-[material-symbols-light--open-in-new]',
-				run: () => tab && workspace.showInFiles(tab)
-			},
-			close: { label: m.actions.close, icon: 'icon-[material-symbols-light--close]', keys: 'Alt+W', run: () => tab && workspace.close(tab) }
-		} satisfies Record<string, MenuAction>;
-	});
-
-	const paragraph: MenuEntry[] = [
-		{ label: m.format.heading(1), icon: 'icon-[material-symbols-light--format-h1]', run: run(toggleLinePrefix('h1')) },
-		{ label: m.format.heading(2), icon: 'icon-[material-symbols-light--format-h2]', run: run(toggleLinePrefix('h2')) },
-		{ label: m.format.heading(3), icon: 'icon-[material-symbols-light--format-h3]', run: run(toggleLinePrefix('h3')) },
-		{ separator: true },
-		{ label: m.format.bulletList, icon: 'icon-[material-symbols-light--format-list-bulleted]', run: run(toggleLinePrefix('bullet')) },
-		{ label: m.format.numberedList, icon: 'icon-[material-symbols-light--format-list-numbered]', run: run(toggleLinePrefix('number')) },
-		{ label: m.format.taskList, icon: 'icon-[material-symbols-light--checklist]', run: run(toggleLinePrefix('task')) },
-		{ separator: true },
-		{ label: m.format.quote, icon: 'icon-[material-symbols-light--format-quote-outline]', run: run(toggleLinePrefix('quote')) },
-		{ label: m.format.codeBlock, icon: 'icon-[material-symbols-light--code-blocks-outline]', run: run(codeBlock) },
-		{ label: m.format.inlineCode, icon: 'icon-[material-symbols-light--code]', run: run(inlineCode) }
-	];
-
-	const openEntries: MenuEntry[] = [
-		{ label: m.actions.openFromFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', keys: 'Ctrl+O', run: () => workspace.openDialog() },
-		{ label: m.actions.openFromComputer, icon: 'icon-[material-symbols-light--upload-file]', run: () => fileInput?.click() }
-	];
-
-	const CHECK = 'icon-[material-symbols-light--check]';
-	const layoutEntries = $derived<MenuEntry[]>(
-		!spec || !fileViews
-			? []
-			: [
-					...(narrow.current
-						? [{ label: m.view.toggle(viewName(spec.id)), icon: viewShown ? CHECK : undefined, run: toggleView }]
-						: (['text', 'split', 'view'] as const).map((l) => ({
-								label: { text: m.view.textOnly, split: m.view.split, view: m.view.viewOnly }[l],
-								icon: layout === l ? CHECK : undefined,
-								run: () => setLayout(l)
-							}))),
-					...(fileViews.views.length > 1
-						? [
-								{ separator: true } as const,
-								...fileViews.views.map((v) => ({
-									label: viewName(v.id),
-									icon: v === spec ? CHECK : VIEW_ICONS[v.id],
-									run: () => {
-										workspace.setView(fileViews.type, v.id);
-										if (!viewShown) setLayout(narrow.current ? 'view' : 'split');
-									}
-								}))
-							]
-						: []),
-					...(viewShown && workspace.viewUi?.view?.length ? [{ separator: true } as const, ...workspace.viewUi.view] : []),
-					{ separator: true }
-				]
-	);
-	const viewEntries = $derived<MenuEntry[]>([
-		...layoutEntries,
-		{ label: m.view.wrap, icon: workspace.wrap ? CHECK : undefined, run: () => workspace.setWrap(!workspace.wrap) },
-		{ separator: true },
-		{
-			label: m.view.fontLarger,
-			icon: 'icon-[material-symbols-light--text-increase]',
-			disabled: workspace.fontSize >= FONT_SIZES.max,
-			run: () => workspace.setFontSize(workspace.fontSize + 1)
-		},
-		{
-			label: m.view.fontSmaller,
-			icon: 'icon-[material-symbols-light--text-decrease]',
-			disabled: workspace.fontSize <= FONT_SIZES.min,
-			run: () => workspace.setFontSize(workspace.fontSize - 1)
-		},
-		{
-			label: m.view.fontReset,
-			icon: 'icon-[material-symbols-light--format-size]',
-			disabled: workspace.fontSize === FONT_SIZES.default,
-			run: () => workspace.setFontSize(null)
-		}
-	]);
-
-	/** Files with a place save themselves: how far that is; without a place only "not saved" (and "Save …") */
-	function saveOf(tab: Tab): SaveState | null {
-		if (tab.conflict === 'deleted') return { state: 'error', text: m.status.deleted };
-		if (!tab.path) return tab.dirty ? { state: 'unsaved', text: brandMessages().save.notSaved } : null;
-		return saveStateOf({ saving: tab.pending || tab.saving, saveError: tab.saveError, dirty: tab.dirty });
+	async function openFromComputer(file: File | null) {
+		const id = file && (await draftFromComputer(file));
+		if (id) await goto(draftUrl(id));
 	}
 
-	// The active file with all its actions on the left of the BrandBar, the main ones as buttons right after it,
-	// new/open/view on the right. Only rebuilt when the file changes (rebuilding would close the rename field);
-	// the menu reads undo/redo live. The save state is in the footer.
-	$effect(() => {
-		const tab = active;
-		if (!tab) {
-			const menu: MenuEntry[] = [
-				{ label: m.actions.new, icon: 'icon-[material-symbols-light--note-add-outline]', keys: 'Alt+N', run: () => workspace.newTab() },
-				...openEntries
-			];
-			return setBrandBar({ menu, actions: barActions });
-		}
-		const { name, path } = tab;
-		const md = markdown;
-		const viewActions = viewShown ? (workspace.viewUi?.actions ?? []) : [];
-		return untrack(() => {
-			const c = cmd;
-			const menu: MenuEntry[] = [
-				c.save,
-				c.saveAs,
-				{ separator: true },
-				{ ...c.undo, disabled: false },
-				{ ...c.redo, disabled: false },
-				{ separator: true },
-				c.find,
-				c.replace,
-				c.gotoLine,
-				...(md ? [{ separator: true } as const, { heading: m.format.title }, c.bold, c.italic, c.link, ...paragraph] : []),
-				...(viewActions.length ? [{ separator: true } as const, ...viewActions] : []),
-				{ separator: true },
-				...(path ? [c.rename] : []),
-				c.download,
-				...(path ? [c.showInFiles] : []),
-				{ separator: true },
-				// New and open also sit on the right, which is hidden on phones
-				{ label: m.actions.new, icon: 'icon-[material-symbols-light--note-add-outline]', keys: 'Alt+N', run: () => workspace.newTab() },
-				...openEntries,
-				{ separator: true },
-				c.close
-			];
-			return setBrandBar({
-				crumbs: [{ label: name, rename: path ? (newName) => workspace.rename(tab, newName) : undefined, menu }],
-				primary: barPrimary,
-				actions: barActions
-			});
-		});
-	});
+	const commands = {
+		new: { id: 'new', label: m.actions.new, icon: 'icon-[material-symbols-light--note-add-outline]', shortcut: S.new, run: () => void goto(draftUrl()) },
+		openFromFiles: {
+			id: 'openFromFiles',
+			label: m.actions.openFromFiles,
+			icon: 'icon-[material-symbols-light--folder-open-outline]',
+			shortcut: S.open,
+			run: async () => {
+				const path = await chooseFileToOpen();
+				if (path) await goto(editorUrl(path));
+			}
+		},
+		openFromComputer: { id: 'openFromComputer', label: m.actions.openFromComputer, icon: 'icon-[material-symbols-light--upload-file-outline]', run: () => fileInput?.click() }
+	} satisfies Record<string, Command>;
 
-	// Save state, position, language, line ending and encoding of the active tab on the left of the BrandFooter
-	$effect(() => setBrandFooter({ status: footerStatus, save: active ? saveOf(active) : null }));
+	$effect(() => installCommandKeys(() => (supported() ? Object.values(commands) : [])));
 
-	function onKey(e: KeyboardEvent) {
-		if (!ready || document.querySelector('dialog[open]')) return;
-		const mod = e.ctrlKey || e.metaKey;
-		const handled = () => e.preventDefault();
-		if (mod && e.code === 'KeyS') return handled(), active && workspace.save(active, { as: e.shiftKey });
-		if (mod && e.code === 'KeyO') return handled(), workspace.openDialog();
-		// Ctrl+N/W belong to the browser
-		if (e.altKey && !mod && e.code === 'KeyN') return handled(), workspace.newTab();
-		if (e.altKey && !mod && e.code === 'KeyW') return handled(), active && workspace.close(active);
-	}
+	const forget = (path: string) => {
+		forgetRecent(path);
+		entries = entries?.filter((e) => e.path !== path) ?? null;
+	};
 
-	// Files from the computer: caught before CodeMirror, which would paste their content into the text
-	const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files');
+	/** The complete menu of a card */
+	const menu = (entry: StartEntry): MenuEntry[] => [
+		{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => void goto(editorUrl(entry.path)) },
+		{ label: m.actions.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', run: () => showFolderOf(entry.path) },
+		{ separator: true },
+		{ label: m.actions.removeRecent, icon: 'icon-[material-symbols-light--playlist-remove]', run: () => forget(entry.path) }
+	];
 
 	function dragOver(e: DragEvent) {
 		if (!hasFiles(e)) return;
 		e.preventDefault();
-		e.stopPropagation();
 		e.dataTransfer!.dropEffect = 'copy';
 		dropping = true;
 	}
@@ -318,201 +99,56 @@
 	function drop(e: DragEvent) {
 		if (!hasFiles(e)) return;
 		e.preventDefault();
-		e.stopPropagation();
 		dropping = false;
-		// The items are only readable during the event
-		const files: File[] = [];
-		let folders = 0;
-		for (const item of e.dataTransfer!.items) {
-			if (item.kind !== 'file') continue;
-			if (item.webkitGetAsEntry()?.isDirectory) folders++;
-			else {
-				const file = item.getAsFile();
-				if (file) files.push(file);
-			}
-		}
-		if (folders) toast(m.toasts.foldersSkipped(folders));
-		workspace.openLocal(files);
+		void openFromComputer(droppedFile(e));
 	}
 </script>
-
-{#snippet footerStatus()}
-	{#if active}<StatusBar {workspace} tab={active} />{/if}
-{/snippet}
-
-{#snippet tool(action: MenuAction)}
-	<button
-		class="btn btn-ghost btn-sm btn-square"
-		disabled={action.disabled}
-		onclick={action.run}
-		title={action.keys ? `${action.label} (${action.keys})` : action.label}
-		aria-label={action.label}
-	>
-		<span class="{action.icon} size-5" aria-hidden="true"></span>
-	</button>
-{/snippet}
-
-{#snippet menuButton(label: string, icon: string, entries: MenuEntry[], showLabel = false)}
-	<button class="btn btn-ghost btn-sm gap-0.5 px-1.5" onclick={(e) => openMenuBelow(e, entries)} title={label} aria-label={label}>
-		<span class="{icon} size-5" aria-hidden="true"></span>
-		{#if showLabel}<span class="ml-1 hidden lg:inline">{label}</span>{/if}
-		<span class="icon-[material-symbols-light--keyboard-arrow-down] size-4 opacity-70" aria-hidden="true"></span>
-	</button>
-{/snippet}
-
-{#snippet barPrimary()}
-	{#if active}
-		{#if !active.path}
-			<button class="btn btn-primary btn-sm" onclick={cmd.save.run} title="{cmd.save.label} (Ctrl+S)">
-				<span class="icon-[material-symbols-light--save-outline] size-5" aria-hidden="true"></span>
-				{cmd.save.label}
-			</button>
-		{/if}
-		{@render tool(cmd.undo)}
-		{@render tool(cmd.redo)}
-		{@render menuButton(m.edit.search, 'icon-[material-symbols-light--search]', [cmd.find, cmd.replace, cmd.gotoLine])}
-		{#if markdown}
-			<span class="bg-base-content/20 mx-1 h-5 w-px" aria-hidden="true"></span>
-			{@render tool(cmd.bold)}
-			{@render tool(cmd.italic)}
-			{@render tool(cmd.link)}
-			{@render menuButton(m.format.paragraph, 'icon-[material-symbols-light--format-paragraph]', paragraph)}
-		{/if}
-	{/if}
-{/snippet}
-
-{#snippet barActions()}
-	<!-- With a file open, new/open are also in its menu: below `sm` they give the file name room -->
-	<div class={active ? 'hidden sm:contents' : 'contents'}>
-		<button class="btn btn-ghost btn-sm" onclick={() => workspace.newTab()} title="{m.actions.new} (Alt+N)">
-			<span class="icon-[material-symbols-light--note-add-outline] size-5" aria-hidden="true"></span>
-			<span class="hidden lg:inline">{m.actions.new}</span>
-			<span class="sr-only lg:hidden">{m.actions.new}</span>
-		</button>
-		{@render menuButton(m.actions.open, 'icon-[material-symbols-light--folder-open-outline]', openEntries, true)}
-	</div>
-	{#if spec}
-		{@const label = m.view.toggle(viewName(spec.id))}
-		<button
-			class={['btn btn-ghost btn-sm btn-square', viewShown && 'btn-active']}
-			onclick={toggleView}
-			title={label}
-			aria-label={label}
-			aria-pressed={viewShown}
-		>
-			<span class="{VIEW_ICONS[spec.id]} size-5" aria-hidden="true"></span>
-		</button>
-	{/if}
-	{#if active}
-		{@render menuButton(m.view.title, 'icon-[material-symbols-light--visibility-outline]', viewEntries, true)}
-	{/if}
-{/snippet}
-
-<svelte:window onkeydown={onKey} />
 
 <input
 	bind:this={fileInput}
 	type="file"
-	multiple
 	hidden
 	accept={EDITABLE_EXTENSIONS.join(',')}
 	onchange={(e) => {
-		workspace.openLocal([...(e.currentTarget.files ?? [])]);
+		void openFromComputer(e.currentTarget.files?.[0] ?? null);
 		e.currentTarget.value = '';
 	}}
 />
 
-{#if !supported()}
-	<div class="alert alert-error m-6">{m.home.unsupported}</div>
-{:else if !ready}
-	<div class="grid h-full place-items-center"><span class="loading loading-spinner"></span></div>
-{:else}
-	<div
-		class="relative h-full"
-		role="presentation"
-		ondragovercapture={dragOver}
-		ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}
-		ondropcapture={drop}
+<div
+	class="relative flex h-full flex-col"
+	role="presentation"
+	ondragover={dragOver}
+	ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}
+	ondrop={drop}
+>
+	<StartPage
+		tagline={m.home.tagline}
+		{entries}
+		href={(entry) => editorUrl(entry.path)}
+		{menu}
+		empty={m.home.noRecent}
+		available={supported()}
+		tool="text-editor"
+		onallowed={() => void refresh()}
+		formatDate={(ms) => formatDateTime(ms, intlLocale)}
 	>
-		{#if workspace.tabs.length === 0}
-			<div class="h-full overflow-y-auto">
-				<div class="mx-auto flex max-w-2xl flex-col gap-8 p-6 md:p-10">
-					<p class="text-lg opacity-80">{m.home.tagline}</p>
-					<div class="flex flex-col gap-2">
-						<div class="flex flex-wrap gap-2">
-							<button class="btn btn-primary" onclick={() => workspace.newTab()}>
-								<span class="icon-[material-symbols-light--note-add-outline] size-5" aria-hidden="true"></span>
-								{m.actions.new}
-							</button>
-							<button class="btn" onclick={() => workspace.openDialog()}>
-								<span class="icon-[material-symbols-light--folder-open-outline] size-5" aria-hidden="true"></span>
-								{m.actions.openFromFiles}
-							</button>
-							<button class="btn" onclick={() => fileInput?.click()}>
-								<span class="icon-[material-symbols-light--upload-file] size-5" aria-hidden="true"></span>
-								{m.actions.openFromComputer}
-							</button>
-						</div>
-						<p class="text-sm opacity-60">{m.home.dropHint}</p>
-					</div>
-					<section>
-						<h2 class="mb-2 font-semibold">{m.home.recent}</h2>
-						{#if workspace.recent.length}
-							<ul class="menu bg-base-200 rounded-box w-full">
-								{#each workspace.recent as path (path)}
-									<li>
-										<button class="flex min-w-0" onclick={() => workspace.open(path)} title={path}>
-											<FileIcon name={basename(path)} kind="file" />
-											<span class="truncate">{basename(path)}</span>
-											<span class="ml-auto truncate text-xs opacity-60">{m.home.inFolder(parent(path))}</span>
-										</button>
-									</li>
-								{/each}
-							</ul>
-						{:else}
-							<p class="text-sm opacity-60">{m.home.noRecent}</p>
-						{/if}
-					</section>
-				</div>
-			</div>
-		{:else}
-			<div class="flex h-full flex-col">
-				<TabBar {workspace} />
-				{#if active?.conflict}
-					<div role="alert" class="alert alert-warning rounded-none py-2 text-sm">
-						<span class="icon-[material-symbols-light--warning-outline] size-5" aria-hidden="true"></span>
-						<span>{active.conflict === 'changed' ? m.conflict.changed(active.name) : m.conflict.deleted(active.name)}</span>
-						<div class="flex gap-2">
-							{#if active.conflict === 'changed'}
-								<button class="btn btn-sm" onclick={() => workspace.reload(active)}>{m.conflict.reload}</button>
-							{/if}
-							<button class="btn btn-ghost btn-sm" onclick={() => workspace.keepMine(active)}>{m.conflict.keepMine}</button>
-						</div>
-					</div>
-				{:else if active?.problem}
-					<div role="alert" class="alert alert-warning rounded-none py-2 text-sm">
-						<span class="icon-[material-symbols-light--warning-outline] size-5" aria-hidden="true"></span>
-						<span>{m.problem.unmappable(active.problem.unmappable, encodingName(active.encoding))}</span>
-						<button class="btn btn-sm" onclick={() => workspace.saveAsUtf8(active)}>{m.problem.asUtf8}</button>
-					</div>
-				{/if}
-				<!-- The editor stays mounted while only the view is shown -->
-				<SplitView share={workspace.split} onshare={(share) => workspace.setSplit(share)} showText={textShown} showView={viewShown}>
-					{#snippet text()}
-						<div class="size-full" style:--editor-font-size="{workspace.fontSize}px">
-							<Editor {workspace} />
-						</div>
-					{/snippet}
-					{#snippet view()}
-						{#if active && spec && host && viewShown}
-							<DataView tab={active} {spec} {host} />
-						{/if}
-					{/snippet}
-				</SplitView>
-			</div>
-		{/if}
-		{#if dropping}
-			<DropOverlay label={m.drop.release} />
-		{/if}
-	</div>
-{/if}
+		{#snippet actions()}
+			<button class="btn btn-primary" onclick={commands.new.run}>
+				<span class="icon-[material-symbols-light--note-add-outline] size-6" aria-hidden="true"></span>{m.actions.new}
+			</button>
+			<button class="btn" onclick={commands.openFromFiles.run}>
+				<span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span>{m.actions.openFromFiles}
+			</button>
+			<button class="btn" onclick={commands.openFromComputer.run}>
+				<span class="icon-[material-symbols-light--upload-file-outline] size-6" aria-hidden="true"></span>{m.actions.openFromComputer}
+			</button>
+		{/snippet}
+		{#snippet extra()}
+			<p class="text-sm opacity-60">{m.home.dropHint}</p>
+		{/snippet}
+	</StartPage>
+	{#if dropping}
+		<DropOverlay label={m.drop.release} />
+	{/if}
+</div>

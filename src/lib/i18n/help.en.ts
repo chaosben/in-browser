@@ -84,7 +84,7 @@ const help = {
 						},
 						free: {
 							title: 'Freeing space',
-							text: 'What you delete goes into the trash first and still takes space there. It is freed when the trash is emptied – by hand in Files (“Trash” → “Empty trash”) or by itself after the time chosen under “Keep for”.',
+							text: 'What you delete goes into the trash first and still takes space there. It is freed when the trash is emptied – by hand in Files (“Trash” → “Empty trash”) or by itself after the time chosen in the settings (“Trash”).',
 							link: { href: '/help/sync#trash', label: 'How the trash works' }
 						}
 					}
@@ -160,6 +160,16 @@ const help = {
 							text: 'When a file changed on two devices since they last synced, the newer version keeps the name and the other one is kept as a conflict copy next to it. Nothing is lost; look at both and delete the one you don’t need.',
 							tip: 'Before you continue on a device that wasn’t open for a while, open in-browser on one of your other devices first and let it sync. Files warns you when this device is probably behind.'
 						},
+						open: {
+							title: 'A file that is open',
+							text: 'When a file you have open in a tool is changed elsewhere – on another device, in another tab or by another program – and you have no unsaved changes, the tool asks “… was changed elsewhere” before it shows the other version. Every tool asks the same way, once per version. If you do have unsaved changes, the tool keeps them and tells you (the Text Editor and the PDF Editor pause saving and let you choose in a bar).',
+							options: {
+								reload: { label: 'Reload', text: 'Shows the other version. Nothing of yours is lost – there were no unsaved changes.' },
+								keep: { label: 'Don’t reload', text: 'Keeps showing your version. If you change it, the tool tells you before your version replaces the other one (the Notes and Screen Capture write over it).' },
+								dontAsk: { label: 'Don’t ask again while it is open', text: 'Takes the same choice for further changes without asking, until you close the file. Opened again, it asks again.' }
+							},
+							tip: 'Working on the same file on two devices at once? Choose “Reload” and “Don’t ask again” on the one you only look at.'
+						},
 						safe: {
 							title: 'Nothing changed in between is overwritten',
 							text: 'Right before a device overwrites or deletes a file, it checks that the file is still the version it planned with. If you changed it in the meantime, your change stays and syncs on the next round.'
@@ -179,13 +189,8 @@ const help = {
 						},
 						keep: {
 							title: 'How long',
-							text: 'Under “Keep for” in the trash you choose how long deleted items stay. The setting applies to all your devices.',
-							options: {
-								d7: { label: '7 days', text: 'Frees space soonest.' },
-								d30: { label: '30 days (default)', text: 'Time enough to notice a mistake.' },
-								d90: { label: '90 days', text: 'For files you rarely look at.' },
-								never: { label: 'Until I empty it', text: 'Nothing goes by itself – empty the trash now and then.' }
-							}
+							text: 'How long deleted items stay (30 days unless you change it) is set under “Settings” (the gear at the top right) → “Trash”, for all your devices.',
+							link: { href: '/help/settings#trash', label: 'Choosing how long' }
 						},
 						folder: {
 							title: 'In a folder on disk',
@@ -253,7 +258,7 @@ const help = {
 						},
 						everywhere: {
 							title: 'In every tool',
-							text: 'Connected folders appear in Files under “Connected” and in the open and save dialog of the tools (the choice in front of the folder path). Every tool opens and saves there directly: texts in the Text Editor, notebooks in Notes, projects and recordings in Screen Capture. The start pages of Notes and Screen Capture list notebooks and projects from connected folders once you have created or opened them there – connected folders are not searched, they can be large.'
+							text: 'Connected folders appear in Files in the panel “Folders” below My files and in the open and save dialog of the tools (the choice in front of the folder path). Every tool opens and saves there directly: texts in the Text Editor, notebooks in Notes, projects and recordings in Screen Capture. The start pages of Notes and Screen Capture list notebooks and projects from connected folders once you have created or opened them there – connected folders are not searched, they can be large.'
 						},
 						notSynced: {
 							title: 'Not synced',
@@ -268,7 +273,7 @@ const help = {
 					items: {
 						connect: {
 							title: 'Connect',
-							text: 'In Files, click “Connect folder …” in the sidebar and choose a folder; the browser asks whether in-browser may view and edit it. The folder then appears under “Connected” with its name. Only Chrome and Edge on a computer can do this.'
+							text: 'In Files, click “Connect folder …” (tab “Connect”, or in the panel “Folders” below My files) and choose a folder; the browser asks whether in-browser may view and edit it. The folder then appears in the panel “Folders” below My files with its name. Only Chrome and Edge on a computer can do this.'
 						},
 						access: {
 							title: 'Access after a restart',
@@ -276,8 +281,8 @@ const help = {
 							tip: 'Choose “Allow on every visit” when the browser asks – then it stays connected.'
 						},
 						manage: {
-							title: 'Rename and disconnect',
-							text: 'The menu of a connected folder (right-click in the sidebar, or the menu at its name in the top bar) has “Rename” – only the name shown here changes, not the folder – and “Disconnect”, which removes it from in-browser without deleting anything in it.'
+							title: 'Name and disconnecting',
+							text: 'A connected folder is always shown with the name of the folder on your computer. “Disconnect” – in the menu of the connected folder (right-click in the panel “Folders”) or in the tab “Connect” while it is open – removes it from in-browser without deleting anything in it.'
 						},
 						deleting: {
 							title: 'Deleting',
@@ -303,7 +308,7 @@ const help = {
 						},
 						guest: {
 							title: 'As a guest',
-							text: 'The shared folder appears in Files under “Connected” as “Folder” from the device that shares it, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. “Disconnect” or closing the tab ends it for you; the link opens it again as long as the share lasts. If another browser is in it right now, Files says so and tries again by itself. When the sharing device ends the share, you see “The share has ended.” right away – “Remove” takes it away; what you copied into your own files stays. If the sharing device can’t be reached, Files says so: in-browser has to be open there.'
+							text: 'The shared folder appears in Files in the panel “Folders” below My files as “Folder” from the device that shares it, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. “Disconnect” or closing the tab ends it for you; the link opens it again as long as the share lasts. If another browser is in it right now, Files says so and tries again by itself. When the sharing device ends the share, you see “The share has ended.” right away – “Remove” takes it away; what you copied into your own files stays. If the sharing device can’t be reached, Files says so: in-browser has to be open there.'
 						},
 						end: {
 							title: 'Ending a share',
@@ -460,6 +465,52 @@ const help = {
 			} satisfies HelpContent
 		},
 
+		settings: {
+			title: 'Settings',
+			summary: 'Your name, how long the trash keeps things – for all your devices',
+			topics: {
+				open: {
+					title: 'Opening the settings',
+					items: {
+						where: {
+							title: 'The gear at the top right',
+							text: 'Every tool and the overview have a gear at the right end of the top bar. It opens “Settings”: the categories on the left, the settings of the chosen one on the right; on a phone the categories first, then the chosen one as a page of its own (the arrow goes back). Some places open a category directly, e.g. “Change” next to your name in the comments of the PDF Editor.'
+						},
+						saved: {
+							title: 'Saved right away, on all devices',
+							text: 'There is no “OK”: every change counts at once. The settings are kept with your files and sync like them – to your other devices, into the synced folder on your computer and to a p2p-node. Only the theme (light, dark) is chosen per device, with the switch next to the gear.',
+							link: { href: '/help/sync', label: 'How syncing works' }
+						}
+					}
+				},
+				profile: {
+					title: 'Profile',
+					items: {
+						name: {
+							title: 'Your name',
+							text: 'Where a tool writes a name, it takes this one – for example as the author of your comments and replies in the PDF Editor, which others see in Acrobat or PDF-XChange too. Empty: no name is written.',
+							tip: 'Use the name the people you share files with know you by, e.g. your full name at work.'
+						}
+					}
+				},
+				trash: {
+					title: 'Trash',
+					items: {
+						days: {
+							title: 'Remove deleted items for good after',
+							text: 'How long what you delete stays in the trash before it is removed by itself – on every device and on a p2p-node.',
+							options: {
+								d7: { label: '7 days', text: 'Frees space soon; a mistake has to be noticed within a week.' },
+								d30: { label: '30 days (default)', text: 'Enough time to notice a mistake, without filling the storage for long.' },
+								d90: { label: '90 days', text: 'For documents you rarely look at; deleted media keep using space for a long time.' },
+								never: { label: 'Never', text: 'Nothing is removed by itself – you empty the trash yourself (Files → “Trash”).' }
+							},
+							tip: 'Keep 30 days. Take 7 days if storage gets tight (large recordings), 90 days or “Never” if you work with documents you only check now and then.'
+						}
+					}
+				}
+			}
+		},
 		install: {
 			title: 'Install, offline and browsers',
 			summary: 'Use in-browser like an app, without internet, in the browser you have',

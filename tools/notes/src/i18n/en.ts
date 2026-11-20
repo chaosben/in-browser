@@ -13,10 +13,8 @@ const en = {
 
 	home: {
 		tagline: 'Write and sketch by hand – with a stylus, a finger or the mouse. Your notebooks stay in your browser.',
-		unsupported: 'This browser has no file system for websites (OPFS). Please use a current browser.',
 		newNotebook: 'New notebook',
 		open: 'Open …',
-		openNotebook: 'Open',
 		newTitle: 'Where should the new notebook go?',
 		openTitle: 'Open notebook',
 		untitled: 'Notebook',
@@ -24,10 +22,9 @@ const en = {
 		empty: 'No notebooks yet. Create one to start writing.',
 		pages: (n: number) => (n === 1 ? '1 page' : `${n} pages`),
 		loadFailed: (error: string) => `The notebooks could not be listed: ${error}`,
-		actions: (name: string) => `Actions for ${name}`,
+		showInFiles: 'Show in Files',
 		failed: (error: string) => `That did not work: ${error}`,
-		importPdf: 'Import PDF',
-		importing: 'Reading the PDF …'
+		importPdf: 'Import PDF'
 	},
 
 	editor: {
@@ -37,98 +34,46 @@ const en = {
 		newerVersion: 'The notebook was created with a newer version of the app. Reload the page to get it.',
 		pageFailed: (error: string) => `A page could not be loaded: ${error}`,
 		changedElsewhere: 'The notebook was changed elsewhere. Your changes here are kept.',
-		rename: 'Rename',
 		undo: 'Undo',
 		redo: 'Redo',
 		pageOf: (n: number, total: number) => `Page ${n} of ${total}`,
 		zoom: (percent: number) => `${percent} %`,
 		zoomMenu: 'Zoom',
 		fitWidth: 'Fit width',
-		actualSize: '100 %',
+		actualSize: 'Actual size',
 		zoomIn: 'Zoom in',
 		zoomOut: 'Zoom out',
 		penOnly: 'Only the pen draws',
+		penOnlyTip: 'Fingers only scroll and zoom, from the first touch on',
 		penOnlyOn: 'Only the pen draws – fingers move the page',
+		selectAll: 'Select all',
+		selectAllTip: 'Everything on the page in view',
+		showInFiles: 'Show in Files',
 		back: 'All notebooks'
 	},
 
-	tools: {
-		label: 'Tools',
-		pen: 'Pen',
-		highlighter: 'Highlighter',
-		shape: 'Shapes',
-		eraser: 'Eraser',
-		lasso: 'Select',
-		lassoHint: 'Select – tap an item, or draw a loop around several',
-		laser: 'Laser pointer',
-		eraserMode: 'Erases',
-		eraserModes: { stroke: 'Whole strokes', pixel: 'Pixels' },
-		size: 'Thickness',
-		sizeValue: (n: number) => `Thickness ${n}`,
-		options: 'Color, thickness and smoothing',
-		smoothing: 'Smoothing',
-		smoothingLevels: ['Off', 'Light', 'Medium', 'Strong'] as string[],
-		smoothingHint: 'Smoother lines that follow the pen with a small delay',
-		shapes: {
-			line: 'Line',
-			arrow: 'Arrow',
-			doubleArrow: 'Double arrow',
-			rect: 'Rectangle',
-			roundedRect: 'Rounded rectangle',
-			ellipse: 'Ellipse',
-			triangle: 'Triangle',
-			diamond: 'Diamond',
-			parallelogram: 'Parallelogram',
-			pentagon: 'Pentagon',
-			hexagon: 'Hexagon',
-			star: 'Star'
-		},
-		shapeHint: 'Drag on the page. Nearly square shapes become a square or circle.',
-		snap: 'Snap',
-		snapHint: 'Lines in 15° steps; edges and centers to the page, shapes and pictures; equal spacing. Hold Alt while dragging for the opposite.'
-	},
-
-	shapeStyle: {
-		fill: 'Fill',
-		noFill: 'None',
-		line: 'Line',
-		dashes: { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted' },
-		sketch: 'Hand-drawn',
-		heads: 'Arrowheads',
-		headOptions: { none: 'None', end: 'At the end', start: 'At the start', both: 'At both ends' }
-	},
-
-	suggest: {
-		label: (shape: string) => `Convert to ${shape}`,
-		hint: 'Replaces the stroke with a shape whose points you can move',
-		names: {
-			line: 'line',
-			arrow: 'arrow',
-			doubleArrow: 'double arrow',
-			triangle: 'triangle',
-			rectangle: 'rectangle',
-			quadrilateral: 'quadrilateral',
-			polygon: 'polygon',
-			roundedRect: 'rounded rectangle',
-			circle: 'circle',
-			ellipse: 'ellipse'
+	ribbon: {
+		tabs: { draw: 'Draw', insert: 'Insert', pages: 'Pages', view: 'View', drawing: 'Drawing', selection: 'Selection', arrange: 'Arrange' },
+		groups: {
+			notebook: 'Notebook',
+			tools: 'Tools',
+			format: 'Format',
+			options: 'Options',
+			object: 'Object',
+			pictures: 'Pictures',
+			pages: 'Pages',
+			page: 'Page',
+			organize: 'Organize',
+			zoom: 'Zoom'
 		}
 	},
 
-	selection: {
-		label: (n: number) => (n === 1 ? '1 item selected' : `${n} items selected`),
-		color: 'Color',
-		size: 'Thickness',
-		style: 'Style',
-		duplicate: 'Duplicate',
-		delete: 'Delete'
-	},
-
 	insert: {
-		menu: 'Insert',
+		image: 'Image',
+		pdf: 'PDF',
 		imageFromFiles: 'Image from Files …',
 		imageFromDevice: 'Image from this device …',
-		icon: 'Icon …',
+		icon: 'Icon',
 		pdfFromFiles: 'PDF from Files …',
 		pdfFromDevice: 'PDF from this device …',
 		choosePdf: 'Choose a PDF',
@@ -137,9 +82,7 @@ const en = {
 		pdfError: (error: string) => `The PDF could not be opened: ${error}`,
 		pdfFailed: (name: string) => `“${name}” could not be read – is it a PDF?`,
 		chooseImage: 'Choose an image',
-		iconsTitle: 'Insert icon',
 		iconHint: 'The icon takes the pen color. Move and resize it with the frame.',
-		close: 'Close',
 		imageFailed: (name: string) => `“${name}” could not be inserted – is it an image?`
 	},
 
@@ -157,27 +100,24 @@ const en = {
 		download: 'Download',
 		saveToFiles: 'Save in Files …',
 		savedToFiles: (path: string) => `Saved as ${path}`,
+		open: 'Open',
 		pageFile: (name: string, n: number) => `${name} – page ${n}`,
 		failed: (error: string) => `Exporting failed: ${error}`,
 		close: 'Close'
 	},
 
 	page: {
-		menu: 'Page',
 		add: 'Add page',
 		delete: 'Delete page',
+		deleteTip: 'Deletes the page in view with everything on it – the message offers to undo it',
+		deleted: (n: number) => `Page ${n} deleted`,
 		moveUp: 'Move page up',
 		moveDown: 'Move page down',
 		paper: 'Paper',
 		papers: { blank: 'Blank', lined: 'Lined', grid: 'Grid', dotted: 'Dotted' },
 		size: 'Page size',
 		sizes: { a4: 'A4', a5: 'A5', a3: 'A3', letter: 'US Letter' },
-		landscape: 'Landscape',
-		deleteQuestion: {
-			title: 'Delete page?',
-			message: (n: number) => `Page ${n} and everything on it will be deleted. You can undo this.`,
-			confirm: 'Delete'
-		}
+		landscape: 'Landscape'
 	},
 
 	perf: {

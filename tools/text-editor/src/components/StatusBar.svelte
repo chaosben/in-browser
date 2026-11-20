@@ -5,8 +5,8 @@
 	import type { Tab } from '#lib/tab.svelte.js';
 	import { encodingName, type Workspace } from '#lib/workspace.svelte.js';
 
-	// Position, language, status of the view (rows, path of the selected node), line ending and encoding of the active
-	// tab (left in the BrandFooter); the last two can be changed here.
+	// Position, language, status of the view (rows, path of the selected node), line ending and encoding of the shown
+	// file (left in the BrandFooter); the last two can be changed here.
 
 	let { workspace, tab }: { workspace: Workspace; tab: Tab } = $props();
 	const viewStatus = $derived(workspace.viewUi?.status?.());

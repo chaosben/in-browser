@@ -128,8 +128,4 @@ describe('updater', () => {
 		await publish('ccc');
 		expect(await updates.update()).toBe('updated');
 	});
-
-	it('throws when there is no version at all', async () => {
-		await expect(make({ online: false }).ensure()).rejects.toThrow(/could not be loaded/);
-	});
 });

@@ -1,0 +1,18 @@
+{
+	"lang": "en",
+	"id": "/pdf-editor",
+	"name": "PDF Editor – in-browser",
+	"short_name": "PDF Editor",
+	"description": "View, annotate and fill in PDFs, organize and merge pages – entirely in the browser.",
+	"start_url": "/pdf-editor",
+	"scope": "/pdf-editor",
+	"display": "standalone",
+	"launch_handler": { "client_mode": "focus-existing" },
+	"categories": ["productivity", "business"],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{ "src": "/pdf-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/pdf-editor/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+	]
+}

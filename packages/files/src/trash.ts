@@ -1,5 +1,6 @@
 import { FilesError } from './entry.js';
 import { basename, isInside, join, normalize, parent, segments, uniqueName } from './path.js';
+import { parseRaw, SCHEMA, storedValue, SUITE_SETTINGS } from './settings.js';
 import type { Tree } from './sync/tree.js';
 
 // The trash: what the user deletes (in Files, or a notebook or project in its tool) is moved into the hidden folder
@@ -7,7 +8,7 @@ import type { Tree } from './sync/tree.js';
 // device, into the synced folder on disk and to the p2p-node – so it can be restored anywhere. One entry per deleted
 // file or folder: `/.in-browser-trash/<entry>/.trashinfo.json` (where it was, when) plus the item under its full
 // original path (`…/<entry>/Docs/Plan.md`), so the folder choice of a device applies to it without reading anything.
-// Entries are removed after the retention the user picked (`/.apps/files/settings.json`, synced as well).
+// Entries are removed after the retention the user picked (suite settings, `settings.ts` – synced as well).
 // What the syncs delete or replace because another side did is not kept (like Syncthing without versioning).
 
 export const TRASH_ROOT = '/.in-browser-trash';
@@ -23,10 +24,10 @@ export interface TrashInfo {
 
 /** Days entries stay; `null`: until the user empties the trash */
 export type Retention = number | null;
-export const RETENTIONS: Retention[] = [7, 30, 90, null];
-export const DEFAULT_RETENTION: Retention = 30;
+export const RETENTIONS: readonly Retention[] = SCHEMA.trash.settings.days.options;
+export const DEFAULT_RETENTION: Retention = SCHEMA.trash.settings.days.default;
 
-/** Where the setting lives (synced to every device) */
+/** Where earlier versions kept the setting (`trashDays`; still read while the suite settings don't hold it) */
 export const SETTINGS_PATH = '/.apps/files/settings.json';
 
 const pad = (n: number, width = 2) => String(n).padStart(width, '0');
@@ -82,8 +83,19 @@ export function parseRetention(text: string | null): Retention {
 	return DEFAULT_RETENTION;
 }
 
-/** The retention as stored (throws when the file exists but can't be read: a cleanup then waits) */
+/** The retention in the suite settings' text: `undefined` when it holds none, `null` (keep everything) when broken */
+export function suiteRetention(text: string): Retention | undefined {
+	const raw = parseRaw(text);
+	if (!raw) return null;
+	return storedValue(raw, 'trash', 'days') as Retention | undefined;
+}
+
+/** The retention as stored (throws when a file exists but can't be read: a cleanup then waits) */
 export async function retentionOf(tree: Pick<Tree, 'stat' | 'read'>): Promise<Retention> {
+	if (await tree.stat(SUITE_SETTINGS)) {
+		const days = suiteRetention(await (await tree.read(SUITE_SETTINGS)).text());
+		if (days !== undefined) return days;
+	}
 	if (!(await tree.stat(SETTINGS_PATH))) return DEFAULT_RETENTION;
 	return parseRetention(await (await tree.read(SETTINGS_PATH)).text());
 }

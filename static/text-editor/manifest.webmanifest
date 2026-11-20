@@ -3,7 +3,7 @@
 	"id": "/text-editor",
 	"name": "Text Editor – in-browser",
 	"short_name": "Text Editor",
-	"description": "Edit text, Markdown, JSON, YAML and code with tabs and syntax highlighting – entirely in the browser.",
+	"description": "Edit text, Markdown, JSON, YAML and code with syntax highlighting – entirely in the browser.",
 	"start_url": "/text-editor",
 	"scope": "/text-editor",
 	"display": "standalone",

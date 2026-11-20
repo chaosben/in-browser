@@ -2,20 +2,20 @@
 // - imported PDF pages are embedded as they are (text stays selectable and sharp), rotation applied;
 // - paper lines, grid and dots as shapes;
 // - strokes as lines with round caps and joins: every segment as wide as the pressure at its end – exactly the
-//   shape of `ink/outline.ts` (a segment with round ends is a line with round caps). Pen strokes are opaque, so
-//   overlapping pieces don't matter; highlighters have one width and are drawn as one line, see-through and
-//   multiplied like on screen.
+//   shape of `@in-browser/ink/outline.ts` (a segment with round ends is a line with round caps; `paintOf`). Opaque
+//   strokes are drawn directly (overlapping pieces don't matter); see-through ones and highlighters (multiplied) as a
+//   transparency group with their opacity, so where their pieces overlap they don't get darker – like on screen.
 // Images are embedded (PNG as is, others re-encoded), icons as images at 300 dpi.
 
-import type { PDFDocument, PDFImage, PDFName, PDFOperator, PDFPage } from 'pdf-lib';
-import { diameter } from '#lib/ink/outline.js';
-import { fillOutline, inkStrokes } from '#lib/ink/shapes.js';
-import { isInk, isShape, type Background, type PageMeta, type Picture, type ShapeItem, type Stroke } from '#lib/model/types.js';
-import { pictureKey } from '#lib/render/pictures.js';
+import { loadPdf } from '@in-browser/pdf/load.js';
+import { pdfLib, type PDFDocument, type PDFImage, type PDFName, type PDFOperator, type PDFPage } from '@in-browser/pdf/pdf-lib.js';
+import { paintOf, type FillPaint, type LinePaint } from '@in-browser/ink/paint.js';
+import { isInk, type Background, type PageMeta, type Picture } from '#lib/model/types.js';
+import { pictureKey } from '@in-browser/ink/render/pictures.js';
 import { GRID_SPACING, LINE_SPACING, PAPER_INK } from '#lib/render/paper.js';
 import type { ExportSource, Progress } from './source.js';
 
-type PdfLib = typeof import('pdf-lib');
+type PdfLib = Awaited<ReturnType<typeof pdfLib>>;
 
 /** Icons are rasterized at this resolution (pixels per point = 300 dpi) */
 const ICON_SCALE = 300 / 72;
@@ -26,7 +26,7 @@ const rgbOf = (hex: string): [number, number, number] => [1, 3, 5].map((i) => pa
 const round = (n: number) => Math.round(n * 100) / 100;
 
 export async function exportPdf(source: ExportSource, progress: Progress = () => {}): Promise<Blob> {
-	const lib = await import('pdf-lib');
+	const lib = await pdfLib();
 	const out = await lib.PDFDocument.create();
 	out.setProducer('in-browser Notes');
 	const writer = new Writer(lib, out, source);
@@ -41,20 +41,17 @@ export async function exportPdf(source: ExportSource, progress: Progress = () =>
 class Writer {
 	private readonly sources = new Map<string, Promise<PDFDocument | null>>();
 	private readonly images = new Map<string, Promise<PDFImage | null>>();
-	private readonly highlight;
 
 	constructor(
 		private readonly lib: PdfLib,
 		private readonly out: PDFDocument,
 		private readonly source: ExportSource
 	) {
-		this.highlight = out.context.register(out.context.obj({ Type: 'ExtGState', CA: 0.35, ca: 0.35, BM: 'Multiply' }));
 	}
 
 	async page(meta: PageMeta) {
 		const { lib } = this;
 		const page = this.out.addPage([meta.w, meta.h]);
-		const highlight = page.node.newExtGState('Highlight', this.highlight);
 		// Our coordinates: y downwards from the top (pushed in runs, pictures in between use pdf-lib's own)
 		let run: PDFOperator[] = [];
 		const flush = () => {
@@ -69,8 +66,7 @@ class Writer {
 		const scene = this.source.scene(meta.id);
 		for (const item of scene?.items ?? []) {
 			if (isInk(item)) {
-				if (isShape(item)) run.push(...this.fill(page, item));
-				for (const s of inkStrokes(item)) run.push(...this.stroke(s, highlight));
+				for (const p of paintOf(item)) run.push(...(p.kind === 'fill' ? this.fill(page, p) : this.line(page, p, meta)));
 				continue;
 			}
 			flush();
@@ -87,7 +83,12 @@ class Writer {
 		try {
 			let doc = this.sources.get(bg.asset);
 			if (!doc) {
-				doc = this.source.backgrounds.bytes(bg.asset).then((bytes) => lib.PDFDocument.load(bytes, { ignoreEncryption: true }));
+				// Protection without a password is taken off, so such pages stay vectors too
+				doc = this.source.backgrounds.bytes(bg.asset).then(async (bytes) => {
+					const loaded = await loadPdf(bytes);
+					if (loaded.locked) throw new Error('protected by a password');
+					return loaded.doc;
+				});
 				this.sources.set(bg.asset, doc);
 			}
 			const src = (await doc)!;
@@ -100,9 +101,9 @@ class Writer {
 			const at = { 0: { x: 0, y: 0, a: 0 }, 90: { x: 0, y: w, a: -90 }, 180: { x: w, y: h, a: 180 }, 270: { x: h, y: 0, a: 90 } }[r] ?? { x: 0, y: 0, a: 0 };
 			page.drawPage(embedded, { x: at.x, y: at.y, rotate: lib.degrees(at.a) });
 		} catch (e) {
-			// Encrypted or broken for pdf-lib (PDF.js can still show it): the page as an image instead
+			// Protected by a password or broken for pdf-lib (PDF.js can still show it): the page as an image instead
 			console.warn('[notes] PDF page embedded as image', e);
-			const canvas = await this.source.backgrounds.render(bg, RASTER_SCALE);
+			const canvas = await this.source.backgrounds.render(bg.asset, bg.page, RASTER_SCALE);
 			const png = await this.out.embedPng(await canvasBytes(canvas, 'image/png'));
 			page.drawImage(png, { x: 0, y: 0, width: meta.w, height: meta.h });
 		}
@@ -146,38 +147,46 @@ class Writer {
 	}
 
 	/** The fill of a shape (under its outline) */
-	private fill(page: PDFPage, s: ShapeItem): PDFOperator[] {
-		const outline = fillOutline(s);
-		if (!outline || !s.fill) return [];
+	private fill(page: PDFPage, p: FillPaint): PDFOperator[] {
 		const o = this.lib;
-		const alpha = Math.round((parseInt(s.fill.slice(7, 9), 16) / 255) * 100) / 100;
+		const { outline } = p;
 		const ops: PDFOperator[] = [o.pushGraphicsState()];
-		if (alpha < 1) ops.push(o.setGraphicsState(this.opacity(page, alpha)));
-		ops.push(o.setFillingRgbColor(...rgbOf(s.fill)), o.moveTo(round(outline[0]), round(outline[1])));
-		for (let i = 2; i < outline.length; i += 2) ops.push(o.lineTo(round(outline[i]), round(outline[i + 1])));
+		if (p.alpha < 1) ops.push(o.setGraphicsState(this.opacity(page, p.alpha)));
+		ops.push(o.setFillingRgbColor(...rgbOf(p.color)), o.moveTo(outline[0], outline[1]));
+		for (let i = 2; i < outline.length; i += 2) ops.push(o.lineTo(outline[i], outline[i + 1]));
 		ops.push(o.closePath(), o.fill(), o.popGraphicsState());
 		return ops;
 	}
 
-	private stroke(s: Stroke, highlight: PDFName): PDFOperator[] {
-		const o = this.lib;
-		const pts = s.points;
-		const ops: PDFOperator[] = [o.pushGraphicsState()];
-		if (s.tool === 'highlighter') ops.push(o.setGraphicsState(highlight));
-		ops.push(o.setStrokingRgbColor(...rgbOf(s.color)), o.setLineCap(o.LineCapStyle.Round), o.setLineJoin(o.LineJoinStyle.Round));
-		// The first point is a dot (a line of no length with round caps); then one line per run of equal width
-		let width = round(diameter(s.tool, s.size, pts[2]));
-		ops.push(o.setLineWidth(width), o.moveTo(round(pts[0]), round(pts[1])), o.lineTo(round(pts[0]), round(pts[1])));
-		for (let i = 3; i < pts.length; i += 3) {
-			const w = round(diameter(s.tool, s.size, pts[i + 2]));
-			if (w !== width) {
-				ops.push(o.stroke(), o.setLineWidth(w), o.moveTo(round(pts[i - 3]), round(pts[i - 2])));
-				width = w;
-			}
-			ops.push(o.lineTo(round(pts[i]), round(pts[i + 1])));
+	/** Graphics states of see-through lines (opacity, multiplied for highlighters): one per kind and page */
+	private readonly groupStates = new Map<PDFPage, Map<string, PDFName>>();
+
+	private groupState(page: PDFPage, alpha: number, multiply: boolean): PDFName {
+		let names = this.groupStates.get(page);
+		if (!names) this.groupStates.set(page, (names = new Map()));
+		const key = `${alpha}:${multiply}`;
+		let name = names.get(key);
+		if (!name) {
+			const state = this.out.context.register(this.out.context.obj({ Type: 'ExtGState', CA: alpha, ca: alpha, ...(multiply && { BM: 'Multiply' }) }));
+			names.set(key, (name = page.node.newExtGState('Line', state)));
 		}
-		ops.push(o.stroke(), o.popGraphicsState());
-		return ops;
+		return name;
+	}
+
+	/** A pen line, run by run (see `paintOf`); see-through or multiplied as a whole (a transparency group) */
+	private line(page: PDFPage, p: LinePaint, meta: PageMeta): PDFOperator[] {
+		const o = this.lib;
+		const ops: PDFOperator[] = [o.setStrokingRgbColor(...rgbOf(p.color)), o.setLineCap(o.LineCapStyle.Round), o.setLineJoin(o.LineJoinStyle.Round)];
+		for (const { width, points } of p.runs) {
+			ops.push(o.setLineWidth(width), o.moveTo(points[0], points[1]));
+			for (let i = 2; i < points.length; i += 2) ops.push(o.lineTo(points[i], points[i + 1]));
+			ops.push(o.stroke());
+		}
+		if (p.alpha >= 1 && !p.highlighter) return [o.pushGraphicsState(), ...ops, o.popGraphicsState()];
+		// The group lies in the page's coordinates as drawn here (y down)
+		const group = this.out.context.formXObject(ops, { BBox: [0, 0, meta.w, meta.h], Group: { S: 'Transparency' } });
+		const name = page.node.newXObject('Group', this.out.context.register(group));
+		return [o.pushGraphicsState(), o.setGraphicsState(this.groupState(page, p.alpha, !!p.highlighter)), o.drawObject(name), o.popGraphicsState()];
 	}
 
 	// --- Pictures ---

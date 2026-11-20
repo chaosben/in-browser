@@ -1,15 +1,15 @@
 // What the exports need from a notebook (the open `NotebookDoc`, or test data). Page contents must be loaded.
 
-import type { PageMeta } from '#lib/model/types.js';
-import type { PdfBackgrounds } from '#lib/render/backgrounds.js';
-import type { PictureCache } from '#lib/render/pictures.js';
-import type { PageScene } from '#lib/render/scene.js';
+import type { Item, PageMeta } from '#lib/model/types.js';
+import type { PdfPages } from '@in-browser/pdf/pages.js';
+import type { PictureCache } from '@in-browser/ink/render/pictures.js';
+import type { PageScene } from '@in-browser/ink/render/scene.js';
 
 export interface ExportSource {
 	pages: PageMeta[];
-	scene(id: string): PageScene | null;
+	scene(id: string): PageScene<Item> | null;
 	pictures: PictureCache;
-	backgrounds: PdfBackgrounds;
+	backgrounds: PdfPages;
 	readAsset(name: string): Promise<Blob>;
 }
 

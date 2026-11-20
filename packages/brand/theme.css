@@ -45,6 +45,15 @@
 	--color-folder: oklch(80% 0.15 85);
 	--color-hint: oklch(78% 0.16 85);
 	--color-waveform: oklch(58% 0.158 241.966);
+	--color-field: oklch(62% 0.12 245);
+	--color-review-accepted: oklch(52% 0.14 150);
+	--color-review-accepted-content: oklch(100% 0 0);
+	--color-review-rejected: oklch(55% 0.2 25);
+	--color-review-rejected-content: oklch(100% 0 0);
+	--color-review-cancelled: oklch(55% 0.02 260);
+	--color-review-cancelled-content: oklch(100% 0 0);
+	--color-review-completed: oklch(52% 0.16 250);
+	--color-review-completed-content: oklch(100% 0 0);
 	--color-series-1: oklch(64% 0.17 25);
 	--color-series-2: oklch(76% 0.15 85);
 	--color-series-3: oklch(64% 0.16 150);
@@ -109,6 +118,15 @@
 	--color-folder: oklch(83% 0.14 85);
 	--color-hint: oklch(83% 0.15 85);
 	--color-waveform: oklch(68% 0.14 242);
+	--color-field: oklch(62% 0.12 245);
+	--color-review-accepted: oklch(74% 0.14 150);
+	--color-review-accepted-content: oklch(18% 0.04 150);
+	--color-review-rejected: oklch(72% 0.16 25);
+	--color-review-rejected-content: oklch(18% 0.04 25);
+	--color-review-cancelled: oklch(70% 0.02 260);
+	--color-review-cancelled-content: oklch(18% 0.02 260);
+	--color-review-completed: oklch(72% 0.13 250);
+	--color-review-completed-content: oklch(18% 0.04 250);
 	--color-series-1: oklch(72% 0.15 25);
 	--color-series-2: oklch(82% 0.13 85);
 	--color-series-3: oklch(72% 0.14 150);
@@ -158,6 +176,17 @@
 	--color-hint: var(--color-hint);
 	/* Audio waveforms (read in canvas code via getComputedStyle) */
 	--color-waveform: var(--color-waveform);
+	/* Form fields to fill in (tinted, required ones framed) */
+	--color-field: var(--color-field);
+	/* Review states of comments (accepted, rejected, cancelled, completed – “none” has no color) */
+	--color-review-accepted: var(--color-review-accepted);
+	--color-review-accepted-content: var(--color-review-accepted-content);
+	--color-review-rejected: var(--color-review-rejected);
+	--color-review-rejected-content: var(--color-review-rejected-content);
+	--color-review-cancelled: var(--color-review-cancelled);
+	--color-review-cancelled-content: var(--color-review-cancelled-content);
+	--color-review-completed: var(--color-review-completed);
+	--color-review-completed-content: var(--color-review-completed-content);
 	/* Colors that only need to be distinguishable (sources, tracks, charts) */
 	--color-series-1: var(--color-series-1);
 	--color-series-2: var(--color-series-2);

@@ -19,7 +19,8 @@
 	import { m } from '#lib/i18n/index.js';
 	import { rememberStyle } from '#lib/project/styles.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
-	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
+	import { LINE_HEIGHT as TEXT_LINE_HEIGHT, moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
+	import { resizeTextBox, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 	import { FULL, dragCrop, fullRect, type CropHandle } from '#lib/project/crop.js';
 	import {
 		clampZoomRect,
@@ -41,12 +42,13 @@
 		snapMove,
 		snapPoint,
 		snapTargets,
+		guideView,
 		type Guides,
-		type SnapLine,
 		type SnapTargets,
 		type Tolerance
 	} from '@in-browser/graphics/snap.js';
 	import { snapping } from '#lib/ui/snapping.svelte.js';
+	import SnapGuides from '@in-browser/graphics/SnapGuides.svelte';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
 	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
 
@@ -125,17 +127,58 @@
 		return snapTargets(boxes);
 	}
 
-	/** Other items the guides snap to (each once) */
-	const snappedTo = $derived(
-		[...new Set([guides?.x?.box, guides?.y?.box])].filter((box): box is number => box != null && box < snapSources.boxes.length)
+	/** The guides as shown: what each line snaps to (the canvas or an item with its type icon), gaps in pixels */
+	const guideMarks = $derived(
+		guides &&
+			guideView(
+				guides,
+				snapSources.boxes,
+				{ x: 0, y: 0, w: 1, h: 1 },
+				(box) => {
+					const item = box === null ? null : snapSources.items[box];
+					return item
+						? { icon: itemIcon(item, editor), label: m.preview.snapItem(itemLabel(item, editor)) }
+						: { icon: 'icon-[material-symbols-light--crop-free]', label: m.preview.snapCanvas };
+				},
+				(gap) => m.preview.gap(Math.round((gap.to - gap.from) * (gap.axis === 'x' ? W : H)))
+			)
 	);
 
 	interface DragStep {
 		/** Snap distance per axis; `null`: snapping off (switch, or reversed with Alt) */
 		tol: Tolerance | null;
-		/** Shift: move along one axis only */
+		/** Shift: move along one axis only (corners: keep the proportions) */
 		lockAxis: boolean;
+		/** K held: a text box's font scales with its box */
+		scaleText: boolean;
 	}
+
+	/** K held (as Figma's scale tool): a text box's handles scale its font too */
+	let scaleKey = false;
+	/** A drag in the preview is running: K then scales instead of playing */
+	let dragging = false;
+	$effect(() => {
+		const key = (down: boolean) => (e: KeyboardEvent) => {
+			if (e.key.toLowerCase() !== 'k' || e.ctrlKey || e.metaKey || e.altKey) return;
+			if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]')) return;
+			scaleKey = down;
+			if (!dragging) return;
+			// While dragging, K is not "Play" (captured before the editor's shortcuts)
+			e.preventDefault();
+			e.stopImmediatePropagation();
+		};
+		const down = key(true);
+		const up = key(false);
+		const blur = () => (scaleKey = false);
+		window.addEventListener('keydown', down, true);
+		window.addEventListener('keyup', up, true);
+		window.addEventListener('blur', blur);
+		return () => {
+			window.removeEventListener('keydown', down, true);
+			window.removeEventListener('keyup', up, true);
+			window.removeEventListener('blur', blur);
+		};
+	});
 
 	/**
 	 * Mouse drag; `onmove` receives the offset in content coordinates. With `libraryKey` (the gesture's undo key)
@@ -160,6 +203,7 @@
 		const tol = { x: (SNAP_PX / rect.width) * w, y: (SNAP_PX / rect.height) * h };
 		let target: LibraryScope | null = null;
 		let moved = !onclick;
+		dragging = true;
 		const move = (ev: PointerEvent) => {
 			if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < CLICK_PX) return;
 			moved = true;
@@ -172,10 +216,12 @@
 			}
 			onmove(((ev.clientX - x0) / rect.width) * w, ((ev.clientY - y0) / rect.height) * h, {
 				tol: snapping.active(ev) ? tol : null,
-				lockAxis: ev.shiftKey
+				lockAxis: ev.shiftKey,
+				scaleText: scaleKey
 			});
 		};
 		pointerDrag(e, move, () => {
+			dragging = false;
 			guides = null;
 			editor.endGesture();
 			endLibraryDrag();
@@ -282,21 +328,10 @@
 		if (o.kind === 'image' || o.kind === 'icon') return resizeKeepingAspect(e, o, corner, 0.01);
 		const key = `resize-${o.id}-${e.timeStamp}`;
 		const targets = targetsFor(o.id);
-		drag(e, (dx, dy, { tol }) => {
+		drag(e, (dx, dy, step) => {
+			const { tol } = step;
 			if (o.kind === 'arrow' || o.kind === 'line') return;
-			if (o.kind === 'text' || o.kind === 'callout') {
-				// A corner scales everything (font and a fixed width alike, so the text wraps the same); the
-				// opposite corner stays
-				const b = overlayBounds(o, W, H);
-				const size = Math.max(0.012, o.size * ((b.h + sign(corner, 's') * dy) / b.h));
-				const k = size / o.size;
-				const boxWidth = o.boxWidth === undefined ? {} : { boxWidth: o.boxWidth * k };
-				const x = sign(corner, 'e') > 0 ? b.x : b.x + b.w * (1 - k);
-				const y = sign(corner, 's') > 0 ? b.y : b.y + b.h * (1 - k);
-				// One patch: within a gesture every update starts from the state before it
-				patchOverlay(o.id, { ...boxWidth, x, y, size, radius: o.radius * k, padding: o.padding * k }, key);
-				return rememberStyle(o.kind, { size });
-			}
+			if (o.kind === 'text' || o.kind === 'callout') return resizeText(o, corner, dx, dy, step, key, targets);
 			if (o.kind === 'step' || o.kind === 'click') {
 				// The center stays, the corner sets the diameter
 				return resizeTo(o, Math.max(0.02, o.size + 2 * dy), key);
@@ -313,23 +348,51 @@
 		});
 	}
 
-	/** A side of a text box sets a fixed width, the text wraps inside; the opposite side stays */
-	function resizeWidth(e: PointerEvent, o: TextAnnotation | CalloutAnnotation, side: 'w' | 'e') {
+	/** The sides of a text box: left/right set its width, top/bottom a fixed size; the opposite side stays */
+	function resizeTextSide(e: PointerEvent, o: TextAnnotation | CalloutAnnotation, side: 'n' | 'e' | 's' | 'w') {
 		const key = `width-${o.id}-${e.timeStamp}`;
-		const b = overlayBounds(o, W, H);
-		// At least about two characters wide
-		const min = (2 * o.size * H + (o.background ? 2 * o.padding * H : 0)) / W;
 		const targets = targetsFor(o.id);
-		drag(e, (dx, _dy, { tol }) => {
-			if (tol) {
-				const edge = side === 'e' ? b.x + b.w : b.x;
-				const s = snapLine(edge + dx, targets.xs, tol.x);
-				dx = s.value - edge;
-				guides = { x: s.line, y: null, gaps: [] };
-			}
-			const boxWidth = Math.max(b.w + (side === 'e' ? dx : -dx), min);
-			patchOverlay(o.id, side === 'e' ? { boxWidth } : { boxWidth, x: b.x + b.w - boxWidth }, key);
+		drag(e, (dx, dy, step) => resizeText(o, side, dx, dy, step, key, targets));
+	}
+
+	/**
+	 * A text box resized like in Figma (`resizeTextBox`): handles change only the box – a side the width (auto width
+	 * becomes auto height), top, bottom and corners a fixed size; Shift keeps a corner's proportions; K scales the
+	 * font along. The dragged edge snaps. One patch per step: within a gesture every update starts from the state
+	 * before it.
+	 */
+	function resizeText(o: TextAnnotation | CalloutAnnotation, handle: TextHandle, dx: number, dy: number, step: DragStep, key: string, targets: SnapTargets) {
+		const b = overlayBounds(o, W, H);
+		const east = handle.includes('e');
+		const west = handle.includes('w');
+		const south = handle.includes('s');
+		const north = handle.includes('n');
+		if (step.tol) {
+			// The dragged edges snap
+			const sx = east || west ? snapLine((east ? b.x + b.w : b.x) + dx, targets.xs, step.tol.x) : null;
+			const sy = north || south ? snapLine((south ? b.y + b.h : b.y) + dy, targets.ys, step.tol.y) : null;
+			if (sx) dx = sx.value - (east ? b.x + b.w : b.x);
+			if (sy) dy = sy.value - (south ? b.y + b.h : b.y);
+			guides = { x: sx?.line ?? null, y: sy?.line ?? null, gaps: [] };
+		}
+		const pad = o.background ? o.padding * H : 0;
+		const sizing: TextSizing = o.boxWidth === undefined ? 'auto-width' : o.boxHeight === undefined ? 'auto-height' : 'fixed';
+		const r = resizeTextBox({ x: b.x * W, y: b.y * H, w: b.w * W, h: b.h * H }, sizing, handle, dx * W, dy * H, {
+			keepAspect: step.lockAxis,
+			scaleText: step.scaleText,
+			// About two characters wide, one line high
+			minW: 2 * o.size * H + 2 * pad,
+			minH: o.size * H * TEXT_LINE_HEIGHT + 2 * pad
 		});
+		const box = {
+			boxWidth: r.sizing === 'auto-width' ? undefined : r.rect.w / W,
+			boxHeight: r.sizing === 'fixed' ? r.rect.h / H : undefined
+		};
+		if (r.scale === 1) return patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box }, key);
+		const k = r.scale;
+		const size = o.size * k;
+		patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box, size, radius: o.radius * k, padding: o.padding * k }, key);
+		rememberStyle(o.kind, { size });
 	}
 
 	/** Moves an end of an arrow or line, or the tip of a speech bubble */
@@ -501,6 +564,8 @@
 		'absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/60 bg-white shadow cursor-pointer';
 	const sideHandle =
 		'absolute h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/60 bg-white shadow cursor-ew-resize';
+	const sideHandleNS =
+		'absolute h-2 w-4 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/60 bg-white shadow cursor-ns-resize';
 	const cursors: Record<Corner, string> = {
 		nw: 'cursor-nwse-resize',
 		se: 'cursor-nwse-resize',
@@ -520,19 +585,6 @@
 		e: 'cursor-ew-resize'
 	};
 </script>
-
-<!-- What a guide snaps to: the canvas (frame icon) or another item (its type icon) -->
-{#snippet guideBadge(line: SnapLine, style: string)}
-	{@const item = line.box === null ? null : snapSources.items[line.box]}
-	<span
-		class="bg-guide text-guide-content pointer-events-none absolute flex rounded p-0.5"
-		{style}
-		role="img"
-		aria-label={item ? m.preview.snapItem(itemLabel(item, editor)) : m.preview.snapCanvas}
-	>
-		<span class="{item ? itemIcon(item, editor) : 'icon-[material-symbols-light--crop-free]'} size-3.5" aria-hidden="true"></span>
-	</span>
-{/snippet}
 
 <!-- Scaling handles at the corners of `r` -->
 {#snippet cornerHandles(r: Rect, ondown: (e: PointerEvent, corner: Corner) => void, corners: Corner[] = CORNERS)}
@@ -673,12 +725,12 @@
 			{:else if o.kind === 'text' || o.kind === 'callout'}
 				{@const b = bounds(o)}
 				{@render cornerHandles(b, (e, c) => resizeOverlay(e, o, c))}
-				<!-- Sides: box width, the text wraps -->
-				{#each ['w', 'e'] as const as side (side)}
+				<!-- Sides: left/right the width (the text wraps), top/bottom a fixed size -->
+				{#each ['n', 'e', 's', 'w'] as const as side (side)}
 					<div
-						class="{sideHandle}"
-						style="left: {px(side === 'w' ? b.x : b.x + b.w)}; top: {py(b.y + b.h / 2)}"
-						onpointerdown={(e) => resizeWidth(e, o, side)}
+						class={side === 'e' || side === 'w' ? sideHandle : sideHandleNS}
+						style="left: {px(side === 'w' ? b.x : side === 'e' ? b.x + b.w : b.x + b.w / 2)}; top: {py(side === 'n' ? b.y : side === 's' ? b.y + b.h : b.y + b.h / 2)}"
+						onpointerdown={(e) => resizeTextSide(e, o, side)}
 						role="presentation"
 					></div>
 				{/each}
@@ -697,35 +749,5 @@
 	{/if}
 
 	<!-- Lines and equal gaps snapped to while dragging -->
-	{#each guides?.gaps ?? [] as gap, i (i)}
-		{@const length = Math.round((gap.to - gap.from) * (gap.axis === 'x' ? W : H))}
-		{#if gap.axis === 'x'}
-			<div
-				class="border-guide pointer-events-none absolute flex h-2 -translate-y-1/2 justify-center border-x"
-				style="left: {px(gap.from)}; width: {pw(gap.to - gap.from)}; top: {py(gap.at)}"
-			>
-				<div class="bg-guide absolute inset-x-0 top-1/2 h-px"></div>
-				<span class="bg-guide text-guide-content absolute top-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
-			</div>
-		{:else}
-			<div
-				class="border-guide pointer-events-none absolute flex w-2 -translate-x-1/2 items-center border-y"
-				style="top: {py(gap.from)}; height: {ph(gap.to - gap.from)}; left: {px(gap.at)}"
-			>
-				<div class="bg-guide absolute inset-y-0 left-1/2 w-px"></div>
-				<span class="bg-guide text-guide-content absolute left-2 rounded px-1 text-[10px] leading-4">{m.preview.gap(length)}</span>
-			</div>
-		{/if}
-	{/each}
-	{#each snappedTo as box (box)}
-		<div class="outline-guide pointer-events-none absolute outline-1" style={boxStyle(snapSources.boxes[box])}></div>
-	{/each}
-	{#if guides?.x}
-		<div class="bg-guide pointer-events-none absolute inset-y-0 w-px" style="left: {px(guides.x.at)}"></div>
-		{@render guideBadge(guides.x, `left: ${px(guides.x.at)}; top: 4px; transform: translateX(-50%)`)}
-	{/if}
-	{#if guides?.y}
-		<div class="bg-guide pointer-events-none absolute inset-x-0 h-px" style="top: {py(guides.y.at)}"></div>
-		{@render guideBadge(guides.y, `top: ${py(guides.y.at)}; left: 4px; transform: translateY(-50%)`)}
-	{/if}
+	<SnapGuides view={guideMarks} unit={{ x: px, y: py, w: pw, h: ph }} />
 </div>

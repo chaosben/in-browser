@@ -64,7 +64,7 @@
 		if (behind) return { label: p.probablyBehind(behind.name), tone: 'warn' };
 		if (devices && !online.length) return { label: p.waiting, tone: 'idle' };
 		if (devices) return { label: p.connected(online.length, others.length), tone: 'ok' };
-return { label: t.indicator.synced, tone: 'ok' };
+		return { label: t.indicator.synced, tone: 'ok' };
 	});
 
 	function deviceLine(d: DeviceView): string {

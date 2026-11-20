@@ -228,8 +228,12 @@ interface TextBase extends AnnotationBase, Shadowed {
 	color: string;
 	font: FontId;
 	align: TextAlign;
-	/** Fixed box width (fraction of the canvas width), the text wraps inside; without it the box fits the longest line */
+	/** Fixed box width (fraction of the canvas width), the text wraps inside; without it the box fits the longest line
+	 * (auto width) */
 	boxWidth?: number;
+	/** Fixed box height (fraction of the canvas height; only with `boxWidth`): a fixed size, text that doesn't fit
+	 * runs out below; without it the height follows the text (auto height) */
+	boxHeight?: number;
 	/** Corner radius of the background as a fraction of the canvas height */
 	radius: number;
 	/** Space between the background's edge and the text as a fraction of the canvas height */

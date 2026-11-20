@@ -1,0 +1,18 @@
+{
+	"name": "@in-browser/ink",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Shared ink core of in-browser: strokes, shapes and pictures on pages, pen math (included as source code)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@in-browser/graphics": "*"
+	}
+}

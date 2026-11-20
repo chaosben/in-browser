@@ -112,3 +112,35 @@ export function sortedRows(rows: Row[], column: number, descending: boolean, loc
 		.sort((a, b) => compare(a.row.cells[column]?.text, b.row.cells[column]?.text) || a.i - b.i)
 		.map((x) => x.row);
 }
+
+/** Removes several records as one change: neighbours together, each run of them with one line break */
+export function removeRows(doc: string, rows: readonly Row[], picked: readonly Row[]): ChangeSpec | null {
+	const remove = new Set(picked);
+	const changes: ChangeSpec[] = [];
+	let run: Row[] = [];
+	const flush = () => {
+		if (run.length) changes.push(removeLine(doc, { from: run[0].range.from, to: run[run.length - 1].range.to }));
+		run = [];
+	};
+	for (const row of rows) {
+		if (remove.has(row)) run.push(row);
+		else flush();
+	}
+	flush();
+	return changes.length ? changes : null;
+}
+
+/**
+ * New order of `count` rows when the picked ones (indices) move one place up (`-1`) or down: each passes the
+ * neighbour that isn't picked; a block at the edge stays. Returns the old indices in their new order.
+ */
+export function moveOrder(count: number, picked: ReadonlySet<number>, delta: -1 | 1): number[] {
+	const order = Array.from({ length: count }, (_, i) => i);
+	const swap = (i: number, j: number) => ([order[i], order[j]] = [order[j], order[i]]);
+	if (delta < 0) {
+		for (let i = 1; i < count; i++) if (picked.has(order[i]) && !picked.has(order[i - 1])) swap(i, i - 1);
+	} else {
+		for (let i = count - 2; i >= 0; i--) if (picked.has(order[i]) && !picked.has(order[i + 1])) swap(i, i + 1);
+	}
+	return order;
+}

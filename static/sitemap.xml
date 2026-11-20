@@ -5,14 +5,17 @@
 	<url><loc>https://in-browser.org/files</loc></url>
 	<url><loc>https://in-browser.org/text-editor</loc></url>
 	<url><loc>https://in-browser.org/notes</loc></url>
+	<url><loc>https://in-browser.org/pdf-editor</loc></url>
 	<url><loc>https://in-browser.org/help</loc></url>
 	<url><loc>https://in-browser.org/help/storage</loc></url>
 	<url><loc>https://in-browser.org/help/sync</loc></url>
 	<url><loc>https://in-browser.org/help/connected</loc></url>
 	<url><loc>https://in-browser.org/help/p2p-node</loc></url>
+	<url><loc>https://in-browser.org/help/settings</loc></url>
 	<url><loc>https://in-browser.org/help/install</loc></url>
 	<url><loc>https://in-browser.org/help/screen-capture</loc></url>
 	<url><loc>https://in-browser.org/help/files</loc></url>
 	<url><loc>https://in-browser.org/help/text-editor</loc></url>
 	<url><loc>https://in-browser.org/help/notes</loc></url>
+	<url><loc>https://in-browser.org/help/pdf-editor</loc></url>
 </urlset>

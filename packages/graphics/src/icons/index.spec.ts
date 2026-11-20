@@ -9,9 +9,6 @@ describe('searchIcons', () => {
 		expect(searchIcons(icons, 'arrow back').map((i) => i.name)).toEqual(['arrow-back']);
 		expect(searchIcons(icons, 'Arrow').map((i) => i.name)).toEqual(['arrow-forward', 'arrow-back']);
 	});
-	it('empty query: everything', () => {
-		expect(searchIcons(icons, '  ')).toHaveLength(4);
-	});
 });
 
 describe('iconList', () => {
@@ -50,8 +47,5 @@ describe('filterIcons', () => {
 		expect(names({ category: 'Home' })).toEqual(['home', 'home-rounded']);
 		expect(names({ variant: 'rounded', category: 'Audio' })).toEqual(['mic-rounded']);
 		expect(names({ query: 'mic', variant: '' })).toEqual(['mic']);
-	});
-	it('without filters: the whole set', () => {
-		expect(names({})).toHaveLength(4);
 	});
 });

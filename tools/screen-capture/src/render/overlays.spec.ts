@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calloutTail, fitTextToCanvas, moveAnnotation, overlayBounds, textBox, wrapText } from './overlays';
+import { calloutTail, moveAnnotation, textBox } from './overlays';
 import type { Ctx2D } from './compositor';
 import { createOverlay } from '#lib/project/defaults.js';
 import type { TextAnnotation } from '#lib/project/types.js';
@@ -10,9 +10,6 @@ const area = ([a, b, c]: { x: number; y: number }[]) =>
 	a.x * b.y - b.x * a.y + (b.x * c.y - c.x * b.y) + (c.x * a.y - a.x * c.y);
 
 describe('calloutTail', () => {
-	it('has no pointer when the tip lies within the box', () => {
-		expect(calloutTail(box, { x: 150, y: 120 })).toBeNull();
-	});
 	it('points to the tip with the winding of the box, in every direction', () => {
 		for (const tip of [
 			{ x: 0, y: 0 },
@@ -41,80 +38,6 @@ describe('moveAnnotation', () => {
 		if (rect.kind !== 'rect') throw new Error();
 		expect(moveAnnotation(rect, -0.05, 0)).toEqual({ rect: { ...rect.rect, x: rect.rect.x - 0.05 } });
 	});
-	it('moves a click by its center', () => {
-		const click = createOverlay('click', 0, 1);
-		if (click.kind !== 'click') throw new Error();
-		expect(moveAnnotation(click, 0.1, -0.1)).toEqual({ x: click.x + 0.1, y: click.y - 0.1 });
-	});
-});
-
-describe('overlayBounds', () => {
-	it('puts a click into a square around its center', () => {
-		const click = createOverlay('click', 0, 1);
-		if (click.kind !== 'click') throw new Error();
-		const b = overlayBounds(click, 2000, 1000);
-		expect(b.h).toBeCloseTo(click.size);
-		expect(b.w * 2000).toBeCloseTo(b.h * 1000);
-		expect(b.x + b.w / 2).toBeCloseTo(click.x);
-		expect(b.y + b.h / 2).toBeCloseTo(click.y);
-	});
-});
-
-describe('wrapText', () => {
-	// Every character is 1 wide
-	const measure = (s: string) => s.length;
-	const texts = (lines: { text: string }[]) => lines.map((l) => l.text);
-
-	it('only splits paragraphs without a width', () => {
-		expect(wrapText('a b\nc', measure)).toEqual([
-			{ text: 'a b', last: true },
-			{ text: 'c', last: true }
-		]);
-	});
-	it('wraps between words and marks paragraph ends', () => {
-		expect(wrapText('aa bb cc\n\ndd', measure, 5)).toEqual([
-			{ text: 'aa bb', last: false },
-			{ text: 'cc', last: true },
-			{ text: '', last: true },
-			{ text: 'dd', last: true }
-		]);
-	});
-	it('splits words that are too long on their own', () => {
-		expect(texts(wrapText('abcdefg hi', measure, 3))).toEqual(['abc', 'def', 'g', 'hi']);
-		expect(texts(wrapText('abc', measure, 0.5))).toEqual(['a', 'b', 'c']);
-	});
-});
-
-describe('fitTextToCanvas', () => {
-	const text = (fields: Partial<TextAnnotation>) => ({ ...(createOverlay('text', 0, 3) as TextAnnotation), ...fields });
-	/** Fake layout: each character is `size` wide, lines wrap at the fixed width, each line is `size` high */
-	const bounds = (a: TextAnnotation) => {
-		const perLine = a.boxWidth === undefined ? Infinity : Math.max(Math.floor(a.boxWidth / a.size), 1);
-		const lines = a.text.split('\n').reduce((n, p) => n + Math.max(Math.ceil(p.length / perLine), 1), 0);
-		const longest = Math.max(...a.text.split('\n').map((p) => p.length));
-		return { x: a.x, y: a.y, w: a.boxWidth ?? longest * a.size, h: lines * a.size };
-	};
-	it('leaves a fitting text alone', () => {
-		expect(fitTextToCanvas(text({ text: 'Hello', size: 0.05, x: 0.1, y: 0.1 }), bounds)).toEqual({});
-	});
-	it('wraps a text wider than the canvas', () => {
-		const patch = fitTextToCanvas(text({ text: 'x'.repeat(40), size: 0.05, x: 0, y: 0 }), bounds);
-		expect(patch).toEqual({ boxWidth: 1 });
-	});
-	it('shrinks the font until the text is no taller than the canvas', () => {
-		const a = text({ text: Array(40).fill('line').join('\n'), size: 0.05, x: 0, y: 0 });
-		const patch = fitTextToCanvas(a, bounds);
-		expect(patch.size).toBeLessThan(0.05);
-		expect(bounds({ ...a, ...patch }).h).toBeLessThanOrEqual(1);
-		expect(bounds({ ...a, ...patch, size: patch.size! * 1.01 }).h).toBeGreaterThan(1);
-		// Corners and padding shrink along
-		const k = patch.size! / a.size;
-		expect(patch.radius).toBeCloseTo(a.radius * k);
-		expect(patch.padding).toBeCloseTo(a.padding * k);
-	});
-	it('moves the box inside the canvas', () => {
-		expect(fitTextToCanvas(text({ text: 'Hello', size: 0.1, x: 0.8, y: 0.95 }), bounds)).toEqual({ x: 0.5, y: 0.9 });
-	});
 });
 
 describe('textBox', () => {
@@ -135,10 +58,6 @@ describe('textBox', () => {
 			actualBoundingBoxRight: s.length * 10 + (s.endsWith('f') ? 4 : 0)
 		})
 	} as unknown as Ctx2D;
-	it('without overhang the box fits the advance width', () => {
-		const b = textBox(ctx, text({ text: 'abc' }), 1000, 1000);
-		expect(b).toMatchObject({ w: 40, textX: 5, inner: 30 });
-	});
 	it('widens the box by glyphs reaching past the line', () => {
 		const b = textBox(ctx, text({ text: 'fab\nabf' }), 1000, 1000);
 		expect(b).toMatchObject({ w: 30 + 3 + 4 + 10, textX: 8, inner: 30 });

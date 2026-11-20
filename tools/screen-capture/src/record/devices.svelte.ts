@@ -59,7 +59,7 @@ class Devices {
 
 	/** Keeps the lists up to date while devices are plugged in or out */
 	watch() {
-		const refresh = () => this.refresh().catch(() => {});
+		const refresh = () => this.refresh().catch((e) => console.warn('[screen-capture]', e));
 		navigator.mediaDevices.addEventListener('devicechange', refresh);
 		refresh();
 		return () => navigator.mediaDevices.removeEventListener('devicechange', refresh);

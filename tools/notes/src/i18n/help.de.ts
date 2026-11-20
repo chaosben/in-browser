@@ -6,19 +6,40 @@ const help: typeof enHelp = {
 		items: {
 			startPage: {
 				title: 'Startseite',
-				text: 'Die Startseite zeigt jedes Notizbuch im Browserspeicher, den alle Tools von in-browser teilen – mit Seitenzahl, letzter Änderung und Ordner, auch Notizbücher, die von deinen anderen Geräten gekommen sind. Klicke ein Notizbuch an, um es zu öffnen. „Neues Notizbuch“ fragt, wohin es soll und wie es heißt, und beginnt mit einer linierten A4-Seite. „Öffnen …“ öffnet ein Notizbuch aus einem beliebigen Ordner, „PDF importieren“ macht aus einem PDF ein neues Notizbuch (siehe „PDF“).'
+				text: 'Die Startseite zeigt jedes Notizbuch im Browserspeicher, den alle Tools von in-browser teilen, als Karte – mit Seitenzahl, letzter Änderung und Ordner, auch Notizbücher, die von deinen anderen Geräten gekommen sind. Ein Klick (am Telefon oder Tablet ein Tippen) öffnet ein Notizbuch. „Neues Notizbuch“ fragt, wohin es soll und wie es heißt, und beginnt mit einer linierten A4-Seite. „Öffnen …“ öffnet ein Notizbuch aus einem beliebigen Ordner, „PDF importieren“ macht aus einem PDF ein neues Notizbuch (siehe „PDF“).'
 			},
 			deleting: {
-				title: 'Notizbuch löschen',
-				text: 'Der Knopf mit den drei Punkten neben einem Notizbuch (oder ein Rechtsklick, am Telefon langes Drücken) öffnet sein Menü mit „Öffnen“ und „Löschen“. Ein gelöschtes Notizbuch landet im Papierkorb; die Meldung, die es bestätigt, bietet „Rückgängig“ an.'
+				title: 'Notizbücher löschen',
+				text: 'Jede Notizbuch-Karte hat ein Menü – klicke sie mit rechts an, drücke ihren ⋯-Knopf oder halte sie am Telefon oder Tablet gedrückt: „Öffnen“, „In Dateien zeigen“ und „Löschen“. „Löschen“ legt das Notizbuch in den Papierkorb; die Meldung, die es bestätigt, bietet „Rückgängig“ an. Mit der Tastatur gehst du mit Tab zu einer Karte und drückst Entf. Ein Notizbuch heißt wie seine Datei: Zum Umbenennen wähle „In Dateien zeigen“ und benenne es dort um.',
+				keys: [['Entf']]
 			},
 			layout: {
 				title: 'Aufbau',
-				text: 'Die Seiten liegen untereinander und füllen das Fenster. Die schwebende Leiste unten enthält die Werkzeuge („Stift“, „Textmarker“, „Formen“, „Radierer“, „Auswählen“, „Laserpointer“), dann den runden Knopf für „Farbe, Stärke und Glättung“ des aktuellen Werkzeugs, „Einfügen“ und „Seite“. Tippe das aktive Werkzeug noch einmal an, um seine Optionen zu öffnen oder zu schließen. Oben: der Name des Notizbuchs mit seinem Menü (Pfeil) und auf breiteren Bildschirmen „Rückgängig“, „Wiederholen“ und „Exportieren“. Am unteren Rand: der Speicherstand, „Seite 3 von 12“ und der Zoom.'
+				text: 'Die Seiten liegen untereinander unter dem Menüband: links darin „Rückgängig“ und „Wiederholen“, dann die Registerkarten „Datei“ (Exportieren, in Dateien zeigen, Löschen), „Zeichnen“ (Werkzeuge, Format, Optionen), „Einfügen“ (Bilder, Icons, PDFs, Seiten), „Seiten“ (Papier, Größe, Reihenfolge, Löschen) und „Ansicht“ (Zoom). Jede Registerkarte zeigt ihre Befehle in Gruppen mit ihrem Namen darunter. Farbig abgesetzte Registerkarten kommen und gehen mit einer Auswahl: „Zeichnung“ (nur Striche und Formen) oder „Auswahl“ (mit Bildern oder Icons) und „Anordnen“. Das Notizbuch öffnet mit „Zeichnen“. Die Registerkarte „Datei“, die erste, enthält in ihrer Gruppe „Notizbuch“, was du mit dem Notizbuch selbst tust: „Exportieren …“, „In Dateien zeigen“ und „Löschen“. Die obere Leiste darüber zeigt nur den Namen des Notizbuchs. Am unteren Rand: der Speicherstand, „Seite 3 von 12“ und der Zoom.'
+			},
+			ribbon: {
+				title: 'Menüband-Anzeige',
+				text: 'Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner: Ihre Schaltflächen verlieren den Text unter dem Symbol, dann den Text ganz, und zuletzt wird eine ganze Gruppe zu einer Schaltfläche, die sie öffnet. Die Schaltfläche mit dem Leisten-Symbol am rechten Ende der Registerkarten wählt, wie das Menüband aussieht; der Pfeil daneben schaltet auf „Nur Registerkarten“ und zurück.',
+				options: {
+					classic: { label: 'Klassisch (Standard)', text: 'Große Schaltflächen in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
+					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile Schaltflächen, ohne Gruppennamen. Lässt mehr Platz für die Seiten.' },
+					tabs: { label: 'Nur Registerkarten', text: 'Nur die Registerkarten; ein Klick auf eine öffnet ihre Befehle über der Seite, bis du einen wählst. Am meisten Platz zum Schreiben.' }
+				},
+				tip: 'Bleib bei „Klassisch“, bis du weißt, wo alles ist; dann schalte auf „Vereinfacht“ oder „Nur Registerkarten“, um mehr von der Seite zu sehen.',
+				keys: [['Strg', 'F1']]
+			},
+			accessKeys: {
+				title: 'Zugriffstasten',
+				text: 'Drücke kurz Alt (oder F10): Auf den Registerkarten erscheinen Buchstaben, auf „Rückgängig“ und „Wiederholen“ Zahlen. Tippe den Buchstaben einer Registerkarte, dann den Buchstaben auf einem Befehl, um ihn auszuführen. Esc geht einen Schritt zurück.',
+				keys: [['Alt'], ['F10']]
+			},
+			phone: {
+				title: 'Auf dem Handy',
+				text: 'Auf dem Handy ist das Menüband eine einzelne Leiste oben: Die Schaltfläche links wählt die Registerkarte, die Befehle daneben sind Symbole und lassen sich seitwärts schieben. Halte ein Symbol gedrückt, um seinen Namen zu sehen. Wählst du etwas aus, springt es von selbst zur Registerkarte der Auswahl.'
 			},
 			saving: {
 				title: 'Speichern',
-				text: 'Jede Änderung wird automatisch gesichert, einen Moment nachdem du den Stift absetzt; das Symbol unten links zeigt, ob alles gespeichert ist. Nichts wird hochgeladen. Ein Notizbuch ist eine Datei „Name.note“ im Browserspeicher; klicke oben auf seinen Namen, um es umzubenennen. In Dateien verschiebst, kopierst, löschst oder lädst du Notizbücher wie andere Dateien herunter. Ein Notizbuch kann nur in einem Tab gleichzeitig offen sein. Ändert es sich woanders (auf einem anderen Gerät, durch den Abgleich), werden die Seiten neu geladen, an denen du gerade nicht arbeitest – deine Änderungen hier bleiben erhalten.',
+				text: 'Jede Änderung wird automatisch gesichert, einen Moment nachdem du den Stift absetzt; das Symbol unten links zeigt, ob alles gespeichert ist. Nichts wird hochgeladen. Ein Notizbuch ist eine Datei „Name.note“ im Browserspeicher und trägt deren Namen. In Dateien benennst du Notizbücher wie andere Dateien um, verschiebst, kopierst oder löschst sie oder lädst sie herunter. Ein Notizbuch kann nur in einem Tab gleichzeitig offen sein. Ändert es sich woanders (auf einem anderen Gerät, durch das Synchronisieren), fragen dich Notizen, ob sie die Seiten neu laden sollen, die du hier nicht geändert hast („Neu laden“ / „Nicht neu laden“, auf Wunsch ohne weitere Frage, solange es offen ist) – deine Änderungen hier bleiben erhalten.',
 				tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Halte eine Kopie in einem Ordner auf deinem Rechner oder auf deinen anderen Geräten.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
@@ -29,8 +50,8 @@ const help: typeof enHelp = {
 			},
 			sync: {
 				title: 'Auf all deinen Geräten',
-				text: 'Notizbücher sind gewöhnliche Dateien des gemeinsamen Dateisystems und reisen deshalb mit dem Geräteabgleich mit – schreib auf dem Tablet, lies am Rechner.',
-				link: { href: '/help/sync', label: 'Abgleich zwischen Geräten' }
+				text: 'Notizbücher sind gewöhnliche Dateien des gemeinsamen Dateisystems und reisen deshalb mit dem Synchronisieren deiner Geräte mit – schreib auf dem Tablet, lies am Rechner.',
+				link: { href: '/help/sync', label: 'Synchronisieren zwischen Geräten' }
 			},
 			install: {
 				title: 'Installieren und offline',
@@ -39,7 +60,7 @@ const help: typeof enHelp = {
 			},
 			undo: {
 				title: 'Rückgängig',
-				text: 'Bis zu 300 Änderungen kannst du rückgängig machen und wiederholen – Striche, Radieren, Verschieben, Umfärben, eingefügte Bilder und PDFs, Änderungen an Seiten. Die Knöpfe stehen auf breiteren Bildschirmen in der oberen Leiste und immer im Menü des Notizbuchs (Pfeil neben seinem Namen).',
+				text: 'Bis zu 300 Änderungen kannst du rückgängig machen und wiederholen – Striche, Radieren, Verschieben, Umfärben, eingefügte Bilder und PDFs, Änderungen an Seiten. „Rückgängig“ und „Wiederholen“ stehen am linken Ende des Menübands.',
 				keys: [['Strg', 'Z'], ['Strg', 'Umschalt', 'Z'], ['Strg', 'Y']]
 			}
 		}
@@ -57,11 +78,11 @@ const help: typeof enHelp = {
 			},
 			color: {
 				title: 'Farbe und Stärke',
-				text: 'Der runde Knopf nach den Werkzeugen öffnet die Optionen des aktuellen Werkzeugs: das Farbfeld der Suite (Palette, zuletzt benutzte Farben, eigene Farben) und die Stärke. Stift und Formen teilen sich Farbe und Stärke; der Textmarker behält seine eigenen. Alle Einstellungen bleiben für das nächste Notizbuch erhalten.'
+				text: 'In der Registerkarte „Zeichnen“, Gruppe „Format“: „Farbe“ öffnet das Farbfeld der Suite (Palette, zuletzt benutzte Farben, eigene Farben) für das gewählte Werkzeug, der Pfeil an „Stärke“ seine Größen – fünf für Stift und Formen, drei für den Textmarker. Stift und Formen teilen sich Farbe und Stärke; der Textmarker behält seine eigenen. Die Prozentzahl neben den Farben legt fest, wie durchscheinend die Tinte ist (zum Ziehen oder Eintippen; der Textmarker beginnt bei 35 %) – ein durchscheinender Strich bleibt gleichmäßig, auch wo er sich kreuzt, auch in der exportierten PDF. Bei einer Auswahl ändern dieselben Knöpfe stattdessen die ausgewählten Elemente (siehe „Auswählen“). Alle Einstellungen bleiben für das nächste Notizbuch erhalten.'
 			},
 			smoothing: {
 				title: 'Glättung',
-				text: 'Gleicht zittrige Linien aus: Die Linie folgt dem Stift mit kleiner Verzögerung und verliert so kleine Wackler. Wenn du den Stift absetzt, holt die Linie bis zur Absetzstelle auf. In den Optionen von Stift und Textmarker.',
+				text: 'Gleicht zittrige Linien aus: Die Linie folgt dem Stift mit kleiner Verzögerung und verliert so kleine Wackler. Wenn du den Stift absetzt, holt die Linie bis zur Absetzstelle auf. „Glättung“ steht in der Registerkarte „Zeichnen“ (Gruppe „Format“), für Stift und Textmarker.',
 				options: {
 					off: { label: 'Aus', text: 'Die Linie liegt genau dort, wo der Stift war – jeder Wackler bleibt.' },
 					light: { label: 'Leicht (Standard)', text: 'Entfernt Zittern; die Verzögerung merkst du kaum.' },
@@ -72,7 +93,7 @@ const help: typeof enHelp = {
 			},
 			eraser: {
 				title: 'Radierer',
-				text: 'Wische über das, was weg soll. Die Größe (drei Kreise) gilt auf dem Bildschirm – wenn du hineinzoomst, radierst du also feinere Details. Bilder und Icons werden nie wegradiert – wähle sie aus und lösche sie.',
+				text: 'Wische über das, was weg soll. Der Pfeil an „Radierer“ wählt, was er radiert, und seine Größe (drei Größen); die Größe gilt auf dem Bildschirm – wenn du hineinzoomst, radierst du also feinere Details. Bilder und Icons werden nie wegradiert – wähle sie aus und lösche sie.',
 				options: {
 					stroke: { label: 'Ganze Striche (Standard)', text: 'Ein berührter Strich verschwindet ganz. Schnell und sauber für Handschrift.' },
 					pixel: { label: 'Pixel', text: 'Entfernt nur, was unter dem Radierer liegt; der Rest des Strichs bleibt als einzelne Stücke stehen. Eine so berührte Form wird zu gewöhnlichen Strichen und verliert ihre Punkte zum Verschieben und ihre Stileinstellungen.' }
@@ -85,7 +106,7 @@ const help: typeof enHelp = {
 			},
 			laser: {
 				title: 'Laserpointer',
-				text: 'Zeichnet eine leuchtende Spur, die von selbst verblasst und nie gespeichert wird – um beim Präsentieren oder Bildschirmteilen auf etwas zu zeigen.'
+				text: 'Zeichnet eine leuchtende Spur, die von selbst verblasst und nie gespeichert wird – um beim Präsentieren oder Freigeben deines Bildschirms auf etwas zu zeigen.'
 			}
 		}
 	},
@@ -102,12 +123,12 @@ const help: typeof enHelp = {
 			},
 			penOnly: {
 				title: 'Nur der Stift zeichnet',
-				text: '„Nur der Stift zeichnet“ im Menü des Notizbuchs (Pfeil neben seinem Namen) macht das dauerhaft: Finger scrollen und zoomen immer nur, von der ersten Berührung an und in jedem Notizbuch. Solange es an ist, steht es in der unteren Leiste – tippe es dort an, um es auszuschalten.',
+				text: 'Der Schalter „Nur der Stift zeichnet“ in der Registerkarte „Zeichnen“ (Gruppe „Optionen“) macht das dauerhaft: Finger scrollen und zoomen dann immer nur, schon bei der ersten Berührung, in jedem Notizbuch. Solange er an ist, steht es in der Leiste unten – tippe es dort an, um ihn auszuschalten.',
 				tip: 'Schalte es ein, wenn du immer mit Eingabestift schreibst – dann zeichnet auch die allererste Berührung deines Handballens nichts. Lass es aus, wenn du manchmal auch mit dem Finger schreibst.'
 			},
 			longPress: {
 				title: 'Langes Drücken',
-				text: 'Auf Telefon und Tablet öffnet langes Drücken die Menüs, die am Rechner ein Rechtsklick öffnet, z. B. das Menü eines Notizbuchs auf der Startseite.'
+				text: 'Am Telefon oder Tablet öffnet langes Drücken die Menüs, die am Rechner ein Rechtsklick öffnet – etwa das Menü eines Notizbuchs auf der Startseite – und zeigt den Namen eines Befehls im Menüband.'
 			}
 		}
 	},
@@ -116,28 +137,35 @@ const help: typeof enHelp = {
 		items: {
 			selecting: {
 				title: 'Auswählen',
-				text: 'Mit „Auswählen“ tippst du ein Element an, um das oberste dort auszuwählen (einen Strich, eine Form, ein Bild oder Icon), oder umkreist mehrere: Striche zählen, wenn mindestens die Hälfte davon in der Schleife liegt, Bilder und Icons, wenn ihre Mitte darin liegt. Um die Auswahl erscheint ein Rahmen mit Anfassern. Ein anderes Werkzeug beendet die Auswahl.',
+				text: 'Mit „Auswählen“ (Registerkarte „Zeichnen“) tippst du ein Element an, um das oberste dort auszuwählen (einen Strich, eine Form, ein Bild oder Icon), oder ziehst eine Schleife um mehrere (neben ihnen beginnen): Striche zählen, wenn mindestens die Hälfte in der Schleife liegt, Bilder, wenn ihre Mitte darin liegt. Ziehst du an einem Element, verschiebst du es sofort, ohne es vorher auszuwählen. Um die Auswahl erscheint ein Rahmen mit Griffen. Ein anderes Werkzeug beendet die Auswahl; Esc beendet sie auch, und ohne Auswahl geht Esc von jedem Werkzeug zurück zu „Auswählen“.',
 				keys: [['Esc']]
 			},
 			moving: {
 				title: 'Verschieben und skalieren',
-				text: 'Zieh innerhalb des Rahmens, um die Auswahl zu verschieben, zieh an einer Ecke, um sie zu skalieren – die Proportionen bleiben, die gegenüberliegende Ecke bleibt stehen. Jedes Verschieben oder Skalieren ist ein Schritt zum Rückgängigmachen. Ist „Einrasten“ an, richtet sich die Auswahl an der Seite und an anderen Formen und Bildern aus (siehe „Formen“).'
+				text: 'Ziehe im Rahmen, um die Auswahl zu verschieben, ziehe an einer Ecke, um sie zu skalieren – die Proportionen bleiben, und die gegenüberliegende Ecke bleibt stehen. Halte beim Verschieben Umschalt gedrückt, um in der Richtung zu bleiben, in die du am meisten gezogen hast. Jedes Verschieben oder Skalieren ist ein Rückgängig-Schritt. Mit „Einrasten“ richtet sich die Auswahl an der Seite und an anderen Formen und Bildern aus (siehe „Formen“). Mit der Tastatur verschieben die Pfeiltasten die Auswahl um 1 Punkt, mit Umschalt um 10 – ohne Einrasten; gedrückt halten bis zum Loslassen ist ein Rückgängig-Schritt. Strg+A (oder „Alles auswählen“ in der Registerkarte der Auswahl) wählt alles auf der sichtbaren Seite aus.',
+				keys: [['←'], ['→'], ['↑'], ['↓'], ['Umschalt', '←'], ['Strg', 'A']]
 			},
 			points: {
 				title: 'Punkte einer Form',
 				text: 'Ist genau eine Form ausgewählt, erscheinen statt der Ecken ihre Punkte: die Enden einer Linie oder eines Pfeils, die Ecken eines Vielecks, bei Ellipse und abgerundetem Rechteck die Ecken ihres Rahmens. Zieh einen Punkt, um die Form zu verändern.'
 			},
 			menu: {
-				title: 'Auswahlmenü',
-				text: 'Über der Auswahl schwebt ein Menü (am oberen Bildschirmrand darunter). Am Telefon zeigt es nur Symbole. Jede Änderung dort ist ein Schritt zum Rückgängigmachen.',
+				title: 'Eine Auswahl formatieren',
+				text: 'Mit einer Auswahl erscheint die Registerkarte „Zeichnung“ (nur Striche und Formen) oder „Auswahl“ (mit Bildern oder Icons) – am Handy öffnet sie sich von selbst. Ihre Gruppen „Format“ und „Objekt“ wirken auf die ausgewählten Elemente; jede Änderung ist ein Rückgängig-Schritt. Das kleine Menü an der Auswahl enthält „Duplizieren“ und „Löschen“ als Symbole.',
 				options: {
 					color: { label: 'Farbe', text: 'Färbt Striche, Formen und Icons um. Bilder behalten ihre Farben.' },
 					size: { label: 'Stärke', text: 'Die Linienstärke ausgewählter Striche und Formen, in den fünf Stiftgrößen.' },
+					smoothing: { label: 'Glättung', text: 'Nur für die nächsten Striche – bei einer Auswahl gesperrt.' },
 					style: { label: 'Stil', text: 'Nur bei Formen: Füllung, Linienart, handgezeichneter Look und bei Linien die Pfeilspitzen (siehe „Formen“).' },
 					duplicate: { label: 'Duplizieren', text: 'Legt eine leicht versetzte Kopie obendrauf und wählt sie aus, bereit zum Verschieben.' },
-					delete: { label: 'Löschen', text: 'Entfernt die Auswahl; „Rückgängig“ holt sie zurück.' }
+					delete: { label: 'Löschen', text: 'Entfernt die Auswahl; „Rückgängig“ holt sie zurück.' },
+					selectAll: { label: 'Alles auswählen', text: 'Wählt alles auf der sichtbaren Seite aus.' }
 				},
 				keys: [['Entf'], ['Rücktaste']]
+			},
+			arrange: {
+				title: 'Anordnen',
+				text: 'Die Registerkarte „Anordnen“ erscheint mit einer Auswahl. „In den Vordergrund“, „Eine Ebene nach vorne“, „Eine Ebene nach hinten“ und „In den Hintergrund“ ändern, welches Element oben liegt, wo sie sich überlappen. „Linksbündig ausrichten“, „Horizontal zentrieren“, „Rechtsbündig ausrichten“, „Oben ausrichten“, „Vertikal zentrieren“ und „Unten ausrichten“ richten zwei oder mehr ausgewählte Elemente am Rahmen um alle aus; „Horizontal verteilen“ und „Vertikal verteilen“ geben drei oder mehr gleiche Abstände. Jedes ist ein Rückgängig-Schritt.'
 			}
 		}
 	},
@@ -146,21 +174,21 @@ const help: typeof enHelp = {
 		items: {
 			shapeTool: {
 				title: 'Formen zeichnen',
-				text: 'Wähle „Formen“; seine Optionen zeigen die zwölf Formen: Linie, Pfeil, Doppelpfeil, Rechteck, abgerundetes Rechteck, Ellipse, Dreieck, Raute, Parallelogramm, Fünfeck, Sechseck und Stern. Zieh auf der Seite von einer Ecke (oder dem Anfang einer Linie) zur anderen. Fast quadratische Formen werden zu Quadrat oder Kreis. Ein Tippen ohne Ziehen zeichnet nichts. Formen nutzen Farbe und Stärke des Stifts. Eine Form bleibt bearbeitbar: Wähle sie aus, um ihre Punkte zu verschieben oder ihren Stil zu ändern.'
+				text: 'Wähle „Formen“; der Pfeil daran listet die zwölf Formen: Linie, Pfeil, Doppelpfeil, Rechteck, abgerundetes Rechteck, Ellipse, Dreieck, Raute, Parallelogramm, Fünfeck, Sechseck und Stern. Zieh auf der Seite von einer Ecke (oder dem Anfang einer Linie) zur anderen. Fast quadratische Formen werden zu Quadrat oder Kreis. Ein Tippen ohne Ziehen zeichnet nichts. Formen nutzen Farbe und Stärke des Stifts. Eine Form bleibt bearbeitbar: Wähle sie aus, um ihre Punkte zu verschieben oder ihren Stil zu ändern.'
 			},
 			style: {
 				title: 'Stil einer Form',
-				text: 'Unter Farbe und Stärke in den Optionen von „Formen“ – und unter „Stil“ im Auswahlmenü für schon gezeichnete Formen.',
+				text: '„Stil“ in der Gruppe „Format“ (Registerkarte „Zeichnen“) legt fest, wie die nächste Form gezeichnet wird; sind Formen ausgewählt, ändert er sie.',
 				options: {
 					fill: { label: 'Füllung', text: 'Eine Farbe im Inneren geschlossener Formen, „Keine“ für einen leeren Umriss. Linien und Pfeile haben keine Füllung.' },
 					line: { label: 'Linie', text: '„Durchgezogen“, „Gestrichelt“ oder „Gepunktet“; die Länge von Strichen und Punkten richtet sich nach der Stärke.' },
 					sketch: { label: 'Handgezeichnet', text: 'Zeichnet den Umriss leicht unregelmäßig, wie von Hand – passt besser zu handschriftlichen Notizen als exakte Geometrie.' },
-					heads: { label: 'Pfeilspitzen', text: 'Nur im Auswahlmenü, für Linien und Pfeile: „Keine“, „Am Ende“, „Am Anfang“ oder „An beiden Enden“ – macht aus einer Linie einen Pfeil und zurück.' }
+					heads: { label: 'Pfeilspitzen', text: 'Nur für ausgewählte Linien und Pfeile: „Keine“, „Am Ende“, „Am Anfang“ oder „An beiden Enden“ – macht aus einer Linie einen Pfeil und zurück.' }
 				}
 			},
 			snap: {
 				title: 'Einrasten',
-				text: 'Der Schalter „Einrasten“ in den Optionen von „Formen“ und „Auswählen“ (standardmäßig an) hilft beim Ziehen, Dinge auszurichten: Linien und Punkte von Formen springen in 15°-Schritte; Anfang und Ende einer neuen Form, gezogene Punkte und verschobene oder skalierte Auswahlen springen an Kanten und Mitte der Seite und an Kanten und Mitten anderer Formen und Bilder – Handschrift ist nie ein Ziel. Auswahlen rasten außerdem auf gleiche Abstände zu ihren Nachbarn ein. Hilfslinien zeigen, woran es einrastet, gleiche Abstände mit ihrer Größe in Millimetern.',
+				text: 'Der Schalter „Einrasten“ in der Registerkarte „Zeichnen“ (Gruppe „Optionen“, standardmäßig an) hilft beim Ziehen, Dinge auszurichten: Linien und Punkte von Formen springen in 15°-Schritte; Anfang und Ende einer neuen Form, gezogene Punkte und verschobene oder skalierte Auswahlen springen an Kanten und Mitte der Seite und an Kanten und Mitten anderer Formen und Bilder – Handschrift ist nie ein Ziel. Auswahlen rasten außerdem auf gleiche Abstände zu ihren Nachbarn ein. Hilfslinien zeigen, woran es einrastet: Das kleine Zeichen am Anfang einer Linie ist ein Rahmen für die Seite, sonst die Form oder das Bild, von dem sie kommt – das ist zusätzlich umrandet. Gleiche Abstände zeigen ihre Größe in Millimetern.',
 				tip: 'Lass es für Diagramme und ordentliche Layouts an. Schalte es aus, wenn du Dinge frei dicht neben anderen platzieren willst. Mit Tastatur bewirkt Alt beim Ziehen das Gegenteil des Schalters, nur für dieses eine Ziehen.',
 				keys: [['Alt']]
 			},
@@ -175,11 +203,11 @@ const help: typeof enHelp = {
 		items: {
 			images: {
 				title: 'Bilder',
-				text: '„Einfügen“ bietet „Bild aus Dateien …“ und „Bild von diesem Gerät …“; du kannst ein Bild auch einfügen (Zwischenablage) oder auf die Seite ziehen. Es erscheint in natürlicher Größe, verkleinert, wenn es nicht auf die Seite passt, und ist gleich ausgewählt, damit du es verschieben und skalieren kannst. Sehr große Bilder werden verkleinert gespeichert, damit das Notizbuch klein bleibt. Der Radierer rührt Bilder nie an – lösche sie mit „Auswählen“.'
+				text: '„Bild“ in der Registerkarte „Einfügen“ bietet „Bild aus Dateien …“ und „Bild von diesem Gerät …“; du kannst ein Bild auch einfügen (Zwischenablage) oder auf die Seite ziehen. Es erscheint in natürlicher Größe, verkleinert, wenn es nicht auf die Seite passt, und ist gleich ausgewählt, damit du es verschieben und skalieren kannst. Sehr große Bilder werden verkleinert gespeichert, damit das Notizbuch klein bleibt. Der Radierer rührt Bilder nie an – lösche sie mit „Auswählen“.'
 			},
 			icons: {
 				title: 'Icons',
-				text: '„Icon …“ im Menü „Einfügen“ öffnet eine durchsuchbare Icon-Auswahl. Das Icon bekommt die aktuelle Stiftfarbe und landet ausgewählt in der Mitte der Ansicht, sodass du es mit dem Rahmen verschieben und skalieren kannst. Seine Farbe änderst du später mit „Farbe“ im Auswahlmenü. Icons bleiben in jeder Größe scharf, auch im Export.'
+				text: '„Icon“ in der Registerkarte „Einfügen“ öffnet eine durchsuchbare Icon-Auswahl. Das Icon bekommt die aktuelle Stiftfarbe und landet ausgewählt in der Mitte der Ansicht, sodass du es mit dem Rahmen verschieben und skalieren kannst. Seine Farbe änderst du später mit „Farbe“ in der Registerkarte „Auswahl“. Icons bleiben in jeder Größe scharf, auch im Export.'
 			}
 		}
 	},
@@ -187,8 +215,8 @@ const help: typeof enHelp = {
 		title: 'Seiten & Papier',
 		items: {
 			pageMenu: {
-				title: 'Seitenmenü',
-				text: '„Seite“ in der unteren Leiste gilt für die aktuelle Seite – die in der Mitte der Ansicht („Seite 3 von 12“ unten). „Seite hinzufügen“ fügt danach eine neue Seite ein, mit derselben Größe und demselben Papier. „Seite nach oben“ und „Seite nach unten“ ändern die Reihenfolge. „Seite löschen“ fragt vorher nach und lässt sich rückgängig machen. „Seite hinzufügen“ steht auch im Menü des Notizbuchs.'
+				title: 'Die Registerkarte „Seiten“',
+				text: 'Die Registerkarte „Seiten“ gilt für die aktuelle Seite – die in der Mitte der Ansicht („Seite 3 von 12“ unten). „Papier“ und „Seitengröße“ wählen aus ihren Listen, „Querformat“ dreht die Seite. „Seite hinzufügen“ fügt danach eine neue Seite mit gleicher Größe und gleichem Papier ein (auch in der Registerkarte „Einfügen“). „Seite nach oben“ und „Seite nach unten“ ändern die Reihenfolge. „Seite löschen“ löscht sie mit allem darauf sofort; die Meldung bietet „Rückgängig“ an (Strg+Z geht auch). Die letzte Seite lässt sich nicht löschen.'
 			},
 			paper: {
 				title: 'Papier',
@@ -206,7 +234,7 @@ const help: typeof enHelp = {
 			},
 			zoom: {
 				title: 'Zoomen und scrollen',
-				text: 'Der Zoomwert unten öffnet „An Breite anpassen“, „100 %“, „Vergrößern“ und „Verkleinern“. Auf einem Touchscreen zoomst du mit zwei Fingern. Mit der Maus scrollt das Mausrad (mit Umschalt seitwärts), Strg und Mausrad zoomen (ebenso das Zusammenziehen auf dem Touchpad), und Ziehen mit der mittleren oder rechten Maustaste verschiebt die Seite.',
+				text: 'Die Registerkarte „Ansicht“ enthält „An Breite anpassen“, „Originalgröße“, „Vergrößern“ und „Verkleinern“; der Zoomwert unten öffnet dieselbe Liste. Auf einem Touchscreen zoomst du mit zwei Fingern. Mit der Maus scrollt das Mausrad (mit Umschalt seitwärts), Strg und Mausrad zoomen (ebenso das Zusammenziehen auf dem Touchpad), und Ziehen mit der mittleren oder rechten Maustaste verschiebt die Seite.',
 				keys: [['Strg', '+'], ['Strg', '-'], ['Strg', '0']]
 			}
 		}
@@ -216,11 +244,12 @@ const help: typeof enHelp = {
 		items: {
 			importNew: {
 				title: 'PDF als neues Notizbuch',
-				text: '„PDF importieren“ auf der Startseite – „PDF aus Dateien …“ oder „PDF von diesem Gerät …“ – macht aus dem PDF ein neues Notizbuch: Jede PDF-Seite wird eine Seite, auf die du schreiben kannst. Du wählst, wohin das Notizbuch kommt; bei einem PDF aus Dateien startet der Dialog daneben. Ein PDF in Dateien zu öffnen, macht dasselbe. Mit Passwort geschützte PDFs lassen sich nicht öffnen.'
+				text: '„PDF importieren“ auf der Startseite – „PDF aus Dateien …“ oder „PDF von diesem Gerät …“ – macht aus dem PDF ein neues Notizbuch: Jede PDF-Seite wird eine Seite, auf die du schreiben kannst. Du wählst, wohin das Notizbuch kommt; bei einem PDF aus Dateien startet der Dialog daneben. Ein Doppelklick auf ein PDF in Dateien öffnet es im PDF-Editor, der die PDF selbst kommentiert; für ein Notizbuch daraus wählst du dort in seinem Menü „Mit Notizen öffnen“. Mit Passwort geschützte PDFs lassen sich nicht öffnen.',
+				link: { href: '/help/pdf-editor', label: 'PDF-Editor' }
 			},
 			importInto: {
 				title: 'PDF-Seiten in ein Notizbuch',
-				text: '„PDF aus Dateien …“ und „PDF von diesem Gerät …“ im Menü „Einfügen“ – oder ein eingefügtes oder hineingezogenes PDF – fügen alle seine Seiten nach der aktuellen Seite ein. Ein PDF ist ein Schritt zum Rückgängigmachen.'
+				text: '„PDF“ in der Registerkarte „Einfügen“ – „PDF aus Dateien …“ oder „PDF von diesem Gerät …“ – oder ein eingefügtes oder hineingezogenes PDF fügt alle seine Seiten nach der aktuellen Seite ein. Ein PDF ist ein Rückgängig-Schritt.'
 			},
 			annotate: {
 				title: 'Auf ein PDF schreiben',
@@ -228,25 +257,30 @@ const help: typeof enHelp = {
 			},
 			export: {
 				title: 'Exportieren',
-				text: '„Exportieren“ in der oberen Leiste (oder „Exportieren …“ im Menü des Notizbuchs) schreibt das Notizbuch als Datei. Ist sie fertig, speichert „Herunterladen“ sie auf diesem Gerät, „In Dateien speichern …“ legt sie im Browserspeicher ab – standardmäßig neben dem Notizbuch.',
+				text: '„Exportieren …“ in der Registerkarte „Datei“ (Gruppe „Notizbuch“) schreibt das Notizbuch als Datei. Ist sie fertig, speichert „Herunterladen“ sie auf diesem Gerät, „In Dateien speichern …“ legt sie im Browserspeicher ab – standardmäßig neben dem Notizbuch; die Meldung bietet dann „Öffnen“ an (eine PDF öffnet sich im PDF-Editor, ein Bild in Dateien).',
 				options: {
 					pdf: { label: 'PDF – alle Seiten', text: 'Alle Seiten in einem PDF. Striche, Formen und importierte PDF-Seiten bleiben in jeder Größe scharf; Bilder werden so eingebettet, wie sie sind.' },
 					png: { label: 'PNG – diese Seite', text: 'Die aktuelle Seite als Bild in Druckqualität (etwa 216 dpi, höchstens 4096 Pixel an der langen Seite) – für Nachrichten, Folien oder andere Apps.' }
 				},
-				tip: 'Nimm PDF, um ein ganzes Notizbuch zu drucken, aufzubewahren oder weiterzugeben, oder um ein ausgefülltes PDF zurückzuschicken. Nimm PNG, um eine einzelne Seite als Bild zu teilen.'
+				tip: 'Nimm PDF, um ein ganzes Notizbuch zu drucken, aufzubewahren oder weiterzugeben, oder um ein ausgefülltes PDF zurückzuschicken. Nimm PNG, um eine einzelne Seite als Bild weiterzugeben.'
 			}
 		}
 	},
 	keys: {
 		title: 'Tastenkürzel',
 		items: {
+			tools: { title: 'Werkzeuge', text: '„Stift“, „Textmarker“, „Formen“, „Radierer“, „Auswählen“, „Laserpointer“.', keys: [['P'], ['H'], ['S'], ['E'], ['L'], ['R']] },
 			undo: { title: 'Rückgängig', text: 'Die letzte Änderung rückgängig machen.', keys: [['Strg', 'Z']] },
 			redo: { title: 'Wiederholen', text: 'Rückgängig Gemachtes wiederholen.', keys: [['Strg', 'Umschalt', 'Z'], ['Strg', 'Y']] },
 			delete: { title: 'Auswahl löschen', text: 'Löscht, was mit „Auswählen“ ausgewählt ist.', keys: [['Entf'], ['Rücktaste']] },
-			deselect: { title: 'Auswahl beenden', text: 'Hebt die Auswahl auf.', keys: [['Esc']] },
+			selectAll: { title: 'Alles auswählen', text: 'Wählt alles auf der sichtbaren Seite aus (das Werkzeug wird „Auswählen“).', keys: [['Strg', 'A']] },
+			nudge: { title: 'Auswahl verschieben', text: 'Um 1 Punkt, mit Umschalt um 10, ohne Einrasten; ein Rückgängig-Schritt bis zum Loslassen.', keys: [['←'], ['→'], ['↑'], ['↓'], ['Umschalt', '←']] },
+			deselect: { title: 'Auswahl beenden', text: 'Hebt die Auswahl auf; ohne Auswahl geht es von jedem Werkzeug zurück zu „Auswählen“.', keys: [['Esc']] },
 			snap: { title: 'Umgekehrt einrasten', text: 'Halte die Taste beim Ziehen einer Form, eines Punkts oder einer Auswahl gedrückt, um das Gegenteil des Schalters „Einrasten“ zu bewirken.', keys: [['Alt']] },
 			zoom: { title: 'Zoom', text: 'Vergrößern, verkleinern, zurück auf 100 %.', keys: [['Strg', '+'], ['Strg', '-'], ['Strg', '0']] },
-			wheel: { title: 'Mausrad', text: 'Strg und Mausrad zoomen am Mauszeiger, Umschalt und Mausrad scrollen seitwärts.', keys: [['Strg', 'Mausrad'], ['Umschalt', 'Mausrad']] }
+			wheel: { title: 'Mausrad', text: 'Strg und Mausrad zoomen am Mauszeiger, Umschalt und Mausrad scrollen seitwärts.', keys: [['Strg', 'Mausrad'], ['Umschalt', 'Mausrad']] },
+			ribbon: { title: 'Menüband', text: 'Die Befehle des Menübands zeigen oder ausblenden („Nur Registerkarten“); Alt oder F10 zeigen die Zugriffstasten.', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
+			home: { title: 'Startseite', text: 'Das fokussierte Notizbuch öffnen oder löschen.', keys: [['Eingabe'], ['Entf']] }
 		}
 	}
 };

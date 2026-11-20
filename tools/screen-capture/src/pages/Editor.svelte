@@ -1,5 +1,17 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	// Editor page of a project (`?path=` of its package): the ribbon on top, side panels on the left (what you add),
+	// the preview with its editing layer, the properties on the right and the timeline below. Every action is a
+	// `Command` (`ui/commands.ts`): ribbon, context menus and keys come from there. Changes save themselves; the save
+	// state, size, length and a running import sit in the footer. One tab per project.
+	import InspectorPane from '@in-browser/brand/Inspector.svelte';
+	import { InspectorState } from '@in-browser/brand/inspector.svelte.js';
+	import PanelRail from '@in-browser/brand/PanelRail.svelte';
+	import { panelCommand } from '@in-browser/brand/panels.js';
+	import Ribbon from '@in-browser/brand/Ribbon.svelte';
+	import type { RibbonTab } from '@in-browser/brand/ribbon.js';
+	import { installCommandKeys, matches, type Command } from '@in-browser/brand/commands.js';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
+	import { tick, untrack } from 'svelte';
 	import { innerHeight } from 'svelte/reactivity/window';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -7,27 +19,27 @@
 	import { editorUrl } from '#lib/brand.js';
 	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
-	import { setBrandBar, startRename } from '@in-browser/brand/brand-bar.svelte.js';
+	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
 	import { saveStateOf, setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import OverlayEditor from '#lib/components/OverlayEditor.svelte';
 	import RecordDialog from '#lib/components/RecordDialog.svelte';
 	import Timeline from '#lib/components/Timeline.svelte';
-	import ToolPanel from '#lib/components/ToolPanel.svelte';
-	import ToolRail from '#lib/components/ToolRail.svelte';
 	import { IMAGE_ACCEPT, importImage, isImageFile } from '#lib/media/images.js';
 	import { importFile, isMediaFile, MEDIA_ACCEPT } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
 	import { Player } from '#lib/preview/player.svelte.js';
-	import { createIcon, createImage, createOverlay, createZoom, defaultDuration, FREEZE_ICON } from '#lib/project/defaults.js';
+	import { createIcon, createImage, createOverlay, createZoom, defaultDuration } from '#lib/project/defaults.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
 	import type { Annotation, IconData, ToolKind } from '#lib/project/types.js';
 	import { zoomRectAt } from '#lib/project/geometry.js';
 	import { setImageProject } from '#lib/render/images.svelte.js';
 	import { moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
-	import type { DropPlace, ToolActions } from '#lib/tools/types.js';
+	import { PANELS } from '#lib/tools/groups.js';
+	import { panelState } from '#lib/tools/state.svelte.js';
+	import type { DropPlace, PanelContext, ToolActions } from '#lib/tools/types.js';
 	import {
 		chooseMediaFromFiles,
 		cleanupMedia,
@@ -36,13 +48,12 @@
 		projectFileDate,
 		projectName,
 		rememberProject,
-		renameProject,
 		saveProject
 	} from '#lib/storage/store.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 	import { copy, exists, FilesError, remove as removePath, watch } from '@in-browser/files/fs.js';
-	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { filesErrorText} from '@in-browser/files/i18n/index.svelte.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 	import { basename, join, normalize, parent } from '@in-browser/files/path.js';
 	import {
@@ -51,40 +62,24 @@
 		loadTimelineHeight,
 		storeTimelineHeight
 	} from '#lib/ui/timeline-height.js';
-	import {
-		addItem,
-		addZoom,
-		bringForward,
-		bringToFront,
-		clipsAt,
-		insertFreeze,
-		itemEnd,
-		nextStepNumber,
-		remove,
-		removeZoom,
-		sendBackward,
-		trackState,
-		sendToBack,
-		split
-	} from '#lib/timeline/ops.js';
-	import { toolState } from '#lib/tools/state.svelte.js';
-	import { snapping } from '#lib/ui/snapping.svelte.js';
-	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
-	import { clipboard } from '#lib/project/clipboard.svelte.js';
-	import { saveSelection } from '#lib/ui/library.svelte.js';
-	import { insertLibrary, pasteClipboard, saveToLibrary, sourcesAdded, transferLibrary } from '#lib/ui/library-actions.js';
-	import { editorShortcut, type Arrange } from '#lib/ui/shortcuts.js';
+	import { addItem, addZoom, nextStepNumber } from '#lib/timeline/ops.js';
+	import { contextMenu, openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { insertLibrary, saveToLibrary, sourcesAdded, transferLibrary } from '#lib/ui/library-actions.js';
+	import { editorCommands, itemMenuEntries, type EditorPage } from '#lib/ui/commands.js';
 	import { dragOver, drop } from '#lib/ui/drop.js';
 	import LibrarySaveDialog from '#lib/components/LibrarySaveDialog.svelte';
 	import DragGhost from '#lib/components/DragGhost.svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import { inTextField } from '@in-browser/brand/ui/typing.js';
 	import { m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
-	import { flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
+	import { ExternalVersions, flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
 
 	let editor = $state<Editor | null>(null);
+	/** The properties on the right (suite inspector: shown or not, width, folded sections) */
+	const inspector = new InspectorState('screen-capture');
 	let player = $state<Player | null>(null);
 	let loadError = $state<string | null>(null);
 	/** Opening failed because the browser doesn't allow access to the connected folder right now */
@@ -96,6 +91,12 @@
 	/** Height of the timeline (persisted); the preview gets the rest and never jumps when tracks are added */
 	let timelineHeight = $state(loadTimelineHeight());
 	const shownTimelineHeight = $derived(clampTimelineHeight(timelineHeight, innerHeight.current ?? 900));
+	/** Zoom of the timeline (1: everything visible) */
+	let timelineZoom = $state(1);
+	/** Duration of the next still frame (“Hold frame” ▾) */
+	let freezeSeconds = $state(3);
+	/** The properties' fields (View → “Canvas size” opens the size field there) */
+	let properties = $state<ReturnType<typeof Inspector>>();
 
 	/** Dragging the splitter above the timeline changes its height; stored at the end */
 	function resizeTimeline(e: PointerEvent) {
@@ -113,7 +114,6 @@
 		timelineHeight = clampTimelineHeight(px, innerHeight.current ?? 900);
 		storeTimelineHeight(timelineHeight);
 	}
-	let freezeSeconds = $state(3);
 	let draggingFiles = $state(false);
 	/** A tile or media entry is dragged over the preview (highlighted as drop target) */
 	let overPreview = $state(false);
@@ -157,6 +157,9 @@
 			return next;
 		}
 
+		/** Whether versions saved elsewhere are taken (asked, the answer kept while the project is open) */
+		const versions = new ExternalVersions();
+
 		async function checkExternal() {
 			const date = await projectFileDate(path);
 			if (!ed || date === undefined || date === ed.lastWrite || ed.saving) return;
@@ -164,8 +167,16 @@
 				ed.lastWrite = date;
 				return toast(m.editor.changedElsewhere, 'warning', 8000);
 			}
+			// Asked first (once per version; the answer may be kept while the project is open)
+			const silent = versions.silent;
+			if (!(await versions.shouldReload(projectName(path), String(date)))) {
+				// Not taken: the next change here writes over it
+				if (ed) ed.lastWrite = date;
+				return;
+			}
+			if (disposed || ed?.dirty) return;
 			await open();
-			toast(m.editor.reloaded, 'info');
+			if (silent) toast(m.editor.reloaded, 'info');
 		}
 
 		(async () => {
@@ -179,13 +190,18 @@
 				const opened = await open();
 				if (!opened) return;
 				rememberProject(path);
-				// Remove leftover files (e.g. aborted recordings) in the background
-				cleanupMedia(opened.project).catch(() => {});
+				// Remove leftover files (e.g. aborted recordings) in the background; nothing is lost when it fails
+				cleanupMedia(opened.project).catch((e) => console.warn('[screen-capture] cleanup', e));
 				const manifest = join(path, PACKAGE_MANIFEST);
 				stopWatch = watch((paths) => {
-					if (paths.includes(manifest)) checkExternal().catch((e) => console.error(e));
+					if (!paths.includes(manifest)) return;
+					checkExternal().catch((e) => {
+						console.error('[screen-capture] reload', e);
+						toast(errorMessage(e), 'error', 8000);
+					});
 				});
 			} catch (e) {
+				console.error('[screen-capture] open', e);
 				loadError = m.editor.loadFailed(errorMessage(e));
 				loadAccess = accessAction(e, () => location.reload());
 			}
@@ -212,7 +228,7 @@
 		return { width: Math.round(width * scale), height: Math.round(height * scale) };
 	});
 
-	// Canvas size and length of the project on the left of the BrandFooter
+	// Canvas size, length of the project and a running import on the left of the BrandFooter
 	$effect(() =>
 		setBrandFooter({
 			status: footerStatus,
@@ -220,31 +236,19 @@
 		})
 	);
 
-	// Project name with all its actions on the left of the BrandBar, export right after it (help: the layout)
+	// Where you are: the project's name (its file name) – its actions are in the ribbon's tab “File”
 	$effect(() => {
-		if (!editor || !player) return;
-		const ed = editor;
-		const empty = player.duration === 0;
-		return setBrandBar({
-			crumbs: [
-				{
-					label: ed.project.name,
-					rename: (name) => void rename(ed, name),
-					menu: [
-						{ label: m.editor.rename, icon: 'icon-[material-symbols-light--edit-outline]', run: startRename },
-						{ label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', run: saveAs },
-						{ separator: true },
-						{ label: m.editor.export, icon: 'icon-[material-symbols-light--ios-share]', disabled: empty, run: openExport }
-					]
-				}
-			],
-			primary: barPrimary
-		});
+		if (!editor) return;
+		return setBrandBar({ crumbs: [{ label: editor.project.name }] });
 	});
 
 	function openExport() {
 		player?.pause();
 		dialog = 'export';
+	}
+
+	function showInFiles(ed: Editor) {
+		location.assign(`${resolve('/files')}?path=${encodeURIComponent(parent(ed.project.id))}`);
 	}
 
 	// Pictures of image annotations are loaded from this project
@@ -257,43 +261,6 @@
 		void previewSize;
 		untrack(() => player?.redraw());
 	});
-
-	/** Selected items on unlocked tracks */
-	function editable() {
-		if (!editor) return [];
-		const timeline = editor.project.timeline;
-		return editor.selectedItems.filter((item) => !trackState(timeline, item.track).locked);
-	}
-
-	/**
-	 * Selected items under the playhead – cutting tools then only affect those; without any
-	 * (`undefined`) they affect all clips under the playhead.
-	 */
-	function selectedAt(t: number) {
-		const ids = editable()
-			.filter((item) => item.start <= t && t <= itemEnd(item))
-			.map((item) => item.id);
-		return ids.length ? ids : undefined;
-	}
-
-	const hasVideo = (sourceId: string) => !!editor?.source(sourceId)?.hasVideo;
-
-	function splitAtPlayhead() {
-		if (!editor || !player) return;
-		const t = player.time;
-		const ids = selectedAt(t);
-		editor.update((tl) => split(tl, t, ids));
-	}
-
-	function holdFrame() {
-		if (!editor || !player) return;
-		const t = player.time;
-		const ids = selectedAt(t);
-		editor.update((tl) => insertFreeze(tl, t, freezeSeconds, ids, hasVideo));
-		const freeze = clipsAt(editor.project.timeline, t + 0.001).find((c) => c.type === 'freeze');
-		if (freeze) editor.select('item', freeze.id);
-		player.seek(t);
-	}
 
 	/** Annotation from a tool tile; same settings as the last annotation of this type */
 	function addAnnotation(kind: ToolKind, at: DropPlace = {}) {
@@ -353,106 +320,6 @@
 		if (at.start !== undefined) player.seek(range.start);
 	}
 
-	/** Deletes the selection (excluding locked tracks); later clips move up, with `gap` a gap remains. */
-	function removeSelected(gap = false) {
-		const s = editor?.selection;
-		if (!editor || !s) return;
-		if (s.kind === 'zoom') return editor.update((t) => removeZoom(t, s.id));
-		const ids = editable().map((item) => item.id);
-		const ed = editor;
-		if (ids.length) ed.update((t) => remove(t, ids, !gap, (id) => !!ed.source(id)?.hasVideo));
-	}
-
-	function copySelected(items = editor?.selectedItems ?? []) {
-		if (editor && items.length) clipboard.copy(editor.project, items);
-	}
-
-	function cutSelected() {
-		copySelected(editable());
-		removeSelected();
-	}
-
-	function paste() {
-		if (editor && player) pasteClipboard(editor, player);
-	}
-
-	/** The selected item (on an unlocked track), if `op` would change its stacking order */
-	function arrangeable(op: Arrange) {
-		const item = editor?.selectedItem;
-		if (!editor || !item || trackState(editor.project.timeline, item.track).locked) return null;
-		return op(editor.project.timeline, item.id) === editor.project.timeline ? null : item;
-	}
-
-	/** Moves the selected item one layer (track) or all the way to the front or back */
-	function arrange(op: Arrange) {
-		const item = arrangeable(op);
-		if (item) editor?.update((t) => op(t, item.id));
-	}
-
-	/**
-	 * Context menu for the selection (preview and timeline). New functions for elements go here; `extra` adds
-	 * entries of the place it was opened (e.g. the elements under the mouse pointer in the preview).
-	 */
-	function itemMenu(e: MouseEvent, extra: MenuEntry[] = []) {
-		const items = editor?.selectedItems ?? [];
-		const ctrl = m.keys.ctrl;
-		// A single clip with a picture on an unlocked track
-		const clip = items.length === 1 ? editor?.selectedClip : null;
-		const croppable =
-			clip && editor?.source(clip.sourceId)?.hasVideo && !trackState(editor.project.timeline, clip.track).locked ? clip : null;
-		openContextMenu(e, [
-			{
-				label: m.menu.cut,
-				icon: 'icon-[material-symbols-light--content-cut]',
-				keys: `${ctrl}+X`,
-				disabled: !editable().length,
-				run: cutSelected
-			},
-			{
-				label: m.menu.copy,
-				icon: 'icon-[material-symbols-light--content-copy]',
-				keys: `${ctrl}+C`,
-				disabled: !items.length,
-				run: copySelected
-			},
-			{
-				label: m.menu.paste,
-				icon: 'icon-[material-symbols-light--content-paste]',
-				keys: `${ctrl}+V`,
-				disabled: clipboard.empty,
-				run: paste
-			},
-			{
-				label: m.menu.delete,
-				icon: 'icon-[material-symbols-light--delete-outline]',
-				keys: m.keys.del,
-				disabled: !editor?.selection || (editor.selection.kind === 'items' && !editable().length),
-				run: () => removeSelected()
-			},
-			{ separator: true },
-			...(
-				[
-					[m.menu.toFront, 'icon-[material-symbols-light--flip-to-front]', `${ctrl}+${m.keys.shift}+↑`, bringToFront],
-					[m.menu.forward, 'icon-[material-symbols-light--arrow-upward]', `${ctrl}+↑`, bringForward],
-					[m.menu.backward, 'icon-[material-symbols-light--arrow-downward]', `${ctrl}+↓`, sendBackward],
-					[m.menu.toBack, 'icon-[material-symbols-light--flip-to-back]', `${ctrl}+${m.keys.shift}+↓`, sendToBack]
-				] as const
-			).map(([label, icon, keys, op]) => ({ label, icon, keys, disabled: !arrangeable(op), run: () => arrange(op) })),
-			{ separator: true },
-			...(croppable ? [{ label: m.inspector.crop, icon: 'icon-[material-symbols-light--crop]', run: () => editor?.startCrop(croppable.id) }] : []),
-			...(clip && editor?.clipCanvasOf(clip.id)
-				? [{ label: m.inspector.fitCanvasToClip, icon: 'icon-[material-symbols-light--fit-screen-outline]', run: () => editor?.fitCanvasToClip(clip.id) }]
-				: []),
-			{
-				label: m.library.add,
-				icon: 'icon-[material-symbols-light--bookmark-add-outline]',
-				disabled: !items.length,
-				run: () => editor && saveSelection(editor)
-			},
-			...(extra.length ? [{ separator: true } as const, ...extra] : [])
-		]);
-	}
-
 	function openRecordDialog() {
 		player?.pause();
 		dialog = 'record';
@@ -463,11 +330,11 @@
 		addImage: (image, at) => addPicture({ image }, at),
 		addIcon: (icon, at) => addPicture({ icon }, at),
 		addZoom: addZoomSegment,
-		insertLibrary: (scope, id, at) => {
-			if (editor && player) insertLibrary(editor, player, scope, id, at);
+		insertLibrary: async (scope, id, at) => {
+			if (editor && player) await insertLibrary(editor, player, scope, id, at);
 		},
-		transferLibrary: (scope, id, move) => {
-			if (editor && player) transferLibrary(editor, player, scope, id, move);
+		transferLibrary: async (scope, id, move) => {
+			if (editor && player) await transferLibrary(editor, player, scope, id, move);
 		},
 		record: openRecordDialog,
 		importFromFiles: async () => {
@@ -476,7 +343,7 @@
 				const files = await chooseMediaFromFiles(parent(editor.project.id));
 				if (files.length) await importFiles(files);
 			} catch (e) {
-				console.error(e);
+				console.error('[screen-capture] import from Files', e);
 				toast(filesErrorText(e), 'error', 8000);
 			}
 		},
@@ -485,11 +352,199 @@
 		}
 	};
 
+	/** What the side panels get: the open project (getters, so a reload shows the new one) */
+	const panelContext: PanelContext = {
+		get editor() {
+			return editor!;
+		},
+		get player() {
+			return player!;
+		},
+		actions
+	};
+
+	// --- Commands ---
+
+	const commandPage: EditorPage = {
+		get editor() {
+			return editor;
+		},
+		get player() {
+			return player;
+		},
+		actions,
+		get freezeSeconds() {
+			return freezeSeconds;
+		},
+		set freezeSeconds(s) {
+			freezeSeconds = s;
+		},
+		get timelineZoom() {
+			return timelineZoom;
+		},
+		set timelineZoom(z) {
+			timelineZoom = z;
+		},
+		openPanel: (id) => (panelState.open = id),
+		changeCanvas: async () => {
+			if (!editor) return;
+			editor.selection = null;
+			inspector.show();
+			// The project's properties are there after the next update
+			await tick();
+			properties?.openCanvasSize();
+		}
+	};
+	const { commands: c, keyOnly, frames } = editorCommands(commandPage);
+	/** “Properties” (View → Panels, Alt+Enter) */
+	const propertiesCommand = inspector.command();
+	/** The properties of what a context menu was opened on: shown, never hidden */
+	const showProperties: Command = { ...propertiesCommand, run: () => inspector.show() };
+
+	const openPanel = { get: () => panelState.open, set: (id: string | null) => (panelState.open = id) };
+
+	// The project itself (tab “File”); it is named after its file – renamed in Files
+	const fileCommands = {
+		saveAs: { id: 'saveAs', label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', enabled: () => !!editor, run: () => void saveAs() },
+		showInFiles: {
+			id: 'showInFiles',
+			label: m.editor.showInFiles,
+			icon: 'icon-[material-symbols-light--folder-open-outline]',
+			enabled: () => !!editor,
+			run: () => editor && showInFiles(editor)
+		},
+		export: {
+			id: 'export',
+			label: m.editor.export,
+			icon: 'icon-[material-symbols-light--ios-share]',
+			enabled: () => !!player && player.duration > 0,
+			run: openExport
+		}
+	} satisfies Record<string, Command>;
+
+	const tabs: RibbonTab[] = [
+		{
+			id: 'file',
+			label: brandMessages().ribbon.file,
+			groups: [{ id: 'project', label: m.ribbon.groups.project, items: [fileCommands.saveAs, fileCommands.showInFiles, fileCommands.export] }]
+		},
+		{
+			id: 'home',
+			label: m.ribbon.tabs.home,
+			groups: [
+				{ id: 'playback', label: m.ribbon.groups.playback, items: [c.toStart, c.play, c.toEnd] },
+				{ id: 'edit', label: m.ribbon.groups.edit, items: [c.split, c.holdFrame, c.delete] },
+				{ id: 'clipboard', label: m.ribbon.groups.clipboard, items: [c.paste, c.cut, c.copy] },
+				{ id: 'select', label: m.ribbon.groups.select, items: [c.selectAll, c.snap] }
+			]
+		},
+		{
+			id: 'insert',
+			label: m.ribbon.tabs.insert,
+			groups: [
+				{ id: 'media', label: m.ribbon.groups.media, items: [c.record, c.importMedia, c.importFromFiles] },
+				{ id: 'annotations', label: m.ribbon.groups.annotations, items: [c.shapes, c.highlight, c.spotlight, c.blur, c.step, c.click] },
+				{ id: 'text', label: m.ribbon.groups.text, items: [c.text, c.callout] },
+				{ id: 'icon', label: m.ribbon.groups.icon, items: [c.icon] },
+				{ id: 'zoom', label: m.ribbon.groups.zoom, items: [c.zoom] },
+				{ id: 'library', label: m.ribbon.groups.library, items: [c.saveToLibrary] }
+			]
+		},
+		{
+			id: 'view',
+			label: m.ribbon.tabs.view,
+			groups: [
+				{ id: 'timeline', label: m.ribbon.groups.timeline, items: [c.timelineIn, c.timelineOut, c.timelineFit] },
+				{ id: 'panels', label: m.ribbon.groups.panels, items: [...PANELS.map((spec) => panelCommand(spec, openPanel)), propertiesCommand] },
+				{ id: 'canvas', label: m.ribbon.groups.canvas, items: [c.canvasSize] }
+			]
+		},
+		// The selection's own tabs: commands that can't act stay, disabled
+		{
+			id: 'arrange',
+			label: m.ribbon.tabs.arrange,
+			contextual: true,
+			visible: () => !!editor?.selectedItems.length,
+			groups: [
+				{ id: 'order', label: m.ribbon.groups.order, items: [c.toFront, c.forward, c.backward, c.toBack] },
+				{ id: 'link', label: m.ribbon.groups.link, items: [c.link, c.unlink] }
+			]
+		},
+		{
+			id: 'clip',
+			label: m.ribbon.tabs.clip,
+			contextual: true,
+			visible: () => !!editor?.selectedClip,
+			groups: [
+				{ id: 'crop', label: m.ribbon.groups.crop, items: [c.crop, c.removeCrop] },
+				{ id: 'placement', label: m.ribbon.groups.placement, items: [c.fit, c.fill, c.fitCanvas] },
+				{ id: 'audio', label: m.ribbon.groups.audio, items: [c.mute] }
+			]
+		}
+	];
+
+	/** The shortcut list of the project's properties: the commands with keys */
+	const shortcutList: Command[] = [c.play, c.split, c.holdFrame, c.delete, c.deleteGap, c.cut, c.copy, c.paste, c.selectAll, c.link, c.unlink, c.forward, c.toFront, propertiesCommand];
+
+	/** Ctrl+A selects all items only while the preview or the timeline has the focus (elsewhere: the browser's) */
+	const inEditArea = () => !!document.activeElement?.closest('[data-preview-area], [data-timeline]');
+	/** Selected text (e.g. in the help): Ctrl+C/X copy it, not the items */
+	const textSelected = () => !!getSelection()?.toString();
+
+	$effect(() =>
+		installCommandKeys(() => {
+			if (!editor || !player) return [];
+			const text = textSelected();
+			const all = [...Object.values(c), ...keyOnly];
+			return all.filter((cmd) => !(cmd === c.selectAll && !inEditArea()) && !(text && (cmd === c.copy || cmd === c.cut)));
+		})
+	);
+	$effect(() => installCommandKeys(() => [propertiesCommand]));
+
+	// ←/→ step through frames (Shift: a second) and repeat while held; not while typing or with a dialog open
+	$effect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.defaultPrevented || !editor || inTextField(e.target) || document.querySelector('dialog[open]:modal')) return;
+			const frame = frames.find((f) => f.shortcut && matches(e, f.shortcut));
+			if (!frame) return;
+			e.preventDefault();
+			frame.run?.();
+		};
+		addEventListener('keydown', onKey);
+		return () => removeEventListener('keydown', onKey);
+	});
+
+	// Esc goes back one level: out of crop mode, then the selection ends (menus, popovers and dialogs take it first)
+	$effect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== 'Escape' || e.defaultPrevented || !editor || contextMenu.open || inTextField(e.target)) return;
+			// The help window (a dialog that isn't modal) takes its own Esc
+			if (document.querySelector(':popover-open, dialog[open]:modal')) return;
+			if (editor.croppingClip) editor.endCrop();
+			else editor.selection = null;
+		};
+		addEventListener('keydown', onKey);
+		return () => removeEventListener('keydown', onKey);
+	});
+
+	/**
+	 * Context menu of the selection (preview and timeline): every action on items (`itemMenuEntries`); `extra` adds
+	 * entries of the place it was opened (e.g. the elements under the mouse pointer in the preview).
+	 */
+	function itemMenu(e: MouseEvent, extra: MenuEntry[] = []) {
+		openContextMenu(e, itemMenuEntries(c, showProperties, extra));
+	}
+
 	async function recorded(recording: Recording) {
 		dialog = null;
-		editor?.addRecording(recording);
-		if (player) await sourcesAdded(player);
-		toast(m.editor.recordingAdded, 'success');
+		try {
+			editor?.addRecording(recording);
+			if (player) await sourcesAdded(player);
+			toast(m.editor.recordingAdded, 'success');
+		} catch (e) {
+			console.error('[screen-capture] recording', e);
+			toast(errorMessage(e), 'error', 8000);
+		}
 	}
 
 	/** Source from the media bin into the timeline: at the drop time, otherwise at the playhead */
@@ -525,29 +580,15 @@
 			}
 			if (!place) {
 				// Only in the bin: show it there
-				toolState.group = 'media';
+				panelState.open = 'media';
 				toast(m.editor.importedToBin(added), 'success');
 			}
 		} catch (e) {
+			console.error('[screen-capture] import', e);
 			toast(errorMessage(e), 'error', 8000);
 		} finally {
 			importing = null;
 			if (fileInput) fileInput.value = '';
-		}
-	}
-
-	/** Renames the project and its package (like a file in Files); the editor follows to the new path */
-	async function rename(ed: Editor, name: string) {
-		if (!name.trim() || name.trim() === ed.project.name) return;
-		try {
-			await ed.save();
-			// Not saved (the message said so): moving now would lose the latest changes
-			if (ed.saveError) return;
-			const target = await renameProject(ed.project, name);
-			if (target !== ed.project.id) await goto(editorUrl(target), { replace: true });
-		} catch (e) {
-			console.error('[screen-capture] rename', e);
-			toast(filesMessages().document.renameFailed(filesErrorText(e)), 'error', 8000);
 		}
 	}
 
@@ -576,7 +617,10 @@
 				// Replacing a folder the project lies in would delete the project itself
 				if (from.startsWith(path + '/')) throw new FilesError('intoItself', from);
 				release = await lockProject(path);
-				if (!release) return toast(m.editor.targetOpenElsewhere(basename(path)), 'error', 8000);
+				if (!release) {
+					console.error('[screen-capture] save as: open elsewhere', path);
+					return toast(m.editor.targetOpenElsewhere(basename(path)), 'error', 8000);
+				}
 				await removePath(path);
 			}
 			await copy(from, path);
@@ -588,24 +632,11 @@
 			await goto(editorUrl(path));
 			toast(m.editor.savedAs(basename(path)), 'success');
 		} catch (e) {
-			console.error(e);
+			console.error('[screen-capture] save as', e);
 			toast(filesErrorText(e), 'error', 8000);
 		} finally {
 			release?.();
 		}
-	}
-
-	function onKey(e: KeyboardEvent) {
-		if (!editor || !player || dialog) return;
-		editorShortcut(e, editor, player, {
-			copy: () => copySelected(),
-			cut: cutSelected,
-			paste,
-			arrange,
-			split: splitAtPlayhead,
-			holdFrame,
-			remove: removeSelected
-		});
 	}
 
 	function onDragOver(e: DragEvent) {
@@ -623,23 +654,21 @@
 
 {#snippet footerStatus()}
 	{#if editor && player}
-		<span class="flex items-center gap-3 px-1 opacity-70">
-			<span>{m.editor.footerSize(editor.project.width, editor.project.height)}</span>
-			<span>{m.editor.footerLength(formatTime(player.duration))}</span>
+		<span class="flex items-center gap-3 px-1">
+			<span class="opacity-70">{m.editor.footerSize(editor.project.width, editor.project.height)}</span>
+			<span class="font-mono tabular-nums opacity-70">{formatTime(player.time, 2)} / {formatTime(player.duration, 2)}</span>
+			{#if importing}
+				<span class="flex min-w-0 items-center gap-2" role="status">
+					<span class="max-w-60 truncate">{m.common.importing(importing.name)}</span>
+					<progress class="progress progress-primary w-32" value={importing.progress} max="1"></progress>
+				</span>
+			{/if}
 		</span>
 	{/if}
 {/snippet}
 
-{#snippet barPrimary()}
-	{#if player}
-		<button class="btn btn-sm btn-primary" disabled={player.duration === 0} onclick={openExport}>
-			<span class="icon-[material-symbols-light--ios-share] size-5" aria-hidden="true"></span> {m.editor.export}
-		</button>
-	{/if}
-{/snippet}
-
 <!-- Also when a drag is cancelled (Esc) or ends outside the window -->
-<svelte:window onkeydown={onKey} ondragend={() => (overPreview = false)} />
+<svelte:window ondragend={() => (overPreview = false)} />
 <svelte:head><title>{editor?.project.name ?? m.editor.title} · {toolName('screen-capture')}</title></svelte:head>
 
 {#if loadError}
@@ -671,20 +700,14 @@
 			onchange={(e) => importFiles(e.currentTarget.files)}
 		/>
 
-		{#if importing}
-			<div class="bg-base-200 flex items-center gap-3 px-4 pb-2 text-sm">
-				{m.common.importing(importing.name)}
-				<progress class="progress progress-primary w-64" value={importing.progress} max="1"></progress>
-			</div>
-		{/if}
+		<Ribbon {tabs} quick={[c.undo, c.redo]} storage="screen-capture" initial="home" />
 
 		<div class="flex min-h-0 flex-1">
-			<ToolRail />
-			<ToolPanel {editor} {player} {actions} />
+			<PanelRail panels={PANELS} context={panelContext} bind:open={panelState.open} storage="screen-capture" initial="media" />
 
 			<section class="flex min-w-0 flex-1 flex-col" data-preview-area>
 				<!-- Preview with editing layer -->
-				<div class="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4 [container-type:size]">
+				<div class="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4 @container-size">
 					<div
 						class="relative shadow-lg {overPreview ? 'ring-selection ring-4' : ''}"
 						data-preview
@@ -701,20 +724,15 @@
 				</div>
 			</section>
 
-			<aside class="bg-base-200 border-base-300 flex w-80 shrink-0 flex-col border-l">
-				<h2 class="flex items-center gap-1 px-3 py-2 text-sm font-semibold">
-					<span class="icon-[material-symbols-light--tune] size-5" aria-hidden="true"></span> {m.editor.properties}
-				</h2>
-				<div class="min-h-0 flex-1 overflow-y-auto">
-					<Inspector {editor} />
-				</div>
-			</aside>
+			<InspectorPane state={inspector}>
+				<Inspector bind:this={properties} {editor} commands={c} shortcuts={shortcutList} />
+			</InspectorPane>
 		</div>
 
 		<!-- Splitter: drag (or arrow keys) to share the height between preview and timeline, double-click resets it -->
 		<button
 			type="button"
-			class="bg-base-300 hover:bg-primary/40 focus-visible:bg-primary/40 h-1.5 w-full shrink-0 cursor-row-resize outline-none"
+			class="bg-base-300 hover:bg-selection/40 focus-visible:bg-selection/40 h-1.5 w-full shrink-0 cursor-row-resize outline-none"
 			title={m.timeline.resize}
 			aria-label={m.timeline.resize}
 			onpointerdown={resizeTimeline}
@@ -727,66 +745,8 @@
 			}}
 		></button>
 
-		<section class="flex flex-col gap-2 p-3">
-			<div class="flex flex-wrap items-center gap-2">
-				<button class="btn btn-sm btn-ghost" onclick={() => player?.seek(0)} aria-label={m.editor.toStart}>
-					<span class="icon-[material-symbols-light--skip-previous] size-6" aria-hidden="true"></span>
-				</button>
-				<button class="btn btn-sm btn-primary w-28" onclick={() => player?.toggle()}>
-					{#if player.playing}
-						<span class="icon-[material-symbols-light--pause] size-5" aria-hidden="true"></span> {m.editor.pause}
-					{:else}
-						<span class="icon-[material-symbols-light--play-arrow] size-5" aria-hidden="true"></span> {m.editor.play}
-					{/if}
-				</button>
-				<span class="font-mono text-sm tabular-nums">
-					{formatTime(player.time, 2)} / {formatTime(player.duration, 2)}
-				</span>
-				<div class="divider divider-horizontal mx-1"></div>
-				<button class="btn btn-sm" onclick={splitAtPlayhead}>
-					<span class="icon-[material-symbols-light--content-cut] size-5" aria-hidden="true"></span> {m.editor.split}
-					<kbd class="kbd kbd-xs">S</kbd>
-				</button>
-				<div class="join">
-					<button class="btn btn-sm join-item" onclick={holdFrame} title={m.editor.holdFrameTitle}>
-						<span class="{FREEZE_ICON} size-5" aria-hidden="true"></span> {m.editor.holdFrame}
-						<kbd class="kbd kbd-xs">F</kbd>
-					</button>
-					<select class="select select-sm join-item w-20" bind:value={freezeSeconds} aria-label={m.editor.freezeDuration}>
-						{#each [1, 2, 3, 5, 8] as s (s)}
-							<option value={s}>{s} s</option>
-						{/each}
-					</select>
-				</div>
-				<button
-					class="btn btn-sm"
-					onclick={(e) => removeSelected(e.shiftKey)}
-					disabled={!editor.selection}
-					title={m.editor.deleteTitle}
-				>
-					<span class="icon-[material-symbols-light--delete-outline] size-5" aria-hidden="true"></span> {m.editor.delete}
-					<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
-				</button>
-				<div class="divider divider-horizontal mx-1"></div>
-				<button class="btn btn-sm btn-ghost" onclick={() => editor?.undo()} disabled={!editor.canUndo}>
-					<span class="icon-[material-symbols-light--undo] size-5" aria-hidden="true"></span> {m.editor.undo}
-				</button>
-				<button class="btn btn-sm btn-ghost" onclick={() => editor?.redo()} disabled={!editor.canRedo}>
-					<span class="icon-[material-symbols-light--redo] size-5" aria-hidden="true"></span> {m.editor.redo}
-				</button>
-				<div class="divider divider-horizontal mx-1"></div>
-				<!-- Preview and timeline alike -->
-				<button
-					class="btn btn-sm btn-ghost {snapping.enabled ? 'btn-active' : ''}"
-					onclick={() => (snapping.enabled = !snapping.enabled)}
-					aria-pressed={snapping.enabled}
-					title={m.editor.snappingTitle}
-				>
-					<span class="icon-[material-symbols-light--grid-guides-outline] size-5" aria-hidden="true"></span> {m.editor.snapping}
-				</button>
-			</div>
-
-			<Timeline bind:this={timeline} {editor} {player} {itemMenu} height={shownTimelineHeight} />
+		<section class="p-3">
+			<Timeline bind:this={timeline} bind:zoom={timelineZoom} {editor} {player} {itemMenu} height={shownTimelineHeight} />
 		</section>
 
 		<LibrarySaveDialog onsave={(name, scope, items) => editor && saveToLibrary(editor, name, scope, items)} />

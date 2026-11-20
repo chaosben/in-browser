@@ -17,7 +17,8 @@ export const TOOL_ICONS: Record<ToolSlug, ToolIcon> = {
 	files: { glyph: 'folder-outline', color: '#d97706', class: 'icon-[material-symbols-light--folder-outline]' },
 	notes: { glyph: 'stylus-note-outline', color: '#7c3aed', class: 'icon-[material-symbols-light--stylus-note-outline]' },
 	'text-editor': { glyph: 'edit-document-outline', color: '#0d9488', class: 'icon-[material-symbols-light--edit-document-outline]' },
-	'screen-capture': { glyph: 'screen-record-outline', color: '#dc2626', class: 'icon-[material-symbols-light--screen-record-outline]' }
+	'screen-capture': { glyph: 'screen-record-outline', color: '#dc2626', class: 'icon-[material-symbols-light--screen-record-outline]' },
+	'pdf-editor': { glyph: 'picture-as-pdf-outline', color: '#16a34a', class: 'icon-[material-symbols-light--picture-as-pdf-outline]' }
 };
 
 /** Tile color of the suite's own mark */

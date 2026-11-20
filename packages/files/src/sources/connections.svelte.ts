@@ -156,11 +156,6 @@ export function accessAction(e: unknown, onAllowed?: () => void): { label: strin
 	};
 }
 
-/** Changes only the shown name */
-export async function renameConnection(id: string, name: string): Promise<void> {
-	await saveConnections((await listConnections()).map((c) => (c.id === id ? { ...c, name } : c)));
-}
-
 /** Removes the connection; nothing in the folder is deleted (a guest share of this tab ends here) */
 export async function disconnect(id: string): Promise<void> {
 	if (id === 'share') endShareSession();

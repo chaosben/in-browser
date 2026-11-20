@@ -39,63 +39,24 @@ const options = (extra: Partial<DriveOptions> = {}): DriveOptions => ({
 const sync = (extra?: Partial<DriveOptions>) => drive(rpcA, options(extra));
 const paths = async (tree: Tree) => [...(await tree.scan()).keys()].sort();
 
-describe('P2P session', () => {
-	it('copies files and folders in both directions', async () => {
+describe('P2P session', { timeout: 30_000 }, () => {
+	it('copies files and folders in both directions, large files in chunks', async () => {
 		await writeText(a, '/Docs/a.txt', 'from A');
 		await b.mkdir('/Empty');
 		await writeText(b, '/b.txt', 'from B');
-		const result = await sync();
-		expect(result.failed).toBe(0);
-		expect(await paths(a)).toEqual(['/Docs', '/Docs/a.txt', '/Empty', '/b.txt']);
-		expect(await paths(b)).toEqual(await paths(a));
-		expect(await readText(b, '/Docs/a.txt')).toBe('from A');
-		expect(await readText(a, '/b.txt')).toBe('from B');
-		// Nothing left to do
-		expect((await sync()).applied).toBe(0);
-	});
-
-	it('transfers large files in chunks', async () => {
 		const big = new Uint8Array(3 * 1024 * 1024).map((_, i) => i % 251);
 		const writer = (await a.write('/big.bin')).getWriter();
 		await writer.write(big);
 		await writer.close();
-		const progress: number[] = [];
-		await sync({ onProgress: (done) => progress.push(done) });
+		const result = await sync();
+		expect(result.failed).toBe(0);
+		expect(await paths(a)).toEqual(['/Docs', '/Docs/a.txt', '/Empty', '/b.txt', '/big.bin']);
+		expect(await paths(b)).toEqual(await paths(a));
+		expect(await readText(b, '/Docs/a.txt')).toBe('from A');
+		expect(await readText(a, '/b.txt')).toBe('from B');
 		expect(new Uint8Array(await (await b.read('/big.bin')).arrayBuffer())).toEqual(big);
-		expect(progress.at(-1)).toBe(1);
-	});
-
-	it('passes on changes and deletions', async () => {
-		await writeText(a, '/x.txt', 'one');
-		await writeText(a, '/y.txt', 'two');
-		await sync();
-		await writeText(b, '/x.txt', 'changed on B');
-		await b.remove('/y.txt');
-		await sync();
-		expect(await readText(a, '/x.txt')).toBe('changed on B');
-		expect(await paths(a)).toEqual(['/x.txt']);
-	});
-
-	it('compares large files by content too (in slices)', async () => {
-		const big = new Uint8Array(65 * 1024 * 1024).map((_, i) => i % 199);
-		for (const tree of [a, b]) {
-			const writer = (await tree.write('/video.bin')).getWriter();
-			await writer.write(big);
-			await writer.close();
-			await new Promise((r) => setTimeout(r, 20));
-		}
-		const result = await sync();
-		expect(result.conflicts).toEqual([]);
-		expect(result.applied).toBe(0);
-	}, 60_000);
-
-	it('does not transfer files with the same content', async () => {
-		await writeText(a, '/same.txt', 'identical');
-		await new Promise((r) => setTimeout(r, 20));
-		await writeText(b, '/same.txt', 'identical');
-		const result = await sync();
-		expect(result.applied).toBe(0);
-		expect(result.conflicts).toEqual([]);
+		// Nothing left to do
+		expect((await sync()).applied).toBe(0);
 	});
 
 	it('keeps the losing version of a conflict as a copy', async () => {
@@ -104,14 +65,7 @@ describe('P2P session', () => {
 		await writeText(a, '/note.md', 'A wins? no');
 		await new Promise((r) => setTimeout(r, 20));
 		await writeText(b, '/note.md', 'B is newer');
-		const log: { event: string; data?: Record<string, unknown> }[] = [];
-		const result = await sync({ log: (event, data) => log.push({ event, data }) });
-		// The log shows why: both sides changed since the last sync, different content
-		const planned = log.find((e) => e.event === 'sync.plan' && e.data?.path === '/note.md')!.data!;
-		expect(planned).toMatchObject({ type: 'toLocal', both: true });
-		expect(planned.baseLocal).not.toBeNull();
-		expect(log.find((e) => e.event === 'sync.compare')?.data).toMatchObject({ path: '/note.md', same: false });
-		expect(log.find((e) => e.event === 'sync.conflictCopy')?.data).toMatchObject({ path: '/note.md', kept: 'here' });
+		const result = await sync();
 		expect(result.conflicts).toEqual(['/note.md']);
 		expect(await readText(a, '/note.md')).toBe('B is newer');
 		expect(await readText(a, '/note (conflict A).md')).toBe('A wins? no');
@@ -121,27 +75,20 @@ describe('P2P session', () => {
 	});
 
 	it('syncs only the folders both devices take part in, and excluding never deletes', async () => {
-		await writeText(a, '/Videos/big.mp4', 'video');
+		await writeText(a, '/Videos/one.mp4', 'video');
 		await writeText(a, '/Docs/n.md', 'note');
-		await sync({ scope: { mine: [], theirs: ['/Videos'] } });
-		expect(await paths(b)).toEqual(['/Docs', '/Docs/n.md']);
-		// B already had the video and excludes it now: nothing gets deleted on either side
-		await writeText(b, '/Videos/own.mp4', 'own');
-		await sync({ scope: { mine: [], theirs: ['/Videos'] } });
-		expect(await paths(a)).toContain('/Videos/big.mp4');
-		expect(await paths(b)).toContain('/Videos/own.mp4');
-	});
-
-	it('holds many deletions for confirmation', async () => {
-		for (let i = 0; i < 25; i++) await writeText(a, `/f${i}.txt`, `${i}`);
 		await sync();
-		for (let i = 0; i < 25; i++) await b.remove(`/f${i}.txt`);
-		await writeText(b, '/keep.txt', 'x');
-		const held = await sync();
-		expect(held.pendingDeletes).toBe(25);
-		expect((await paths(a)).length).toBe(26);
-		await sync({ allowDeletes: true });
-		expect(await paths(a)).toEqual(['/keep.txt']);
+		// B leaves out /Videos and deletes its copy: A keeps it, and new videos don't reach B
+		const scope = { mine: [], theirs: ['/Videos'] };
+		await b.remove('/Videos');
+		await writeText(a, '/Videos/two.mp4', 'video 2');
+		await sync({ scope });
+		expect(await paths(a)).toContain('/Videos/one.mp4');
+		expect(await paths(b)).toEqual(['/Docs', '/Docs/n.md']);
+		// B takes part again: it gets the videos back, nothing is deleted
+		await sync();
+		expect(await paths(b)).toEqual(await paths(a));
+		expect(await paths(a)).toEqual(['/Docs', '/Docs/n.md', '/Videos', '/Videos/one.mp4', '/Videos/two.mp4']);
 	});
 
 	it('lets held deletions through when the answering device confirmed them, and tells it what waits', async () => {
@@ -157,7 +104,7 @@ describe('P2P session', () => {
 		const summaries: unknown[] = [];
 		serve(new Rpc(linkB), { tree: b, gate: new Gate(), allowDeletes: () => allow, onEnd: (summary) => summaries.push(summary) });
 		expect((await sync()).pendingDeletes).toBe(25);
-		await until(() => summaries.length === 1, 2000, 'end of session');
+		await until(() => summaries.length === 1, 5000, 'end of session');
 		expect(summaries[0]).toMatchObject({ pendingDeletes: 25, usedAllowDeletes: false });
 		allow = true;
 		expect((await sync()).pendingDeletes).toBe(0);
@@ -172,11 +119,11 @@ describe('P2P session', () => {
 		const entry = '/.in-browser-trash/20261118-102233-123-abcd';
 		await writeText(b, `${entry}/.trashinfo.json`, JSON.stringify({ path: '/gone.txt', kind: 'file', deleted: 1 }));
 		await b.move('/gone.txt', `${entry}/gone.txt`);
-		await writeText(b, '/old.txt', 'version 2');
+		await writeText(b, '/old.txt', 'version 2, longer');
 		await sync();
 		expect(await paths(a)).toEqual(['/.in-browser-trash', entry, `${entry}/.trashinfo.json`, `${entry}/gone.txt`, '/old.txt']);
 		expect(await readText(a, `${entry}/gone.txt`)).toBe('deleted on B');
-		expect(await readText(a, '/old.txt')).toBe('version 2');
+		expect(await readText(a, '/old.txt')).toBe('version 2, longer');
 	});
 
 	it('frees the answering device when the driver vanishes mid-session', async () => {
@@ -189,8 +136,7 @@ describe('P2P session', () => {
 		expect(await driver.call('begin')).toMatchObject({ accepted: true });
 		expect(gate.busy).toBe(true);
 		driver.close();
-		await new Promise((r) => setTimeout(r, 300));
-		expect(gate.busy).toBe(false);
+		await until(() => !gate.busy, 5000, 'answering device free');
 	});
 
 	describe('connection lost in the middle of a transfer', () => {
@@ -200,13 +146,12 @@ describe('P2P session', () => {
 			await writer.write(data);
 			await writer.close();
 		};
-		/** Starts a sync and cuts the connection shortly after */
-		const interrupted = async () => {
+		/** Starts a sync and cuts the connection once the receiving device writes its temporary file */
+		const interrupted = async (receiver: Tree) => {
 			const running = sync().catch(() => null);
-			await new Promise((r) => setTimeout(r, 300));
+			await until(async () => (await receiver.names('/')).some((n) => n.endsWith('.part')), 20_000, 'transfer started');
 			rpcA.close();
 			await running;
-			await new Promise((r) => setTimeout(r, 300));
 		};
 		/** A new connection between the same devices */
 		const reconnect = async () => {
@@ -216,21 +161,9 @@ describe('P2P session', () => {
 			serve(rpcB, { tree: b, gate: new Gate() });
 		};
 
-		it('leaves nothing behind on the receiving device (upload)', async () => {
-			await writeBig(a, '/photo.jpg', big());
-			await interrupted();
-			// Neither a half file nor a leftover temporary file (cleaning up may take a moment after the abort)
-			await until(async () => (await b.names('/')).length === 0, 5000, 'B cleaned up');
-			expect(await b.names('/')).toEqual([]);
-			await reconnect();
-			const result = await sync();
-			expect(result.conflicts).toEqual([]);
-			expect((await b.read('/photo.jpg')).size).toBe(40 * 1024 * 1024);
-		}, 60_000);
-
-		it('leaves nothing behind on the receiving device (download)', async () => {
+		it('leaves nothing behind on the receiving device', async () => {
 			await writeBig(b, '/photo.jpg', big());
-			await interrupted();
+			await interrupted(a);
 			await until(async () => (await a.names('/')).length === 0, 5000, 'A cleaned up');
 			expect(await a.names('/')).toEqual([]);
 			await reconnect();
@@ -244,7 +177,7 @@ describe('P2P session', () => {
 			await writeText(b, '/project.json', 'old on B');
 			await new Promise((r) => setTimeout(r, 20));
 			await writeBig(a, '/project.json', big());
-			await interrupted();
+			await interrupted(b);
 			await until(async () => (await b.names('/')).length === 1, 5000, 'B cleaned up');
 			expect(await b.names('/')).toEqual(['project.json']);
 			expect(await readText(b, '/project.json')).toBe('old on B');

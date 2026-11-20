@@ -6,11 +6,26 @@ const help: typeof enHelp = {
 		items: {
 			layout: {
 				title: 'Aufbau',
-				text: 'Links findest du alles, was du hinzufügst (Medien, Markierungen, Text, Icons, Zoom). In der Mitte die Vorschau, darunter die Timeline mit der Werkzeugleiste. Rechts die Eigenschaften des ausgewählten Elements – ist nichts ausgewählt, die des Projekts.'
+				text: 'Oben das Menüband mit allen Befehlen in Registerkarten: „Datei“ (Gruppe „Projekt“: „Speichern unter …“, „In Dateien zeigen“, „Exportieren“), „Start“ (Wiedergabe, Schneiden, Zwischenablage, Auswahl), „Einfügen“ (Aufnahme, Medien, Markierungen, Text, Icon, Zoom, Bibliothek), „Ansicht“ (Timeline-Zoom, Bereiche, Leinwandgröße); mit einer Auswahl erscheinen dahinter „Anordnen“ und „Clip“. Der Editor öffnet mit „Start“; Rückgängig und Wiederholen stehen links der Registerkarten. Die obere Leiste darüber zeigt nur den Namen des Projekts. Links die Bereiche mit allem, was du hinzufügst (Medien, Bibliothek, Icons, Markierungen, Text, Zoom) – die Symbole der schmalen Leiste öffnen und schließen sie. In der Mitte die Vorschau, darunter die Timeline. Rechts die Eigenschaften des ausgewählten Elements – ist nichts ausgewählt, die des Projekts. Größe, Zeit des Abspielkopfs und ein laufender Import stehen in der Fußzeile.'
+			},
+			ribbon: {
+				title: 'Menüband',
+				text: 'Befehle, die gerade nicht wirken können, bleiben an ihrem Platz und sind ausgegraut. Knöpfe mit kleinem Pfeil öffnen eine Auswahl („Frame halten“ seine Länge, „Löschen“ das Löschen mit Lücke, „Formen“ die vier Formen). Das Menü am rechten Ende des Menübands stellt seine Anzeige um; Alt oder F10 zeigen zu jeder Registerkarte und jedem Befehl einen Buchstaben.',
+				options: {
+					classic: { label: 'Klassisch (Standard)', text: 'Gruppen mit großen Knöpfen und ihren Namen – alles auf einen Blick.' },
+					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile – mehr Platz für Vorschau und Timeline.' },
+					tabs: { label: 'Nur Registerkarten', text: 'Nur die Namen der Registerkarten; ein Klick darauf öffnet ihre Befehle über dem Editor.' }
+				},
+				tip: 'Auf einem kleinen Bildschirm lassen „Vereinfacht“ oder „Nur Registerkarten“ der Vorschau mehr Höhe; die meisten Aktionen haben auch eine Taste oder stehen im Kontextmenü.',
+				keys: [['Strg', 'F1'], ['Alt'], ['F10']]
+			},
+			panels: {
+				title: 'Bereiche',
+				text: 'Die Leiste ganz links öffnet jeweils einen Bereich: „Medien“, „Bibliothek“, „Icons“, „Markierungen“, „Text“, „Zoom“; ein zweiter Klick oder das × schließt ihn. Zieh seinen rechten Rand, um ihn breiter zu machen. Dieselben Befehle stehen in der Registerkarte „Ansicht“ unter „Bereiche“. Welcher Bereich offen ist und seine Breite werden gemerkt.'
 			},
 			saving: {
 				title: 'Speichern',
-				text: 'Jede Änderung wird automatisch gesichert; das Symbol unten links zeigt, ob alles gespeichert ist. Ein Klick auf den Projektnamen in der oberen Leiste benennt das Projekt um – seine Datei bekommt den neuen Namen mit. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner (gibt es ihn nicht mehr, im nächsten darüber). „Speichern unter …“ im Menü neben dem Projektnamen (Pfeil) legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. Wähle ein bestehendes Projekt und klicke „Ersetzen“, um es zu überschreiben (nicht, solange es in einem anderen Tab offen ist). „Öffnen …“ auf der Startseite öffnet jedes Projekt. In Dateien benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter.',
+				text: 'Jede Änderung wird automatisch gesichert; das Symbol unten links zeigt, ob alles gespeichert ist. Nichts wird hochgeladen. Ein Projekt ist eine Datei „Name.screencapture“ im Browserspeicher, den alle Tools von in-browser teilen. Beim Anlegen (Aufnahme, Import, leeres Projekt) wählst du Ordner und Namen; der Dialog startet im zuletzt benutzten Ordner (gibt es ihn nicht mehr, im nächsten darüber). „Speichern unter …“ in der Registerkarte „Datei“ legt eine Kopie unter neuem Namen oder in einem anderen Ordner an – du arbeitest dann mit der Kopie weiter. Wähle ein bestehendes Projekt und klicke „Ersetzen“, um es zu überschreiben (nicht, solange es in einem anderen Tab offen ist). „Öffnen …“ auf der Startseite öffnet jedes Projekt. Ein Projekt heißt wie seine Datei: In Dateien benennst du Projekte wie andere Dateien um, verschiebst, kopierst, löschst oder lädst sie herunter. Ändert sich das Projekt woanders (auf einem anderen Gerät, durch das Synchronisieren), während du keine ungespeicherten Änderungen hast, wirst du gefragt, ob es neu geladen werden soll („Neu laden“ / „Nicht neu laden“, auf Wunsch ohne weitere Frage, solange es offen ist).',
 				tip: 'Der Browserspeicher hängt an diesem Browser und kann verloren gehen, wenn Websitedaten gelöscht werden. Halte eine Kopie in einem Ordner auf deinem Rechner oder auf deinen anderen Geräten. Ein Projekt, das in einem Tab offen ist, lässt sich nicht gleichzeitig in einem zweiten öffnen.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
@@ -27,7 +42,7 @@ const help: typeof enHelp = {
 			},
 			browser: {
 				title: 'Browser',
-				text: 'Am besten läuft die App in einem aktuellen Chrome oder Edge am Desktop-Rechner. Firefox geht mit Einschränkungen: kein Systemton, kein Abgleich mit einem Ordner auf deinem Rechner, keine Installation. Je nach System nutzt der Export dann Opus und VP9 statt AAC und H.264. Telefone können den Bildschirm nicht aufnehmen.',
+				text: 'Am besten läuft die App in einem aktuellen Chrome oder Edge am Desktop-Rechner. Firefox geht mit Einschränkungen: kein Systemton, kein Synchronisieren mit einem Ordner auf deinem Rechner, keine Installation. Je nach System nutzt der Export dann Opus und VP9 statt AAC und H.264. Telefone können den Bildschirm nicht aufnehmen.',
 				link: { href: '/help/install', label: 'Unterstützte Browser' }
 			},
 			install: {
@@ -43,8 +58,8 @@ const help: typeof enHelp = {
 		items: {
 			flow: {
 				title: 'So läuft eine Aufnahme',
-				text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du teilst. Danach zeigt der Dialog eine Vorschau davon; „Aufnahme starten“ startet den optionalen 3-Sekunden-Countdown – wechsle währenddessen zum Fenster, das du aufnimmst – und dann die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
-				tip: 'Teilst du ein einzelnes Fenster, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, teile den ganzen Bildschirm und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in den Eigenschaften des Clips).'
+				text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du freigibst. Danach zeigt der Dialog eine Vorschau davon; „Aufnahme starten“ startet den optionalen 3-Sekunden-Countdown – wechsle währenddessen zum Fenster, das du aufnimmst – und dann die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
+				tip: 'Gibst du ein einzelnes Fenster frei, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, gib den ganzen Bildschirm frei und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in den Eigenschaften des Clips).'
 			},
 			screenQuality: {
 				title: 'Bildschirm – Qualität',
@@ -77,17 +92,17 @@ const help: typeof enHelp = {
 			},
 			growWindow: {
 				title: 'Fenster darf während der Aufnahme größer werden',
-				text: 'Spielt nur eine Rolle, wenn du ein einzelnes Fenster oder einen Tab teilst. Die Aufnahme hat von Anfang an eine feste Größe. Wird das Fenster später größer, wird es passend verkleinert – außer diese Option ist an: Dann reserviert die Aufnahme die volle Bildschirmgröße, und das größere Fenster bleibt scharf.',
+				text: 'Spielt nur eine Rolle, wenn du ein einzelnes Fenster oder einen Tab freigibst. Die Aufnahme hat von Anfang an eine feste Größe. Wird das Fenster später größer, wird es passend verkleinert – außer diese Option ist an: Dann reserviert die Aufnahme die volle Bildschirmgröße, und das größere Fenster bleibt scharf.',
 				tip: 'Lass sie aus, wenn du die Fenstergröße während der Aufnahme nicht änderst – das spart Rechenleistung. Schalte sie ein, wenn du das Fenster während der Aufnahme vergrößerst. Wo ein kleineres Fenster im Bild steht, legst du später unter „Fensterposition“ des Clips fest.'
 			},
 			cursor: {
 				title: 'Mauszeiger aufnehmen',
-				text: 'Einstellung im Tab „Bildschirm“, bevor du wählst, was du teilst. Die Vorschau zeigt danach, ob der Zeiger im Bild ist.',
+				text: 'Einstellung im Tab „Bildschirm“, bevor du wählst, was du freigibst. Die Vorschau zeigt danach, ob der Zeiger im Bild ist.',
 				options: {
 					on: { label: 'An (Standard)', text: 'Der Zeiger wird so aufgenommen, wie du ihn siehst.' },
 					off: {
 						label: 'Aus',
-						text: 'Der Zeiger fehlt im Bild – klappt in Chrome und Edge bei Bildschirmen und Fenstern. Andere Browser ignorieren es; dann zeigt die Vorschau eine Warnung. Geteilte Tabs enthalten den Zeiger nie.'
+						text: 'Der Zeiger fehlt im Bild – klappt in Chrome und Edge bei Bildschirmen und Fenstern. Andere Browser ignorieren es; dann zeigt die Vorschau eine Warnung. Freigegebene Tabs enthalten den Zeiger nie.'
 					}
 				},
 				tip: 'Für ruhige Anleitungen schalte ihn aus und markiere die wichtigen Klicks danach mit der Annotation „Klick“. Lass ihn an, wenn man sehen soll, worauf du zeigst.'
@@ -98,8 +113,8 @@ const help: typeof enHelp = {
 			},
 			systemAudio: {
 				title: 'Systemton',
-				text: 'Nimmt auf, was dein Rechner abspielt – Videos, Hinweistöne, die Gegenseite eines Gesprächs. Der Browser bietet ihn nur unter Windows oder beim Teilen eines Browser-Tabs an, Firefox gar nicht. Er landet im selben Clip wie das Bild.',
-				tip: 'Schalte im Freigabe-Dialog des Browsers zusätzlich das Teilen des Tons ein, sonst kommt kein Ton an. Lass die Filter hier aus: Sie sind für Sprache gemacht und lassen Musik und Spielton dumpf klingen.'
+				text: 'Nimmt auf, was dein Rechner abspielt – Videos, Hinweistöne, die Gegenseite eines Gesprächs. Der Browser bietet ihn nur unter Windows oder beim Freigeben eines Browser-Tabs an, Firefox gar nicht. Er landet im selben Clip wie das Bild.',
+				tip: 'Schalte im Freigabe-Dialog des Browsers zusätzlich das Freigeben des Tons ein, sonst kommt kein Ton an. Lass die Filter hier aus: Sie sind für Sprache gemacht und lassen Musik und Spielton dumpf klingen.'
 			},
 			microphone: {
 				title: 'Mikrofon',
@@ -138,13 +153,13 @@ const help: typeof enHelp = {
 			countdown: { title: '3 Sekunden Countdown', text: 'Gibt dir Zeit, zum aufgenommenen Fenster zu wechseln. Schalte ihn aus, wenn es sofort losgehen soll.' },
 			preview: {
 				title: 'Vorschau vor dem Start',
-				text: 'Nach der Auswahl bleibt dein Tab vorne und zeigt das geteilte Bild live, was du teilst (ganzer Bildschirm, Fenster oder Browser-Tab), Auflösung und Bildrate, ob System-/Tab-Ton dabei ist, und die geschätzte Dateigröße pro Minute bei dieser Auflösung. Webcam und Mikrofon zeigen Bild und Pegel. Hinweise sagen, worauf du achten solltest: fehlende Menüs bei einem Fenster, wie der Browser einen geteilten Tab skaliert, und die Skalierung deines Systems. „Andere Quelle“ lässt dich neu wählen, „Zurück“ führt zu den Einstellungen.',
-				tip: 'Prüfe die Auflösung: Sie bestimmt Schärfe und Dateigröße. Gehören Menüs oder Dialoge ins Video, wähle „Andere Quelle“ und teile den ganzen Bildschirm – den Clip schneidest du danach auf das Fenster zu. Stell bei einem Tab vor dem Start den Zoom der Seite (Strg +/−) so ein, dass der Text groß genug ist.'
+				text: 'Nach der Auswahl bleibt dein Tab vorne und zeigt das freigegebene Bild live, was du freigibst (ganzer Bildschirm, Fenster oder Browser-Tab), Auflösung und Bildrate, ob System-/Tab-Ton dabei ist, und die geschätzte Dateigröße pro Minute bei dieser Auflösung. Webcam und Mikrofon zeigen Bild und Pegel. Hinweise sagen, worauf du achten solltest: fehlende Menüs bei einem Fenster, wie der Browser einen freigegebenen Tab skaliert, und die Skalierung deines Systems. „Andere Quelle“ lässt dich neu wählen, „Zurück“ führt zu den Einstellungen.',
+				tip: 'Prüfe die Auflösung: Sie bestimmt Schärfe und Dateigröße. Gehören Menüs oder Dialoge ins Video, wähle „Andere Quelle“ und gib den ganzen Bildschirm frei – den Clip schneidest du danach auf das Fenster zu. Stell bei einem Tab vor dem Start den Zoom der Seite (Strg +/−) so ein, dass der Text groß genug ist.'
 			},
 			floating: {
 				title: 'Schwebendes Kontrollfenster',
 				text: 'In Chrome und Edge öffnet sich bei eingeschaltetem „Schwebendes Kontrollfenster“ (Standard) beim Klick auf „Aufnahme starten“ ein kleines Fenster. Es bleibt über allen anderen Fenstern, so siehst du Countdown, Aufnahmezeit, „Pause“ und „Stopp“ auch dann, wenn das aufgenommene Fenster vorne ist. Das × blendet es aus (minimieren lässt es sich nicht); die Aufnahme läuft weiter, und „Steuerung einblenden“ im Aufnahme-Dialog holt es zurück.',
-				tip: 'Teilst du ein Fenster oder einen Tab, ist das kleine Fenster nicht im Video. Teilst du den ganzen Bildschirm, wird es mit aufgenommen – blende es aus, schieb es auf einen anderen Bildschirm oder schalte die Option aus. Schalte sie auch aus, wenn du den Aufnahme-Dialog ohnehin siehst, z. B. auf einem zweiten Bildschirm.'
+				tip: 'Gibst du ein Fenster oder einen Tab frei, ist das kleine Fenster nicht im Video. Gibst du den ganzen Bildschirm frei, wird es mit aufgenommen – blende es aus, schieb es auf einen anderen Bildschirm oder schalte die Option aus. Schalte sie auch aus, wenn du den Aufnahme-Dialog ohnehin siehst, z. B. auf einem zweiten Bildschirm.'
 			},
 			result: {
 				title: 'Nach der Aufnahme',
@@ -157,7 +172,7 @@ const help: typeof enHelp = {
 		items: {
 			import: {
 				title: 'Importieren',
-				text: '„Vom Rechner importieren“ oder Dateien, die du auf den Editor ziehst, landen in der Medienablage – nicht in der Timeline. „Aus Dateien importieren“ macht dasselbe mit Dateien aus dem gemeinsamen Browserspeicher (mehrere auf einmal mit Strg oder Umschalt); sie werden ins Projekt kopiert, die Originale in Dateien bleiben also unverändert, und wenn du sie dort löschst, schadet das dem Projekt nicht. Videos: MP4, WebM, MOV, MKV. Ton: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Bilder: PNG, JPEG, WebP, GIF, SVG. Videos und Ton werden ohne Qualitätsverlust nach MP4 umverpackt.'
+				text: '„Vom Rechner importieren“ oder Dateien, die du auf den Editor ziehst, landen in der Medienablage – nicht in der Timeline. „Aus Dateien importieren“ macht dasselbe mit Dateien aus dem gemeinsamen Browserspeicher (mehrere auf einmal mit Strg oder Umschalt); sie werden ins Projekt kopiert, die Originale in Dateien bleiben also unverändert, und wenn du sie dort löschst, schadet das dem Projekt nicht. Videos: MP4, WebM, MOV, MKV. Ton: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Bilder: PNG, JPEG, WebP, GIF, SVG. Videos und Ton werden ohne Qualitätsverlust nach MP4 umverpackt. Beides sind Knöpfe im Bereich „Medien“ und in der Registerkarte „Einfügen“. Während eine Datei importiert wird, stehen ihr Name und der Fortschritt in der Fußzeile.'
 			},
 			newProject: {
 				title: 'Neues Projekt aus Dateien',
@@ -165,7 +180,7 @@ const help: typeof enHelp = {
 			},
 			insert: {
 				title: 'Einfügen',
-				text: 'Der Einfügen-Knopf eines Eintrags setzt ihn an den Abspielkopf, vor alles, was dort liegt; Bilder landen mittig, höchstens halb so groß wie die Leinwand und nie vergrößert. Du kannst einen Eintrag auch auf die Timeline (an diese Stelle) oder die Vorschau ziehen.'
+				text: 'Ein Klick auf einen Eintrag der Medienablage wählt ihn aus; Strg + Klick fügt einen hinzu oder entfernt ihn, Umschalt + Klick wählt einen Bereich, Strg + A alle (solange die Liste den Fokus hat). Ein Doppelklick, die Eingabetaste oder „Einfügen“ in seinem Menü (Rechtsklick oder ⋯) setzt die ausgewählten Einträge nacheinander an den Abspielkopf, vor alles, was dort liegt; Bilder landen mittig, höchstens halb so groß wie die Leinwand und nie vergrößert. Du kannst einen Eintrag auch auf die Timeline (an diese Stelle) oder die Vorschau ziehen.'
 			},
 			drop: {
 				title: 'Auf die Timeline ablegen',
@@ -173,7 +188,7 @@ const help: typeof enHelp = {
 			},
 			delete: {
 				title: 'Medien löschen',
-				text: 'Löschen kannst du nur Medien, die nicht mehr in der Timeline vorkommen. Nutzen Rückgängig-Schritte sie noch, gehen diese Schritte verloren – du wirst vorher gefragt.'
+				text: '„Endgültig löschen“ im Menü eines Eintrags (oder Entf, solange die Liste den Fokus hat) löscht die ausgewählten Mediendateien – nur solche, die nicht mehr in der Timeline oder der Projektbibliothek vorkommen; sonst ist es ausgegraut. Du wirst vorher gefragt, weil es sich nicht rückgängig machen lässt; nutzen Rückgängig-Schritte eine Datei noch, gehen diese Schritte verloren.'
 			},
 			icons: {
 				title: 'Icons',
@@ -192,7 +207,7 @@ const help: typeof enHelp = {
 		items: {
 			save: {
 				title: 'Elemente ablegen',
-				text: 'Bewahre eingestellte Elemente auf – einen gestylten Pfeil, eine Sprechblase mit Text, einen zugeschnittenen Clip samt Markierungen –, um sie wieder einzufügen. Wähle sie aus und nimm im Kontextmenü (Rechtsklick) „Zur Bibliothek hinzufügen …“, oder zieh sie aus der Vorschau oder der Timeline auf einen Abschnitt der geöffneten Gruppe „Bibliothek“ links – sobald du Vorschau oder Timeline verlässt, springt das Element zurück und hängt als Bild mit Namen am Zeiger; die Abschnitte der Bibliothek zeigen gestrichelte Rahmen, der unter dem Zeiger leuchtet auf. Lässt du woanders los, ändert sich nichts. Ist die Bibliothek zugeklappt, halte das Element kurz über ihr Symbol links, dann öffnet sie sich. Gib einen Namen und klick auf die Bibliothek, in die es soll – „Dieses Projekt“ oder „Alle Projekte“; Enter nimmt die zuletzt gewählte. Gespeichert werden alle ausgewählten Elemente mit Einstellungen, Text, Zuschnitt, Verknüpfungen und Platz im Bild; Zoom-Abschnitte nicht.',
+				text: 'Bewahre eingestellte Elemente auf – einen gestylten Pfeil, eine Sprechblase mit Text, einen zugeschnittenen Clip samt Markierungen –, um sie wieder einzufügen. Wähle sie aus und nimm im Kontextmenü (Rechtsklick) oder in der Registerkarte „Einfügen“ „Zur Bibliothek hinzufügen …“, oder zieh sie aus der Vorschau oder der Timeline auf einen Abschnitt des geöffneten Bereichs „Bibliothek“ – sobald du Vorschau oder Timeline verlässt, springt das Element zurück und hängt als Bild mit Namen am Zeiger; die Abschnitte der Bibliothek zeigen gestrichelte Rahmen, der unter dem Zeiger leuchtet auf. Lässt du woanders los, ändert sich nichts. Ist die Bibliothek zugeklappt, halte das Element kurz über ihr Symbol links, dann öffnet sie sich. Gib einen Namen und klick auf die Bibliothek, in die es soll – „Dieses Projekt“ oder „Alle Projekte“; Enter nimmt die zuletzt gewählte. Gespeichert werden alle ausgewählten Elemente mit Einstellungen, Text, Zuschnitt, Verknüpfungen und Platz im Bild; Zoom-Abschnitte nicht.',
 				options: {
 					project: { label: 'Dieses Projekt', text: 'Bleibt beim Projekt, auch in seinen Kopien. Nutzt die Medien des Projekts direkt, deshalb lassen sich dort benutzte Medien nicht aus der Medienablage löschen.' },
 					global: { label: 'Alle Projekte', text: 'In jedem Projekt verfügbar, auch nachdem das Ursprungsprojekt gelöscht ist. Benutzte Medien werden in die Bibliothek kopiert – bei Clips die ganze Mediendatei, nicht nur der zugeschnittene Teil; das belegt Speicherplatz.' }
@@ -201,12 +216,13 @@ const help: typeof enHelp = {
 			},
 			insert: {
 				title: 'Einfügen',
-				text: 'Klick auf eine Kachel fügt sie am Abspielkopf ein; zieh sie auf die Timeline (sie beginnt an der Ablegestelle) oder die Vorschau (am Abspielkopf). Sie behält ihren Platz im Bild und kommt vor alles, womit sie sich überschneidet; ein Rückgängig-Schritt. Medien aus der globalen Bibliothek werden ins Projekt kopiert und erscheinen in der Medienablage.'
+				text: 'Ein Klick auf einen Eintrag wählt ihn aus; Strg + Klick fügt einen hinzu oder entfernt ihn, Umschalt + Klick wählt einen Bereich, Strg + A alle (solange die Liste den Fokus hat). Ein Doppelklick, die Eingabetaste oder „Einfügen“ in seinem Menü setzt die ausgewählten Einträge nacheinander an den Abspielkopf – oder zieh einen auf die Timeline (er beginnt an der Ablegestelle) oder die Vorschau (am Abspielkopf). Sie behalten ihren Platz im Bild und kommen vor alles, womit sie sich überschneiden. Medien aus der globalen Bibliothek werden ins Projekt kopiert und erscheinen in der Medienablage.'
 			},
 			manage: {
 				title: 'Verwalten',
-				text: 'Rechtsklick auf eine Kachel: einfügen, umbenennen, in die andere Bibliothek verschieben oder kopieren, entfernen. Eine Kachel in den anderen Abschnitt ziehen verschiebt sie; beim Verschieben in dieses Projekt landen ihre Medien in der Medienablage. Entfernen ändert nichts an schon eingefügten Elementen.',
-				tip: 'Bibliothek oder Zwischenablage? Die Zwischenablage ist zum schnellen Wiederholen jetzt, auch in ein anderes Projekt. Die Bibliothek ist für Bausteine, die du über längere Zeit immer wieder brauchst.'
+				text: 'Rechtsklick auf einen Eintrag oder sein Knopf ⋯: einfügen, umbenennen, in die andere Bibliothek verschieben oder kopieren, entfernen – für alle ausgewählten Einträge. Zum Umbenennen klickst du auf den Namen des ausgewählten Eintrags oder drückst F2; Eingabe oder ein Klick daneben übernimmt den Namen, Esc behält den alten. Einen Eintrag in den anderen Abschnitt ziehen verschiebt ihn; beim Verschieben in dieses Projekt landen seine Medien in der Medienablage. Entfernen fragt vorher – es lässt sich nicht rückgängig machen, und aus „Alle Projekte“ entfernt es auch die Kopien der Medien, die nur dieser Eintrag nutzte. Schon eingefügte Elemente bleiben.',
+				tip: 'Bibliothek oder Zwischenablage? Die Zwischenablage ist zum schnellen Wiederholen jetzt, auch in ein anderes Projekt. Die Bibliothek ist für Bausteine, die du über längere Zeit immer wieder brauchst.',
+				keys: [['F2'], ['Entf']]
 			},
 			view: {
 				title: 'Ansicht und Suche',
@@ -235,7 +251,7 @@ const help: typeof enHelp = {
 			},
 			change: {
 				title: 'Ändern',
-				text: 'Mit „Ändern“ in den Projekt-Eigenschaften setzt du eine neue Größe. Alles behält seine Größe in Pixeln und bleibt mittig; auf einer kleineren Leinwand kann Inhalt über den Rand ragen. Lässt sich rückgängig machen.'
+				text: 'Mit „Ändern“ in den Projekt-Eigenschaften (oder „Leinwandgröße“ in der Registerkarte „Ansicht“, die sie öffnet) setzt du eine neue Größe. Alles behält seine Größe in Pixeln und bleibt mittig; auf einer kleineren Leinwand kann Inhalt über den Rand ragen. Lässt sich rückgängig machen.'
 			},
 			cropCanvas: {
 				title: 'Leinwandgröße des größten Clips',
@@ -244,7 +260,7 @@ const help: typeof enHelp = {
 			},
 			fitToClip: {
 				title: 'Leinwand an Clip anpassen',
-				text: '„Leinwand an Clip anpassen“ in den Eigenschaften eines Clips mit Bild (auch in seinem Kontextmenü) gibt der Leinwand die Originalgröße des sichtbaren Teils des Clips – ein Zuschnitt zählt. Der Button zeigt die neue Größe. Der Clip füllt die Leinwand danach 1:1; alles andere behält seine Pixelgröße rund um die Mitte des Clips, Webcams an ihrem Standardplatz wandern in die neue Ecke. Die Leinwand kann kleiner oder größer werden. Lässt sich rückgängig machen.',
+				text: '„Leinwand an Clip anpassen“ in den Eigenschaften eines Clips mit Bild (auch in seinem Kontextmenü und in der Registerkarte „Clip“) gibt der Leinwand die Originalgröße des sichtbaren Teils des Clips – ein Zuschnitt zählt. Unter dem Knopf steht die neue Größe; passt die Leinwand schon zum Clip, ist er ausgegraut. Der Clip füllt die Leinwand danach 1:1; alles andere behält seine Pixelgröße rund um die Mitte des Clips, Webcams an ihrem Standardplatz wandern in die neue Ecke. Die Leinwand kann kleiner oder größer werden. Lässt sich rückgängig machen.',
 				tip: 'Nimm es, wenn eine Aufnahme verkleinert angezeigt wird und scharf in ihrer eigenen Auflösung exportiert werden soll, oder um genau einen Clip zu exportieren. Anders als „Größter Clip“ nimmt es die Originalgröße des gewählten Clips, nicht den Rahmen, den er gerade auf der Leinwand hat.'
 			},
 			enlarge: {
@@ -254,11 +270,11 @@ const help: typeof enHelp = {
 					grow: { label: 'Leinwand vergrößern', text: 'Das neue Material erscheint 1:1 und scharf; der bisherige Inhalt behält seine Größe und rückt in die Mitte. Der Export wird größer.' },
 					keep: { label: 'Größe beibehalten', text: 'Die Ausgabegröße bleibt; das neue Material bleibt verkleinert.' }
 				},
-				tip: 'Vergrößere, wenn das neue Material dein Hauptinhalt ist, etwa eine Aufnahme auf einem größeren Bildschirm. Behalte die Größe, wenn das Video in ein festes Format passen muss oder das Material nur Beiwerk ist. In den Projekt-Eigenschaften kannst du die Leinwand später noch vergrößern.'
+				tip: 'Vergrößere, wenn das neue Material dein Hauptinhalt ist, etwa eine Aufnahme auf einem größeren Bildschirm. Behalte die Größe, wenn das Video in ein festes Format passen muss oder das Material nur Beiwerk ist. In den Projekt-Eigenschaften kannst du die Leinwand später noch vergrößern (ausgegraut, solange jeder Clip schon 1:1 erscheint).'
 			},
 			background: {
 				title: 'Hintergrundfarbe',
-				text: 'Zu sehen, wo nichts die Leinwand bedeckt: in Lücken, um Bild-im-Bild-Clips herum und während Blenden. Du stellst sie in den Projekt-Eigenschaften ein (nichts ausgewählt).'
+				text: 'Zu sehen, wo nichts die Leinwand bedeckt: in Lücken, um Bild-im-Bild-Clips herum und während Blenden. Du stellst sie in den Projekt-Eigenschaften ein (nichts ausgewählt); eine Änderung lässt sich wie jede andere rückgängig machen.'
 			}
 		}
 	},
@@ -267,7 +283,7 @@ const help: typeof enHelp = {
 		items: {
 			playhead: {
 				title: 'Abspielkopf',
-				text: 'Klicke oder ziehe im Lineal, um den Abspielkopf zu setzen. Mit den Pfeiltasten gehst du ein Bild weiter, mit Umschalt eine Sekunde.',
+				text: 'Klicke oder ziehe im Lineal, um den Abspielkopf zu setzen. Mit den Pfeiltasten gehst du ein Bild weiter, mit Umschalt eine Sekunde (gedrückt gehalten läuft es weiter). „Zum Anfang“, „Wiedergabe/Pause“ und „Zum Ende“ stehen in der Registerkarte „Start“; die Zeit des Abspielkopfs steht in der Fußzeile.',
 				keys: [['Leertaste'], ['K'], ['←'], ['→'], ['Pos1'], ['Ende']]
 			},
 			tracks: {
@@ -277,7 +293,7 @@ const help: typeof enHelp = {
 			},
 			trackStates: {
 				title: 'Spurkopf',
-				text: 'Die Knöpfe vor jeder Spur gelten für alle Elemente darauf.',
+				text: 'Die Knöpfe vor jeder Spur gelten für alle Elemente darauf; ein gedrückter Knopf ist eingeschaltet. Ein Rechtsklick auf den Spurkopf bietet dieselben Schalter.',
 				options: {
 					hide: { label: 'Spur ausblenden', text: 'Kein Bild und kein Ton – in der Vorschau und im Export.' },
 					mute: { label: 'Spur stumm schalten', text: 'Nur der Ton fehlt, das Bild bleibt.' },
@@ -287,12 +303,12 @@ const help: typeof enHelp = {
 			},
 			select: {
 				title: 'Auswählen',
-				text: 'Ein Klick wählt das Element samt Verknüpften; Alt + Klick nur dieses; mit Strg oder Umschalt + Klick fügst du hinzu oder entfernst. Ziehen verschiebt alle ausgewählten Elemente gemeinsam.',
+				text: 'Ein Klick wählt das Element samt Verknüpften; Alt + Klick nur dieses; mit Strg oder Umschalt + Klick fügst du hinzu oder entfernst. Ziehen verschiebt alle ausgewählten Elemente gemeinsam. „Alles auswählen“ (Registerkarte „Start“, oder Strg + A, solange Vorschau oder Timeline den Fokus haben) wählt alle Elemente; Esc hebt die Auswahl auf.',
 				keys: [['Strg', 'A'], ['Esc']]
 			},
 			move: {
 				title: 'Verschieben und trimmen',
-				text: 'Zieh ein Element, um es zeitlich zu verschieben; es stoppt am Nachbarn auf derselben Spur und rastet an Kanten und Abspielkopf ein („Einrasten“ über der Timeline, Alt bewirkt das Gegenteil). Zieh an den Enden eines Clips, um ihn zu trimmen.'
+				text: 'Zieh ein Element, um es zeitlich zu verschieben; es stoppt am Nachbarn auf derselben Spur und rastet an Kanten und Abspielkopf ein (der Schalter „Einrasten“ in der Registerkarte „Start“, Alt bewirkt das Gegenteil). Zieh an den Enden eines Clips, um ihn zu trimmen.'
 			},
 			ripple: {
 				title: 'Löschen und trimmen: was sich verschiebt',
@@ -302,21 +318,25 @@ const help: typeof enHelp = {
 					gap: { label: 'Mit Umschalt', text: 'Beim Löschen bleibt eine Lücke; beim Trimmen bleibt der Rest stehen.' },
 					audio: { label: 'Tonclips und Markierungen', text: 'Sie zu löschen entfernt nie Zeit: Hintergrundmusik verschiebt deinen Schnitt nicht.' }
 				},
-				tip: 'Schneide Versprecher auf die normale Art heraus. Halte Umschalt, wenn spätere Elemente schon zeitgenau sitzen, etwa passend zur Musik.',
+				tip: 'Schneide Versprecher auf die normale Art heraus. Nimm „Löschen, Lücke lassen“ (der Pfeil unter „Löschen“, oder Umschalt + Entf), wenn spätere Elemente schon zeitgenau sitzen, etwa passend zur Musik.',
 				keys: [['Entf'], ['Umschalt', 'Entf']]
 			},
 			split: {
 				title: 'Teilen',
-				text: 'Schneidet die ausgewählten Elemente unter dem Abspielkopf durch – ist dort nichts ausgewählt, alle Clips unter dem Abspielkopf. An der Schnittstelle gibt es keine Blende.',
+				text: '„Teilen“ (Registerkarte „Start“) schneidet die ausgewählten Elemente unter dem Abspielkopf durch – ist dort nichts ausgewählt, alle Clips unter dem Abspielkopf. An der Schnittstelle gibt es keine Blende.',
 				keys: [['S']]
 			},
 			hold: {
 				title: 'Frame halten',
-				text: 'Fügt am Abspielkopf ein Standbild der ausgewählten Clips ein (oder aller Clips mit Bild); die Länge wählst du neben dem Knopf (1–8 s). Alles Spätere rückt nach hinten. Andere Clips unter dem Abspielkopf – auch Ton – werden geteilt und bekommen eine Lücke; Standbilder sind stumm.',
+				text: 'Fügt am Abspielkopf ein Standbild der ausgewählten Clips ein (oder aller Clips mit Bild, Registerkarte „Start“); der Pfeil unter dem Knopf wählt die Länge (1, 2, 3 (Standard), 5 oder 8 s). Alles Spätere rückt nach hinten. Andere Clips unter dem Abspielkopf – auch Ton – werden geteilt und bekommen eine Lücke; Standbilder sind stumm.',
 				tip: 'Nutze es, damit Zuschauer etwas lesen können oder um einen Schritt zu erklären. 2–3 Sekunden passen für eine kurze Pause; für längere Erklärungen sprichst du auf einer eigenen Spur über das Standbild.',
 				keys: [['F']]
 			},
-			link: { title: 'Verknüpfen', text: 'Verknüpft die ausgewählten Elemente, sodass ein Klick sie gemeinsam auswählt, verschiebt und löscht.', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
+			link: {
+				title: 'Verknüpfen',
+				text: '„Verknüpfen“ (Registerkarte „Anordnen“, Eigenschaften, Kontextmenü) verknüpft die ausgewählten Elemente, sodass ein Klick sie gemeinsam auswählt, verschiebt und löscht; „Verknüpfung lösen“ trennt sie. Ausgegraut, wenn es nichts zu verknüpfen oder zu lösen gibt.',
+				keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']]
+			},
 			clipboard: {
 				title: 'Kopieren, Ausschneiden, Einfügen',
 				text: 'Kopiert die ausgewählten Elemente – Clips und Markierungen – und fügt sie am Abspielkopf ein: Das früheste beginnt dort, die Abstände untereinander bleiben, und alle behalten ihren Platz im Bild. Die Kopie kommt vor alles, womit sie sich überschneidet, und ist ausgewählt; ein Rückgängig-Schritt. Verknüpfte Kopien sind untereinander verknüpft, nie mit den Originalen. Zoom-Abschnitte werden nicht kopiert.',
@@ -329,7 +349,7 @@ const help: typeof enHelp = {
 			},
 			layer: {
 				title: 'Ebene ändern',
-				text: 'Was vorne liegt, entscheidet die Spur: Höhere Spuren werden später gezeichnet und verdecken tiefere – auch Spotlight und Weichzeichnen wirken nur auf das, was darunter liegt. Die Ebene des ausgewählten Elements änderst du über das Kontextmenü, die Tastenkürzel oder indem du seinen Balken in der Timeline nach oben oder unten ziehst.',
+				text: 'Was vorne liegt, entscheidet die Spur: Höhere Spuren werden später gezeichnet und verdecken tiefere – auch Spotlight und Weichzeichnen wirken nur auf das, was darunter liegt. Die Ebene des ausgewählten Elements änderst du in der Registerkarte „Anordnen“, über das Kontextmenü, die Tastenkürzel oder indem du seinen Balken in der Timeline nach oben oder unten ziehst; Befehle, die nichts ändern würden, sind ausgegraut.',
 				options: {
 					forward: { label: 'Eine Ebene nach vorne / hinten', text: 'Springt vor (hinter) das nächste Element, das zur selben Zeit sichtbar ist – nicht einfach eine Spur weiter, damit jeder Schritt sichtbar etwas ändert.' },
 					front: { label: 'Ganz nach vorne / hinten', text: 'Vor (hinter) alles, was sich zeitlich mit ihm überschneidet.' }
@@ -339,11 +359,11 @@ const help: typeof enHelp = {
 			},
 			menu: {
 				title: 'Kontextmenü',
-				text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und bietet Ausschneiden, Kopieren, Einfügen, Löschen, das Ändern der Ebene und das Ablegen in der Bibliothek. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
+				text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und listet alles, was du damit tun kannst: Ausschneiden, Kopieren, Einfügen, Löschen (auch mit Lücke), Teilen, Frame halten, Ebene ändern, Verknüpfen und Lösen, Zuschneiden, Zuschnitt entfernen, Einpassen, Füllen, Leinwand an Clip anpassen, zur Bibliothek hinzufügen, Alles auswählen und „Eigenschaften …“. Was auf die Auswahl nicht wirken kann, ist ausgegraut. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
 			},
 			view: {
 				title: 'Timeline-Zoom und Höhe',
-				text: 'Mit Strg + Mausrad oder dem Regler zoomst du die Timeline (bis 32×); „Alles zeigen“ passt alles ein. Zieh die Leiste über der Werkzeugleiste, um der Timeline mehr oder weniger Höhe zu geben; ein Doppelklick stellt sie zurück.'
+				text: 'Mit Strg + Mausrad, dem Regler über den Spuren oder „Vergrößern“/„Verkleinern“ in der Registerkarte „Ansicht“ zoomst du die Timeline (bis 32×); „Alles zeigen“ passt alles ein. Zieh die Leiste über der Timeline, um ihr mehr oder weniger Höhe zu geben; ein Doppelklick stellt sie zurück.'
 			}
 		}
 	},
@@ -356,7 +376,7 @@ const help: typeof enHelp = {
 			},
 			snap: {
 				title: 'Einrasten',
-				text: 'Elemente rasten an Rändern und Mitte der Leinwand ein, an Kanten und Mitten anderer Elemente und an gleichen Abständen zwischen ihnen – Linien und Abstandsmaße zeigen, woran. Das Icon an einer Linie verrät, woher sie kommt: ein Rahmen für die Leinwand, sonst der Typ des Elements, das zusätzlich umrandet ist. Mit dem Schalter „Einrasten“ über der Timeline schaltest du das für Vorschau und Timeline an oder aus; hältst du beim Ziehen Alt gedrückt, gilt das Gegenteil.',
+				text: 'Elemente rasten an Rändern und Mitte der Leinwand ein, an Kanten und Mitten anderer Elemente und an gleichen Abständen zwischen ihnen – Linien und Abstandsmaße zeigen, woran. Das Icon an einer Linie verrät, woher sie kommt: ein Rahmen für die Leinwand, sonst der Typ des Elements, das zusätzlich umrandet ist. Mit dem Schalter „Einrasten“ in der Registerkarte „Start“ schaltest du das für Vorschau und Timeline an oder aus; hältst du beim Ziehen Alt gedrückt, gilt das Gegenteil.',
 				keys: [['Alt']]
 			},
 			axis: { title: 'Eine Richtung', text: 'Halte beim Verschieben Umschalt gedrückt, um nur waagrecht oder senkrecht zu verschieben.', keys: [['Umschalt']] },
@@ -396,7 +416,7 @@ const help: typeof enHelp = {
 			},
 			crop: {
 				title: 'Zuschneiden',
-				text: '„Zuschneiden“ in den Eigenschaften des Clips (auch im Kontextmenü, oder Doppelklick auf den Clip in der Vorschau) zeigt den Umriss des ganzen Bildes gestrichelt; zieh die Kanten oder Ecken, um wegzuschneiden, was du nicht zeigen willst. Das Bild bleibt dabei stehen, nur sein Rahmen wird kleiner, und die Kanten rasten ein wie alles andere. Die Felder Links, Oben, Rechts und Unten legen den Schnitt in Pixeln der Aufnahme fest. „Fertig“, Esc oder Enter beendet das Zuschneiden; „Zuschnitt entfernen“ zeigt wieder das ganze Bild. „Einpassen“ und „Füllen“ richten sich dann nach dem zugeschnittenen Teil.',
+				text: '„Zuschneiden“ in den Eigenschaften des Clips (auch in der Registerkarte „Clip“, im Kontextmenü, oder Doppelklick auf den Clip in der Vorschau) zeigt den Umriss des ganzen Bildes gestrichelt; zieh die Kanten oder Ecken, um wegzuschneiden, was du nicht zeigen willst. Das Bild bleibt dabei stehen, nur sein Rahmen wird kleiner, und die Kanten rasten ein wie alles andere. Die Felder Links, Oben, Rechts und Unten legen den Schnitt in Pixeln der Aufnahme fest. Ein weiterer Klick auf „Zuschneiden“ (es bleibt beim Zuschneiden gedrückt), Esc oder Enter beendet das Zuschneiden; „Zuschnitt entfernen“ zeigt wieder das ganze Bild (ohne Zuschnitt ausgegraut). „Einpassen“ und „Füllen“ richten sich dann nach dem zugeschnittenen Teil.',
 				tip: 'Um ein Programm mit seinen Dialogen und Menüs zu zeigen, nimm den ganzen Bildschirm auf und schneide auf den Bereich des Programmfensters zu. Danach verkleinert „Größter Clip“ in der Größenliste der Projekt-Eigenschaften die Leinwand darauf. Gehaltene Frames und geteilte Clips behalten den Zuschnitt.',
 				keys: [['Esc'], ['Enter']]
 			},
@@ -412,11 +432,11 @@ const help: typeof enHelp = {
 			},
 			windowPosition: {
 				title: 'Fensterposition',
-				text: 'Erscheint nur, wenn das aufgenommene Fenster seine Größe geändert hat. Der Clip hat die Größe des größten Fensters; solange das Fenster kleiner war, bleibt der Rest leer. Im 3×3-Raster legst du fest, wo das kleinere Fenster steht. Bei einem zugeschnittenen Clip bleibt das Fenster, wo es war.'
+				text: 'Nur aktiv, wenn das aufgenommene Fenster seine Größe geändert hat (sonst ausgegraut). Der Clip hat die Größe des größten Fensters; solange das Fenster kleiner war, bleibt der Rest leer. Im 3×3-Raster legst du fest, wo das kleinere Fenster steht. Bei einem zugeschnittenen Clip bleibt das Fenster, wo es war.'
 			},
 			volume: {
 				title: 'Lautstärke',
-				text: 'Je Clip von 0 bis 100 %; der Knopf schaltet stumm. Die Wellenform in der Timeline folgt der Lautstärke.',
+				text: 'Je Clip von 0 bis 100 %; der Knopf daneben (und „Stumm“ in der Registerkarte „Clip“) schaltet stumm – gedrückt, solange er stumm ist. Die Wellenform in der Timeline folgt der Lautstärke.',
 				tip: 'Dreh Hintergrundmusik auf 15–30 % herunter, damit Sprache gut verständlich bleibt.'
 			},
 			fades: {
@@ -430,7 +450,7 @@ const help: typeof enHelp = {
 		items: {
 			add: {
 				title: 'Hinzufügen',
-				text: 'Klickst du links auf eine Kachel, kommt sie an den Abspielkopf; du kannst sie auch auf die Vorschau oder die Timeline ziehen. Markierungen zoomen mit dem Bild mit.'
+				text: 'Ein Befehl in der Registerkarte „Einfügen“ oder ein Klick auf eine Kachel im Bereich „Markierungen“ oder „Text“ setzt sie an den Abspielkopf; Kacheln kannst du auch auf die Vorschau oder die Timeline ziehen. „Formen“ in der Registerkarte bietet Pfeil, Linie, Rahmen und Ellipse. Markierungen zoomen mit dem Bild mit.'
 			},
 			shapes: {
 				title: 'Pfeil, Linie, Rahmen, Ellipse',
@@ -488,7 +508,7 @@ const help: typeof enHelp = {
 			},
 			icon: {
 				title: 'Icon',
-				text: 'Icons aus der Gruppe „Icons“ links; Farbe samt Deckkraft stellst du in den Eigenschaften ein.'
+				text: 'Icons aus dem Bereich „Icons“ („Icon“ in der Registerkarte „Einfügen“ öffnet ihn); Farbe samt Deckkraft stellst du in den Eigenschaften ein.'
 			},
 			shadow: {
 				title: 'Schatten',
@@ -510,7 +530,14 @@ const help: typeof enHelp = {
 		items: {
 			box: {
 				title: 'Textbox',
-				text: 'Die Ecken skalieren den ganzen Text. Die Seiten setzen eine feste Breite: Der Text bricht dann um. „Breite automatisch“ passt die Box wieder an die längste Zeile an. Die Höhe folgt immer dem Text. Würde eine Box größer als die Leinwand, bricht sie auf Leinwandbreite um und bekommt bei Bedarf eine kleinere Schrift.'
+				text: 'Wie in Figma ändern die Anfasser nur die Box, nie die Schrift: Die linke und rechte Seite legen die Breite fest (der Text bricht um, die Höhe folgt ihm), Ober- und Unterkante und die Ecken eine feste Größe (Umschalt hält bei einer Ecke das Seitenverhältnis); Text, der nicht in eine feste Größe passt, ragt unten aus der Box heraus. Drück K, während du einen Anfasser ziehst, um die Schrift mit der Box zu skalieren. „Größe der Box“ unter Schrift wechselt zwischen den dreien. Würde eine Box größer als die Leinwand, bricht sie auf Leinwandbreite um und bekommt bei Bedarf eine kleinere Schrift.',
+				options: {
+					autoWidth: { label: 'Automatische Breite (Standard)', text: 'So breit wie die längste Zeile; neue Zeilen nur, wo du Enter drückst. Für Beschriftungen und Titel.' },
+					autoHeight: { label: 'Automatische Höhe', text: 'Behält ihre Breite; die Zeilen brechen um und die Box wächst mit dem Text. Für längere Texte.' },
+					fixedSize: { label: 'Feste Größe', text: 'Behält Breite und Höhe, z. B. ein Hintergrund in fester Größe; Text, der nicht hineinpasst, ragt unten heraus.' }
+				},
+				tip: 'Die Schriftgröße änderst du mit „Schriftgröße“, nicht durch Ziehen – die Box behält Platz und Breite. Nimm automatische Höhe, wenn der Text in einer Spalte umbrechen soll, feste Größe nur, wenn sich der Hintergrund nicht ändern darf.',
+				keys: [['K']]
 			},
 			font: {
 				title: 'Schrift',
@@ -544,7 +571,7 @@ const help: typeof enHelp = {
 		items: {
 			segments: {
 				title: 'Zoom-Abschnitte',
-				text: 'Ein Zoom-Abschnitt vergrößert eine Weile lang einen Bereich des Bildes; er liegt auf einer eigenen Spur über den anderen. Zwischen den Abschnitten siehst du das ganze Bild. Im Stillstand zeigt die Vorschau das ganze Bild mit dem Zoom-Ausschnitt als gestricheltem Rahmen; ein Klick auf Etikett oder Rand wählt ihn aus.'
+				text: '„Zoom-Abschnitt“ in der Registerkarte „Einfügen“ oder die Kachel im Bereich „Zoom“ setzt einen Zoom-Abschnitt an den Abspielkopf: Er vergrößert eine Weile lang einen Bereich des Bildes und liegt auf einer eigenen Spur über den anderen. Zwischen den Abschnitten siehst du das ganze Bild. Im Stillstand zeigt die Vorschau das ganze Bild mit dem Zoom-Ausschnitt als gestricheltem Rahmen; ein Klick auf Etikett oder Rand wählt ihn aus.'
 			},
 			level: {
 				title: 'Zoomstufe',
@@ -561,9 +588,14 @@ const help: typeof enHelp = {
 	properties: {
 		title: 'Eigenschaften',
 		items: {
+			show: {
+				title: 'Ein- und ausblenden',
+				text: 'Die Eigenschaften stehen rechts. „Eigenschaften“ in der Registerkarte „Ansicht“ oder Alt + Eingabe blendet sie ein oder aus; „Eigenschaften …“ im Kontextmenü eines Elements zeigt sie. Zieh ihren linken Rand, um sie breiter zu machen. Ist nichts ausgewählt, zeigen sie das Projekt (Leinwand, Hintergrund) und eine Liste der wichtigsten Tasten.',
+				keys: [['Alt', 'Eingabe']]
+			},
 			sections: {
 				title: 'Abschnitte',
-				text: 'Die Eigenschaften stehen in Abschnitten, die du zuklappen kannst; zugeklappte Abschnitte bleiben für alle Elemente zu. Das Suchfeld zeigt dir nur passende Eigenschaften.'
+				text: 'Die Eigenschaften stehen in Abschnitten, die du zuklappen kannst; zugeklappte Abschnitte bleiben für alle Elemente zu. Das Suchfeld zeigt dir nur passende Eigenschaften. Knöpfe, die auf das Element nicht wirken können (z. B. „Zuschnitt entfernen“ ohne Zuschnitt), bleiben an ihrem Platz und sind ausgegraut.'
 			},
 			numbers: {
 				title: 'Zahlenfelder',
@@ -585,7 +617,7 @@ const help: typeof enHelp = {
 		items: {
 			start: {
 				title: 'Export starten',
-				text: '„Exportieren“ steht oben direkt neben dem Projektnamen (in schmalen Fenstern im Menü am Projektnamen). Es öffnet die Einstellungen für den Export; die Datei wird erst berechnet, wenn du den Export dort startest. Solange das Projekt leer ist, ist es ausgegraut.'
+				text: '„Exportieren“ steht in der Registerkarte „Datei“ (Gruppe „Projekt“). Es öffnet die Einstellungen für den Export; die Datei wird erst berechnet, wenn du den Export dort startest. Solange das Projekt leer ist, ist es ausgegraut.'
 			},
 			format: {
 				title: 'Format',
@@ -652,7 +684,7 @@ const help: typeof enHelp = {
 			},
 			running: {
 				title: 'Während des Exports',
-				text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Dateien speichern …“ legt die Datei im Browserspeicher ab (standardmäßig neben dem Projekt); wähle eine bestehende Datei und klicke „Ersetzen“, um sie zu überschreiben. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zur fertigen Datei, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
+				text: 'Lass den Tab geöffnet; der Export läuft in diesem Tab. Danach wählst du: „Herunterladen“ speichert die Datei über den Browser, „In Dateien speichern …“ legt die Datei im Browserspeicher ab (standardmäßig neben dem Projekt); wähle eine bestehende Datei und klicke „Ersetzen“, um sie zu überschreiben. Die Meldung danach bietet „In Dateien zeigen“, das ihren Ordner in einem neuen Tab öffnet. Nach „Andere Einstellungen“ kommst du mit „Zurück zum Ergebnis“ wieder zur fertigen Datei, solange der Dialog offen ist. Ausgeblendete Spuren fehlen, stumme Spuren sind ohne Ton.'
 			}
 		}
 	},
@@ -667,7 +699,7 @@ const help: typeof enHelp = {
 			hold: { title: 'Frame halten', text: 'Am Abspielkopf', keys: [['F']] },
 			delete: { title: 'Löschen', text: 'Mit Umschalt bleibt eine Lücke', keys: [['Entf'], ['Umschalt', 'Entf']] },
 			undo: { title: 'Rückgängig / Wiederholen', text: 'Letzte Änderung', keys: [['Strg', 'Z'], ['Strg', 'Umschalt', 'Z'], ['Strg', 'Y']] },
-			all: { title: 'Alles auswählen', text: 'Alle Elemente', keys: [['Strg', 'A']] },
+			all: { title: 'Alles auswählen', text: 'Alle Elemente, solange Vorschau oder Timeline den Fokus haben; in Medienablage und Bibliothek: alle Einträge', keys: [['Strg', 'A']] },
 			deselect: { title: 'Auswahl aufheben', text: 'Nichts mehr ausgewählt', keys: [['Esc']] },
 			crop: { title: 'Zuschneiden beenden', text: 'Der Clip bleibt ausgewählt', keys: [['Esc'], ['Enter']] },
 			link: { title: 'Verknüpfen / lösen', text: 'Ausgewählte Elemente', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
@@ -676,8 +708,12 @@ const help: typeof enHelp = {
 			nudge: { title: 'Pixelweise verschieben', text: 'In der Vorschau: 1 px, mit Umschalt 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
 			cycle: { title: 'Nächstes Element', text: 'In der Vorschau: von vorne nach hinten unter dem Abspielkopf; mit Umschalt rückwärts', keys: [['Tab'], ['Umschalt', 'Tab']] },
 			free: { title: 'Einrasten', text: 'Beim Ziehen: das Gegenteil des Schalters „Einrasten“', keys: [['Alt']] },
-			axis: { title: 'Eine Richtung', text: 'Beim Verschieben in der Vorschau', keys: [['Umschalt']] },
-			zoom: { title: 'Timeline-Zoom', text: 'In der Timeline', keys: [['Strg', 'Mausrad']] }
+			axis: { title: 'Eine Richtung', text: 'Beim Verschieben in der Vorschau; an einer Ecke: Seitenverhältnis halten', keys: [['Umschalt']] },
+			scaleText: { title: 'Schrift skalieren', text: 'Während du einen Anfasser einer Textbox oder Sprechblase ziehst', keys: [['K']] },
+			zoom: { title: 'Timeline-Zoom', text: 'In der Timeline', keys: [['Strg', 'Mausrad']] },
+			properties: { title: 'Eigenschaften', text: 'Ein- oder ausblenden', keys: [['Alt', 'Eingabe']] },
+			ribbon: { title: 'Menüband', text: 'Zwischen vollem Menüband und nur den Registerkarten wechseln; Alt oder F10 zeigen seine Zugriffstasten', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
+			entries: { title: 'Medienablage und Bibliothek', text: 'Ausgewählte Einträge einfügen, einen Eintrag umbenennen, sie löschen oder entfernen', keys: [['Eingabe'], ['F2'], ['Entf']] }
 		}
 	}
 };

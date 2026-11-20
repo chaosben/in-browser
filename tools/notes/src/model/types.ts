@@ -5,7 +5,7 @@
 // Coordinates are PDF points (1/72 inch, A4 = 595 × 842) with the origin at the page's top left.
 
 import type { IconData } from '@in-browser/graphics/icons/types.js';
-import { DASHES, parseFit, type Dash, type ShapeFit } from '#lib/ink/shapes.js';
+import { DASHES, parseFit, type Dash } from '@in-browser/ink/shapes.js';
 import { FormatError, migrateFormat, type RawDocument } from '@in-browser/files/formats.js';
 
 export const FORMAT = 'notes';
@@ -64,71 +64,21 @@ export interface Notebook {
 	pages: PageMeta[];
 }
 
-export type InkTool = 'pen' | 'highlighter';
-
-export interface Stroke {
-	id: string;
-	tool: InkTool;
-	/** `#rrggbb` */
-	color: string;
-	/** Base diameter in points */
-	size: number;
-	/** x, y, pressure (0…1) per point */
-	points: Float32Array;
-}
-
-/** A geometric shape (line, arrow, polygon, ellipse …), drawn like pen strokes along its outline (`inkStrokes`) */
-export interface ShapeItem {
-	id: string;
-	type: 'shape';
-	fit: ShapeFit;
-	/** `#rrggbb` */
-	color: string;
-	/** Pen diameter in points */
-	size: number;
-	/** `#rrggbbaa` inside (closed shapes only); none when missing */
-	fill?: string;
-	/** Solid when missing */
-	dash?: Exclude<Dash, 'solid'>;
-	/** Hand-drawn instead of exact */
-	sketch?: true;
-}
-
-/** A picture on a page: a box in page points (top left, size), drawn stretched into it */
-interface PictureBase {
-	id: string;
-	x: number;
-	y: number;
-	w: number;
-	h: number;
-}
-
-/** An image file of the notebook (`assets/<asset>`) */
-export interface ImageItem extends PictureBase {
-	type: 'image';
-	asset: string;
-}
-
-/** An icon: its SVG travels along (no icon set needed to show it), drawn in one color */
-export interface IconItem extends PictureBase {
-	type: 'icon';
-	icon: IconData;
-	/** `#rrggbb` */
-	color: string;
-}
-
-export type Picture = ImageItem | IconItem;
-
-/** Everything on a page, in draw order (later on top) */
-export type Item = Stroke | ShapeItem | Picture;
-
-/** What is drawn with a pen: erasable, drawn as strokes (`inkOf` in `ink/shapes.ts`) */
-export type Ink = Stroke | ShapeItem;
-
-export const isStroke = (item: Item): item is Stroke => 'points' in item;
-export const isShape = (item: Item): item is ShapeItem => 'type' in item && item.type === 'shape';
-export const isInk = (item: Item): item is Ink => isStroke(item) || isShape(item);
-export const isPicture = (item: Item): item is Picture => !isInk(item);
+export {
+	isInk,
+	isPicture,
+	isShape,
+	isStroke,
+	type IconItem,
+	type ImageItem,
+	type Ink,
+	type InkTool,
+	type Item,
+	type Picture,
+	type ShapeItem,
+	type Stroke
+} from '@in-browser/ink/items.js';
+import { isPicture, isShape, isStroke, type InkTool, type Item, type Picture, type ShapeItem } from '@in-browser/ink/items.js';
 
 export interface PageContent {
 	items: Item[];
@@ -243,7 +193,8 @@ export function serializePage(content: PageContent): string {
 	return JSON.stringify({ version: PAGE_VERSION, items });
 }
 
-const HEX = /^#[0-9a-f]{6}$/;
+/** `#rrggbb`, or `#rrggbbaa` for see-through ink */
+const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/;
 const FILL = /^#[0-9a-f]{8}$/;
 
 function parseItem(raw: unknown): Item | null {

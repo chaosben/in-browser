@@ -20,11 +20,13 @@ export interface SnapLine {
 	box: number | null;
 }
 
-/** Vertical (`xs`) and horizontal (`ys`) lines to snap to, and the other items (for equal spacing) */
+/** Vertical (`xs`) and horizontal (`ys`) lines to snap to, and the other items (for equal spacing); `ids`: what each
+ * box is (same order, for the marks of the guides) */
 export interface SnapTargets {
 	xs: SnapLine[];
 	ys: SnapLine[];
 	boxes: Rect[];
+	ids?: string[];
 }
 
 /** Snap distance per axis */
@@ -49,7 +51,7 @@ export interface Guides {
 }
 
 /** Edges and center of the frame (default: the unit square) plus edges and centers of `boxes`; the frame first, so it wins a tie */
-export function snapTargets(boxes: Rect[], frame: Rect = { x: 0, y: 0, w: 1, h: 1 }): SnapTargets {
+export function snapTargets(boxes: Rect[], frame: Rect = { x: 0, y: 0, w: 1, h: 1 }, ids?: string[]): SnapTargets {
 	const edge = (at: number): SnapLine => ({ at, box: null });
 	const xs = [frame.x, frame.x + frame.w / 2, frame.x + frame.w].map(edge);
 	const ys = [frame.y, frame.y + frame.h / 2, frame.y + frame.h].map(edge);
@@ -57,7 +59,7 @@ export function snapTargets(boxes: Rect[], frame: Rect = { x: 0, y: 0, w: 1, h: 
 		xs.push(...[b.x, b.x + b.w / 2, b.x + b.w].map((at) => ({ at, box })));
 		ys.push(...[b.y, b.y + b.h / 2, b.y + b.h].map((at) => ({ at, box })));
 	});
-	return { xs, ys, boxes };
+	return { xs, ys, boxes, ids };
 }
 
 /** Closest line to any of the candidates within `tol`: offset to add and the line (`null`: none in reach) */
@@ -183,4 +185,37 @@ export function snapAspect(r: Rect, sx: 1 | -1, sy: 1 | -1, targets: SnapTargets
 		rect: { x: sx > 0 ? ax : ax - w, y: sy > 0 ? ay : ay - h, w, h },
 		guides: useX ? { x: x.line, y: null, gaps: [] } : { x: null, y: y.line, gaps: [] }
 	};
+}
+
+/** What a guide snaps to, shown as a small badge where the line starts: an icon class or a small drawing (`glyph`:
+ * polyline points in a 24 × 24 box, like menu glyphs), and the badge's accessible text (“Snaps to …”) */
+export interface GuideMark {
+	icon?: string;
+	glyph?: string;
+	label: string;
+}
+
+/** Guides as `SnapGuides.svelte` shows them, in the caller's unit: lines across `frame` with their mark, outlines of
+ * the items snapped to, equal gaps with their length */
+export interface GuideView {
+	frame: Rect;
+	lines: { axis: 'x' | 'y'; at: number; mark: GuideMark }[];
+	outlines: Rect[];
+	gaps: (Gap & { label: string })[];
+}
+
+/** The guides of a drag ready to show; `mark`: what a line comes from (`null`: the frame), `gapLabel`: a gap's length */
+export function guideView(
+	guides: Guides,
+	boxes: readonly Rect[],
+	frame: Rect,
+	mark: (box: number | null) => GuideMark,
+	gapLabel: (gap: Gap) => string
+): GuideView {
+	const lines: GuideView['lines'] = [];
+	if (guides.x) lines.push({ axis: 'x', at: guides.x.at, mark: mark(guides.x.box) });
+	if (guides.y) lines.push({ axis: 'y', at: guides.y.at, mark: mark(guides.y.box) });
+	const snapped = new Set([guides.x?.box, guides.y?.box]);
+	const outlines = [...snapped].filter((b): b is number => b != null && !!boxes[b]).map((b) => boxes[b]);
+	return { frame, lines, outlines, gaps: guides.gaps.map((g) => ({ ...g, label: gapLabel(g) })) };
 }

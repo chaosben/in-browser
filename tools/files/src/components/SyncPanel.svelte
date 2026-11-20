@@ -51,7 +51,7 @@
 		</button>
 	{:else if syncStatus.state === 'paused'}
 		<p class="text-warning">{m.sync.paused(syncStatus.folder)}</p>
-		<button class="btn btn-sm btn-warning" onclick={() => run(renewAccess)}>{m.sync.renew}</button>
+		<button class="btn btn-sm btn-primary" onclick={() => run(renewAccess)}>{m.sync.renew}</button>
 		<p class="text-xs opacity-60">{m.sync.renewHint}</p>
 	{:else}
 		<p class="flex items-start gap-1.5">
@@ -78,7 +78,7 @@
 			<div class="alert alert-warning flex-col items-start gap-2 p-2 text-xs">
 				<span>{m.sync.confirmDeletes(syncStatus.pendingDeletes)}</span>
 				<div class="flex flex-wrap gap-1">
-					<button class="btn btn-xs btn-error" onclick={applyDeletes}>{m.sync.applyDeletes}</button>
+					<button class="btn btn-xs" onclick={applyDeletes}>{m.sync.applyDeletes}</button>
 					<button class="btn btn-xs" onclick={restoreDeleted}>{m.sync.restoreInstead}</button>
 				</div>
 			</div>

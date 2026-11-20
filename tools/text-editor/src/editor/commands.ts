@@ -1,8 +1,9 @@
 import { EditorSelection, Prec, type EditorState, type StateCommand, type TransactionSpec } from '@codemirror/state';
 import { keymap, type EditorView } from '@codemirror/view';
 import { openSearchPanel } from '@codemirror/search';
+import { SHORTCUTS, toCmKey } from './shortcuts.js';
 
-// Commands of the toolbar and their shortcuts. Markdown formatting works on the state only (testable without a view).
+// Commands of the ribbon and their shortcuts (keys from `shortcuts.ts`). Markdown formatting works on the state only (testable without a view).
 
 function apply(state: EditorState, dispatch: (tr: ReturnType<EditorState['update']>) => void, spec: TransactionSpec) {
 	dispatch(state.update(spec, { scrollIntoView: true, userEvent: 'input.format' }));
@@ -166,11 +167,31 @@ export function openReplace(view: EditorView) {
 	return true;
 }
 
+/** The selected text (all ranges, one per line) to the clipboard; `cut` removes it once it is there */
+export async function copySelection(view: EditorView, cut = false): Promise<void> {
+	const { state } = view;
+	const text = state.selection.ranges
+		.filter((r) => !r.empty)
+		.map((r) => state.sliceDoc(r.from, r.to))
+		.join(state.lineBreak);
+	if (!text) return;
+	await navigator.clipboard.writeText(text);
+	if (cut && view.state.doc.eq(state.doc)) {
+		view.dispatch({ ...view.state.replaceSelection(''), userEvent: 'delete.cut', scrollIntoView: true });
+	}
+}
+
+/** The clipboard's text in place of the selection */
+export async function pasteClipboard(view: EditorView): Promise<void> {
+	const text = await navigator.clipboard.readText();
+	view.dispatch({ ...view.state.replaceSelection(text), userEvent: 'input.paste', scrollIntoView: true });
+}
+
 /** Shortcuts of the Markdown formatting (before the default ones: Ctrl+I would select the syntax parent) */
 export const markdownKeymap = Prec.high(
 	keymap.of([
-		{ key: 'Mod-b', run: bold },
-		{ key: 'Mod-i', run: italic },
-		{ key: 'Mod-k', run: insertLink, preventDefault: true }
+		{ key: toCmKey(SHORTCUTS.bold), run: bold },
+		{ key: toCmKey(SHORTCUTS.italic), run: italic },
+		{ key: toCmKey(SHORTCUTS.link), run: insertLink, preventDefault: true }
 	])
 );

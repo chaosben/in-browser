@@ -13,6 +13,8 @@ export interface Item extends Entry {
 	formats: Format[];
 	/** Tools offered under "Open with …": the formats plus fallbacks (e.g. the Text Editor for SVG images) */
 	openWith: Format[];
+	/** An entry of the trash: the folder it was deleted from */
+	origin?: string;
 }
 
 export function toItem(entry: Entry): Item {
@@ -47,7 +49,8 @@ export function sortItems(items: Item[], key: SortKey, desc: boolean): Item[] {
 	const kindOf = (item: Item) => (item.folder ? '' : item.formats[0]?.ext ?? extname(item.name));
 	const compare = (a: Item, b: Item) => {
 		let result = 0;
-		if (key === 'kind') result = collator.compare(kindOf(a), kindOf(b));
+		// (In the trash the second column is where an entry came from)
+		if (key === 'kind') result = a.origin !== undefined ? collator.compare(a.origin, b.origin ?? '') : collator.compare(kindOf(a), kindOf(b));
 		else if (key === 'size') result = (a.size ?? -1) - (b.size ?? -1);
 		else if (key === 'modified') result = (a.modified ?? 0) - (b.modified ?? 0);
 		result ||= collator.compare(a.name, b.name);

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { helpSearchTexts, type HelpContent } from '@in-browser/brand/help.js';
-import { helpPaths, SUITE_PAGES, TOOL_HELP } from './help';
+import { helpPaths, SUITE_PAGES, TOOL_HELP, toolHelpPath } from './help';
 import de from './i18n/de';
 import en from './i18n/en';
 import { TOOLS } from './tools';
@@ -44,7 +44,10 @@ describe('help pages', () => {
 					const [path, anchor] = item.link.href.split('#');
 					expect(paths, item.link.href).toContain(path);
 					if (anchor) {
-						const target = [...SUITE_PAGES.map((page) => ({ path: page.path, topics: en.help.pages[page.id].topics as HelpContent }))].find((page) => page.path === path);
+						const target = [
+							...SUITE_PAGES.map((page) => ({ path: page.path, topics: en.help.pages[page.id].topics as HelpContent })),
+							...TOOLS.map((tool) => ({ path: toolHelpPath(tool), topics: TOOL_HELP[tool.id].en }))
+						].find((page) => page.path === path);
 						expect(target && Object.keys(target.topics), item.link.href).toContain(anchor);
 					}
 				}

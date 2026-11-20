@@ -45,18 +45,18 @@ const de: FilesMessages = {
 	},
 
 	indicator: {
-		label: 'Abgleich-Status',
+		label: 'Sync-Status',
 		folder: (folder) => `Ordner „${folder}“`,
 		synced: 'Aktuell',
-		syncing: 'Gleiche ab …',
+		syncing: 'Synchronisiere …',
 		paused: 'Pausiert',
 		pausedHint: 'Erlaube den Zugriff in Dateien erneut.',
-		failed: (n) => (n === 1 ? '1 Datei nicht abgeglichen' : `${n} Dateien nicht abgeglichen`),
+		failed: (n) => (n === 1 ? '1 Datei nicht synchronisiert' : `${n} Dateien nicht synchronisiert`),
 		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
-		lastSync: (ago) => `Zuletzt abgeglichen ${ago}`,
-		syncNow: 'Jetzt abgleichen',
+		lastSync: (ago) => `Zuletzt synchronisiert ${ago}`,
+		syncNow: 'Jetzt synchronisieren',
 		manage: 'In Dateien verwalten',
-		help: 'So funktioniert der Abgleich'
+		help: 'So funktioniert das Synchronisieren'
 	},
 
 	trash: {
@@ -71,7 +71,11 @@ const de: FilesMessages = {
 
 	document: {
 		saveFailed: (error) => `Speichern fehlgeschlagen: ${error}`,
-		renameFailed: (error) => `Umbenennen fehlgeschlagen: ${error}`
+		changedTitle: (name) => `„${name}“ wurde woanders geändert`,
+		changedMessage: 'Eine andere Version wurde gespeichert – auf einem anderen Gerät, in einem anderen Tab oder von einem anderen Programm. Lade neu, um sie hier zu sehen; ungespeicherte Änderungen hast du keine.',
+		reload: 'Neu laden',
+		keep: 'Nicht neu laden',
+		dontAsk: 'Nicht mehr fragen, solange die Datei offen ist'
 	},
 
 	connected: {
@@ -79,9 +83,15 @@ const de: FilesMessages = {
 		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`
 	},
 
+	start: {
+		recent: 'Zuletzt geöffnet',
+		unsupported: 'Dieser Browser hat kein Dateisystem für Websites (OPFS). Bitte nutze einen aktuellen Browser.',
+		open: 'Öffnen'
+	},
+
 	share: {
 		connection: (folder, host) => (host ? `${folder} von ${host}` : folder),
-		pending: 'Geteilter Ordner',
+		pending: 'Freigegebener Ordner',
 		viewOnly: 'Nur ansehen'
 	},
 
@@ -94,7 +104,7 @@ const de: FilesMessages = {
 		conflictLabel: (device) => `Konflikt ${device}`,
 		connected: (online, total) => `${online} von ${total} Geräten verbunden`,
 		waiting: 'Warte auf deine Geräte',
-		syncingWith: (name, done, total) => `Gleiche mit ${name} ab … ${done}/${total}`,
+		syncingWith: (name, done, total) => `Synchronisiere mit ${name} … ${done}/${total}`,
 		upToDate: 'Aktuell',
 		probablyBehind: (name) => `${name} wahrscheinlich nicht aktuell`,
 		selfBehind: 'Dieses Gerät ist nicht aktuell',
@@ -115,7 +125,27 @@ const de: FilesMessages = {
 		removedDevice: (name) => `${name} wurde aus deinen Geräten entfernt.`,
 		paired: 'Dieses Gerät ist jetzt mit deinen Geräten verbunden.',
 		oldCopy: (name) =>
-			`„${name}“ wird auf diesem Gerät nicht abgeglichen und öffnet sich jetzt live von deinen anderen Geräten – die alte Kopie, die noch hier lag, ist im Papierkorb.`
+			`„${name}“ wird auf diesem Gerät nicht synchronisiert und öffnet sich jetzt live von deinen anderen Geräten – die alte Kopie, die noch hier lag, ist im Papierkorb.`
+	},
+
+	settings: {
+		title: 'Einstellungen',
+		open: 'Einstellungen',
+		close: 'Schließen',
+		back: 'Alle Einstellungen',
+		categoriesLabel: 'Kategorien',
+		synced: 'Gilt auf allen deinen Geräten.',
+		saveFailed: (error) => `Die Einstellung konnte nicht gespeichert werden: ${error}`,
+		categories: { profile: 'Profil', trash: 'Papierkorb' },
+		profile: {
+			name: { label: 'Dein Name' }
+		},
+		trash: {
+			days: {
+				label: 'Gelöschtes endgültig entfernen nach',
+				option: (days) => (days === null ? 'Nie' : `${days} Tagen`)
+			}
+		}
 	},
 
 	names: {

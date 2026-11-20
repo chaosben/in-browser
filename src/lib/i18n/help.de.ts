@@ -8,7 +8,7 @@ const install = {
 
 const help: typeof enHelp = {
 	title: 'Hilfe',
-	intro: 'Wie die Tools von in-browser funktionieren, wo deine Dateien liegen und wie sich deine Geräte abgleichen.',
+	intro: 'Wie die Tools von in-browser funktionieren, wo deine Dateien liegen und wie sich deine Geräte synchronisieren.',
 	searchLabel: 'Hilfe durchsuchen',
 	searchPlaceholder: 'Ganze Hilfe durchsuchen …',
 	noMatch: (query) => `Nichts in der Hilfe passt zu „${query}“.`,
@@ -57,13 +57,13 @@ const help: typeof enHelp = {
 					items: {
 						folder: {
 							title: 'Ordner auf deinem Rechner',
-							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner abgeglichen: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Der Abgleich läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
-							tip: 'Wähle einen Ordner, den dein Sync-Programm (Syncthing, Nextcloud, Dropbox …) oder deine Datensicherung schon erfasst – dann kommen deine Dateien von selbst auf deine anderen Rechner und in die Sicherung. Fragt der Browser erneut nach Zugriff, wähle „Bei jedem Besuch zulassen“, dann läuft der Abgleich ohne Nachfrage weiter.'
+							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
+							tip: 'Wähle einen Ordner, den dein Sync-Programm (Syncthing, Nextcloud, Dropbox …) oder deine Datensicherung schon erfasst – dann kommen deine Dateien von selbst auf deine anderen Rechner und in die Sicherung. Fragt der Browser erneut nach Zugriff, wähle „Bei jedem Besuch zulassen“, dann läuft das Synchronisieren ohne Nachfrage weiter.'
 						},
 						devices: {
 							title: 'Auf deinen anderen Geräten',
-							text: 'Verbinde dein Telefon, deinen Laptop oder dein Tablet in Dateien unter „Deine Geräte“: Die Dateien gleichen sich dann direkt untereinander ab, ohne Cloud. Jedes Gerät hat eine vollständige Kopie.',
-							link: { href: '/help/sync', label: 'Abgleich zwischen deinen Geräten' }
+							text: 'Verbinde dein Telefon, deinen Laptop oder dein Tablet in Dateien unter „Deine Geräte“: Die Dateien synchronisieren sich dann direkt untereinander, ohne Cloud. Jedes Gerät hat eine vollständige Kopie.',
+							link: { href: '/help/sync', label: 'Synchronisieren zwischen deinen Geräten' }
 						},
 						download: {
 							title: 'Herunterladen',
@@ -80,7 +80,7 @@ const help: typeof enHelp = {
 						},
 						free: {
 							title: 'Platz freigeben',
-							text: 'Was du löschst, landet zuerst im Papierkorb und belegt dort weiter Platz. Frei wird er, wenn der Papierkorb geleert wird – von Hand in Dateien („Papierkorb“ → „Papierkorb leeren“) oder von selbst nach der Zeit, die du unter „Aufbewahren“ gewählt hast.',
+							text: 'Was du löschst, landet zuerst im Papierkorb und belegt dort weiter Platz. Frei wird er, wenn der Papierkorb geleert wird – von Hand in Dateien („Papierkorb“ → „Papierkorb leeren“) oder von selbst nach der Zeit, die du in den Einstellungen („Papierkorb“) gewählt hast.',
 							link: { href: '/help/sync#trash', label: 'So funktioniert der Papierkorb' }
 						}
 					}
@@ -89,7 +89,7 @@ const help: typeof enHelp = {
 		},
 
 		sync: {
-			title: 'Abgleich zwischen deinen Geräten',
+			title: 'Synchronisieren zwischen deinen Geräten',
 			summary: 'Verbinde Telefon, Laptop und Tablet – direkt, verschlüsselt, ohne Cloud',
 			topics: {
 				basics: {
@@ -97,17 +97,17 @@ const help: typeof enHelp = {
 					items: {
 						direct: {
 							title: 'Direkt zwischen deinen Geräten',
-							text: 'Deine Geräte tauschen ihre Dateien direkt miteinander aus, verschlüsselt, ohne Cloud und ohne Konto. Jedes Gerät hat eine vollständige Kopie der abgeglichenen Dateien und funktioniert auch ohne die anderen.'
+							text: 'Deine Geräte tauschen ihre Dateien direkt miteinander aus, verschlüsselt, ohne Cloud und ohne Konto. Jedes Gerät hat eine vollständige Kopie der synchronisierten Dateien und funktioniert auch ohne die anderen.'
 						},
 						connected: {
 							title: 'Nur Meine Dateien',
-							text: 'Abgeglichen werden Meine Dateien. Ordner unter „Verbunden“ bleiben, wo sie sind, und reisen nicht zu deinen anderen Geräten.',
+							text: 'Synchronisiert werden Meine Dateien. Ordner unter „Verbunden“ bleiben, wo sie sind, und reisen nicht zu deinen anderen Geräten.',
 							link: { href: '/help/connected', label: 'Verbundene Ordner' }
 						},
 						when: {
-							title: 'Wann sich Geräte abgleichen',
-							text: 'Zwei Geräte gleichen sich ab, solange auf beiden in-browser offen ist – ein Tab mit irgendeinem Tool reicht, auch im Hintergrund. Auf dem Telefon muss die Seite im Vordergrund sein. Was ein Gerät verpasst hat, holt es nach, sobald es wieder auf eines der anderen trifft; der Hinweis „Wahrscheinlich nicht aktuell“ in Dateien zeigt, welchem Gerät noch Änderungen fehlen könnten.',
-							tip: 'Sind deine Geräte selten gleichzeitig offen, richte einen p2p-node auf einem Rechner oder Heimserver ein, der immer läuft: Er gleicht sich mit jedem Gerät ab, sobald es offen ist.'
+							title: 'Wann sich Geräte synchronisieren',
+							text: 'Zwei Geräte synchronisieren sich, solange auf beiden in-browser offen ist – ein Tab mit irgendeinem Tool reicht, auch im Hintergrund. Auf dem Telefon muss die Seite im Vordergrund sein. Was ein Gerät verpasst hat, holt es nach, sobald es wieder auf eines der anderen trifft; der Hinweis „Wahrscheinlich nicht aktuell“ in Dateien zeigt, welchem Gerät noch Änderungen fehlen könnten.',
+							tip: 'Sind deine Geräte selten gleichzeitig offen, richte einen p2p-node auf einem Rechner oder Heimserver ein, der immer läuft: Er synchronisiert sich mit jedem Gerät, sobald es offen ist.'
 						},
 						p2pNode: {
 							title: 'Immer an: der p2p-node',
@@ -116,7 +116,7 @@ const help: typeof enHelp = {
 						},
 						browsers: {
 							title: 'Browser',
-							text: 'Der Abgleich zwischen Geräten funktioniert in aktuellen Versionen von Chrome, Edge, Firefox und Safari, am Rechner und auf dem Telefon.'
+							text: 'Das Synchronisieren zwischen Geräten funktioniert in aktuellen Versionen von Chrome, Edge, Firefox und Safari, am Rechner und auf dem Telefon.'
 						}
 					}
 				},
@@ -134,17 +134,17 @@ const help: typeof enHelp = {
 						key: {
 							title: 'Der Schlüssel',
 							text: 'Ein Schlüssel gilt einmal, 24 Stunden lang und nur, solange das Gerät online ist, das ihn zeigt.',
-							tip: 'Wer den Schlüssel hat, kann ein Gerät verbinden und alle abgeglichenen Dateien lesen und ändern. Gib ihn nur auf deinen eigenen Geräten ein und schick ihn nie jemandem.'
+							tip: 'Wer den Schlüssel hat, kann ein Gerät verbinden und alle synchronisierten Dateien lesen und ändern. Gib ihn nur auf deinen eigenen Geräten ein und schick ihn nie jemandem.'
 						},
 						folders: {
 							title: 'Ordner auswählen',
-							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und gleichen sich dort weiter ab – nur dieses Gerät bekommt sie nicht, und seine Kopie wird hier gelöscht. Einen Ordner auszulassen löscht ihn nirgendwo sonst.',
+							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und synchronisieren sich dort weiter – nur dieses Gerät bekommt sie nicht, und seine Kopie wird hier gelöscht. Einen Ordner auszulassen löscht ihn nirgendwo sonst.',
 							tip: 'Lass große Ordner (z. B. Bildschirmaufnahmen) auf einem Telefon mit wenig Platz aus – öffnen kannst du sie trotzdem live.'
 						},
 						live: {
 							title: 'Live von deinen Geräten',
-							text: 'Ein Ordner, den dieses Gerät nicht abgleicht, erscheint trotzdem in Dateien, mit einer Wolke statt des Ordnersymbols. Öffnest du ihn, liest dieses Gerät ihn live von einem deiner Geräte, das ihn hat – einem p2p-node oder einem Browser mit offenem in-browser. Jedes Tool funktioniert dort: öffnen, speichern, hochladen, umbenennen, löschen (in den Papierkorb jenes Geräts). Videos spielen schon beim Laden, geholt wird nur der Teil, den du ansiehst. Die Änderungen gleichen sich von jenem Gerät zu den anderen ab. Ist keins davon verbunden, sagt Dateien das und nennt, wo der Ordner liegt.',
-							tip: 'Ordner, die du auf diesem Gerät selten brauchst: auslassen und live öffnen. Gleich den Ordner wieder ab („Auf diesem Gerät wieder abgleichen“), wenn du ihn ohne die anderen Geräte brauchst.'
+							text: 'Ein Ordner, den dieses Gerät nicht synchronisiert, erscheint trotzdem in Dateien, mit einer Wolke statt des Ordnersymbols. Öffnest du ihn, liest dieses Gerät ihn live von einem deiner Geräte, das ihn hat – einem p2p-node oder einem Browser mit offenem in-browser. Jedes Tool funktioniert dort: öffnen, speichern, hochladen, umbenennen, löschen (in den Papierkorb jenes Geräts). Videos spielen schon beim Laden, geholt wird nur der Teil, den du ansiehst. Die Änderungen synchronisieren sich von jenem Gerät zu den anderen. Ist keins davon verbunden, sagt Dateien das und nennt, wo der Ordner liegt.',
+							tip: 'Ordner, die du auf diesem Gerät selten brauchst: auslassen und live öffnen. Synchronisiere den Ordner wieder („Auf diesem Gerät wieder synchronisieren“), wenn du ihn ohne die anderen Geräte brauchst.'
 						}
 					}
 				},
@@ -153,12 +153,22 @@ const help: typeof enHelp = {
 					items: {
 						newer: {
 							title: 'Die neuere Version gewinnt',
-							text: 'Hat sich eine Datei seit dem letzten Abgleich auf zwei Geräten geändert, behält die neuere Version den Namen, die andere bleibt als Konfliktkopie daneben erhalten. Nichts geht verloren; sieh dir beide an und lösche die, die du nicht brauchst.',
-							tip: 'Bevor du auf einem Gerät weitermachst, das länger nicht offen war, öffne zuerst in-browser auf einem deiner anderen Geräte und lass es abgleichen. Dateien warnt dich, wenn dieses Gerät wahrscheinlich hinterher ist.'
+							text: 'Hat sich eine Datei seit dem letzten Sync auf zwei Geräten geändert, behält die neuere Version den Namen, die andere bleibt als Konfliktkopie daneben erhalten. Nichts geht verloren; sieh dir beide an und lösche die, die du nicht brauchst.',
+							tip: 'Bevor du auf einem Gerät weitermachst, das länger nicht offen war, öffne zuerst in-browser auf einem deiner anderen Geräte und lass es synchronisieren. Dateien warnt dich, wenn dieses Gerät wahrscheinlich hinterher ist.'
+						},
+						open: {
+							title: 'Eine geöffnete Datei',
+							text: 'Ändert sich eine Datei, die du in einem Tool offen hast, woanders – auf einem anderen Gerät, in einem anderen Tab oder durch ein anderes Programm – und hast du keine ungespeicherten Änderungen, fragt das Tool „… wurde woanders geändert“, bevor es die andere Version zeigt. Jedes Tool fragt gleich, einmal pro Version. Hast du ungespeicherte Änderungen, behält das Tool sie und sagt es dir (Texteditor und PDF-Editor pausieren das Speichern und lassen dich in einer Leiste wählen).',
+							options: {
+								reload: { label: 'Neu laden', text: 'Zeigt die andere Version. Von dir geht nichts verloren – ungespeicherte Änderungen gab es keine.' },
+								keep: { label: 'Nicht neu laden', text: 'Zeigt weiter deine Version. Änderst du sie, sagt dir das Tool Bescheid, bevor deine Version die andere ersetzt (Notizen und Bildschirmaufnahme schreiben darüber).' },
+								dontAsk: { label: 'Nicht mehr fragen, solange die Datei offen ist', text: 'Trifft bei weiteren Änderungen dieselbe Wahl ohne Frage, bis du die Datei schließt. Öffnest du sie wieder, fragt es wieder.' }
+							},
+							tip: 'Arbeitest du auf zwei Geräten gleichzeitig an derselben Datei? Wähl auf dem, auf dem du nur schaust, „Neu laden“ und „Nicht mehr fragen“.'
 						},
 						safe: {
 							title: 'Was sich zwischendurch ändert, wird nicht überschrieben',
-							text: 'Unmittelbar bevor ein Gerät eine Datei überschreibt oder löscht, prüft es, ob sie noch die Version ist, mit der es geplant hat. Hast du sie inzwischen geändert, bleibt deine Änderung und wird beim nächsten Durchgang abgeglichen.'
+							text: 'Unmittelbar bevor ein Gerät eine Datei überschreibt oder löscht, prüft es, ob sie noch die Version ist, mit der es geplant hat. Hast du sie inzwischen geändert, bleibt deine Änderung und wird beim nächsten Durchgang synchronisiert.'
 						},
 						deletions: {
 							title: 'Löschen',
@@ -175,17 +185,12 @@ const help: typeof enHelp = {
 						},
 						keep: {
 							title: 'Wie lange',
-							text: 'Unter „Aufbewahren“ im Papierkorb wählst du, wie lange Gelöschtes bleibt. Die Einstellung gilt für alle deine Geräte.',
-							options: {
-								d7: { label: '7 Tage', text: 'Gibt am schnellsten Platz frei.' },
-								d30: { label: '30 Tage (Standard)', text: 'Genug Zeit, um ein Versehen zu bemerken.' },
-								d90: { label: '90 Tage', text: 'Für Dateien, die du selten ansiehst.' },
-								never: { label: 'Bis ich ihn leere', text: 'Nichts verschwindet von selbst – leere den Papierkorb ab und zu.' }
-							}
+							text: 'Wie lange Gelöschtes bleibt (30 Tage, wenn du nichts änderst), stellst du unter „Einstellungen“ (Zahnrad oben rechts) → „Papierkorb“ ein, für all deine Geräte.',
+							link: { href: '/help/settings#trash', label: 'Wie lange wählen' }
 						},
 						folder: {
 							title: 'In einem Ordner auf der Festplatte',
-							text: 'Im abgeglichenen Ordner auf deinem Rechner und bei einem p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien, die du in so einem Ordner mit einem anderen Programm löschst, werden als Löschung abgeglichen – die behält der Papierkorb deines Systems.'
+							text: 'Im synchronisierten Ordner auf deinem Rechner und bei einem p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien, die du in so einem Ordner mit einem anderen Programm löschst, werden als Löschung synchronisiert – die behält der Papierkorb deines Systems.'
 						}
 					}
 				},
@@ -199,7 +204,7 @@ const help: typeof enHelp = {
 						},
 						leave: {
 							title: 'Dieses Gerät trennen',
-							text: '„Dieses Gerät trennen“ beendet den Abgleich hier. Deine Dateien bleiben auf diesem Gerät und auf den anderen; später kannst du es mit einem neuen Schlüssel wieder verbinden.'
+							text: '„Dieses Gerät trennen“ beendet das Synchronisieren hier. Deine Dateien bleiben auf diesem Gerät und auf den anderen; später kannst du es mit einem neuen Schlüssel wieder verbinden.'
 						}
 					}
 				},
@@ -249,13 +254,13 @@ const help: typeof enHelp = {
 						},
 						everywhere: {
 							title: 'In jedem Tool',
-							text: 'Verbundene Ordner erscheinen in Dateien unter „Verbunden“ und im Öffnen- und Speichern-Dialog der Tools (die Auswahl vor dem Ordnerpfad). Jedes Tool öffnet und speichert direkt dort: Texte im Texteditor, Notizbücher in Notizen, Projekte und Aufnahmen in der Bildschirmaufnahme. Die Startseiten von Notizen und der Bildschirmaufnahme zeigen Notizbücher und Projekte aus verbundenen Ordnern, sobald du sie dort angelegt oder geöffnet hast – verbundene Ordner werden nicht durchsucht, sie können groß sein.'
+							text: 'Verbundene Ordner erscheinen in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien und im Öffnen- und Speichern-Dialog der Tools (die Auswahl vor dem Ordnerpfad). Jedes Tool öffnet und speichert direkt dort: Texte im Texteditor, Notizbücher in Notizen, Projekte und Aufnahmen in der Bildschirmaufnahme. Die Startseiten von Notizen und der Bildschirmaufnahme zeigen Notizbücher und Projekte aus verbundenen Ordnern, sobald du sie dort angelegt oder geöffnet hast – verbundene Ordner werden nicht durchsucht, sie können groß sein.'
 						},
 						notSynced: {
-							title: 'Nicht abgeglichen',
-							text: 'Ein verbundener Ordner wird weder mit deinen anderen Geräten abgeglichen noch mit dem Ordner, mit dem du Meine Dateien abgleichst. Jedes Gerät hat seine eigenen Verbindungen.',
-							tip: 'Soll ein Ordner auf deinem Rechner eine Kopie von Meine Dateien halten? Nimm stattdessen den Abgleich mit einem Ordner (Dateien → „Abgleich“ → „Ordner auf deinem Rechner“). Willst du Dateien dort bearbeiten, wo sie liegen, z. B. den Projektordner eines anderen Programms? Verbinde ihn.',
-							link: { href: '/help/sync', label: 'Abgleich zwischen deinen Geräten' }
+							title: 'Nicht synchronisiert',
+							text: 'Ein verbundener Ordner wird weder mit deinen anderen Geräten synchronisiert noch mit dem Ordner, mit dem du Meine Dateien synchronisierst. Jedes Gerät hat seine eigenen Verbindungen.',
+							tip: 'Soll ein Ordner auf deinem Rechner eine Kopie von Meine Dateien halten? Nimm stattdessen das Synchronisieren mit einem Ordner (Dateien → „Sync“ → „Ordner auf deinem Rechner“). Willst du Dateien dort bearbeiten, wo sie liegen, z. B. den Projektordner eines anderen Programms? Verbinde ihn.',
+							link: { href: '/help/sync', label: 'Synchronisieren zwischen deinen Geräten' }
 						}
 					}
 				},
@@ -264,7 +269,7 @@ const help: typeof enHelp = {
 					items: {
 						connect: {
 							title: 'Verbinden',
-							text: 'Klicke in Dateien in der Seitenleiste auf „Ordner verbinden …“ und wähle einen Ordner; der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf. Der Ordner erscheint dann mit seinem Namen unter „Verbunden“. Das können nur Chrome und Edge am Computer.'
+							text: 'Klick in Dateien auf „Ordner verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) und wähle einen Ordner; der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf. Der Ordner erscheint dann mit seinem Namen in der Seitenleiste „Ordner“ unter Meine Dateien. Das können nur Chrome und Edge am Computer.'
 						},
 						access: {
 							title: 'Zugriff nach einem Neustart',
@@ -272,8 +277,8 @@ const help: typeof enHelp = {
 							tip: 'Wähle „Bei jedem Besuch erlauben“, wenn der Browser fragt – dann bleibt er verbunden.'
 						},
 						manage: {
-							title: 'Umbenennen und trennen',
-							text: 'Das Menü eines verbundenen Ordners (Rechtsklick in der Seitenleiste oder das Menü an seinem Namen in der oberen Leiste) hat „Umbenennen“ – das ändert nur den Namen hier, nicht den Ordner – und „Trennen“, das ihn aus in-browser entfernt, ohne darin etwas zu löschen.'
+							title: 'Name und trennen',
+							text: 'Ein verbundener Ordner trägt immer den Namen des Ordners auf deinem Rechner. „Trennen“ – im Menü des verbundenen Ordners (Rechtsklick in der Seitenleiste „Ordner“) oder in der Registerkarte „Verbinden“, solange er offen ist – entfernt ihn aus in-browser, ohne darin etwas zu löschen.'
 						},
 						deleting: {
 							title: 'Löschen',
@@ -282,16 +287,16 @@ const help: typeof enHelp = {
 					}
 				},
 				share: {
-					title: 'Mit einem Gast teilen',
+					title: 'Für einen Gast freigeben',
 					items: {
 						start: {
-							title: 'Einen Ordner teilen',
-							text: 'Wähle in Dateien „Ordner teilen …“ unter „Freigaben“ in der Seitenleiste und such einen Ordner in Meine Dateien aus – oder wähle „Teilen …“ im Menü eines Ordners. Wähle, was der Gast darf, dann „Teilen“: Der Dialog zeigt einen Link und einen QR-Code. Der Gast öffnet den Link in einem beliebigen aktuellen Browser – ohne Konto, ohne eines deiner Geräte zu sein. Der Ordner öffnet sich dort live von diesem Gerät; in seinem Browser bleibt nichts davon, und es ist weg, wenn er den Tab schließt.',
+							title: 'Einen Ordner freigeben',
+							text: 'Wähle in Dateien „Ordner freigeben …“ unter „Freigaben“ in der Seitenleiste und such einen Ordner in Meine Dateien aus – oder wähle „Freigeben …“ im Menü eines Ordners. Wähle, was der Gast darf, dann „Freigeben“: Der Dialog zeigt einen Link und einen QR-Code. Der Gast öffnet den Link in einem beliebigen aktuellen Browser – ohne Konto, ohne eines deiner Geräte zu sein. Der Ordner öffnet sich dort live von diesem Gerät; in seinem Browser bleibt nichts davon, und es ist weg, wenn er den Tab schließt.',
 							options: {
 								view: { label: '„Nur ansehen“ (Standard)', text: 'Dateien öffnen, ansehen und herunterladen. Hier ändert sich nichts.' },
 								edit: { label: '„Bearbeiten“', text: 'Auch speichern, hochladen, umbenennen und löschen. Was der Gast löscht, landet hier im Papierkorb.' }
 							},
-							tip: 'Teile zum Ansehen, um Fotos oder Dokumente weiterzugeben; nimm „Bearbeiten“, wenn der Gast Dateien zurückbringen soll, z. B. seine Bilder von einer Reise.'
+							tip: 'Gib zum Ansehen frei, um Fotos oder Dokumente weiterzugeben; nimm „Bearbeiten“, wenn der Gast Dateien zurückbringen soll, z. B. seine Bilder von einer Reise.'
 						},
 						valid: {
 							title: 'Wie lange und für wen',
@@ -299,7 +304,7 @@ const help: typeof enHelp = {
 						},
 						guest: {
 							title: 'Als Gast',
-							text: 'Der geteilte Ordner erscheint in Dateien unter „Verbunden“ als „Ordner“ von dem Gerät, das ihn teilt, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. „Trennen“ oder das Schließen des Tabs beendet es für dich; der Link öffnet es wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Beendet das teilende Gerät die Freigabe, siehst du sofort „Die Freigabe wurde beendet.“ – „Entfernen“ nimmt sie weg; was du in deine eigenen Dateien kopiert hast, bleibt. Ist das teilende Gerät nicht erreichbar, sagt Dateien das: Dort muss in-browser offen sein.'
+							text: 'Der freigegebene Ordner erscheint in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien als „Ordner“ von dem Gerät, das ihn freigibt, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. „Trennen“ oder das Schließen des Tabs beendet es für dich; der Link öffnet es wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Beendet das freigebende Gerät die Freigabe, siehst du sofort „Die Freigabe wurde beendet.“ – „Entfernen“ nimmt sie weg; was du in deine eigenen Dateien kopiert hast, bleibt. Ist das freigebende Gerät nicht erreichbar, sagt Dateien das: Dort muss in-browser offen sein.'
 						},
 						end: {
 							title: 'Eine Freigabe beenden',
@@ -311,14 +316,14 @@ const help: typeof enHelp = {
 		},
 		p2pNode: {
 			title: 'p2p-node: ein Gerät, das immer läuft',
-			summary: 'Halte den Abgleich auf einem Rechner oder Heimserver am Laufen, auch wenn kein Browser offen ist',
+			summary: 'Halte das Synchronisieren auf einem Rechner oder Heimserver am Laufen, auch wenn kein Browser offen ist',
 			topics: {
 				about: {
 					title: 'Was das ist',
 					items: {
 						what: {
 							title: 'Ein Gerät, das immer läuft',
-							text: 'Deine Geräte gleichen sich nur ab, solange auf mindestens zweien in-browser offen ist. Der p2p-node ist ein kleines Programm für einen Rechner oder Heimserver, der immer an ist: Er gesellt sich wie ein Browser zu deinen Geräten und hält die Dateien in einem gewöhnlichen Ordner. Änderungen kommen dann auch an, wenn deine anderen Geräte nie gleichzeitig online sind, und du kannst in dem Ordner mit jedem Programm arbeiten.'
+							text: 'Deine Geräte synchronisieren sich nur, solange auf mindestens zweien in-browser offen ist. Der p2p-node ist ein kleines Programm für einen Rechner oder Heimserver, der immer an ist: Er gesellt sich wie ein Browser zu deinen Geräten und hält die Dateien in einem gewöhnlichen Ordner. Änderungen kommen dann auch an, wenn deine anderen Geräte nie gleichzeitig online sind, und du kannst in dem Ordner mit jedem Programm arbeiten.'
 						},
 						needs: {
 							title: 'Was du brauchst',
@@ -341,7 +346,7 @@ const help: typeof enHelp = {
 						},
 						where: {
 							title: 'Was installiert wird',
-							text: 'Der Starter nur für deinen Benutzer – in „~/.local/share/in-browser-p2p-node“, unter Windows in „%LOCALAPPDATA%\\in-browser-p2p-node“ – und der Befehl „in-browser-p2p-node“. Den Abgleich selbst lädt der Starter und hält ihn aktuell.'
+							text: 'Der Starter nur für deinen Benutzer – in „~/.local/share/in-browser-p2p-node“, unter Windows in „%LOCALAPPDATA%\\in-browser-p2p-node“ – und der Befehl „in-browser-p2p-node“. Das Sync-Programm selbst lädt der Starter und hält ihn aktuell.'
 						}
 					}
 				},
@@ -367,7 +372,7 @@ const help: typeof enHelp = {
 							title: 'Befehle',
 							text: 'Alle Befehle bekommen den Namen der Instanz.',
 							options: {
-								pair: { label: 'pair <name> <link>', text: 'Fügt eine neue Instanz als Gerät hinzu. „--folder <dir>“ wählt den abgeglichenen Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen.' },
+								pair: { label: 'pair <name> <link>', text: 'Fügt eine neue Instanz als Gerät hinzu. „--folder <dir>“ wählt den synchronisierten Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen.' },
 								run: { label: 'run <name>', text: 'Startet eine Instanz im Vordergrund, z. B. um zuzusehen.' },
 								install: { label: 'install <name>', text: 'Lässt sie im Hintergrund und bei jedem Start laufen. „uninstall <name>“ beendet das und behält die Daten.' },
 								status: { label: 'status [<name>]', text: 'Zeigt Geräte, Ordner und Papierkorb einer oder aller Instanzen.' },
@@ -388,7 +393,7 @@ const help: typeof enHelp = {
 						},
 						trash: {
 							title: 'Papierkorb im Ordner',
-							text: 'Der Papierkorb deiner Geräte ist der versteckte Ordner „.in-browser-trash“ im abgeglichenen Ordner: ein Ordner pro gelöschtem Element. Der Node leert ihn nach der Zeit, die in Dateien gewählt ist. Dateien, die du selbst im Ordner löschst, werden als Löschung abgeglichen – die behält der Papierkorb deines Systems.',
+							text: 'Der Papierkorb deiner Geräte ist der versteckte Ordner „.in-browser-trash“ im synchronisierten Ordner: ein Ordner pro gelöschtem Element. Der Node leert ihn nach der Zeit, die in Dateien gewählt ist. Dateien, die du selbst im Ordner löschst, werden als Löschung synchronisiert – die behält der Papierkorb deines Systems.',
 							link: { href: '/help/sync#trash', label: 'So funktioniert der Papierkorb' }
 						}
 					}
@@ -432,7 +437,7 @@ const help: typeof enHelp = {
 					items: {
 						updates: {
 							title: 'Updates',
-							text: 'Der Starter sucht jede Stunde nach einer neuen Version, und sofort, wenn ein anderes Gerät eine neuere nutzt. Er wartet, bis ein laufender Abgleich fertig ist. Stürzt eine neue Version immer wieder ab, geht er zur vorigen zurück und überspringt die fehlerhafte.'
+							text: 'Der Starter sucht jede Stunde nach einer neuen Version, und sofort, wenn ein anderes Gerät eine neuere nutzt. Er wartet, bis ein laufendes Synchronisieren fertig ist. Stürzt eine neue Version immer wieder ab, geht er zur vorigen zurück und überspringt die fehlerhafte.'
 						},
 						signed: {
 							title: 'Signiert',
@@ -440,7 +445,7 @@ const help: typeof enHelp = {
 						},
 						sandbox: {
 							title: 'Abgeschottet',
-							text: 'Der Abgleich läuft im Berechtigungsmodell von Node: Er darf nur seine eigenen Daten und den abgeglichenen Ordner lesen und schreiben, dazu das Netz nutzen.'
+							text: 'Das Sync-Programm läuft im Berechtigungsmodell von Node: Es darf nur seine eigenen Daten und den synchronisierten Ordner lesen und schreiben, dazu das Netz nutzen.'
 						},
 						router: {
 							title: 'Router',
@@ -456,6 +461,52 @@ const help: typeof enHelp = {
 			}
 		},
 
+		settings: {
+			title: 'Einstellungen',
+			summary: 'Dein Name, wie lange der Papierkorb aufbewahrt – für all deine Geräte',
+			topics: {
+				open: {
+					title: 'Einstellungen öffnen',
+					items: {
+						where: {
+							title: 'Das Zahnrad oben rechts',
+							text: 'Jedes Tool und die Übersicht haben ein Zahnrad am rechten Ende der oberen Leiste. Es öffnet „Einstellungen“: links die Kategorien, rechts die Einstellungen der gewählten; am Handy erst die Kategorien, dann die gewählte als eigene Seite (der Pfeil führt zurück). Manche Stellen öffnen direkt eine Kategorie, z. B. „Ändern“ neben deinem Namen in den Kommentaren des PDF-Editors.'
+						},
+						saved: {
+							title: 'Sofort gespeichert, auf allen Geräten',
+							text: 'Es gibt kein „OK“: Jede Änderung gilt sofort. Die Einstellungen liegen bei deinen Dateien und werden wie sie synchronisiert – mit deinen anderen Geräten, dem synchronisierten Ordner auf deinem Rechner und einem p2p-node. Nur das Erscheinungsbild (hell, dunkel) wählst du je Gerät, mit dem Schalter neben dem Zahnrad.',
+							link: { href: '/help/sync', label: 'So funktioniert das Synchronisieren' }
+						}
+					}
+				},
+				profile: {
+					title: 'Profil',
+					items: {
+						name: {
+							title: 'Dein Name',
+							text: 'Wo ein Tool einen Namen einträgt, nimmt es diesen – zum Beispiel als Autor deiner Kommentare und Antworten im PDF-Editor, den andere auch in Acrobat oder PDF-XChange sehen. Leer: Es wird kein Name eingetragen.',
+							tip: 'Nimm den Namen, unter dem dich die Leute kennen, für die du Dateien freigibst – bei der Arbeit z. B. deinen vollen Namen.'
+						}
+					}
+				},
+				trash: {
+					title: 'Papierkorb',
+					items: {
+						days: {
+							title: 'Gelöschtes endgültig entfernen nach',
+							text: 'Wie lange Gelöschtes im Papierkorb bleibt, bevor es von selbst entfernt wird – auf jedem Gerät und auf einem p2p-node.',
+							options: {
+								d7: { label: '7 Tagen', text: 'Gibt Platz bald frei; ein Versehen musst du innerhalb einer Woche bemerken.' },
+								d30: { label: '30 Tagen (Standard)', text: 'Genug Zeit, ein Versehen zu bemerken, ohne den Speicher lange zu füllen.' },
+								d90: { label: '90 Tagen', text: 'Für Dokumente, die du selten anschaust; gelöschte Medien belegen lange Platz.' },
+								never: { label: 'Nie', text: 'Nichts wird von selbst entfernt – du leerst den Papierkorb selbst (Dateien → „Papierkorb“).' }
+							},
+							tip: 'Bleib bei 30 Tagen. Nimm 7 Tage, wenn der Speicher knapp wird (große Aufnahmen), 90 Tage oder „Nie“, wenn du mit Dokumenten arbeitest, die du nur ab und zu ansiehst.'
+						}
+					}
+				}
+			}
+		},
 		install: {
 			title: 'Installieren, offline und Browser',
 			summary: 'Nutze in-browser wie eine App, ohne Internet, in dem Browser, den du hast',
@@ -478,7 +529,7 @@ const help: typeof enHelp = {
 					items: {
 						offline: {
 							title: 'Ohne Internet',
-							text: 'Nach dem ersten Besuch starten in-browser und seine Tools auch ohne Internetverbindung – installiert oder nicht. Deine Dateien sind ohnehin auf dem Gerät. Nur der Abgleich zwischen Geräten braucht ein Netz.'
+							text: 'Nach dem ersten Besuch starten in-browser und seine Tools auch ohne Internetverbindung – installiert oder nicht. Deine Dateien sind ohnehin auf dem Gerät. Nur das Synchronisieren zwischen Geräten braucht ein Netz.'
 						},
 						updates: {
 							title: 'Neue Versionen',
@@ -500,7 +551,7 @@ const help: typeof enHelp = {
 							options: {
 								folder: { label: 'Ordner auf deinem Rechner', text: 'Nur Chrome und Edge am Rechner.' },
 								screen: { label: 'Bildschirmaufnahme', text: 'Nur am Rechner; Systemton und Installieren nicht in Firefox.' },
-								sync: { label: 'Abgleich zwischen Geräten', text: 'Alle unterstützten Browser; auf dem Telefon nur, solange die Seite im Vordergrund ist.' }
+								sync: { label: 'Synchronisieren zwischen Geräten', text: 'Alle unterstützten Browser; auf dem Telefon nur, solange die Seite im Vordergrund ist.' }
 							}
 						},
 						language: {

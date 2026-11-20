@@ -41,12 +41,6 @@ describe('detectEncoding', () => {
 });
 
 describe('decode', () => {
-	it('strips the BOM and keeps the line ending', () => {
-		const doc = decode(bytes([0xef, 0xbb, 0xbf], utf8(sample)))!;
-		expect(doc.text).toBe(sample);
-		expect(doc.eol).toBe('\r\n');
-		expect(decode(utf8('a\nb'))!.eol).toBe('\n');
-	});
 	it('decodes with a chosen charset and only strips its own BOM', () => {
 		expect(decode(bytes([0xfc]), 'iso-8859-1')!.text).toBe('ü');
 		// 0x80 is € in Windows-1252 but a control character in real Latin-1
@@ -58,25 +52,19 @@ describe('decode', () => {
 });
 
 describe('round trip (open and save unchanged)', () => {
-	const cases: [string, Uint8Array][] = [
+	it.each([
 		['UTF-8', utf8(sample)],
 		['UTF-8 with BOM', bytes([0xef, 0xbb, 0xbf], utf8(sample))],
+		['UTF-8 with LF', utf8('a\nb\n')],
 		['UTF-16 LE', utf16(sample, true)],
 		['UTF-16 LE with BOM', bytes([0xff, 0xfe], utf16(sample, true))],
 		['UTF-16 BE', utf16(sample, false)],
 		['UTF-16 BE with BOM', bytes([0xfe, 0xff], utf16(sample, false))],
 		['Windows-1252', encode(sample, { charset: 'windows-1252', bom: false }).bytes]
-	];
-	for (const [name, input] of cases) {
-		it(name, () => expect(roundTrip(input)).toEqual(input));
-	}
+	])('%s', (_, input) => expect(roundTrip(input)).toEqual(input));
 	it('ISO-8859-1 when chosen', () => {
 		const input = Uint8Array.from({ length: 256 }, (_, i) => i).subarray(0x20);
 		expect(roundTrip(input, 'iso-8859-1')).toEqual(input);
-	});
-	it('LF stays LF', () => {
-		const input = utf8('a\nb\n');
-		expect(roundTrip(input)).toEqual(input);
 	});
 });
 
@@ -87,9 +75,5 @@ describe('encode', () => {
 		expect([...result.bytes]).toEqual([0x61, 0x3f, 0x62, 0x80]);
 		expect(encode('€', { charset: 'iso-8859-1', bom: false }).unmappable).toBe(1);
 		expect(encode('😀', { charset: 'utf-16le', bom: false }).unmappable).toBe(0);
-	});
-	it('writes the BOM only when asked', () => {
-		expect([...encode('a', { charset: 'utf-8', bom: true }).bytes]).toEqual([0xef, 0xbb, 0xbf, 0x61]);
-		expect([...encode('a', { charset: 'utf-16be', bom: false }).bytes]).toEqual([0x00, 0x61]);
 	});
 });

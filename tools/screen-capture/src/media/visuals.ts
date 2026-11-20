@@ -51,7 +51,10 @@ export function thumbnailsIn(place: MediaPlace, source: Source): Promise<Thumbna
 	const key = `${place.key}/${source.id}`;
 	let promise = thumbCache.get(key);
 	if (!promise) {
-		promise = computeThumbnails(place, source).catch(() => null);
+		promise = computeThumbnails(place, source).catch((e) => {
+			console.warn('[screen-capture] thumbnails', source.name, e);
+			return null;
+		});
 		thumbCache.set(key, promise);
 	}
 	return promise;
@@ -66,7 +69,10 @@ export function peaksIn(place: MediaPlace, source: Source): Promise<Peaks | null
 	const key = `${place.key}/${source.id}`;
 	let promise = peakCache.get(key);
 	if (!promise) {
-		promise = loadPeaks(place, source).catch(() => null);
+		promise = loadPeaks(place, source).catch((e) => {
+			console.warn('[screen-capture] waveform', source.name, e);
+			return null;
+		});
 		peakCache.set(key, promise);
 	}
 	return promise;
@@ -110,6 +116,7 @@ async function loadPeaks(place: MediaPlace, source: Source): Promise<Peaks | nul
 	const cached = await place
 		.open(file)
 		.then(async (f) => (f instanceof Blob ? f.text() : new TextDecoder().decode(await f.read(0, f.size))))
+		// Not computed yet (or unreadable): computed now
 		.catch(() => null);
 	if (cached) {
 		const { rate, data } = JSON.parse(cached) as { rate: number; data: number[] };
@@ -134,7 +141,7 @@ async function loadPeaks(place: MediaPlace, source: Source): Promise<Peaks | nul
 	}
 	await place
 		.save?.(file, JSON.stringify({ rate: PEAKS_PER_SECOND, data: Array.from(data, (v) => Math.round(v * 1000) / 1000) }))
-		.catch(() => {});
+		.catch((e) => console.warn('[screen-capture]', e));
 	return { rate: PEAKS_PER_SECOND, data };
 }
 

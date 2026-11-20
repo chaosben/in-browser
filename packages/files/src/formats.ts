@@ -64,23 +64,31 @@ export const FORMATS: readonly Format[] = [
 		tool: 'notes',
 		open: '/notes/editor'
 	},
-	// A PDF becomes a new notebook to write on (Notes asks where it goes)
+	// A PDF opens in the PDF Editor (changed in place) …
+	{
+		ext: '.pdf',
+		kind: 'file',
+		tool: 'pdf-editor',
+		open: '/pdf-editor/editor'
+	},
+	// … or becomes a new notebook to write on (Notes asks where it goes)
 	{
 		ext: '.pdf',
 		kind: 'file',
 		tool: 'notes',
-		open: '/notes'
+		open: '/notes',
+		fallback: true
 	},
 	...TEXT_EXTENSIONS.map(
 		(ext): Format => ({
 			ext,
 			kind: 'file',
 			tool: 'text-editor',
-			open: '/text-editor'
+			open: '/text-editor/editor'
 		})
 	),
 	// An image whose text can be edited
-	{ ext: '.svg', kind: 'file', tool: 'text-editor', open: '/text-editor', fallback: true }
+	{ ext: '.svg', kind: 'file', tool: 'text-editor', open: '/text-editor/editor', fallback: true }
 ];
 
 /**

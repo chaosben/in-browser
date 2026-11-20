@@ -28,7 +28,7 @@ export async function copyMedia(media: (Source | ImageAsset)[], read: Read, writ
 			continue;
 		}
 		// Waveform cache: nice to have
-		if ('hasVideo' in item) await copy(read, write, `${item.id}.peaks.json`).catch(() => {});
+		if ('hasVideo' in item) await copy(read, write, `${item.id}.peaks.json`).catch((e) => console.warn('[screen-capture]', e));
 		copied.add(item.id);
 	}
 	return copied;

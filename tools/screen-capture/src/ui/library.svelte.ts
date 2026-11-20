@@ -3,7 +3,7 @@
 import { readStored, writeStored } from '@in-browser/brand/storage.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
 import { itemLabel } from '#lib/project/labels.js';
-import { toolState } from '#lib/tools/state.svelte.js';
+import { panelState } from '#lib/tools/state.svelte.js';
 import { entryName } from '#lib/project/library.js';
 import type { Item } from '#lib/project/types.js';
 
@@ -53,15 +53,15 @@ function libraryTargetOf(el: Element | null): LibraryScope | null {
 	return scope === 'project' || scope === 'global' ? scope : null;
 }
 
-/** Holding dragged elements over the library icon of the tool rail opens the library (spring-loaded) */
+/** Holding dragged elements over the library icon of the panel rail opens the library (spring-loaded) */
 let springTimer: ReturnType<typeof setTimeout> | undefined;
 
 function springOpen(el: Element | null) {
-	const overIcon = !!el?.closest('[data-tool-group="library"]') && toolState.group !== 'library';
+	const overIcon = !!el?.closest('[data-panel="library"]') && panelState.open !== 'library';
 	if (!overIcon) {
 		clearTimeout(springTimer);
 		springTimer = undefined;
-	} else springTimer ??= setTimeout(() => (toolState.group = 'library'), 500);
+	} else springTimer ??= setTimeout(() => (panelState.open = 'library'), 500);
 }
 
 /** Asks to save the selected items, named after the clicked one */

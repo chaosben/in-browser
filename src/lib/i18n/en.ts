@@ -70,6 +70,11 @@ const en = {
 			name: brand.tools['notes'],
 			summary: 'Handwritten notebooks for stylus, finger or mouse',
 			keywords: 'handwriting, notebook, stylus, pen, sketch, draw, pdf, annotate, whiteboard'
+		},
+		pdfEditor: {
+			name: brand.tools['pdf-editor'],
+			summary: 'Annotate PDFs, fill in forms, organize and merge pages',
+			keywords: 'pdf, annotate, comment, highlight, form, fill, merge, split, pages, rotate, sign, acrobat, viewer'
 		}
 	},
 

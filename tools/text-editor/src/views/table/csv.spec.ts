@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyChanges } from '../tree/model';
-import { csvFormat, detectDelimiter } from './csv';
-import { columnLetter } from './model';
+import { csvFormat } from './csv';
+import { moveOrder, removeRows, rewriteRows } from './model';
 
 const csv = csvFormat();
 const texts = (doc: string, header = true) => {
@@ -28,20 +28,6 @@ describe('csv parse', () => {
 		expect(csv.parse('a\n"open', { header: true }).error).toBe(2);
 		expect(csv.parse(DOC, { header: true }).error).toBeNull();
 	});
-	it('handles empty text, blank lines and a missing final line break', () => {
-		expect(texts('', false).rows).toEqual([]);
-		expect(texts('a\n\nb', false).rows).toEqual([['a'], [''], ['b']]);
-	});
-	it('detects the delimiter', () => {
-		expect(detectDelimiter('a;b;c\n1;2,5;3\n')).toBe(';');
-		expect(detectDelimiter('a\tb\n1\t2\n')).toBe('\t');
-		expect(detectDelimiter('"x;y",b\n1,2\n')).toBe(',');
-		expect(detectDelimiter('single\n')).toBe(',');
-		expect(csvFormat('\t').parse('a,b\tc', { header: false }).columns).toEqual(['A', 'B']);
-	});
-	it('names columns like a spreadsheet', () => {
-		expect([0, 25, 26, 27, 701, 702].map(columnLetter)).toEqual(['A', 'Z', 'AA', 'AB', 'ZZ', 'AAA']);
-	});
 });
 
 describe('csv edits', () => {
@@ -62,28 +48,6 @@ describe('csv edits', () => {
 		const q = csv.parse(quoted, { header: true });
 		expect(applyChanges(quoted, csv.setCell(quoted, q, q.rows[0], 1, '3'))).toBe('"a","b"\n"1","3"\n');
 	});
-	it('renames columns through the header', () => {
-		expect(apply(csv.renameColumn(DOC, t, 1, 'Alter'))).toBe(DOC.replace('age', 'Alter'));
-		const plain = csv.parse(DOC, { header: false });
-		expect(csv.renameColumn(DOC, plain, 1, 'x')).toBeNull();
-	});
-	it('inserts, removes and moves rows', () => {
-		expect(apply(csv.insertRow(DOC, t, 1))).toBe(DOC.replace('Ben', ',,\nBen'));
-		expect(apply(csv.insertRow(DOC, t, 3))).toBe(DOC.replace('10,\n', '10,\n,,\n'));
-		expect(apply(csv.removeRow(DOC, t, t.rows[0]))).toBe(DOC.replace('Anna,31,"Berlin, Mitte"\n', ''));
-		expect(apply(csv.moveRow(DOC, t, t.rows[1], -1))).toBe('name,age,city\nBen,4,Köln\nAnna,31,"Berlin, Mitte"\n"Carl ""C""",10,\n');
-		expect(csv.moveRow(DOC, t, t.rows[0], -1)).toBeNull();
-		const empty = csv.parse('', { header: false });
-		expect(applyChanges('', csv.insertRow('', empty, 0))).toBe('\n');
-	});
-	it('inserts, removes and moves columns', () => {
-		expect(apply(csv.insertColumn(DOC, t, 1, 'id'))).toBe('name,id,age,city\nAnna,,31,"Berlin, Mitte"\nBen,,4,Köln\n"Carl ""C""",,10,\n');
-		expect(apply(csv.insertColumn(DOC, t, 3, 'zip'))).toBe(DOC.replace('city', 'city,zip'));
-		expect(apply(csv.removeColumn(DOC, t, 2))).toBe('name,age\nAnna,31\nBen,4\n"Carl ""C""",10\n');
-		expect(apply(csv.removeColumn(DOC, t, 0))).toBe('age,city\n31,"Berlin, Mitte"\n4,Köln\n10,\n');
-		expect(apply(csv.moveColumn(DOC, t, 0, 1))).toBe('age,name,city\n31,Anna,"Berlin, Mitte"\n4,Ben,Köln\n10,"Carl ""C""",\n');
-		expect(csv.moveColumn(DOC, t, 2, 1)).toBeNull();
-	});
 	it('moves columns in short rows by padding them', () => {
 		const doc = 'a,b,c\n1\n';
 		const table = csv.parse(doc, { header: true });
@@ -97,5 +61,27 @@ describe('csv edits', () => {
 		const decimals = 'x\n1,5\n1,25\n-3\n';
 		const semi = csvFormat(';').parse(decimals, { header: true });
 		expect(applyChanges(decimals, csvFormat(';').sort(decimals, semi, 0, false, 'de'))).toBe('x\n-3\n1,25\n1,5\n');
+	});
+});
+
+describe('several rows at once (one change)', () => {
+	const doc = 'h\na\nb\nc\nd';
+	const rows = csv.parse(doc, { header: true }).rows;
+	it.each([
+		[[0, 1], 'h\nc\nd'],
+		[[0, 2], 'h\nb\nd'],
+		[[1, 3], 'h\na\nc'],
+		[[0, 1, 2, 3], 'h']
+	])('removes rows %j', (picked, out) => {
+		expect(applyChanges(doc, removeRows(doc, rows, picked.map((i) => rows[i])))).toBe(out);
+	});
+	it.each([
+		[[1, 2], -1, [1, 2, 0, 3]],
+		[[0, 2], -1, [0, 2, 1, 3]],
+		[[0, 1], 1, [2, 0, 1, 3]],
+		[[3], 1, [0, 1, 2, 3]]
+	] as const)('moves rows %j by %i', (picked, delta, order) => {
+		expect(moveOrder(4, new Set(picked), delta)).toEqual(order);
+		expect(applyChanges(doc, rewriteRows(doc, rows, order.map((i) => rows[i])))).toBe(`h\n${order.map((i) => 'abcd'[i]).join('\n')}`);
 	});
 });

@@ -1,16 +1,17 @@
 import { readStored, writeStored } from '@in-browser/brand/storage.js';
+import { askWithOption } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { chooseFile } from './dialog.svelte.js';
 import { isPackage } from './formats.js';
-import { FilesError, list, move } from './fs.js';
+import { FilesError, list } from './fs.js';
 import { filesErrorText, filesMessages } from './i18n/index.svelte.js';
-import { basename, extname, join, parent, safeName, stem } from './path.js';
+import { basename, extname, parent, safeName, stem } from './path.js';
 import { accessAction } from './sources/connections.svelte.js';
 import { connectedDocuments, forgetConnected, rememberConnected } from './sources/recent.js';
 
 // What the tools do the same way with their documents: one tab edits a document at a time (Web Lock), waiting
 // changes are saved when the page is left, a failed automatic save is reported once, and documents that are packages
-// (`<Name>.<ext>/`, see `formats.ts`) are found, created, opened and renamed alike.
+// (`<Name>.<ext>/`, see `formats.ts`) are found, created and opened alike (renamed only in Files).
 
 /** Holds the lock `key` until the returned function is called; `null` if another tab holds it */
 export function lockDocument(key: string): Promise<(() => void) | null> {
@@ -101,15 +102,45 @@ export function packageDocuments(tool: string, ext: string) {
 			const path = await chooseFile({ mode: 'open', folder: lastFolder(), accept: [ext], title });
 			if (path) remember(path);
 			return path;
-		},
-
-		/** Renames the package; the new path */
-		async rename(path: string, name: string, untitled: string): Promise<string> {
-			const target = join(parent(path), safeName(name, untitled) + ext);
-			if (target === path) return path;
-			await move(path, target);
-			remember(target);
-			return target;
 		}
 	};
+}
+
+/**
+ * Whether to take a version of an open document saved elsewhere (another device, tab or program) – asked once per
+ * version (“Reload” / “Don't reload”), only when there are no unsaved changes here (those get the tool's conflict
+ * handling). The answer can be kept while the document is open (“Don't ask again”); questions about the same document
+ * that arrive while one is open get its answer. One per open document.
+ */
+export class ExternalVersions {
+	/** The kept answer, while the document is open */
+	private kept: boolean | null = null;
+	/** The version last declined: never asked about again */
+	private declined: string | null = null;
+	private asking: Promise<boolean> | null = null;
+
+	/** Answered for good (“Don't ask again”): a reload happens without a question – worth a short note */
+	get silent() {
+		return this.kept !== null;
+	}
+
+	/** `name`: shown in the question; `version`: identifies the version found (e.g. its size and date) */
+	shouldReload(name: string, version: string): Promise<boolean> {
+		if (this.kept !== null) return Promise.resolve(this.kept);
+		if (version === this.declined) return Promise.resolve(false);
+		this.asking ??= askWithOption({
+			title: filesMessages().document.changedTitle(name),
+			message: filesMessages().document.changedMessage,
+			confirm: filesMessages().document.reload,
+			cancel: filesMessages().document.keep,
+			option: filesMessages().document.dontAsk
+		})
+			.then(({ ok, checked }) => {
+				if (checked) this.kept = ok;
+				if (!ok) this.declined = version;
+				return ok;
+			})
+			.finally(() => (this.asking = null));
+		return this.asking;
+	}
 }

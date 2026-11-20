@@ -347,7 +347,7 @@ export class Recorder {
 	async cancel(): Promise<void> {
 		clearInterval(this.#timer);
 		for (const p of this.#parts) {
-			if (p.output.state !== 'finalized') await p.output.cancel().catch(() => {});
+			if (p.output.state !== 'finalized') await p.output.cancel().catch((e) => console.warn('[screen-capture]', e));
 		}
 		this.#release();
 		await Promise.all(this.#parts.map((p) => deleteMediaFile(this.projectId, p.fileName)));

@@ -1,25 +1,26 @@
 <script lang="ts">
-	// Start page: all notebooks in the shared file system, new notebook, open, import a PDF as a new notebook (also
-	// what opening a PDF in Files leads to: `?path=<pdf>`).
+	// Start page (`StartPage`, `ui.md`): all notebooks in the shared file system as cards – a click opens, the menu
+	// shows in Files and deletes into the trash; new notebook, open, import a PDF as a new notebook
+	// (also what opening a PDF in Files leads to: `?path=<pdf>`).
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { debug } from '@in-browser/brand/debug.js';
-	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { shortcutLabel, type Shortcut } from '@in-browser/brand/commands.js';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
+	import { openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-	import AccessNotice from '@in-browser/files/AccessNotice.svelte';
-	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
-	import { displayPath } from '@in-browser/files/sources/registry.js';
+	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
 	import { read, supported, watchSettled } from '@in-browser/files/fs.js';
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { basename, isInside, normalize, parent, stem } from '@in-browser/files/path.js';
 	import { editorUrl } from '#lib/brand.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
 	import { chooseNotebook, createNotebook, createNotebookFromPdf, lastFolder, listNotebooks, type NotebookEntry } from '#lib/model/store.js';
-	import { PdfError, readPdfPages } from '#lib/render/pdf.js';
+	import { PdfError, readPdfPages } from '@in-browser/pdf/pdfjs.js';
 	import { NOTEBOOK_EXT } from '#lib/model/types.js';
 
 	let notebooks = $state<NotebookEntry[] | null>(null);
@@ -31,6 +32,7 @@
 		try {
 			notebooks = await listNotebooks();
 		} catch (e) {
+			console.error('[notes] list', e);
 			notebooks = [];
 			toast(m.home.loadFailed(filesErrorText(e)), 'error', 8000);
 		}
@@ -56,6 +58,7 @@
 			const path = await createNotebook();
 			if (path) await open(path);
 		} catch (e) {
+			console.error('[notes] new notebook', e);
 			toast(m.home.failed(filesErrorText(e)), 'error', 8000);
 		}
 	}
@@ -83,6 +86,7 @@
 		try {
 			await importPdf(await read(path), parent(path));
 		} catch (e) {
+			console.error('[notes] import', e);
 			toast(m.insert.pdfFailed(basename(path)) + ` (${filesErrorText(e)})`, 'error', 8000);
 		}
 	}
@@ -105,80 +109,68 @@
 		if (path) await open(path);
 	}
 
+	// --- The card's menu (right click, long press, ⋯); Del on a focused card. Renaming is Files' job. ---
+
 	/** Into the trash (the message offers to undo it) */
-	async function remove(entry: NotebookEntry) {
+	async function remove(path: string) {
 		try {
-			await deleteToTrash([entry.path], () => void refresh());
-			notebooks = notebooks?.filter((n) => !isInside(n.path, entry.path)) ?? null;
+			if (!(await deleteToTrash([path], () => void refresh()))) return;
+			notebooks = notebooks?.filter((n) => !isInside(n.path, path)) ?? null;
 		} catch (e) {
+			console.error('[notes] delete', e);
 			toast(m.home.failed(filesErrorText(e)), 'error', 8000);
 		}
 	}
 
-	function menu(entry: NotebookEntry): MenuEntry[] {
+	function showInFiles(path: string) {
+		location.assign(`${resolve('/files')}?path=${encodeURIComponent(parent(path))}`);
+	}
+
+	const keys = (shortcut: Shortcut) => shortcutLabel(shortcut, brandMessages().keys);
+
+	/** The complete menu of a notebook */
+	function menu(entry: StartEntry): MenuEntry[] {
 		return [
-			{ label: m.home.openNotebook, icon: 'icon-[material-symbols-light--folder-open-outline]', run: () => open(entry.path) },
+			{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => void open(entry.path) },
+			{ label: m.home.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: `${resolve('/files')}?path=${encodeURIComponent(parent(entry.path))}`, run: () => showInFiles(entry.path) },
 			{ separator: true },
-			{ label: m.common.delete, icon: 'icon-[material-symbols-light--delete-outline]', run: () => remove(entry) }
+			{ label: m.common.delete, icon: 'icon-[material-symbols-light--delete-outline]', keys: keys({ key: 'Delete' }), run: () => void remove(entry.path) }
 		];
 	}
+
+	const entries = $derived<StartEntry[] | null>(
+		notebooks?.map((n) => ({ path: n.path, name: n.name, modified: n.modified, kind: 'directory', detail: m.home.pages(n.pages) })) ?? null
+	);
 </script>
 
-<main class="mx-auto flex w-full max-w-4xl flex-col gap-6 overflow-y-auto p-4 sm:p-8">
-	<p class="text-base-content/80 max-w-2xl">{m.home.tagline}</p>
-
-	{#if !available}
-		<div role="alert" class="alert alert-warning">{m.home.unsupported}</div>
-	{:else}
-		<div class="flex flex-wrap gap-2">
-			<button class="btn btn-primary" onclick={create}>
-				<span class="icon-[material-symbols-light--add-notes-outline] size-6" aria-hidden="true"></span>{m.home.newNotebook}
-			</button>
-			<button class="btn" onclick={openOther}>
-				<span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span>{m.home.open}
-			</button>
-			<button class="btn" onclick={(e) => openMenuBelow(e, importMenu())} disabled={importing}>
-				{#if importing}
-					<span class="loading loading-spinner loading-sm"></span>{m.home.importing}
-				{:else}
-					<span class="icon-[material-symbols-light--picture-as-pdf-outline] size-6" aria-hidden="true"></span>{m.home.importPdf}
-				{/if}
-			</button>
-			<input bind:this={pdfInput} type="file" accept="application/pdf,.pdf" class="hidden" onchange={importDevice} />
-		</div>
-
-		<section class="flex flex-col gap-2" aria-labelledby="notebooks">
-			<h2 id="notebooks" class="text-lg font-semibold">{m.home.notebooks}</h2>
-			<AccessNotice tool="notes" onallowed={refresh} />
-			{#if notebooks === null}
-				<span class="loading loading-spinner opacity-60"></span>
-			{:else if notebooks.length === 0}
-				<p class="opacity-70">{m.home.empty}</p>
+<StartPage
+	tagline={m.home.tagline}
+	{available}
+	heading={m.home.notebooks}
+	{entries}
+	href={(entry) => editorUrl(entry.path)}
+	{menu}
+	empty={m.home.empty}
+	tool="notes"
+	onallowed={refresh}
+	formatDate={formatDateTime}
+	ondelete={(entry) => void remove(entry.path)}
+>
+	{#snippet actions()}
+		<button class="btn btn-primary" onclick={create}>
+			<span class="icon-[material-symbols-light--add-notes-outline] size-6" aria-hidden="true"></span>{m.home.newNotebook}
+		</button>
+		<button class="btn" onclick={openOther}>
+			<span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span>{m.home.open}
+		</button>
+		<!-- Keeps its label while reading; only the icon turns into a spinner -->
+		<button class="btn" onclick={(e) => openMenuBelow(e, importMenu())} disabled={importing}>
+			{#if importing}
+				<span class="loading loading-spinner size-6"></span>
 			{:else}
-				<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-					{#each notebooks as entry (entry.path)}
-						<li class="bg-base-100 border-base-300 rounded-box flex items-center border" oncontextmenu={(e) => openContextMenu(e, menu(entry))}>
-							<a class="flex min-w-0 flex-1 items-center gap-3 p-3" href={editorUrl(entry.path)}>
-								<FileIcon name={basename(entry.path)} kind="directory" />
-								<span class="flex min-w-0 flex-col">
-									<span class="truncate font-medium">{entry.name}</span>
-									<span class="truncate text-xs opacity-70">
-										{m.home.pages(entry.pages)} · {formatDateTime(entry.modified)}{parent(entry.path) !== '/' ? ` · ${displayPath(parent(entry.path), filesMessages().root)}` : ''}
-									</span>
-								</span>
-							</a>
-							<button
-								class="btn btn-ghost btn-square btn-sm mr-1"
-								onclick={(e) => openMenuBelow(e, menu(entry))}
-								aria-label={m.home.actions(entry.name)}
-								title={m.home.actions(entry.name)}
-							>
-								<span class="icon-[material-symbols-light--more-vert] size-5" aria-hidden="true"></span>
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
-	{/if}
-</main>
+				<span class="icon-[material-symbols-light--picture-as-pdf-outline] size-6" aria-hidden="true"></span>
+			{/if}{m.home.importPdf}
+		</button>
+		<input bind:this={pdfInput} type="file" accept="application/pdf,.pdf" class="hidden" onchange={importDevice} />
+	{/snippet}
+</StartPage>

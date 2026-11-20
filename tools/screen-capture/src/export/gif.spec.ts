@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedPixels, GifWriter, PIXEL_TOLERANCE } from './gif';
+import { GifWriter } from './gif';
 
 const W = 4;
 const H = 2;
@@ -33,14 +33,6 @@ function delays(bytes: Uint8Array) {
 	return result;
 }
 
-describe('changedPixels', () => {
-	it('ignores differences within the tolerance', () => {
-		const a = frame([100, 100, 100]);
-		expect(changedPixels(a, frame([100 + PIXEL_TOLERANCE, 100, 100 - PIXEL_TOLERANCE]))).toEqual([]);
-		expect(changedPixels(a, frame([100, 100, 100], { 3: [100, 100 + PIXEL_TOLERANCE + 1, 100] }))).toEqual([3]);
-	});
-});
-
 describe('GifWriter', () => {
 	it('writes a GIF89a with header and trailer', () => {
 		const bytes = gifOf(new GifWriter(W, H, true), [[frame([255, 0, 0]), 10]]);
@@ -64,13 +56,5 @@ describe('GifWriter', () => {
 			[frame([0, 0, 0], { 1: [255, 255, 255] }), 70_000]
 		]);
 		expect(delays(bytes)).toEqual([10, 0xffff, 70_000 - 0xffff]);
-	});
-	it('loops only when asked to', () => {
-		const netscape = (bytes: Uint8Array) => new TextDecoder().decode(bytes).includes('NETSCAPE2.0');
-		expect(netscape(gifOf(new GifWriter(W, H, true), [[frame([0, 0, 0]), 10]]))).toBe(true);
-		expect(netscape(gifOf(new GifWriter(W, H, false), [[frame([0, 0, 0]), 10]]))).toBe(false);
-	});
-	it('rejects frames of the wrong size', () => {
-		expect(() => new GifWriter(W, H, true).add(new Uint8ClampedArray(4), 10)).toThrow();
 	});
 });

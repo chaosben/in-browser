@@ -105,7 +105,7 @@ export async function importFile(
 		if (onProgress) conversion.onProgress = onProgress;
 		await conversion.execute();
 	} catch (e) {
-		await output.cancel().catch(() => {});
+		await output.cancel().catch((e) => console.warn('[screen-capture]', e));
 		await deleteMediaFile(projectId, fileName);
 		throw e;
 	}

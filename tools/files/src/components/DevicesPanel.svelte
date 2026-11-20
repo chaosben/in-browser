@@ -109,7 +109,7 @@
 			<span>{m.devices.resetHint}</span>
 			<div class="flex flex-wrap gap-1">
 				<button class="btn btn-xs" onclick={() => reset(false)}>{m.devices.resetKeep}</button>
-				<button class="btn btn-xs btn-error" onclick={() => reset(true)}>{m.devices.resetDelete}</button>
+				<button class="btn btn-xs" onclick={() => reset(true)}>{m.devices.resetDelete}</button>
 			</div>
 		</div>
 	{:else if view.state === 'off'}
@@ -193,7 +193,7 @@
 		{#if view.pendingDeletes}
 			<div class="alert alert-warning flex-col items-start gap-2 p-2 text-xs">
 				<span>{m.devices.pendingDeletes(view.pendingDeletes)}</span>
-				<button class="btn btn-xs btn-error" onclick={() => run(applyDeviceDeletes)}>{m.devices.applyDeletes}</button>
+				<button class="btn btn-xs" onclick={() => run(applyDeviceDeletes)}>{m.devices.applyDeletes}</button>
 			</div>
 		{/if}
 		<div class="flex flex-wrap gap-1">

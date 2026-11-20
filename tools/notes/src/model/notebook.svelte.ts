@@ -4,33 +4,19 @@
 
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
-import { reportSaveFailure } from '@in-browser/files/documents.js';
-import { isInside } from '@in-browser/files/path.js';
-import { itemBounds, union, type Box } from '#lib/ink/geometry.js';
-import { isIdentity, transformItem, type Transform } from '#lib/ink/lasso.js';
-import { inkStrokes, withStyle, type ShapeFit, type ShapeStyle } from '#lib/ink/shapes.js';
-import { eraseFromStroke } from '#lib/ink/split.js';
+import { ExternalVersions, reportSaveFailure } from '@in-browser/files/documents.js';
+import { stat } from '@in-browser/files/fs.js';
+import { basename, isInside, stem } from '@in-browser/files/path.js';
+import { ItemEditor, type Command } from '@in-browser/ink/edit/items.js';
+import { union, type Box } from '@in-browser/ink/geometry.js';
+import { inkKit } from '@in-browser/ink/render/ink-kit.js';
 import { m } from '#lib/i18n/index.js';
-import { PdfBackgrounds } from '#lib/render/backgrounds.js';
-import { PictureCache, pictureKey } from '#lib/render/pictures.js';
-import { PageScene } from '#lib/render/scene.js';
+import { PdfPages } from '@in-browser/pdf/pages.js';
+import { PictureCache, pictureKey } from '@in-browser/ink/render/pictures.js';
+import type { PageScene } from '@in-browser/ink/render/scene.js';
+import { pageScene } from '#lib/render/surface.js';
 import { addAsset, cleanupAssets, deletePageFile, manifestPath, pagePath, readAsset, readNotebook, readPage, writeNotebook, writePage } from './store.js';
-import {
-	backgroundAssets,
-	isInk,
-	isPicture,
-	isStroke,
-	newPage,
-	type Ink,
-	type InkTool,
-	type Item,
-	type Notebook,
-	type PageMeta,
-	type Paper,
-	type Picture,
-	type ShapeItem,
-	type Stroke
-} from './types.js';
+import { backgroundAssets, isPicture, newPage, type Item, type Notebook, type PageMeta, type Paper } from './types.js';
 
 /** What the drawing surface needs to know */
 export interface NotebookListener {
@@ -39,29 +25,11 @@ export interface NotebookListener {
 	/** A page's content arrived or was replaced */
 	content(id: string): void;
 	/** A finished stroke or shape was added */
-	stroke(id: string, scene: PageScene, stroke: Ink): void;
+	stroke(id: string, scene: PageScene<Item>, stroke: Item): void;
 	/** Items in a region of a page were added, removed, changed or restored */
 	region(id: string, box: Box | null): void;
 	/** A piece of a PDF page under the notes was rendered */
 	background(): void;
-}
-
-interface Command {
-	undo(): void;
-	redo(): void;
-}
-
-/** One item replaced by others (none: removed) at its place in the draw order */
-interface ReplaceOp {
-	removed: Item;
-	at: number;
-	added: Item[];
-}
-
-/** Items taken out of a page while dragged, with their places */
-export interface Lifted {
-	page: string;
-	items: { item: Item; at: number }[];
 }
 
 const SAVE_DELAY_MS = 800;
@@ -80,7 +48,7 @@ export class NotebookDoc {
 	canRedo = $state(false);
 
 	private meta: Notebook;
-	private readonly scenes = new Map<string, PageScene>();
+	private readonly scenes = new Map<string, PageScene<Item>>();
 	private readonly loading = new Map<string, Promise<void>>();
 	private readonly dirtyPages = new Set<string>();
 	private readonly removedPages = new Set<string>();
@@ -89,20 +57,36 @@ export class NotebookDoc {
 	private redoStack: Command[] = [];
 	private saveTimer: ReturnType<typeof setTimeout> | undefined;
 	private readonly ownWrites = new Map<string, number>();
-	private erasing: { page: string; ops: ReplaceOp[] } | null = null;
 	listener: NotebookListener | null = null;
+	/** Editing the items of the pages (`@in-browser/ink`: each action one undo step of this notebook) */
+	readonly items: ItemEditor<Item>;
 	/** Decoded images and icons of all pages */
 	readonly pictures = new PictureCache(
 		(name) => readAsset(this.path, name),
 		(key) => this.pictureLoaded(key)
 	);
 	/** PDF pages under the notes (imported PDFs) */
-	readonly backgrounds = new PdfBackgrounds(
+	readonly backgrounds = new PdfPages(
 		(name) => readAsset(this.path, name),
-		() => this.listener?.background()
+		() => this.listener?.background(),
+		{ label: '[notes]' }
 	);
 
 	constructor(path: string, notebook: Notebook) {
+		const doc = this;
+		this.items = new ItemEditor<Item>(
+			{
+				get pages() {
+					return doc.pages;
+				},
+				scene: (id) => this.scene(id),
+				push: (command) => this.push(command),
+				touch: (id) => this.touch(id),
+				committed: (id, scene, item) => this.listener?.stroke(id, scene, item),
+				region: (id, box) => this.listener?.region(id, box)
+			},
+			inkKit
+		);
 		this.path = path;
 		this.meta = notebook;
 		this.pages = notebook.pages;
@@ -126,15 +110,8 @@ export class NotebookDoc {
 	// --- Page contents ---
 
 	/** Content of a loaded page, null while it is not loaded */
-	scene(id: string): PageScene | null {
+	scene(id: string): PageScene<Item> | null {
 		return this.scenes.get(id) ?? null;
-	}
-
-	/** The page at an index with its loaded content, null if either is missing */
-	private sceneAt(pageIndex: number): { page: PageMeta; scene: PageScene } | null {
-		const page = this.pages[pageIndex];
-		const scene = page && this.scene(page.id);
-		return scene ? { page, scene } : null;
 	}
 
 	/** Loads a page's content (once) */
@@ -143,13 +120,13 @@ export class NotebookDoc {
 		if (!pending) {
 			pending = readPage(this.path, id)
 				.then((content) => {
-					this.scenes.set(id, new PageScene(content, this.pictures));
+					this.scenes.set(id, pageScene(content, this.pictures));
 					this.listener?.content(id);
 				})
 				.catch((e) => {
 					console.error('[notes] page', id, e);
 					// Show an empty page instead of retrying forever; the toast says what went wrong
-					this.scenes.set(id, new PageScene(undefined, this.pictures));
+					this.scenes.set(id, pageScene(undefined, this.pictures));
 					this.listener?.content(id);
 					toast(m.editor.pageFailed(filesErrorText(e)), 'error', 8000);
 				});
@@ -193,131 +170,6 @@ export class NotebookDoc {
 		this.updateHistory();
 	}
 
-	/** Adds a finished stroke on top (one undo step); its id */
-	addStroke(pageIndex: number, data: { points: Float32Array; tool: InkTool; color: string; size: number }): string | null {
-		if (data.points.length < 3) return null;
-		return this.addInk(pageIndex, { id: crypto.randomUUID(), ...data });
-	}
-
-	/** Adds a shape drawn with the shape tool on top (one undo step); its id */
-	addShape(pageIndex: number, fit: ShapeFit, color: string, size: number, style: ShapeStyle): string | null {
-		return this.addInk(pageIndex, withStyle({ id: crypto.randomUUID(), type: 'shape', fit, color, size }, style));
-	}
-
-	private addInk(pageIndex: number, stroke: Ink): string | null {
-		const found = this.sceneAt(pageIndex);
-		if (!found) return null;
-		const { page, scene } = found;
-		const add = (at?: number) => {
-			scene.add(stroke, at);
-			this.listener?.stroke(page.id, scene, stroke);
-			this.touch(page.id);
-		};
-		add();
-		this.push({
-			undo: () => {
-				const box = scene.bounds(stroke);
-				scene.remove(stroke);
-				this.listener?.region(page.id, box);
-				this.touch(page.id);
-			},
-			redo: () => add()
-		});
-		return stroke.id;
-	}
-
-	/** Replaces a stroke by a shape (a recognized one, one undo step); the shape's id, null if the stroke is gone */
-	toShape(pageIndex: number, strokeId: string, fit: ShapeFit): string | null {
-		const found = this.sceneAt(pageIndex);
-		const stroke = found?.scene.items.find((i) => i.id === strokeId);
-		if (!found || !stroke || !isStroke(stroke)) return null;
-		const { page, scene } = found;
-		const shape: ShapeItem = { id: crypto.randomUUID(), type: 'shape', fit, color: stroke.color, size: stroke.size };
-		this.applyOps(page.id, [{ removed: stroke, at: scene.items.indexOf(stroke), added: [shape] }]);
-		return shape.id;
-	}
-
-	/** Removes strokes during an erase gesture; `eraseEnd` makes the gesture one undo step */
-	erase(pageIndex: number, strokes: Ink[]) {
-		this.replace(pageIndex, strokes.map((stroke) => ({ stroke, pieces: [] })));
-	}
-
-	/**
-	 * Pixel eraser: cuts the circle (page points) out of the strokes it touches, during an erase gesture. A shape
-	 * becomes ordinary strokes then (the pieces of its outline).
-	 */
-	erasePixels(pageIndex: number, strokes: Ink[], x: number, y: number, r: number) {
-		const cuts: { stroke: Ink; pieces: Float32Array[] }[] = [];
-		for (const stroke of strokes) {
-			// A shape is cut as a whole: touched strokes in pieces, the others (dashes, edges, arrowheads) as they are
-			const own = inkStrokes(stroke);
-			const cut = own.map((s) => eraseFromStroke(s, x, y, r));
-			if (cut.some(Boolean)) cuts.push({ stroke, pieces: cut.flatMap((p, i) => p ?? [own[i].points]) });
-		}
-		if (cuts.length) this.replace(pageIndex, cuts);
-	}
-
-	/** Replaces strokes by pieces of them (none = removed) at their place in the draw order */
-	private replace(pageIndex: number, cuts: { stroke: Ink; pieces: Float32Array[] }[]) {
-		const found = this.sceneAt(pageIndex);
-		if (!found) return;
-		const { page, scene } = found;
-		if (this.erasing && this.erasing.page !== page.id) this.eraseEnd();
-		this.erasing ??= { page: page.id, ops: [] };
-		let box: Box | null = null;
-		for (const { stroke, pieces } of cuts) {
-			const bounds = scene.bounds(stroke);
-			const at = scene.remove(stroke);
-			if (at < 0) continue;
-			const pen = inkStrokes(stroke)[0];
-			const added = pieces.map((points): Stroke => ({ id: crypto.randomUUID(), tool: pen.tool, color: pen.color, size: pen.size, points }));
-			added.forEach((piece, i) => scene.add(piece, at + i));
-			this.erasing.ops.push({ removed: stroke, at, added });
-			box = union(box, bounds);
-		}
-		if (box) {
-			this.listener?.region(page.id, box);
-			this.touch(page.id);
-		}
-	}
-
-	eraseEnd() {
-		const gesture = this.erasing;
-		this.erasing = null;
-		if (!gesture || !gesture.ops.length) return;
-		this.push(this.opsCommand(gesture.page, gesture.ops));
-	}
-
-	/** Undo/redo of replacement steps (each: a stroke removed at `at`, pieces put in its place) */
-	private opsCommand(pageId: string, ops: ReplaceOp[]): Command {
-		const scene = this.scene(pageId)!;
-		// Old and new places together (from the items: a moved one keeps its id, so the index can't tell them apart)
-		const region = ops.reduce<Box | null>(
-			(box, op) => op.added.reduce<Box | null>((b, s) => union(b, itemBounds(s)), union(box, itemBounds(op.removed))),
-			null
-		);
-		if (!ops.length) return { undo: () => this.touch(pageId), redo: () => this.touch(pageId) };
-		return {
-			undo: () => {
-				for (let i = ops.length - 1; i >= 0; i--) {
-					const op = ops[i];
-					for (const piece of op.added) scene.remove(piece);
-					scene.add(op.removed, op.at);
-				}
-				this.listener?.region(pageId, region);
-				this.touch(pageId);
-			},
-			redo: () => {
-				for (const op of ops) {
-					scene.remove(op.removed);
-					op.added.forEach((piece, i) => scene.add(piece, op.at + i));
-				}
-				this.listener?.region(pageId, region);
-				this.touch(pageId);
-			}
-		};
-	}
-
 	// --- Pictures ---
 
 	/** Content of an asset file (exports) */
@@ -330,128 +182,12 @@ export class NotebookDoc {
 		return addAsset(this.path, blob, ext);
 	}
 
-	/** Puts a picture on top of a page (one undo step) */
-	addPicture(pageIndex: number, picture: Picture) {
-		const page = this.sceneAt(pageIndex)?.page;
-		if (page) this.applyOps(page.id, [], [picture]);
-	}
-
 	/** A picture finished loading: redraw it wherever it is shown */
 	private pictureLoaded(key: string) {
 		for (const [id, scene] of this.scenes) {
 			const box = scene.items.reduce<Box | null>((b, i) => (isPicture(i) && pictureKey(i) === key ? union(b, scene.bounds(i)) : b), null);
 			if (box) this.listener?.region(id, box);
 		}
-	}
-
-	// --- Selection ---
-
-	/** Items of a page by id, in draw order */
-	itemsById(pageIndex: number, ids: ReadonlySet<string>): Item[] {
-		return this.sceneAt(pageIndex)?.scene.items.filter((s) => ids.has(s.id)) ?? [];
-	}
-
-	/** Takes items out of the page while they are dragged (drawn by the stage meanwhile) */
-	lift(pageIndex: number, ids: ReadonlySet<string>): Lifted | null {
-		const found = this.sceneAt(pageIndex);
-		if (!found) return null;
-		const { page, scene } = found;
-		const items: { item: Item; at: number }[] = [];
-		let box: Box | null = null;
-		// From the back, so the recorded places stay valid when put back from the front
-		for (let i = scene.items.length - 1; i >= 0; i--) {
-			const item = scene.items[i];
-			if (!ids.has(item.id)) continue;
-			box = union(box, scene.bounds(item));
-			scene.remove(item);
-			items.unshift({ item, at: i });
-		}
-		if (box) this.listener?.region(page.id, box);
-		return { page: page.id, items };
-	}
-
-	/** Puts lifted items back, moved/scaled (one undo step); unchanged when the transform is none */
-	drop(lifted: Lifted, t: Transform) {
-		this.putBack(lifted, (item) => transformItem(item, t), isIdentity(t));
-	}
-
-	/** Puts a single lifted item back as `changed` (a shape with moved points; one undo step) */
-	reshape(lifted: Lifted, changed: Item) {
-		this.putBack(lifted, () => changed, false);
-	}
-
-	private putBack(lifted: Lifted, change: (item: Item) => Item, unchanged: boolean) {
-		const scene = this.scene(lifted.page);
-		if (!scene) return;
-		const ops: ReplaceOp[] = lifted.items.map(({ item, at }) => ({ removed: item, at, added: [change(item)] }));
-		for (const { item, at } of lifted.items) scene.add(item, at);
-		if (unchanged) {
-			this.listener?.region(lifted.page, ops.reduce<Box | null>((b, op) => union(b, itemBounds(op.removed)), null));
-			return;
-		}
-		const command = this.opsCommand(lifted.page, ops);
-		command.redo();
-		this.push(command);
-	}
-
-	/** Deletes items (one undo step) */
-	deleteItems(pageIndex: number, ids: ReadonlySet<string>) {
-		const found = this.sceneAt(pageIndex);
-		if (!found) return;
-		const { page, scene } = found;
-		this.applyOps(page.id, this.itemsById(pageIndex, ids).map((item) => ({ removed: item, at: scene.items.indexOf(item), added: [] })));
-	}
-
-	/** Gives strokes, shapes and icons another color (one undo step); images stay as they are */
-	recolor(pageIndex: number, ids: ReadonlySet<string>, color: string) {
-		this.change(pageIndex, ids, (item) => (isInk(item) || item.type === 'icon' ? { ...item, color } : null));
-	}
-
-	/** Changes items (one undo step): `change` gives the new version of an item, or null to leave it */
-	change(pageIndex: number, ids: ReadonlySet<string>, change: (item: Item) => Item | null) {
-		const found = this.sceneAt(pageIndex);
-		if (!found) return;
-		const { page, scene } = found;
-		const ops = this.itemsById(pageIndex, ids).flatMap((item) => {
-			const changed = change(item);
-			return changed ? [{ removed: item, at: scene.items.indexOf(item), added: [changed] }] : [];
-		});
-		this.applyOps(page.id, ops);
-	}
-
-	/** Copies items a little offset, on top; the ids of the copies */
-	duplicate(pageIndex: number, ids: ReadonlySet<string>): Set<string> {
-		const page = this.sceneAt(pageIndex)?.page;
-		if (!page) return new Set();
-		const copies = this.itemsById(pageIndex, ids).map((s) => transformItem({ ...s, id: crypto.randomUUID() }, { dx: 12, dy: 12, scale: 1, ox: 0, oy: 0 }));
-		this.applyOps(page.id, [], copies);
-		return new Set(copies.map((c) => c.id));
-	}
-
-	/**
-	 * Runs replacement steps and puts new items on top, as one undo step (indices are those before the steps).
-	 */
-	private applyOps(pageId: string, ops: ReplaceOp[], added: Item[] = []) {
-		if (!ops.length && !added.length) return;
-		// Back to front, so each step's index is still right when it runs
-		const sorted = [...ops].sort((a, b) => b.at - a.at);
-		const replace = this.opsCommand(pageId, sorted);
-		const scene = this.scene(pageId)!;
-		const box = added.reduce<Box | null>((b, i) => union(b, itemBounds(i)), null);
-		const command: Command = {
-			undo: () => {
-				for (const item of added) scene.remove(item);
-				if (box) this.listener?.region(pageId, box);
-				replace.undo();
-			},
-			redo: () => {
-				replace.redo();
-				for (const item of added) scene.add(item);
-				if (box) this.listener?.region(pageId, box);
-			}
-		};
-		command.redo();
-		this.push(command);
 	}
 
 	// --- Pages ---
@@ -468,7 +204,7 @@ export class NotebookDoc {
 		const like = this.pages[index] ?? this.pages[this.pages.length - 1];
 		const page = newPage(paper ?? like?.paper ?? 'lined', like ?? undefined);
 		const at = Math.min(index + 1, this.pages.length);
-		this.scenes.set(page.id, new PageScene(undefined, this.pictures));
+		this.scenes.set(page.id, pageScene(undefined, this.pictures));
 		const insert = () => {
 			this.removedPages.delete(page.id);
 			this.setPages(this.pages.toSpliced(at, 0, page));
@@ -482,7 +218,7 @@ export class NotebookDoc {
 	insertPdf(index: number, asset: string, sizes: { w: number; h: number }[]): number {
 		const pages = sizes.map((size, i): PageMeta => ({ ...newPage('blank', size), background: { asset, page: i + 1 } }));
 		const at = Math.min(index + 1, this.pages.length);
-		for (const page of pages) this.scenes.set(page.id, new PageScene(undefined, this.pictures));
+		for (const page of pages) this.scenes.set(page.id, pageScene(undefined, this.pictures));
 		const ids = new Set(pages.map((p) => p.id));
 		const insert = () => {
 			for (const id of ids) this.removedPages.delete(id);
@@ -502,13 +238,14 @@ export class NotebookDoc {
 		return at;
 	}
 
-	/** Removes a page from the list; its file is deleted on the next save (undo puts it back before that) */
-	deletePage(index: number) {
+	/** Removes a page from the list; its file is deleted on the next save (undo puts it back before that). Returns
+	 * what the message's "Undo" does: undo this step while it is still the last one */
+	deletePage(index: number): (() => void) | null {
 		const page = this.pages[index];
-		if (!page || this.pages.length <= 1) return;
+		if (!page || this.pages.length <= 1) return null;
 		this.load(page.id);
 		this.dropPage(page.id);
-		this.push({
+		const command: Command = {
 			undo: () => {
 				this.removedPages.delete(page.id);
 				// Its file may already be gone: write it again
@@ -516,7 +253,11 @@ export class NotebookDoc {
 				this.setPages(this.pages.toSpliced(index, 0, page));
 			},
 			redo: () => this.dropPage(page.id)
-		});
+		};
+		this.push(command);
+		return () => {
+			if (this.undoStack.at(-1) === command) this.undo();
+		};
 	}
 
 	private dropPage(id: string) {
@@ -636,18 +377,35 @@ export class NotebookDoc {
 	// --- Changes from elsewhere ---
 
 	/** Paths changed somewhere (watch of the file system): reload what is not ours and not edited here */
+	/** Whether versions of its files saved elsewhere are taken (asked, the answer kept while it is open) */
+	private readonly versions = new ExternalVersions();
+
 	async external(paths: string[]) {
 		const now = performance.now();
+		let meta = false;
+		const pages: string[] = [];
 		for (const path of paths) {
 			if (!isInside(path, this.path) || path === this.path) continue;
 			const own = this.ownWrites.get(path);
 			if (own !== undefined && now - own < OWN_WRITE_MS) continue;
-			if (path === manifestPath(this.path)) await this.reloadMeta();
+			if (path === manifestPath(this.path)) meta = true;
 			else {
 				const page = this.pages.find((p) => pagePath(this.path, p.id) === path);
-				if (page) await this.reloadPage(page.id);
+				if (page && this.scenes.has(page.id)) pages.push(page.id);
 			}
 		}
+		// Changed here too: ours are kept (written over the other version)
+		const mine = (meta && this.metaDirty) || pages.some((id) => this.dirtyPages.has(id));
+		if (mine) toast(m.editor.changedElsewhere, 'warning', 8000);
+		meta &&= !this.metaDirty;
+		const theirs = pages.filter((id) => !this.dirtyPages.has(id));
+		if (!meta && !theirs.length) return;
+		// Asked first (once per version of these files; the answer may be kept while the notebook is open)
+		const files = [...(meta ? [manifestPath(this.path)] : []), ...theirs.map((id) => pagePath(this.path, id))];
+		const version = (await Promise.all(files.map(async (f) => `${f}:${(await stat(f).catch(() => null))?.modified ?? 0}`))).join('|');
+		if (!(await this.versions.shouldReload(stem(basename(this.path)), version))) return;
+		if (meta) await this.reloadMeta();
+		for (const id of theirs) await this.reloadPage(id);
 	}
 
 	private async reloadMeta() {
@@ -666,7 +424,7 @@ export class NotebookDoc {
 		if (!this.scenes.has(id)) return;
 		if (this.dirtyPages.has(id)) return toast(m.editor.changedElsewhere, 'warning', 8000);
 		try {
-			this.scenes.set(id, new PageScene(await readPage(this.path, id), this.pictures));
+			this.scenes.set(id, pageScene(await readPage(this.path, id), this.pictures));
 			// Undo steps of this page point to strokes that are gone now
 			this.undoStack = [];
 			this.redoStack = [];

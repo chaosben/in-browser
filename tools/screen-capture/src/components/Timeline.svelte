@@ -24,6 +24,8 @@
 	import { snapping } from '#lib/ui/snapping.svelte.js';
 	import { endLibraryDrag, saveSelection, trackLibraryDrag, type LibraryScope } from '#lib/ui/library.svelte.js';
 	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
+	import { openContextMenu } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { TIMELINE_ZOOM } from '#lib/ui/commands.js';
 
 	interface Props {
 		editor: Editor;
@@ -32,9 +34,11 @@
 		height: number;
 		/** Opens the context menu for the selection */
 		itemMenu: (e: MouseEvent) => void;
+		/** Zoom factor relative to "everything visible" (1 = fits exactly); the ribbon's View tab changes it too */
+		zoom?: number;
 	}
 
-	let { editor, player, height: boxHeight, itemMenu }: Props = $props();
+	let { editor, player, height: boxHeight, itemMenu, zoom = $bindable(1) }: Props = $props();
 
 	const PADDING = 16;
 	const RULER = 22;
@@ -52,8 +56,6 @@
 	let scrollerWidth = $state(800 + HEADER_W);
 	/** Visible width of the track area (the headers stay in front of it) */
 	const viewWidth = $derived(scrollerWidth - HEADER_W);
-	/** Zoom factor relative to "everything visible" (1 = fits exactly). */
-	let zoom = $state(1);
 	/** The scale stays fixed during a drag, otherwise the view jumps under the mouse pointer. */
 	let lockedTotal = $state<number | null>(null);
 	/** Target track when dragging vertically */
@@ -337,7 +339,7 @@
 		const wheel = (e: WheelEvent) => {
 			if (!e.ctrlKey) return;
 			e.preventDefault();
-			zoom = Math.min(Math.max(zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2), 1), 32);
+			zoom = Math.min(Math.max(zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2), TIMELINE_ZOOM.min), TIMELINE_ZOOM.max);
 		};
 		node.addEventListener('wheel', wheel, { passive: false });
 		return () => node.removeEventListener('wheel', wheel);
@@ -351,7 +353,27 @@
 		if (px < scrollLeft || px > scrollLeft + viewWidth - 20) scroller.scrollLeft = px - viewWidth / 3;
 	});
 
-	const ring = 'ring-base-content ring-2 ring-offset-1 ring-offset-base-200';
+	const ring = 'ring-selection ring-2 ring-offset-1 ring-offset-base-200';
+
+	const TRACK_SWITCHES = [
+		['hidden', m.timeline.hideTrack, 'icon-[material-symbols-light--visibility-off-outline]'],
+		['muted', m.timeline.muteTrack, 'icon-[material-symbols-light--volume-off-outline]'],
+		['locked', m.timeline.lockTrack, 'icon-[material-symbols-light--lock-outline]']
+	] as const;
+
+	/** Menu of a track header (right click): its switches */
+	function trackMenu(e: MouseEvent, track: number) {
+		const state = trackState(timeline, track);
+		openContextMenu(e, [
+			{ heading: m.timeline.track(track + 1) },
+			...TRACK_SWITCHES.map(([key, label, icon]) => ({
+				label,
+				icon,
+				checked: !!state[key],
+				run: () => editor.setTrackState(track, { [key]: !state[key] })
+			}))
+		]);
+	}
 </script>
 
 {#snippet edges(ondown: (e: PointerEvent, part: Part) => void)}
@@ -372,7 +394,7 @@
 {#snippet toggle(track: number, key: 'hidden' | 'muted' | 'locked', on: boolean)}
 	{@const label = { hidden: m.timeline.hideTrack, muted: m.timeline.muteTrack, locked: m.timeline.lockTrack }[key]}
 	<button
-		class="btn btn-ghost btn-xs btn-square size-5 min-h-0 {on ? 'text-warning' : 'opacity-50 hover:opacity-100'}"
+		class="btn btn-ghost btn-xs btn-square size-5 min-h-0 {on ? 'btn-active' : 'opacity-60 hover:opacity-100'}"
 		onclick={() => editor.setTrackState(track, { [key]: !on })}
 		title={label}
 		aria-label={label}
@@ -388,7 +410,8 @@
 	</button>
 {/snippet}
 
-<div class="bg-base-200 rounded-box flex flex-col gap-1 p-2" style="height: {boxHeight}px" data-timeline>
+<!-- Focusable, so Ctrl+A selects all items while the timeline has the focus -->
+<div class="bg-base-200 rounded-box flex flex-col gap-1 p-2 outline-none" style="height: {boxHeight}px" data-timeline tabindex="-1">
 	<div class="flex items-center gap-3 px-1 text-xs">
 		<span class="opacity-70" title={m.timeline.zoom}>
 			<span class="icon-[material-symbols-light--zoom-in] size-5" aria-hidden="true"></span>
@@ -432,6 +455,9 @@
 					<div
 						class="bg-base-300 absolute inset-x-0 flex items-center gap-0.5 overflow-hidden rounded-l pl-1 text-[10px]"
 						style="top: {row.top}px; height: {row.height - 1}px"
+						oncontextmenu={(e) => (row.track === tracks ? e.preventDefault() : trackMenu(e, row.track))}
+						role="group"
+						aria-label={m.timeline.track(row.track + 1)}
 					>
 						{#if row.track === tracks}
 							<span class="w-full text-center opacity-60" title={m.timeline.newTrack}>+</span>

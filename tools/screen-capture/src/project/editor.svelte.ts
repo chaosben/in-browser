@@ -12,9 +12,10 @@ import { parseColor } from '@in-browser/graphics/color.js';
 
 const HISTORY_LIMIT = 100;
 
-/** Undo/redo step: the canvas size belongs to it, because positions are relative to the canvas */
+/** Undo/redo step: the canvas size belongs to it, because positions are relative to the canvas; so does the background */
 interface Snapshot extends Size {
 	timeline: Timeline;
+	background: string;
 }
 
 /**
@@ -241,13 +242,14 @@ export class Editor {
 	}
 
 	#snapshot(): Snapshot {
-		return { timeline: this.project.timeline, width: this.project.width, height: this.project.height };
+		return { timeline: this.project.timeline, width: this.project.width, height: this.project.height, background: this.project.background };
 	}
 
-	#restore({ timeline, width, height }: Snapshot) {
+	#restore({ timeline, width, height, background }: Snapshot) {
 		const resized = width !== this.project.width || height !== this.project.height;
 		const previous = this.project.timeline;
 		if (resized) this.project = { ...this.project, width, height };
+		if (background !== this.project.background) this.project = { ...this.project, background };
 		this.#setTimeline(timeline, previous, resized);
 	}
 
@@ -332,8 +334,16 @@ export class Editor {
 		if (size) this.resizeCanvas(size);
 	}
 
-	/** Canvas background color (`#rrggbb`) */
-	setBackground(color: string) {
+	/**
+	 * Canvas background color (`#rrggbb`), an undo step; calls with the same `mergeKey` (dragging in the color field)
+	 * form one step until `endGesture`
+	 */
+	setBackground(color: string, mergeKey?: string) {
+		if (color === this.project.background) return;
+		const merging = !!mergeKey && mergeKey === this.#lastMergeKey && this.#undo.length > 0;
+		if (!merging) this.#undo = [...this.#undo, this.#snapshot()].slice(-HISTORY_LIMIT);
+		this.#lastMergeKey = mergeKey ?? null;
+		this.#redo = [];
 		this.project = { ...this.project, background: color };
 		this.onTimelineChange(false);
 		this.#scheduleSave();

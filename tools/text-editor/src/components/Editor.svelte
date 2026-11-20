@@ -3,7 +3,7 @@
 	import { EditorView } from '@codemirror/view';
 	import type { Workspace } from '#lib/workspace.svelte.js';
 
-	// The one CodeMirror view of the page; the workspace swaps in the state of the active tab.
+	// The one CodeMirror view of the editor page; the workspace puts in the state of the file it shows.
 
 	let { workspace }: { workspace: Workspace } = $props();
 

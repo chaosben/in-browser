@@ -337,7 +337,7 @@ async function exportVideo(
 		onProgress({ progress: 1, phase: 'finalizing' });
 		await output.finalize();
 	} catch (e) {
-		await output.cancel().catch(() => {});
+		await output.cancel().catch((e) => console.warn('[screen-capture]', e));
 		throw e;
 	}
 	return getFile();
@@ -369,7 +369,7 @@ async function exportGif(
 			return writing;
 		});
 		// Awaited below; on cancel the rest is dropped
-		done.catch(() => {});
+		done.catch((e) => console.warn('[screen-capture]', e));
 		pending.push(done);
 	};
 
@@ -388,7 +388,7 @@ async function exportGif(
 		checkAbort();
 		await writable.close();
 	} catch (e) {
-		await writable.abort().catch(() => {});
+		await writable.abort().catch((e) => console.warn('[screen-capture]', e));
 		throw e;
 	} finally {
 		encoder.terminate();

@@ -1,19 +1,24 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
+	import PickMark from '@in-browser/brand/PickMark.svelte';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import CellEditor from '../CellEditor.svelte';
+	import { entryOf, TABLE, viewKey, type ViewCommandSpec } from '../commands.js';
 	import { freeName } from '../names.js';
 	import ParseError from '../ParseError.svelte';
 	import { parsedView, undoKeys } from '../parsed.svelte.js';
 	import { VisibleRows } from '../rows.svelte.js';
-	import type { ViewProps } from '../types.js';
+	import type { ViewAction, ViewProps } from '../types.js';
 	import { DELIMITERS } from './csv.js';
-	import type { Row, TableFormat, TableParse } from './model.js';
+	import { moveOrder, removeRows, rewriteRows, type Row, type TableFormat, type TableParse } from './model.js';
 
 	// A table of the text (CSV, TSV, JSON Lines). Only the rows in sight are rendered, so large files stay smooth.
-	// Every edit goes through the format into the text; filters only hide rows.
+	// Every edit goes through the format into the text; filters only hide rows. Rows are picked like entries in
+	// Files (`Picker`); the commands of the ribbon tab "Table" and of the menus act on the picked rows, else on the
+	// current cell.
 
 	let { tab, host, format: anyFormat }: ViewProps = $props();
 	const format = untrack(() => anyFormat as TableFormat);
@@ -59,6 +64,11 @@
 		filterInputs[column]?.focus();
 	}
 
+	function closeFilter(column: number) {
+		delete filters[column];
+		rows.scroller?.focus();
+	}
+
 	// --- Layout: fixed row height, only the rows in sight ---
 
 	const rows = new VisibleRows(() => shown.length);
@@ -73,17 +83,29 @@
 			return Math.min(Math.max(width, 6), 40);
 		});
 	});
-	const numberWidth = $derived(`${Math.max(3, String(table.rows.length).length + 1)}ch`);
+
+	// --- Picked rows, current cell and editing ---
+
+	const picker = new Picker<number>();
+	/** Touch selection mode: marks in the row numbers, which then need room for them */
+	const numberWidth = $derived(picker.marking ? '2.5rem' : `${Math.max(3, String(table.rows.length).length + 1)}ch`);
 	const template = $derived(`${numberWidth} ${widths.map((w) => `calc(${w}ch + 1rem)`).join(' ')}`);
+	// Rows that are gone (shorter text, filter) are no longer picked
+	$effect(() => {
+		const count = table.rows.length;
+		untrack(() => picker.keep(Array.from({ length: count }, (_, i) => i)));
+	});
 
-	// --- Selection and editing ---
-
-	/** Selected cell: data row index (`-1`: the header) and column */
+	/** Current cell: data row index (`-1`: the header) and column */
 	let cur = $state<{ row: number; column: number } | null>(null);
 	let editing = $state<{ row: number; column: number; text: string; select: boolean } | null>(null);
+	/** A column just added: its name is typed into the same undo step (`version`: the text right after adding it) */
+	let fresh: { column: number; name: string; version: number } | null = null;
 
 	const rowOf = (t: TableParse, row: number): Row | null => (row < 0 ? t.header : (t.rows[row] ?? null));
 	const canRename = $derived(!format.delimited || !!table.header);
+	/** Rows the row commands act on: the picked ones, else the current one */
+	const targets = (): number[] => (picker.selected.size ? picker.ordered(shown) : cur && cur.row >= 0 && table.rows[cur.row] ? [cur.row] : []);
 
 	function select(row: number, column: number, reveal = true) {
 		cur = { row, column };
@@ -116,28 +138,42 @@
 		const e = editing;
 		if (!e) return;
 		editing = null;
-		parsed.apply((doc, t) => {
-			if (e.row < 0) return format.renameColumn(doc, t, e.column, e.text);
-			const row = t.rows[e.row];
-			return row ? format.setCell(doc, t, row, e.column, e.text) : null;
-		});
+		const added = fresh;
+		fresh = null;
+		if (added && e.row < 0 && e.column === added.column && added.version === tab.version && e.text !== added.name) {
+			// The new column and its name become one step: take the column back, add it with the name
+			host.undo();
+			parsed.apply((doc, t) => format.insertColumn(doc, t, e.column, e.text));
+		} else {
+			parsed.apply((doc, t) => {
+				if (e.row < 0) return format.renameColumn(doc, t, e.column, e.text);
+				const row = t.rows[e.row];
+				return row ? format.setCell(doc, t, row, e.column, e.text) : null;
+			});
+		}
 		if (next) move(next === 'down' ? 1 : 0, next === 'right' ? 1 : next === 'left' ? -1 : 0);
 		rows.scroller?.focus();
 	}
 
 	function cancel() {
 		editing = null;
+		fresh = null;
 		rows.scroller?.focus();
 	}
 
-	/** Moves the selection by rows (among the shown ones) and columns */
-	function move(rows: number, columns: number) {
+	/** Moves the current cell by rows (among the shown ones) and columns; `extend` picks from the anchor (Shift) */
+	function move(by: number, columns: number, extend = false) {
 		const at = cur ?? { row: shown[0] ?? -1, column: 0 };
 		const index = at.row < 0 ? -1 : shown.indexOf(at.row);
-		const nextIndex = Math.min(shown.length - 1, Math.max(table.header ? -1 : 0, index + rows));
+		const nextIndex = Math.min(shown.length - 1, Math.max(table.header ? -1 : 0, index + by));
 		const row = nextIndex < 0 ? -1 : shown[nextIndex];
 		const column = Math.min(table.columns.length - 1, Math.max(0, at.column + columns));
-		if (row !== undefined) select(row, column);
+		if (row === undefined) return;
+		if (by && row >= 0) {
+			if (extend) picker.extend(row, shown);
+			else picker.only(row);
+		}
+		select(row, column);
 	}
 
 	function onkey(e: KeyboardEvent) {
@@ -146,27 +182,48 @@
 		if (undoKeys(e, host)) return;
 		const mod = e.ctrlKey || e.metaKey;
 		const handled = () => e.preventDefault();
-		if (e.key === 'ArrowDown') return handled(), move(1, 0);
-		if (e.key === 'ArrowUp') return handled(), move(-1, 0);
+		if (e.key === 'Escape') {
+			// First the selection ends, then the text gets the focus
+			handled();
+			if (picker.selected.size > 1 || picker.selecting) picker.clear();
+			else host.focusText();
+			return;
+		}
+		if (viewKey(e, TABLE, actions)) return;
+		if (e.key === 'Backspace') return handled(), actions.clearCells?.run?.();
+		if (e.key === 'ArrowDown') return handled(), move(1, 0, e.shiftKey);
+		if (e.key === 'ArrowUp') return handled(), move(-1, 0, e.shiftKey);
 		if (e.key === 'ArrowRight') return handled(), move(0, 1);
 		if (e.key === 'ArrowLeft') return handled(), move(0, -1);
 		if (e.key === 'Tab') return handled(), move(0, e.shiftKey ? -1 : 1);
-		if (e.key === 'PageDown') return handled(), move(Math.floor(rows.viewHeight / rows.height) - 1, 0);
-		if (e.key === 'PageUp') return handled(), move(-Math.floor(rows.viewHeight / rows.height) + 1, 0);
+		if (e.key === 'PageDown') return handled(), move(Math.floor(rows.viewHeight / rows.height) - 1, 0, e.shiftKey);
+		if (e.key === 'PageUp') return handled(), move(-Math.floor(rows.viewHeight / rows.height) + 1, 0, e.shiftKey);
 		if (!cur) return;
-		if (e.key === 'Enter' || e.key === 'F2') return handled(), startEdit(cur.row, cur.column);
-		if ((e.key === 'Delete' || e.key === 'Backspace') && cur.row >= 0) {
-			const { row, column } = cur;
-			return handled(), parsed.apply((doc, t) => (t.rows[row] ? format.setCell(doc, t, t.rows[row], column, '') : null));
-		}
+		if (e.key === 'Enter') return handled(), startEdit(cur.row, cur.column);
 		// Typing starts editing with that character, as in a spreadsheet
 		if (e.key.length === 1 && !mod && !e.altKey && cur.row >= 0) return handled(), startEdit(cur.row, cur.column, e.key);
 	}
 
-	function tap(row: number, column: number) {
-		// Touch: a tap on the selected cell edits it (no double-tap needed)
-		if (coarsePointer.current && cur?.row === row && cur.column === column) return startEdit(row, column);
+	/** A click or tap on a cell: picks its row (Ctrl/Shift, touch selection mode) or makes it the current cell */
+	function cellClick(e: MouseEvent, row: number, column: number) {
+		const result = picker.click(e, row, shown);
+		if (result === 'picked') {
+			cur = { row, column };
+			return;
+		}
+		// Touch: a tap on the current cell edits it (no double-tap needed)
+		if (result === 'open' && coarsePointer.current && cur?.row === row && cur.column === column) return startEdit(row, column);
 		select(row, column);
+	}
+
+	/** The row number: picks the row; a tap (touch) opens its menu */
+	function numberClick(e: MouseEvent, row: number) {
+		const result = picker.click(e, row, shown);
+		if (result === 'open') {
+			cur = { row, column: cur?.column ?? 0 };
+			return openMenuBelow(e, rowEntries());
+		}
+		cur = { row, column: cur?.column ?? 0 };
 	}
 
 	// --- Structure ---
@@ -175,6 +232,7 @@
 		if (parsed.apply((doc, t) => format.insertRow(doc, t, index))) {
 			filters = {};
 			cur = { row: index, column: cur?.column ?? 0 };
+			picker.only(index);
 			tick().then(() => scrollTo(index));
 		}
 	}
@@ -185,8 +243,10 @@
 		await tick();
 		parsed.now();
 		await tick();
-		if (canRename) startEdit(-1, index);
-		else select(cur?.row ?? 0, index, false);
+		if (canRename) {
+			fresh = { column: index, name, version: tab.version };
+			startEdit(-1, index);
+		} else select(cur?.row ?? 0, index, false);
 	}
 
 	function removeColumn(column: number) {
@@ -200,70 +260,125 @@
 		if (parsed.apply((doc, t) => format.moveColumn(doc, t, column, delta))) cur = { row: cur?.row ?? -1, column: column + delta };
 	}
 
-	function moveRow(row: number, delta: -1 | 1) {
-		if (parsed.apply((doc, t) => (t.rows[row] ? format.moveRow(doc, t, t.rows[row], delta) : null))) cur = { row: row + delta, column: cur?.column ?? 0 };
+	/** The picked rows (or the current one) one place up or down, as one change */
+	function moveRows(delta: -1 | 1) {
+		const picked = new Set(targets());
+		const order = moveOrder(table.rows.length, picked, delta);
+		if (!parsed.apply((doc, t) => (t.rows.length === order.length ? rewriteRows(doc, t.rows, order.map((i) => t.rows[i])) : null))) return;
+		const at = (i: number) => order.indexOf(i);
+		if (picker.selected.size) picker.set([...picked].map(at));
+		if (cur && cur.row >= 0) cur = { row: at(cur.row), column: cur.column };
+		if (cur) tick().then(() => scrollTo(cur!.row));
+	}
+
+	const canMove = (delta: -1 | 1) => {
+		const picked = targets();
+		if (!editable || !picked.length) return false;
+		return delta < 0 ? picked.some((row, i) => row > i) : picked.some((row, i) => row < table.rows.length - picked.length + i);
+	};
+
+	function deleteRows() {
+		const picked = targets();
+		if (!parsed.apply((doc, t) => removeRows(doc, t.rows, picked.map((i) => t.rows[i]).filter(Boolean)))) return;
+		picker.clear();
+		const first = Math.min(...picked);
+		cur = table.rows.length > picked.length ? { row: Math.min(first, table.rows.length - picked.length - 1), column: cur?.column ?? 0 } : null;
+	}
+
+	function clearCells() {
+		if (!cur) return;
+		const { column } = cur;
+		const picked = targets();
+		// Cells of different rows never overlap: one change for all of them
+		parsed.apply((doc, t) => {
+			const changes = picked.flatMap((i) => (t.rows[i] ? (format.setCell(doc, t, t.rows[i], column, '') ?? []) : []));
+			return changes.length ? changes : null;
+		});
 	}
 
 	function sort(column: number, descending: boolean) {
 		parsed.apply((doc, t) => format.sort(doc, t, column, descending, intlLocale));
 	}
 
-	function columnEntries(column: number): MenuEntry[] {
-		const disabled = !editable;
+	// --- Commands (ribbon tab "Table", menus, keys) ---
+
+	const can = (test: () => boolean) => () => editable && test();
+	const hasCell = () => !!cur && cur.column < table.columns.length;
+	const actions: Partial<Record<string, ViewAction>> = {
+		[TABLE.editCell.id]: {
+			enabled: can(() => hasCell() && (cur!.row < 0 ? canRename : !!table.rows[cur!.row] && !table.rows[cur!.row].broken)),
+			run: () => cur && startEdit(cur.row, cur.column)
+		},
+		[TABLE.clearCells.id]: { enabled: can(() => hasCell() && targets().length > 0), run: clearCells },
+		[TABLE.insertAbove.id]: { enabled: can(() => true), run: () => insertRow(targets()[0] ?? 0) },
+		[TABLE.insertBelow.id]: { enabled: can(() => true), run: () => insertRow((targets().at(-1) ?? table.rows.length - 1) + 1) },
+		[TABLE.moveUp.id]: { enabled: () => canMove(-1), run: () => moveRows(-1) },
+		[TABLE.moveDown.id]: { enabled: () => canMove(1), run: () => moveRows(1) },
+		[TABLE.removeRows.id]: { enabled: can(() => targets().length > 0), run: deleteRows },
+		[TABLE.insertLeft.id]: { enabled: can(() => true), run: () => insertColumn(cur?.column ?? 0) },
+		[TABLE.insertRight.id]: { enabled: can(() => true), run: () => insertColumn(cur ? cur.column + 1 : table.columns.length) },
+		[TABLE.renameColumn.id]: { enabled: can(() => hasCell() && canRename), run: () => cur && startEdit(-1, cur.column) },
+		[TABLE.moveLeft.id]: { enabled: can(() => hasCell() && cur!.column > 0), run: () => cur && moveColumn(cur.column, -1) },
+		[TABLE.moveRight.id]: { enabled: can(() => hasCell() && cur!.column < table.columns.length - 1), run: () => cur && moveColumn(cur.column, 1) },
+		[TABLE.removeColumn.id]: { enabled: can(hasCell), run: () => cur && removeColumn(cur.column) },
+		[TABLE.sortUp.id]: { enabled: can(() => hasCell() && table.rows.length > 1), run: () => cur && sort(cur.column, false) },
+		[TABLE.sortDown.id]: { enabled: can(() => hasCell() && table.rows.length > 1), run: () => cur && sort(cur.column, true) },
+		[TABLE.filter.id]: { enabled: hasCell, run: () => cur && addFilter(cur.column) },
+		[TABLE.removeFilters.id]: { enabled: () => Object.keys(filters).length > 0, run: () => (filters = {}) },
+		[TABLE.header.id]: format.delimited ? { active: () => host.tableHeader, run: () => (host.tableHeader = !host.tableHeader) } : undefined,
+		[TABLE.delimiter.id]: format.delimited
+			? {
+					menu: () =>
+						[null, ...DELIMITERS].map((d) => ({
+							label: d === null ? m.table.delimiterAuto : m.table.delimiters[d],
+							checked: delimiter === d,
+							run: () => (delimiter = d)
+						}))
+				}
+			: undefined,
+		[TABLE.selectAll.id]: { enabled: () => shown.length > 0, run: () => picker.selectAll(shown) },
+		[TABLE.clearSelection.id]: { enabled: () => picker.selected.size > 0, run: () => picker.clear() }
+	};
+
+	const entries = (...specs: ViewCommandSpec[]): MenuEntry[] => specs.flatMap((spec) => entryOf(spec, actions[spec.id]));
+
+	function rowEntries(): MenuEntry[] {
+		const picked = targets();
 		return [
-			{ heading: table.columns[column] || m.table.column },
-			{ label: m.table.sortUp, icon: 'icon-[material-symbols-light--arrow-upward]', disabled, run: () => sort(column, false) },
-			{ label: m.table.sortDown, icon: 'icon-[material-symbols-light--arrow-downward]', disabled, run: () => sort(column, true) },
-			{ label: m.table.filter, icon: 'icon-[material-symbols-light--filter-alt-outline]', run: () => addFilter(column) },
+			{ heading: picked.length > 1 ? m.table.rowsTitle(picked.length) : m.table.rowTitle((picked[0] ?? 0) + 1) },
+			...entries(TABLE.insertAbove, TABLE.insertBelow, TABLE.moveUp, TABLE.moveDown),
 			{ separator: true },
-			...(canRename
-				? [{ label: m.table.rename, icon: 'icon-[material-symbols-light--edit-outline]', disabled, run: () => startEdit(-1, column) }]
-				: []),
-			{ label: m.table.insertLeft, icon: 'icon-[material-symbols-light--add-column-left-outline]', disabled, run: () => insertColumn(column) },
-			{ label: m.table.insertRight, icon: 'icon-[material-symbols-light--add-column-right-outline]', disabled, run: () => insertColumn(column + 1) },
-			{ label: m.table.moveLeft, icon: 'icon-[material-symbols-light--arrow-back]', disabled: disabled || column === 0, run: () => moveColumn(column, -1) },
-			{
-				label: m.table.moveRight,
-				icon: 'icon-[material-symbols-light--arrow-forward]',
-				disabled: disabled || column >= table.columns.length - 1,
-				run: () => moveColumn(column, 1)
-			},
-			{ separator: true },
-			{ label: m.table.removeColumn, icon: 'icon-[material-symbols-light--delete-outline]', disabled, run: () => removeColumn(column) }
+			...entries(TABLE.removeRows)
 		];
 	}
 
-	function rowEntries(row: number): MenuEntry[] {
-		const disabled = !editable;
+	function columnEntries(): MenuEntry[] {
 		return [
-			{ heading: m.table.rowTitle(row + 1) },
-			{ label: m.table.insertAbove, icon: 'icon-[material-symbols-light--add-row-above-outline]', disabled, run: () => insertRow(row) },
-			{ label: m.table.insertBelow, icon: 'icon-[material-symbols-light--add-row-below-outline]', disabled, run: () => insertRow(row + 1) },
-			{ label: m.table.moveUp, icon: 'icon-[material-symbols-light--arrow-upward]', disabled: disabled || row === 0, run: () => moveRow(row, -1) },
-			{
-				label: m.table.moveDown,
-				icon: 'icon-[material-symbols-light--arrow-downward]',
-				disabled: disabled || row >= table.rows.length - 1,
-				run: () => moveRow(row, 1)
-			},
+			{ heading: (cur && table.columns[cur.column]) || m.table.column },
+			...entries(TABLE.sortUp, TABLE.sortDown, TABLE.filter),
 			{ separator: true },
-			{
-				label: m.table.removeRow,
-				icon: 'icon-[material-symbols-light--delete-outline]',
-				disabled,
-				run: () => parsed.apply((doc, t) => (t.rows[row] ? format.removeRow(doc, t, t.rows[row]) : null))
-			}
+			...entries(TABLE.renameColumn, TABLE.insertLeft, TABLE.insertRight, TABLE.moveLeft, TABLE.moveRight),
+			{ separator: true },
+			...entries(TABLE.removeColumn)
 		];
 	}
 
+	function columnMenu(e: MouseEvent, column: number, below = false) {
+		cur = { row: cur?.row ?? -1, column };
+		if (below) openMenuBelow(e, columnEntries());
+		else openContextMenu(e, columnEntries());
+	}
+
+	/** Right click or long press on a cell or row number: the row is picked (touch: the selection mode starts) */
 	function cellMenu(e: MouseEvent, row: number, column: number) {
-		select(row, column);
+		picker.menu(e, row);
+		cur = { row, column };
 		const broken = table.rows[row]?.broken;
 		openContextMenu(e, [
-			...(broken ? [] : [{ label: m.table.edit, icon: 'icon-[material-symbols-light--edit-outline]', keys: 'F2', disabled: !editable, run: () => startEdit(row, column) }, { separator: true } as const]),
-			...rowEntries(row),
+			...(broken ? [] : [...entries(TABLE.editCell, TABLE.clearCells), { separator: true } as const]),
+			...rowEntries(),
 			{ separator: true },
-			...columnEntries(column)
+			...columnEntries()
 		]);
 	}
 
@@ -286,46 +401,18 @@
 			const column = Math.max(0, row.cells.findIndex((c) => c && c.range.from <= head && head <= c.range.to));
 			const index = table.header ? lo - 1 : lo;
 			cur = { row: index, column };
+			if (index >= 0 && !picker.selecting) picker.only(index);
 			scrollTo(index);
 		});
 	});
 
-	// --- Menus and status of the page ---
+	// --- Commands and status of the page ---
 
 	onMount(() =>
 		host.register({
-			actions: [
-				{ heading: m.table.title },
-				{
-					label: m.table.addRow,
-					icon: 'icon-[material-symbols-light--add-row-below-outline]',
-					run: () => insertRow(cur && cur.row >= 0 ? cur.row + 1 : table.rows.length)
-				},
-				{
-					label: m.table.addColumn,
-					icon: 'icon-[material-symbols-light--add-column-right-outline]',
-					run: () => insertColumn(cur ? cur.column + 1 : table.columns.length)
-				}
-			],
-			view: format.delimited
-				? [
-						{
-							label: m.table.header,
-							get icon() {
-								return host.tableHeader ? 'icon-[material-symbols-light--check]' : undefined;
-							},
-							run: () => (host.tableHeader = !host.tableHeader)
-						},
-						{ heading: m.table.delimiter },
-						...[null, ...DELIMITERS].map((d) => ({
-							label: d === null ? m.table.delimiterAuto : m.table.delimiters[d],
-							get icon() {
-								return delimiter === d ? 'icon-[material-symbols-light--check]' : undefined;
-							},
-							run: () => (delimiter = d)
-						}))
-					]
-				: [],
+			kind: 'table',
+			actions,
+			picked: () => picker.selected.size,
 			status: () =>
 				active.length ? m.table.filtered(shown.length, table.rows.length) : m.table.size(table.rows.length, table.columns.length)
 		})
@@ -333,6 +420,8 @@
 
 	const NUMBER = /^\s*[-+]?(\d+([.,]\d+)?|[.,]\d+)([eE][-+]?\d+)?\s*$/;
 	const display = (text: string) => text.replaceAll('\n', ' ⏎ ');
+	/** Picked rows show as a band once more than one is picked (or while marking) */
+	const band = $derived(picker.selected.size > 1 || picker.marking);
 </script>
 
 {#snippet cell(row: number, column: number, text: string, kind: string | undefined, broken: boolean)}
@@ -357,12 +446,12 @@
 				'border-base-300 truncate border-r border-b px-2',
 				(kind === 'number' || NUMBER.test(text)) && 'text-right tabular-nums',
 				broken && 'text-base-content/60 italic',
-				selected && 'outline-selection bg-selection/10 outline-2 -outline-offset-2'
+				selected ? 'outline-selection bg-selection/10 outline-2 -outline-offset-2' : band && picker.has(row) && 'bg-selection/20'
 			]}
 			style:line-height="{rows.height - 1}px"
 			title={text.length > 30 || text.includes('\n') ? text : undefined}
-			onclick={() => tap(row, column)}
-			ondblclick={() => startEdit(row, column)}
+			onclick={(e) => cellClick(e, row, column)}
+			ondblclick={() => !coarsePointer.current && startEdit(row, column)}
 			oncontextmenu={(e) => cellMenu(e, row, column)}
 		>
 			{display(text)}
@@ -386,12 +475,13 @@
 						class="w-28"
 						placeholder={m.table.filterPlaceholder}
 						aria-label={m.table.filterLabel(table.columns[column])}
-					/>
+						onkeydown={(e) => e.key === 'Escape' && (e.preventDefault(), closeFilter(column))}
+						/>
 					<button
 						class="btn btn-ghost btn-xs btn-square"
 						title={m.table.removeFilter}
 						aria-label={m.table.removeFilter}
-						onclick={() => delete filters[column]}
+						onclick={() => closeFilter(column)}
 					>
 						<span class="icon-[material-symbols-light--close] size-4" aria-hidden="true"></span>
 					</button>
@@ -420,6 +510,7 @@
 			aria-readonly={!editable}
 			onscroll={rows.onscroll}
 			onkeydown={onkey}
+			onpointerdown={(e) => picker.pointerdown(e)}
 		>
 			<div class="relative min-w-full" style:width="max-content" style:height="{(shown.length + 1) * rows.height}px">
 				<!-- Same font as the rows: the widths are in `ch` of it -->
@@ -437,9 +528,9 @@
 								]}
 								title={m.table.columnMenu(name)}
 								aria-label={m.table.columnMenu(name)}
-								onclick={(e) => openMenuBelow(e, columnEntries(column))}
+								onclick={(e) => columnMenu(e, column, true)}
 								ondblclick={() => canRename && startEdit(-1, column)}
-								oncontextmenu={(e) => openContextMenu(e, columnEntries(column))}
+								oncontextmenu={(e) => columnMenu(e, column)}
 							>
 								<span class="truncate font-semibold">{name}</span>
 								{#if filters[column]?.trim()}
@@ -462,14 +553,15 @@
 						<button
 							class={[
 								'bg-base-200 border-base-300 hover:bg-base-300 sticky left-0 z-10 border-r border-b px-1 text-right text-xs tabular-nums opacity-80',
-								cur?.row === row && 'bg-selection/20'
+									(picker.has(row) || cur?.row === row) && 'bg-selection/20'
 							]}
 							title={m.table.rowMenu(row + 1)}
 							aria-label={m.table.rowMenu(row + 1)}
-							onclick={(e) => openMenuBelow(e, rowEntries(row))}
-							oncontextmenu={(e) => openContextMenu(e, rowEntries(row))}
+							aria-pressed={picker.marking ? picker.has(row) : undefined}
+							onclick={(e) => numberClick(e, row)}
+							oncontextmenu={(e) => cellMenu(e, row, cur?.column ?? 0)}
 						>
-							{row + 1}
+							{#if picker.marking}<PickMark picked={picker.has(row)} class="mx-auto" />{:else}{row + 1}{/if}
 						</button>
 						{#each table.columns as _, column (column)}
 							{@const c = r.cells[column]}

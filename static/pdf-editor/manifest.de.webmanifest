@@ -1,0 +1,18 @@
+{
+	"lang": "de",
+	"id": "/pdf-editor",
+	"name": "PDF-Editor – in-browser",
+	"short_name": "PDF-Editor",
+	"description": "PDFs ansehen, kommentieren und ausfüllen, Seiten ordnen und zusammenführen – komplett im Browser.",
+	"start_url": "/pdf-editor",
+	"scope": "/pdf-editor",
+	"display": "standalone",
+	"launch_handler": { "client_mode": "focus-existing" },
+	"categories": ["productivity", "business"],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{ "src": "/pdf-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/pdf-editor/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+	]
+}

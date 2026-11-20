@@ -47,8 +47,8 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 	const oy = (offset?.y ?? (to.height - from.height) / 2) / to.height;
 	const point = (p: Point): Point => ({ x: p.x * sx + ox, y: p.y * sy + oy });
 	const rect = (r: Rect): Rect => ({ ...point(r), w: r.w * sx, h: r.h * sy });
-	// Fixed text boxes keep their width in pixels, so the text wraps the same
-	const boxWidth = (w: number | undefined) => (w === undefined ? {} : { boxWidth: w * sx });
+	// Fixed text boxes keep their size in pixels, so the text wraps the same
+	const boxWidth = (w: number | undefined, h?: number) => ({ ...(w === undefined ? {} : { boxWidth: w * sx }), ...(h === undefined ? {} : { boxHeight: h * sy }) });
 
 	const annotation = (a: Annotation): Annotation => {
 		switch (a.kind) {
@@ -72,7 +72,7 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 			case 'click':
 				return { ...a, ...point(a), size: a.size * sy };
 			case 'text':
-				return { ...a, ...point(a), size: a.size * sy, radius: a.radius * sy, padding: a.padding * sy, ...boxWidth(a.boxWidth) };
+				return { ...a, ...point(a), size: a.size * sy, radius: a.radius * sy, padding: a.padding * sy, ...boxWidth(a.boxWidth, a.boxHeight) };
 			case 'callout':
 				return {
 					...a,
@@ -80,7 +80,7 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 					size: a.size * sy,
 					radius: a.radius * sy,
 					padding: a.padding * sy,
-					...boxWidth(a.boxWidth),
+					...boxWidth(a.boxWidth, a.boxHeight),
 					tip: point(a.tip)
 				};
 		}

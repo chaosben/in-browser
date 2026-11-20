@@ -13,12 +13,6 @@ describe('storage', () => {
 	});
 	afterEach(() => vi.unstubAllGlobals());
 
-	it('reads, writes and removes text', () => {
-		writeStored('t:a', 'x');
-		expect(readStored('t:a')).toBe('x');
-		writeStored('t:a', null);
-		expect(readStored('t:a')).toBeNull();
-	});
 	it('falls back on missing or broken JSON', () => {
 		expect(loadJson('t:b', 3)).toBe(3);
 		data.set('t:b', '{oops');

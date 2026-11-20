@@ -10,11 +10,26 @@ const help = {
 		items: {
 			layout: {
 				title: 'Layout',
-				text: 'Left: everything you add (media, annotations, text, icons, zoom). Middle: the preview, below it the timeline with the toolbar. Right: the properties of the selected element – with nothing selected, those of the project.'
+				text: 'At the top the ribbon with all commands in tabs: “File” (group “Project”: “Save as …”, “Show in Files”, “Export”), “Home” (playback, cutting, clipboard, selection), “Insert” (recording, media, annotations, text, icon, zoom, library), “View” (timeline zoom, panels, canvas size); with a selection the tabs “Arrange” and “Clip” appear after them. The editor opens on “Home”; undo and redo sit left of the tabs. The top bar above only shows the project’s name. Left: the panels with everything you add (media, library, icons, annotations, text, zoom) – the icons on the narrow bar open and close them. Middle: the preview, below it the timeline. Right: the properties of the selected element – with nothing selected, those of the project. Size, playhead time and a running import are shown in the footer.'
+			},
+			ribbon: {
+				title: 'Ribbon',
+				text: 'Commands that can’t act right now stay in their place, grayed out. Buttons with a small arrow open choices (“Hold frame” its length, “Delete” deleting with a gap, “Shapes” the four shapes). The menu at the right end of the ribbon switches its display; Alt or F10 show a letter for every tab and command.',
+				options: {
+					classic: { label: 'Classic (default)', text: 'Groups with large buttons and their names – everything at a glance.' },
+					simplified: { label: 'Simplified', text: 'One compact row – more room for preview and timeline.' },
+					tabs: { label: 'Tabs only', text: 'Only the tab names; a click on one opens its commands over the editor.' }
+				},
+				tip: 'On a small screen “Simplified” or “Tabs only” leave the preview more height; most actions also have a key or are in the context menu.',
+				keys: [['Ctrl', 'F1'], ['Alt'], ['F10']]
+			},
+			panels: {
+				title: 'Panels',
+				text: 'The bar on the far left opens one panel at a time: “Media”, “Library”, “Icons”, “Annotations”, “Text”, “Zoom”; a second click or the × closes it. Drag its right edge to make it wider. The same commands are in the “View” tab under “Panels”. Which panel is open and its width are remembered.'
 			},
 			saving: {
 				title: 'Saving',
-				text: 'Every change is saved automatically; the icon at the bottom left shows whether everything is saved. Click the project name in the top bar to rename the project – its file gets the new name too. Nothing is uploaded. A project is a file “Name.screencapture” in the browser storage that all in-browser tools share. When you start a project (recording, import, empty project), you choose its folder and name; the dialog starts in the folder you used last (if it is gone, in the next folder above it). “Save as …” in the menu next to the project name (arrow) makes a copy under a new name or in another folder – you then continue with the copy. Pick an existing project and click “Replace” to overwrite it (not while it is open in another tab). “Open …” on the start page opens any project. In Files you rename, move, copy, delete or download projects like other files.',
+				text: 'Every change is saved automatically; the icon at the bottom left shows whether everything is saved. Nothing is uploaded. A project is a file “Name.screencapture” in the browser storage that all in-browser tools share. When you start a project (recording, import, empty project), you choose its folder and name; the dialog starts in the folder you used last (if it is gone, in the next folder above it). “Save as …” in the tab “File” makes a copy under a new name or in another folder – you then continue with the copy. Pick an existing project and click “Replace” to overwrite it (not while it is open in another tab). “Open …” on the start page opens any project. A project is named after its file: in Files you rename, move, copy, delete or download projects like other files. If the project is changed elsewhere (on another device, through sync) while you have no unsaved changes, you are asked whether to reload it (“Reload” / “Don’t reload”, optionally without asking again while it is open).',
 				tip: 'Browser storage is tied to this browser and can be lost when site data is cleared. Keep a copy in a folder on your computer or on your other devices. A project open in one tab cannot be opened in a second one at the same time.',
 				link: { href: '/help/storage', label: 'Where your files are kept' }
 			},
@@ -161,7 +176,7 @@ const help = {
 		items: {
 			import: {
 				title: 'Import',
-				text: '“Import from computer” or dropping files onto the editor puts them into the media bin – not into the timeline. “Import from Files” does the same with files from the shared browser storage (several at once with Ctrl or Shift); they are copied into the project, so the originals in Files stay as they are and deleting them there does not harm the project. Videos: MP4, WebM, MOV, MKV. Audio: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Images: PNG, JPEG, WebP, GIF, SVG. Videos and audio are repackaged to MP4 without changing their quality.'
+				text: '“Import from computer” or dropping files onto the editor puts them into the media bin – not into the timeline. “Import from Files” does the same with files from the shared browser storage (several at once with Ctrl or Shift); they are copied into the project, so the originals in Files stay as they are and deleting them there does not harm the project. Both are buttons in the “Media” panel and in the “Insert” tab. While a file is imported, its name and progress are shown in the footer. Videos: MP4, WebM, MOV, MKV. Audio: MP3, WAV, M4A, AAC, OGG, Opus, FLAC. Images: PNG, JPEG, WebP, GIF, SVG. Videos and audio are repackaged to MP4 without changing their quality.'
 			},
 			newProject: {
 				title: 'New project from files',
@@ -169,7 +184,7 @@ const help = {
 			},
 			insert: {
 				title: 'Insert',
-				text: 'The insert button of an entry puts it at the playhead, in front of everything there; images land in the center at most half the canvas size, never enlarged. You can also drag an entry onto the timeline (at that time) or the preview.'
+				text: 'A click on an entry of the media bin selects it; Ctrl + click adds or removes one, Shift + click selects a range, Ctrl + A all of them (while the list has the focus). A double click, Enter or “Insert” in its menu (right click or ⋯) puts the selected entries at the playhead, one after another, in front of everything there; images land in the center at most half the canvas size, never enlarged. You can also drag an entry onto the timeline (at that time) or the preview.'
 			},
 			drop: {
 				title: 'Drop onto the timeline',
@@ -177,7 +192,7 @@ const help = {
 			},
 			delete: {
 				title: 'Delete media',
-				text: 'Only media that is no longer used in the timeline can be deleted. If undo steps still use it, those steps are lost – you are asked first.'
+				text: '“Delete permanently” in the menu of an entry (or Del while the list has the focus) deletes the selected media files – only those no longer used in the timeline or the project library; otherwise it is grayed out. You are asked first, because it can’t be undone; if undo steps still use a file, those steps are lost.'
 			},
 			icons: {
 				title: 'Icons',
@@ -196,7 +211,7 @@ const help = {
 		items: {
 			save: {
 				title: 'Save elements',
-				text: 'Keep elements you have set up – a styled arrow, a speech bubble with text, a trimmed clip with its annotations – to insert them again. Select them and choose “Add to library …” in the context menu (right click), or drag them from the preview or the timeline onto a section of the open Library group on the left – as soon as you leave the preview or timeline, the element snaps back and hangs at the pointer as a picture with its name; the library sections show dashed frames and the one under the pointer lights up. Released elsewhere, nothing changes. With the library closed, hold the element over its icon on the left for a moment to open it. Give it a name and click the library it goes into – “This project” or “All projects”; Enter takes the one you chose last time. Saved are all selected elements with their settings, text, trimming, links and place in the picture; zoom segments are not.',
+				text: 'Keep elements you have set up – a styled arrow, a speech bubble with text, a trimmed clip with its annotations – to insert them again. Select them and choose “Add to library …” in the context menu (right click) or the “Insert” tab, or drag them from the preview or the timeline onto a section of the open “Library” panel – as soon as you leave the preview or timeline, the element snaps back and hangs at the pointer as a picture with its name; the library sections show dashed frames and the one under the pointer lights up. Released elsewhere, nothing changes. With the library closed, hold the element over its icon on the left for a moment to open it. Give it a name and click the library it goes into – “This project” or “All projects”; Enter takes the one you chose last time. Saved are all selected elements with their settings, text, trimming, links and place in the picture; zoom segments are not.',
 				options: {
 					project: { label: 'This project', text: 'Stays with the project, also in its copies. Uses the project’s media directly, so media used there cannot be deleted from the media bin.' },
 					global: { label: 'All projects', text: 'Available in every project, even after the original project is deleted. Media it uses is copied into the library – for clips the whole media file, not only the trimmed part, so it takes storage space.' }
@@ -205,12 +220,13 @@ const help = {
 			},
 			insert: {
 				title: 'Insert',
-				text: 'Click a tile to insert it at the playhead, or drag it onto the timeline (it starts where you drop it) or the preview (at the playhead). It keeps its place in the picture and goes in front of what it overlaps; one undo step. Media from the global library is copied into the project and appears in the media bin.'
+				text: 'A click on an entry selects it; Ctrl + click adds or removes one, Shift + click selects a range, Ctrl + A all of them (while the list has the focus). A double click, Enter or “Insert” in its menu puts the selected entries at the playhead, one after another – or drag one onto the timeline (it starts where you drop it) or the preview (at the playhead). They keep their place in the picture and go in front of what they overlap. Media from the global library is copied into the project and appears in the media bin.'
 			},
 			manage: {
 				title: 'Manage',
-				text: 'Right-click a tile to insert, rename, move or copy it into the other library, or remove it. Dragging a tile into the other section moves it; moving into this project copies its media into the media bin. Removing does not affect elements already inserted.',
-				tip: 'Library or clipboard? The clipboard is for quickly repeating something now, also into another project. The library is for building blocks you need again and again over time.'
+				text: 'Right-click an entry or use its ⋯ button: insert, rename, move or copy into the other library, or remove – for all selected entries. To rename, click the name of the selected entry or press F2; Enter or clicking elsewhere keeps the name, Esc keeps the old one. Dragging an entry into the other section moves it; moving into this project copies its media into the media bin. Removing asks first – it can’t be undone, and removing from “All projects” also deletes the media copies only that entry used. Elements already inserted stay.',
+				tip: 'Library or clipboard? The clipboard is for quickly repeating something now, also into another project. The library is for building blocks you need again and again over time.',
+				keys: [['F2'], ['Del']]
 			},
 			view: {
 				title: 'View and search',
@@ -239,7 +255,7 @@ const help = {
 			},
 			change: {
 				title: 'Change',
-				text: '“Change” in the project properties sets a new size. Everything keeps its size in pixels and stays centered; on a smaller canvas, content can reach over the edge. Can be undone.'
+				text: '“Change” in the project properties (or “Canvas size” in the “View” tab, which opens them) sets a new size. Everything keeps its size in pixels and stays centered; on a smaller canvas, content can reach over the edge. Can be undone.'
 			},
 			cropCanvas: {
 				title: 'Canvas size of the largest clip',
@@ -248,7 +264,7 @@ const help = {
 			},
 			fitToClip: {
 				title: 'Fit canvas to clip',
-				text: '“Fit canvas to clip” in the properties of a clip with a picture (also in its context menu) gives the canvas the original size of the clip’s visible part – a crop counts. The button shows the new size. The clip then fills the canvas 1:1; everything else keeps its size in pixels around the clip’s center, webcams in their default place move to the new corner. The canvas can get smaller or larger. Can be undone.',
+				text: '“Fit canvas to clip” in the properties of a clip with a picture (also in its context menu and in the “Clip” tab) gives the canvas the original size of the clip’s visible part – a crop counts. The new size is shown below the button; when the canvas already fits the clip, the button is grayed out. The clip then fills the canvas 1:1; everything else keeps its size in pixels around the clip’s center, webcams in their default place move to the new corner. The canvas can get smaller or larger. Can be undone.',
 				tip: 'Use it when a recording is shown scaled down and should be exported sharp at its own resolution, or to export exactly one clip. Unlike “Largest clip”, it uses the original size of the clip you chose, not the frame it has on the canvas right now.'
 			},
 			enlarge: {
@@ -258,11 +274,11 @@ const help = {
 					grow: { label: 'Enlarge canvas', text: 'The new material is shown 1:1 and sharp; the existing content keeps its size and moves to the center. The export gets larger.' },
 					keep: { label: 'Keep size', text: 'The output size stays; the new material stays scaled down.' }
 				},
-				tip: 'Enlarge if the new material is your main content, e.g. a recording on a larger screen. Keep the size if the video has to fit a fixed format or the material is only a side element. The project properties offer “Enlarge canvas” again later.'
+				tip: 'Enlarge if the new material is your main content, e.g. a recording on a larger screen. Keep the size if the video has to fit a fixed format or the material is only a side element. The project properties offer “Enlarge canvas” again later (grayed out while every clip is already shown 1:1).'
 			},
 			background: {
 				title: 'Background color',
-				text: 'Visible wherever nothing covers the canvas: in gaps, around picture-in-picture clips and during fades. Set it in the project properties (nothing selected).'
+				text: 'Visible wherever nothing covers the canvas: in gaps, around picture-in-picture clips and during fades. Set it in the project properties (nothing selected); a change can be undone like any other.'
 			}
 		}
 	},
@@ -271,7 +287,7 @@ const help = {
 		items: {
 			playhead: {
 				title: 'Playhead',
-				text: 'Click or drag in the ruler to move the playhead. The arrow keys step one frame, with Shift one second.',
+				text: 'Click or drag in the ruler to move the playhead. The arrow keys step one frame, with Shift one second (held down, they keep going). “Go to start”, “Play/Pause” and “Go to end” are in the “Home” tab; the time of the playhead is in the footer.',
 				keys: [['Space'], ['K'], ['←'], ['→'], ['Home'], ['End']]
 			},
 			tracks: {
@@ -281,7 +297,7 @@ const help = {
 			},
 			trackStates: {
 				title: 'Track header',
-				text: 'The buttons in front of each track apply to all elements on it.',
+				text: 'The buttons in front of each track apply to all elements on it; a pressed button is switched on. A right click on the track header offers the same switches.',
 				options: {
 					hide: { label: 'Hide track', text: 'No picture and no sound – in the preview and in the export.' },
 					mute: { label: 'Mute track', text: 'Only the sound is gone; the picture stays.' },
@@ -291,12 +307,12 @@ const help = {
 			},
 			select: {
 				title: 'Select',
-				text: 'A click selects the element with its linked ones; Alt + click only this one; Ctrl or Shift + click adds or removes. Dragging moves all selected elements together.',
+				text: 'A click selects the element with its linked ones; Alt + click only this one; Ctrl or Shift + click adds or removes. Dragging moves all selected elements together. “Select all” (“Home” tab, or Ctrl + A while the preview or the timeline has the focus) selects every element; Esc clears the selection.',
 				keys: [['Ctrl', 'A'], ['Esc']]
 			},
 			move: {
 				title: 'Move and trim',
-				text: 'Drag an element to move it in time; it stops at its neighbors on the same track and snaps to edges and the playhead (“Snap” above the timeline, Alt does the opposite). Drag the ends of a clip to trim it.'
+				text: 'Drag an element to move it in time; it stops at its neighbors on the same track and snaps to edges and the playhead (the switch “Snap” in the “Home” tab, Alt does the opposite). Drag the ends of a clip to trim it.'
 			},
 			ripple: {
 				title: 'Delete and trim: what moves',
@@ -306,21 +322,25 @@ const help = {
 					gap: { label: 'With Shift', text: 'A gap remains when deleting; when trimming, the rest stays where it is.' },
 					audio: { label: 'Audio clips and annotations', text: 'Deleting them never removes time: background music doesn’t shift your cut.' }
 				},
-				tip: 'Use the normal way to cut out mistakes. Hold Shift if later elements are already placed exactly in time, e.g. to music.',
+				tip: 'Use the normal way to cut out mistakes. Use “Delete, leave a gap” (the arrow under “Delete”, or Shift + Del) if later elements are already placed exactly in time, e.g. to music.',
 				keys: [['Del'], ['Shift', 'Del']]
 			},
 			split: {
 				title: 'Split',
-				text: 'Cuts the selected elements under the playhead – with no selection there, all clips under the playhead. There is no fade at the cut.',
+				text: '“Split” (“Home” tab) cuts the selected elements under the playhead – with no selection there, all clips under the playhead. There is no fade at the cut.',
 				keys: [['S']]
 			},
 			hold: {
 				title: 'Hold frame',
-				text: 'Inserts a still frame of the selected clips (or of all clips with a picture) at the playhead; choose its length next to the button (1–8 s). Everything later moves back. Other clips under the playhead – including audio – are split and get a gap; still frames are silent.',
+				text: 'Inserts a still frame of the selected clips (or of all clips with a picture) at the playhead (“Home” tab); the arrow below the button chooses its length (1, 2, 3 (default), 5 or 8 s). Everything later moves back. Other clips under the playhead – including audio – are split and get a gap; still frames are silent.',
 				tip: 'Use it to give viewers time to read something or to explain a step. 2–3 seconds suit a short pause; for longer explanations, record your voice on its own track over the still frame.',
 				keys: [['F']]
 			},
-			link: { title: 'Link', text: 'Links the selected elements, so a click selects, moves and deletes them together.', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
+			link: {
+				title: 'Link',
+				text: '“Link” (“Arrange” tab, properties, context menu) links the selected elements, so a click selects, moves and deletes them together; “Unlink” separates them. Grayed out when there is nothing to link or unlink.',
+				keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']]
+			},
 			clipboard: {
 				title: 'Copy, cut, paste',
 				text: 'Copies the selected elements – clips and annotations – and pastes them at the playhead: the earliest one starts there, the spacing between them stays, and they keep their place in the picture. The copy goes in front of everything it overlaps and is selected; one undo step. Linked copies are linked among themselves, never with the originals. Zoom segments are not copied.',
@@ -333,7 +353,7 @@ const help = {
 			},
 			layer: {
 				title: 'Change the layer',
-				text: 'What is in front is decided by the track: higher tracks are drawn later and cover lower ones – also spotlight and blur only affect what lies below them. Change the layer of the selected element via the context menu, the shortcuts or by dragging its bar up or down in the timeline.',
+				text: 'What is in front is decided by the track: higher tracks are drawn later and cover lower ones – also spotlight and blur only affect what lies below them. Change the layer of the selected element in the “Arrange” tab, the context menu, with the shortcuts or by dragging its bar up or down in the timeline; commands that would change nothing are grayed out.',
 				options: {
 					forward: { label: 'One layer forward / back', text: 'Jumps in front of (behind) the next element that is visible at the same time – not simply one track further, so every step changes what you see.' },
 					front: { label: 'To the front / back', text: 'In front of (behind) everything that overlaps it in time.' }
@@ -343,11 +363,11 @@ const help = {
 			},
 			menu: {
 				title: 'Context menu',
-				text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and offers cut, copy, paste, delete, changing the layer and adding to the library. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
+				text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and lists everything you can do with it: cut, copy, paste, delete (also with a gap), split, hold frame, change the layer, link and unlink, crop, remove crop, fit, fill, fit canvas to clip, add to the library, select all and “Properties …”. What can’t act on the selection is grayed out. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
 			},
 			view: {
 				title: 'Timeline zoom and height',
-				text: 'Ctrl + mouse wheel or the slider zooms the timeline (up to 32×); “Show all” fits everything. Drag the bar above the toolbar to give the timeline more or less height; double-click restores it.'
+				text: 'Ctrl + mouse wheel, the slider above the tracks or “Zoom in”/“Zoom out” in the “View” tab zoom the timeline (up to 32×); “Show all” fits everything. Drag the bar above the timeline to give it more or less height; double-click restores it.'
 			}
 		}
 	},
@@ -360,7 +380,7 @@ const help = {
 			},
 			snap: {
 				title: 'Snapping',
-				text: 'Elements snap to the canvas edges and center, to the edges and centers of other elements and to equal spacing between them – lines and distances show what they snapped to. The icon on a line tells where it comes from: a frame for the canvas, otherwise the type of the element, which is outlined as well. The “Snap” switch above the timeline turns it on or off for preview and timeline; holding Alt while dragging does the opposite.',
+				text: 'Elements snap to the canvas edges and center, to the edges and centers of other elements and to equal spacing between them – lines and distances show what they snapped to. The icon on a line tells where it comes from: a frame for the canvas, otherwise the type of the element, which is outlined as well. The switch “Snap” in the “Home” tab turns it on or off for preview and timeline; holding Alt while dragging does the opposite.',
 				keys: [['Alt']]
 			},
 			axis: { title: 'One direction', text: 'Hold Shift while moving to move only horizontally or vertically.', keys: [['Shift']] },
@@ -400,7 +420,7 @@ const help = {
 			},
 			crop: {
 				title: 'Crop',
-				text: '“Crop” in the clip’s properties (also in the context menu, or double-click the clip in the preview) shows the outline of the whole picture dashed; drag the edges or corners to cut away what you don’t want to show. The picture stays in place, only its frame gets smaller, and the edges snap like everything else. The fields Left, Top, Right and Bottom set the cut in pixels of the recording. “Done”, Esc or Enter ends cropping; “Remove crop” shows the whole picture again. “Fit” and “Fill” then use the cropped part.',
+				text: '“Crop” in the clip’s properties (also in the “Clip” tab, the context menu, or double-click the clip in the preview) shows the outline of the whole picture dashed; drag the edges or corners to cut away what you don’t want to show. The picture stays in place, only its frame gets smaller, and the edges snap like everything else. The fields Left, Top, Right and Bottom set the cut in pixels of the recording. Clicking “Crop” again (it stays pressed while cropping), Esc or Enter ends cropping; “Remove crop” shows the whole picture again (grayed out without a crop). “Fit” and “Fill” then use the cropped part.',
 				tip: 'To show a program with its dialogs and menus, record the whole screen and crop to the area of the program window. Then “Largest clip” in the canvas size list of the project properties reduces the canvas to it. Hold frames and split clips keep the crop.',
 				keys: [['Esc'], ['Enter']]
 			},
@@ -416,11 +436,11 @@ const help = {
 			},
 			windowPosition: {
 				title: 'Window position',
-				text: 'Only appears if the recorded window changed its size. The clip has the size of the largest window; while the window was smaller, the rest stays empty. The 3×3 grid sets where the smaller window sits. A cropped clip leaves the window where it was.'
+				text: 'Only active if the recorded window changed its size (otherwise grayed out). The clip has the size of the largest window; while the window was smaller, the rest stays empty. The 3×3 grid sets where the smaller window sits. A cropped clip leaves the window where it was.'
 			},
 			volume: {
 				title: 'Volume',
-				text: 'Per clip from 0 to 100 %; the button mutes it. The waveform in the timeline follows the volume.',
+				text: 'Per clip from 0 to 100 %; the button next to it (and “Mute” in the “Clip” tab) mutes it – pressed while muted. The waveform in the timeline follows the volume.',
 				tip: 'Turn background music down to 15–30 % so speech stays clear.'
 			},
 			fades: {
@@ -434,7 +454,7 @@ const help = {
 		items: {
 			add: {
 				title: 'Add',
-				text: 'Click a tile on the left to add it at the playhead, or drag it onto the preview or the timeline. Annotations zoom along with the picture.'
+				text: 'Click a command in the “Insert” tab or a tile in the “Annotations” or “Text” panel to add it at the playhead, or drag a tile onto the preview or the timeline. “Shapes” in the tab offers arrow, line, frame and ellipse. Annotations zoom along with the picture.'
 			},
 			shapes: {
 				title: 'Arrow, line, frame, ellipse',
@@ -492,7 +512,7 @@ const help = {
 			},
 			icon: {
 				title: 'Icon',
-				text: 'Icons from the Icons group on the left; the color including opacity is set in the properties.'
+				text: 'Icons from the “Icons” panel (“Icon” in the “Insert” tab opens it); the color including opacity is set in the properties.'
 			},
 			shadow: {
 				title: 'Shadow',
@@ -514,7 +534,14 @@ const help = {
 		items: {
 			box: {
 				title: 'Text box',
-				text: 'Corners scale the whole text. The sides set a fixed width: the text then wraps. “Auto width” fits the box to the longest line again. The height always follows the text. A box that would get larger than the canvas wraps to the canvas width and, if needed, gets a smaller font.'
+				text: 'Like in Figma, the handles change only the box, never the font: the left and right side set the width (the text wraps, the height follows it), the top, bottom and corners a fixed size (Shift keeps a corner’s proportions); text that doesn’t fit a fixed size runs out below the box. Press K while dragging a handle to scale the font with the box. “Box size” under Font switches between the three. A box that would get larger than the canvas wraps to the canvas width and, if needed, gets a smaller font.',
+				options: {
+					autoWidth: { label: 'Auto width (default)', text: 'As wide as the longest line; lines break only where you press Enter. For labels and titles.' },
+					autoHeight: { label: 'Auto height', text: 'Keeps its width; lines wrap and the box grows with the text. For longer texts.' },
+					fixedSize: { label: 'Fixed size', text: 'Keeps width and height, e.g. a background of a set size; text that doesn’t fit runs out below.' }
+				},
+				tip: 'Change the font size with “Font size”, not by dragging – the box keeps its place and width. Pick auto height when the text should wrap within a column, fixed size only when the background must not change.',
+				keys: [['K']]
 			},
 			font: {
 				title: 'Font',
@@ -548,7 +575,7 @@ const help = {
 		items: {
 			segments: {
 				title: 'Zoom segments',
-				text: 'A zoom segment enlarges an area of the picture for a while; it lies on its own track above the others. Between segments the full picture is shown. While paused, the preview shows the full picture with the zoom area as a dashed frame; click its label or edge to select it.'
+				text: '“Zoom segment” in the “Insert” tab or the tile in the “Zoom” panel adds a zoom segment at the playhead: it enlarges an area of the picture for a while and lies on its own track above the others. Between segments the full picture is shown. While paused, the preview shows the full picture with the zoom area as a dashed frame; click its label or edge to select it.'
 			},
 			level: {
 				title: 'Zoom level',
@@ -565,9 +592,14 @@ const help = {
 	properties: {
 		title: 'Properties',
 		items: {
+			show: {
+				title: 'Show and hide',
+				text: 'The properties sit on the right. “Properties” in the “View” tab or Alt + Enter shows or hides them; “Properties …” in the context menu of an element shows them. Drag their left edge to make them wider. With nothing selected, they show the project (canvas, background) and a list of the most important keys.',
+				keys: [['Alt', 'Enter']]
+			},
 			sections: {
 				title: 'Sections',
-				text: 'Properties are grouped into sections you can collapse; collapsed sections stay collapsed for all elements. The search field shows only matching properties.'
+				text: 'Properties are grouped into sections you can collapse; collapsed sections stay collapsed for all elements. The search field shows only matching properties. Buttons that can’t act on the element (e.g. “Remove crop” without a crop) stay in their place, grayed out.'
 			},
 			numbers: {
 				title: 'Number fields',
@@ -589,7 +621,7 @@ const help = {
 		items: {
 			start: {
 				title: 'Starting the export',
-				text: '“Export” sits right next to the project name at the top (on narrow windows in the menu at the project name). It opens the export settings; the file is only rendered when you start it there. While the project is empty, it is grayed out.'
+				text: '“Export” is in the tab “File” (group “Project”). It opens the export settings; the file is only rendered when you start it there. While the project is empty, it is grayed out.'
 			},
 			format: {
 				title: 'Format',
@@ -656,7 +688,7 @@ const help = {
 			},
 			running: {
 				title: 'During the export',
-				text: 'Keep the tab open; the export runs in this tab. When it is done, you choose: “Download” saves the file through the browser, “Save in Files …” keeps the file in the browser storage (next to the project by default); pick an existing file and click “Replace” to overwrite it. After “Other settings”, “Back to result” returns to the finished file as long as the dialog is open. Hidden tracks are left out, muted tracks have no sound.'
+				text: 'Keep the tab open; the export runs in this tab. When it is done, you choose: “Download” saves the file through the browser, “Save in Files …” keeps the file in the browser storage (next to the project by default); pick an existing file and click “Replace” to overwrite it. The message afterwards offers “Show in Files”, which opens its folder in a new tab. After “Other settings”, “Back to result” returns to the finished file as long as the dialog is open. Hidden tracks are left out, muted tracks have no sound.'
 			}
 		}
 	},
@@ -671,7 +703,7 @@ const help = {
 			hold: { title: 'Hold frame', text: 'At the playhead', keys: [['F']] },
 			delete: { title: 'Delete', text: 'With Shift a gap remains', keys: [['Del'], ['Shift', 'Del']] },
 			undo: { title: 'Undo / redo', text: 'Last change', keys: [['Ctrl', 'Z'], ['Ctrl', 'Shift', 'Z'], ['Ctrl', 'Y']] },
-			all: { title: 'Select all', text: 'All elements', keys: [['Ctrl', 'A']] },
+			all: { title: 'Select all', text: 'All elements, while the preview or the timeline has the focus; in the media bin and the library: all entries', keys: [['Ctrl', 'A']] },
 			deselect: { title: 'Deselect', text: 'Clear the selection', keys: [['Esc']] },
 			crop: { title: 'End cropping', text: 'The clip stays selected', keys: [['Esc'], ['Enter']] },
 			link: { title: 'Link / unlink', text: 'Selected elements', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
@@ -680,8 +712,12 @@ const help = {
 			nudge: { title: 'Nudge', text: 'In the preview: 1 px, with Shift 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
 			cycle: { title: 'Next element', text: 'In the preview: front to back under the playhead; with Shift backwards', keys: [['Tab'], ['Shift', 'Tab']] },
 			free: { title: 'Snapping', text: 'While dragging: the opposite of the “Snap” switch', keys: [['Alt']] },
-			axis: { title: 'One direction', text: 'While moving in the preview', keys: [['Shift']] },
-			zoom: { title: 'Timeline zoom', text: 'In the timeline', keys: [['Ctrl', 'Mouse wheel']] }
+			axis: { title: 'One direction', text: 'While moving in the preview; at a corner: keep the proportions', keys: [['Shift']] },
+			scaleText: { title: 'Scale the font', text: 'While dragging a handle of a text box or speech bubble', keys: [['K']] },
+			zoom: { title: 'Timeline zoom', text: 'In the timeline', keys: [['Ctrl', 'Mouse wheel']] },
+			properties: { title: 'Properties', text: 'Show or hide them', keys: [['Alt', 'Enter']] },
+			ribbon: { title: 'Ribbon', text: 'Switch between the full ribbon and the tabs only; Alt or F10 show its access keys', keys: [['Ctrl', 'F1'], ['Alt'], ['F10']] },
+			entries: { title: 'Media bin and library', text: 'Insert the selected entries, rename an entry, delete or remove them', keys: [['Enter'], ['F2'], ['Del']] }
 		}
 	}
 } satisfies HelpContent;

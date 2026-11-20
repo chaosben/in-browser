@@ -18,6 +18,7 @@
 		type QualityPreset
 	} from '#lib/export/settings.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import { resolve } from '$app/paths';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { writable } from '@in-browser/files/fs.js';
 	import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
@@ -121,7 +122,10 @@
 			phase = 'done';
 		} catch (e) {
 			phase = 'settings';
-			if (!(e instanceof ExportCanceledError)) error = errorMessage(e);
+			if (!(e instanceof ExportCanceledError)) {
+				console.error('[screen-capture] export', e);
+				error = errorMessage(e);
+			}
 		} finally {
 			controller = null;
 		}
@@ -140,9 +144,13 @@
 		if (!path) return;
 		try {
 			await result.file.stream().pipeTo(await writable(path));
-			toast(m.export.savedToFiles(path), 'success');
+			// The suite has no player of its own: Files shows the file in its folder (in a new tab, the editor stays)
+			toast(m.export.savedToFiles(path), 'success', 8000, {
+				label: m.export.showInFiles,
+				run: () => void window.open(`${resolve('/files')}?path=${encodeURIComponent(parent(path))}`, '_blank')
+			});
 		} catch (e) {
-			console.error(e);
+			console.error('[screen-capture] save export', e);
 			toast(filesErrorText(e), 'error', 8000);
 		}
 	}

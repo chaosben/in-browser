@@ -1,6 +1,6 @@
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { list, readText, remove, stat, trashOf, write } from './fs.js';
+import { list, remove, stat, trashOf } from './fs.js';
 import { filesMessages } from './i18n/index.svelte.js';
 import { basename, isConnected } from './path.js';
 import { displayName } from './sources/registry.js';
@@ -12,7 +12,6 @@ import {
 	parseEntry,
 	readTrashInfo,
 	retentionOf,
-	SETTINGS_PATH,
 	trashInTree,
 	TRASH_ROOT,
 	untrashInTree,
@@ -46,9 +45,14 @@ export async function moveToTrash(paths: string[]): Promise<TrashItem[]> {
 /**
  * What a delete action of the user does in every tool: into the trash, with a message offering to undo it
  * (`onUndo`: refresh the view afterwards). Connected folders have no trash: what lies there is deleted for good after
- * a question. Returns whether anything was deleted.
+ * a question. Returns whether anything was deleted. `offered` gets the undo of the message (e.g. a tool's own “Undo”
+ * command); it runs once, whichever calls it first.
  */
-export async function deleteToTrash(paths: string[], onUndo?: () => void): Promise<boolean> {
+export async function deleteToTrash(
+	paths: string[],
+	onUndo?: () => void,
+	offered?: (undo: () => Promise<void>) => void
+): Promise<boolean> {
 	const connected = paths.filter(isConnected);
 	if (connected.length) {
 		const t = filesMessages().trash;
@@ -84,13 +88,15 @@ export async function deleteToTrash(paths: string[], onUndo?: () => void): Promi
 	}
 	if (!names.length) return connected.length > 0;
 	const t = filesMessages().trash;
-	toast(names.length === 1 ? t.moved(basename(names[0])) : t.movedMany(names.length), 'info', 8000, {
-		label: t.undo,
-		run: async () => {
-			for (const step of undo) await step();
-			onUndo?.();
-		}
-	});
+	let done = false;
+	const run = async () => {
+		if (done) return;
+		done = true;
+		for (const step of undo) await step();
+		onUndo?.();
+	};
+	toast(names.length === 1 ? t.moved(basename(names[0])) : t.movedMany(names.length), 'info', 8000, { label: t.undo, run });
+	offered?.(run);
 	return true;
 }
 
@@ -133,15 +139,4 @@ export async function trashRetention(): Promise<Retention> {
 	return retentionOf(opfsTree).catch(() => DEFAULT_RETENTION);
 }
 
-/** Stores the retention in the synced settings (other settings in the file stay) */
-export async function setTrashRetention(retention: Retention): Promise<void> {
-	let settings: Record<string, unknown> = {};
-	if (await stat(SETTINGS_PATH)) {
-		try {
-			settings = JSON.parse(await readText(SETTINGS_PATH)) as Record<string, unknown>;
-		} catch {
-			// Broken file: replaced by a fresh one
-		}
-	}
-	await write(SETTINGS_PATH, JSON.stringify({ ...settings, trashDays: retention }, null, '\t'));
-}
+

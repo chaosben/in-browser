@@ -1,7 +1,7 @@
 // Putting pictures on a page: preparing image files for the notebook's assets and placing a new picture.
 
 import type { IconData } from '@in-browser/graphics/icons/types.js';
-import { decodeImage } from '#lib/render/pictures.js';
+import { decodeImage } from '@in-browser/ink/render/pictures.js';
 import type { IconItem, ImageItem } from './types.js';
 
 /** Image files that can be inserted: extension → type */

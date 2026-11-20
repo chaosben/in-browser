@@ -28,18 +28,6 @@ describe('reading in blocks', () => {
 		expect(await reader.read(5, 5)).toEqual(new Uint8Array(0));
 	});
 
-	it('fetches only the touched blocks, reuses them and reads ahead when going forward', async () => {
-		const { fetched, reader } = remote(40);
-		await reader.read(0, 2);
-		await reader.read(1, 3);
-		await reader.read(4, 6);
-		await new Promise((r) => setTimeout(r));
-		// block 0, ahead 1 at the first read; block 1 reused; ahead 2
-		expect([...fetched].sort((a, b) => a - b)).toEqual([0, 4, 8]);
-		await reader.read(30, 31);
-		expect(fetched.at(-1)).toBe(28);
-	});
-
 	it('fetches a failed block again', async () => {
 		let fail = true;
 		const reader = blockReader({

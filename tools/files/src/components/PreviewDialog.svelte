@@ -42,7 +42,10 @@
 				url = media.url;
 			}
 		};
-		load().catch((e) => (error = filesErrorText(e)));
+		load().catch((e) => {
+			console.error(e);
+			error = filesErrorText(e);
+		});
 		return () => {
 			closed = true;
 			release?.();

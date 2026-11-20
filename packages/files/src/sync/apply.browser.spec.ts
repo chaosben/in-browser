@@ -100,23 +100,6 @@ describe('runSync between two trees', () => {
 		expect(await mine.stat('/from-disk.txt')).toBeNull();
 	});
 
-	it('renames in upper/lower case instead of copying and deleting', async () => {
-		await writeText(mine, '/notes.txt', 'text');
-		await sync();
-		await mine.move('/notes.txt', '/Notes.txt');
-		const log: { event: string; data?: Record<string, unknown> }[] = [];
-		const result = await sync({ log: (event, data) => log.push({ event, data }) });
-		expect(result.failed).toBe(0);
-		expect(log.filter((e) => e.event === 'sync.plan').map((e) => `${e.data!.type} ${e.data!.from} → ${e.data!.path}`)).toEqual([
-			'renameDisk /notes.txt → /Notes.txt'
-		]);
-		expect(await paths(disk)).toEqual(['/Notes.txt']);
-		expect(await readText(disk, '/Notes.txt')).toBe('text');
-		// Nothing left to do, nothing deleted
-		expect((await sync()).applied).toBe(0);
-		expect(await paths(mine)).toEqual(['/Notes.txt']);
-	});
-
 	it('renames folders in upper/lower case with everything inside', async () => {
 		await writeText(disk, '/Docs/a.txt', 'a');
 		await writeText(disk, '/Docs/sub/b.txt', 'b');

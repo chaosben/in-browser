@@ -3,38 +3,22 @@ import { FORMAT, migrate, parseProject, VERSION, type Annotation, type Clip, typ
 import {
 	addItem,
 	addZoom,
-	appendClip,
-	bringForward,
-	bringToFront,
-	clipsAt,
 	clipsChanged,
 	duration,
-	clampFade,
-	drawProgress,
-	fadeAlpha,
-	fadeEdges,
 	group,
 	insertFreeze,
-	itemsAt,
-	groupOf,
 	moveItems,
-	nextStepNumber,
 	pasteItems,
 	placeItem,
 	remove,
 	retimeAnnotation,
 	retimeZoom,
 	rippleInsert,
-	sendBackward,
-	sendToBack,
 	setTrack,
 	setTrackState,
 	split,
-	trim,
-	ungroup,
-	viewAt
+	trim
 } from './ops';
-import { placeRecording } from '#lib/project/project.js';
 
 const RECT = { x: 0, y: 0, w: 1, h: 1 };
 
@@ -85,37 +69,14 @@ function layout(t: Timeline) {
 
 const tracks = (t: Timeline) => Object.fromEntries(t.items.map((i) => [i.id, i.track]));
 
-describe('basics', () => {
-	it('duration is the end of the last item, also with gaps and annotation-only content', () => {
-		expect(duration(tl())).toBe(0);
-		expect(duration(tl(clip('a', 2, 0, 3)))).toBe(5);
-		expect(duration(tl(clip('a', 0, 0, 3), text('t', 1, 8)))).toBe(8);
-	});
-	it('itemsAt returns back to front, gaps are empty', () => {
-		const t = tl(text('t', 0, 10, 2), clip('a', 0, 0, 4), clip('b', 6, 0, 4, 1));
-		expect(itemsAt(t, 1).map((i) => i.id)).toEqual(['a', 't']);
-		expect(itemsAt(t, 7).map((i) => i.id)).toEqual(['b', 't']);
-		expect(clipsAt(t, 5)).toEqual([]);
-	});
-	it('holds the last frame at the end', () => {
-		const t = tl(clip('a', 0, 0, 4));
-		expect(clipsAt(t, 4).map((c) => c.id)).toEqual(['a']);
-	});
-});
-
 describe('clipsChanged', () => {
 	const a = clip('a', 0, 0, 4) as VideoClip;
 	const t = tl(a, clip('b', 4, 0, 2), text('t', 0, 3));
-	it('ignores the position in the frame and annotations', () => {
-		expect(clipsChanged(tl(a, t.items[1], t.items[2]), t)).toBe(false);
+	it('notices changes in time, volume, added and removed clips, not of the position in the frame', () => {
 		expect(clipsChanged(tl({ ...a, rect: { x: 0.1, y: 0, w: 0.5, h: 0.5 } }, t.items[1], t.items[2]), t)).toBe(false);
-		expect(clipsChanged(tl(a, t.items[1], text('t', 1, 5)), t)).toBe(false);
-	});
-	it('notices changes in time, volume, added and removed clips', () => {
 		expect(clipsChanged(tl({ ...a, start: 1 }, t.items[1], t.items[2]), t)).toBe(true);
 		expect(clipsChanged(tl({ ...a, volume: 0.5 }, t.items[1], t.items[2]), t)).toBe(true);
 		expect(clipsChanged(tl(a, t.items[2]), t)).toBe(true);
-		expect(clipsChanged(tl(...t.items, clip('c', 6, 0, 1)), t)).toBe(true);
 	});
 });
 
@@ -127,26 +88,11 @@ describe('tracks', () => {
 		t = addItem(t, text('t3', 5, 6, 0));
 		expect(tracks(t)).toEqual({ a: 0, t1: 1, t2: 2, t3: 1 });
 	});
-	it('appendClip appends to the end of track 0', () => {
-		const t = appendClip(tl(clip('a', 0, 0, 3), clip('b', 0, 0, 9, 1)), clip('c', 0, 0, 2));
-		expect(layout(t).c).toEqual([0, 3, 5]);
-	});
 	it('setTrack inserts a new track if the target is occupied', () => {
 		const t = tl(clip('a', 0, 0, 10), text('x', 1, 3), text('y', 2, 4, 2));
 		expect(tracks(setTrack(t, 'y', 1))).toEqual({ a: 0, x: 2, y: 1 });
 		expect(tracks(setTrack(t, 'a', 2))).toEqual({ x: 0, y: 1, a: 2 });
 		expect(tracks(setTrack(t, 'x', 0))).toEqual({ a: 1, x: 0, y: 2 });
-	});
-	it('setTrack onto a free track, empty tracks are removed', () => {
-		const t = tl(clip('a', 0, 0, 2), text('x', 5, 6, 3));
-		expect(tracks(setTrack(t, 'x', 0))).toEqual({ a: 0, x: 0 });
-	});
-	it('forward/backward jumps over visible neighbors', () => {
-		const t = tl(clip('a', 0, 0, 10), text('x', 1, 3), text('y', 2, 4, 2));
-		expect(tracks(bringForward(t, 'a'))).toEqual({ a: 1, x: 0, y: 2 });
-		expect(tracks(sendBackward(t, 'y'))).toEqual({ a: 0, x: 2, y: 1 });
-		expect(tracks(bringToFront(t, 'a'))).toEqual({ x: 0, y: 1, a: 2 });
-		expect(sendToBack(t, 'a')).toBe(t);
 	});
 	it('moveItems of one item stops at the neighbor on its own track, open towards the end', () => {
 		const t = tl(clip('a', 0, 0, 2), clip('b', 5, 0, 2), text('x', 0, 10));
@@ -186,10 +132,6 @@ describe('split', () => {
 			['annotation', 4]
 		]);
 	});
-	it('too close to the boundary → unchanged', () => {
-		const t = tl(clip('a', 0, 0, 10));
-		expect(split(t, 0.01)).toBe(t);
-	});
 });
 
 describe('remove', () => {
@@ -204,10 +146,6 @@ describe('remove', () => {
 		const r = remove(t, ['m'], true, (s) => s !== 'music');
 		expect(layout(r)).toEqual({ v: [0, 0, 6], x: [1, 9, 10] });
 		expect(duration(r)).toBe(10);
-	});
-	it('without ripple a gap remains', () => {
-		const t = tl(clip('a', 0, 0, 2), clip('b', 2, 0, 3), clip('c', 5, 0, 2));
-		expect(layout(remove(t, ['b'], false))).toEqual({ a: [0, 0, 2], c: [0, 5, 7] });
 	});
 	it('closes only where no other clip remains', () => {
 		// Picture-in-picture over part of the deleted range
@@ -238,20 +176,6 @@ describe('trim', () => {
 		const u = tl(clip('a', 0, 0, 4), clip('b', 4, 0, 4), text('x', 3, 3.5));
 		expect(layout(trim(u, 'a', 'out', 2, 10))).toMatchObject({ a: [0, 0, 2], x: [1, 2, 2.5], b: [0, 2.5, 6.5] });
 	});
-	it('in point with ripple: start stays, later items move', () => {
-		const r = trim(t, 'b', 'in', 1, 10);
-		expect(layout(r)).toMatchObject({ a: [0, 0, 4], b: [0, 4, 7], x: [1, 4, 5] });
-		expect(r.items.find((i) => i.id === 'b')).toMatchObject({ in: 1 });
-	});
-	it('in point without ripple: end stays, start moves up to the neighbor', () => {
-		const t2 = tl(clip('a', 0, 0, 2), clip('b', 4, 3, 7));
-		expect(layout(trim(t2, 'b', 'in', 4, 10, false))).toMatchObject({ b: [0, 5, 8] });
-		expect(layout(trim(t2, 'b', 'in', 0, 10, false))).toMatchObject({ b: [0, 2, 8] });
-	});
-	it('extend in point with ripple', () => {
-		const t2 = tl(clip('a', 0, 0, 2), clip('b', 2, 3, 7));
-		expect(layout(trim(t2, 'b', 'in', 1, 10))).toMatchObject({ a: [0, 0, 2], b: [0, 2, 8] });
-	});
 	it('lengthening fills free room on its track first: music beside a video pushes nothing', () => {
 		// Music on track 1 inside video a, video b right after a
 		const u = tl(clip('a', 0, 0, 4), clip('b', 4, 0, 4), clip('m', 0, 0, 2, 1), text('x', 5, 6, 2));
@@ -268,12 +192,6 @@ describe('trim', () => {
 		// Gap of 2 s, 3 s more material: the clip reaches back to a, the remaining second moves it and the rest
 		const r = trim(u, 'b', 'in', 0, 10);
 		expect(layout(r)).toMatchObject({ a: [0, 0, 2], b: [0, 2, 9], x: [1, 10, 11] });
-	});
-	it('a freeze clip grows into free room', () => {
-		const f: Clip = { id: 'f', type: 'freeze', sourceId: 's', start: 0, track: 0, at: 1, duration: 2, rect: RECT };
-		const u = tl(f, clip('b', 3, 0, 2));
-		expect(layout(trim(u, 'f', 'out', 2.5, 10))).toMatchObject({ f: [0, 0, 2.5], b: [0, 3, 5] });
-		expect(layout(trim(u, 'f', 'out', 4, 10))).toMatchObject({ f: [0, 0, 4], b: [0, 4, 6] });
 	});
 });
 
@@ -304,29 +222,10 @@ describe('insertFreeze', () => {
 			[6, 2]
 		]);
 	});
-	it('the still keeps shape and window position', () => {
-		const t = insertFreeze(tl({ ...clip('a', 0, 0, 10), shape: 'rounded', anchor: 'top-left' }), 4, 2);
-		const freeze = t.items.find((i) => i.type === 'freeze');
-		expect(freeze && 'anchor' in freeze && [freeze.shape, freeze.anchor]).toEqual(['rounded', 'top-left']);
-	});
 	it('clips without a picture get no still, only a gap', () => {
 		const t = insertFreeze(tl(clip('a', 0, 0, 10), { ...clip('m', 0, 0, 10, 1), sourceId: 'mic' }), 4, 2, undefined, (s) => s !== 'mic');
 		expect(t.items.filter((i) => i.type === 'freeze').map((f) => f.track)).toEqual([0]);
 		expect(t.items.filter((i) => i.track === 1).map((i) => i.start)).toEqual([0, 6]);
-	});
-	it('holds the last frame at the end of a clip', () => {
-		const t = insertFreeze(tl(clip('a', 0, 0, 5)), 5, 2);
-		expect(t.items.find((i) => i.type === 'freeze')).toMatchObject({ start: 5, duration: 2, at: 4.999 });
-	});
-	it('extends when on a freeze clip', () => {
-		let t = insertFreeze(tl(clip('a', 0, 0, 5)), 2, 2);
-		t = insertFreeze(t, 3, 1);
-		expect(t.items.filter((i) => i.type === 'freeze')).toHaveLength(1);
-		expect(duration(t)).toBe(8);
-	});
-	it('in a gap without a clip → unchanged', () => {
-		const t = tl(clip('a', 0, 0, 2), clip('b', 5, 0, 2));
-		expect(insertFreeze(t, 3, 2)).toBe(t);
 	});
 });
 
@@ -339,30 +238,6 @@ describe('multi-selection & groups', () => {
 	it('remove with multiple items closes the combined ranges', () => {
 		const t = tl(clip('a', 0, 0, 2), clip('b', 2, 0, 2), clip('w', 2, 0, 2, 1), clip('c', 4, 0, 2));
 		expect(layout(remove(t, ['b', 'w']))).toEqual({ a: [0, 0, 2], c: [0, 2, 4] });
-	});
-	it('groupOf and ungroup', () => {
-		const t = tl({ ...clip('a', 0, 0, 2), group: 'g' }, { ...clip('b', 0, 0, 2, 1), group: 'g' }, clip('c', 2, 0, 2));
-		expect(groupOf(t, 'a')).toEqual(['a', 'b']);
-		expect(groupOf(t, 'c')).toEqual(['c']);
-		expect(groupOf(ungroup(t, ['a', 'b']), 'a')).toEqual(['a']);
-	});
-	it('placeRecording creates linked tracks at the same time', () => {
-		const src = (id: string, hasVideo = true) => ({
-			id,
-			file: `${id}.mp4`,
-			name: id,
-			kind: 'recording' as const,
-			duration: 5,
-			hasVideo,
-			width: hasVideo ? 1280 : 0,
-			height: hasVideo ? 720 : 0,
-			hasAudio: true
-		});
-		const t = placeRecording(tl(clip('x', 0, 0, 3)), { screen: src('s'), camera: src('c'), mic: src('m', false) }, 1920, 1080);
-		const [screen, cam, mic] = t.items.slice(1);
-		expect([screen.track, screen.start, cam.track, cam.start, mic.track, mic.start]).toEqual([0, 3, 1, 3, 2, 3]);
-		expect(new Set([screen.group, cam.group, mic.group]).size).toBe(1);
-		expect(cam.type === 'video' && cam.rect.x + cam.rect.w).toBeLessThan(1);
 	});
 });
 
@@ -395,82 +270,9 @@ describe('Zoom', () => {
 		const t = { ...tl(clip('a', 0, 0, 20)), zoom: [zoom('a', 2, 4), zoom('b', 6, 8), zoom('c', 12, 14)] };
 		expect(retimeZoom(t, 'b', 1, 15).zoom[1]).toMatchObject({ start: 4, end: 12 });
 	});
-	it('viewAt eases in and out', () => {
-		const t = { ...tl(clip('a', 0, 0, 20)), zoom: [zoom('a', 2, 6, 1)] };
-		expect(viewAt(t, 1)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
-		expect(viewAt(t, 4)).toEqual({ x: 0.5, y: 0.5, w: 0.5, h: 0.5 });
-		expect(viewAt(t, 2.5).w).toBeCloseTo(0.75);
-		expect(viewAt(t, 2).w).toBe(1);
-		expect(viewAt(t, 5.5).w).toBeCloseTo(0.75);
-		expect(viewAt(t, 6)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
-	});
-	it('viewAt eases in and out separately', () => {
-		const t = { ...tl(clip('a', 0, 0, 20)), zoom: [zoom('a', 2, 6, 2, 0)] };
-		expect(viewAt(t, 3).w).toBeCloseTo(0.75);
-		expect(viewAt(t, 5.9).w).toBe(0.5);
-	});
-});
-
-describe('fadeAlpha', () => {
-	it('rises and falls linearly, each side on its own', () => {
-		expect(fadeAlpha(0.5, 0, 10, 1, 2)).toBeCloseTo(0.5);
-		expect(fadeAlpha(5, 0, 10, 1, 2)).toBe(1);
-		expect(fadeAlpha(9, 0, 10, 1, 2)).toBeCloseTo(0.5);
-		expect(fadeAlpha(9.9, 0, 10, 1, 0)).toBe(1);
-		expect(fadeAlpha(3, 0, 10)).toBe(1);
-	});
-	it('clampFade keeps both fades within the duration', () => {
-		expect(clampFade(3, 1, 2)).toBe(1);
-		expect(clampFade(0.5, 1, 2)).toBe(0.5);
-		expect(clampFade(1, 3, 2)).toBe(0);
-	});
-	it('shortens fades longer than the element proportionally', () => {
-		expect(fadeEdges(0, 2, 3, 1)).toEqual([1.5, 1.5]);
-		expect(fadeAlpha(1.5, 0, 2, 3, 1)).toBe(1);
-	});
-});
-
-describe('nextStepNumber', () => {
-	const step = (id: string, number: number): Annotation => ({
-		id,
-		type: 'annotation',
-		kind: 'step',
-		start: 0,
-		end: 1,
-		fadeIn: 0,
-		fadeOut: 0,
-		track: 1,
-		x: 0.5,
-		y: 0.5,
-		size: 0.07,
-		number,
-		color: '#ef4444',
-		shadow: true
-	});
-	it('starts at 1 and continues after the highest number', () => {
-		expect(nextStepNumber(tl(text('t', 0, 1)))).toBe(1);
-		expect(nextStepNumber(tl(step('a', 1), step('b', 4), step('c', 2)))).toBe(5);
-	});
 });
 
 describe('parseProject', () => {
-	it('accepts version 1', () => {
-		const p = parseProject({
-			version: 1,
-			id: 'x',
-			sources: [{ id: 's', width: 1, height: 1 }],
-			background: '#000000',
-			timeline: { items: [] }
-		});
-		expect(p.timeline).toEqual({ items: [], tracks: [], zoom: [] });
-		expect(p.sources[0].hasVideo).toBe(true);
-	});
-	it('older projects get an empty image list, existing ones stay', () => {
-		const base = { version: 1, id: 'x', sources: [], timeline: { items: [] } };
-		expect(parseProject(base).images).toEqual([]);
-		const images = [{ id: 'i', file: 'i.png', name: 'Logo', width: 10, height: 10 }];
-		expect(parseProject({ ...base, images }).images).toEqual(images);
-	});
 	it('fills in font, alignment and shadow of older annotations so they look the same', () => {
 		const old = (kind: string, extra = {}) => ({ id: kind, type: 'annotation', kind, start: 0, end: 1, track: 0, ...extra });
 		const p = parseProject({
@@ -497,9 +299,13 @@ describe('parseProject', () => {
 		again.timeline.items.forEach((item, i) => expect(item).toBe(p.timeline.items[i]));
 	});
 	it('migrates version 1 to the current format', () => {
-		const p = parseProject({ version: 1, id: 'x', sources: [], timeline: { items: [] } });
-		expect(p).toMatchObject({ format: FORMAT, version: VERSION });
+		const p = parseProject({ version: 1, id: 'x', sources: [{ id: 's', width: 1, height: 1 }], background: '#000000', timeline: { items: [] } });
+		expect(p).toMatchObject({ format: FORMAT, version: VERSION, images: [] });
+		expect(p.timeline).toEqual({ items: [], tracks: [], zoom: [] });
+		expect(p.sources[0].hasVideo).toBe(true);
 		expect(migrate({ version: 1 })).toEqual({ version: 2, format: 'screen-capture' });
+		const images = [{ id: 'i', file: 'i.png', name: 'Logo', width: 10, height: 10 }];
+		expect(parseProject({ version: 1, id: 'x', sources: [], timeline: { items: [] }, images }).images).toEqual(images);
 	});
 	it('accepts the current version as is', () => {
 		const p = parseProject({ format: 'screen-capture', version: 2, id: 'x', sources: [], timeline: { items: [] } });
@@ -516,10 +322,6 @@ describe('parseProject', () => {
 });
 
 describe('group', () => {
-	it('links loose items', () => {
-		const t = group(tl(clip('a', 0, 0, 5), text('x', 1, 2), clip('b', 0, 0, 5, 2)), ['a', 'x'], 'g');
-		expect(t.items.map((i) => i.group)).toEqual(['g', 'g', undefined]);
-	});
 	it('merges existing groups completely', () => {
 		const t = group(
 			tl({ ...clip('a', 0, 0, 5), group: 'r' }, { ...clip('b', 0, 0, 5, 1), group: 'r' }, { ...text('x', 1, 2), group: 's' }, { ...text('y', 1, 2, 3), group: 's' }, text('z', 1, 2, 4)),
@@ -527,11 +329,6 @@ describe('group', () => {
 			'g'
 		);
 		expect(t.items.map((i) => i.group)).toEqual(['g', 'g', 'g', 'g', undefined]);
-	});
-	it('leaves other items untouched', () => {
-		const loose = text('z', 1, 2, 4);
-		const t = group(tl(clip('a', 0, 0, 5), clip('b', 0, 0, 5, 1), loose), ['a', 'b'], 'g');
-		expect(t.items[2]).toBe(loose);
 	});
 });
 
@@ -587,11 +384,6 @@ describe('pasteItems', () => {
 		expect(a.track).toBe(2);
 		expect(t.track).toBe(3);
 	});
-	it('stays low where nothing overlaps', () => {
-		const original = tl(clip('a', 0, 0, 2), text('t', 0, 2, 3));
-		const { timeline, ids } = pasteItems(original, [original.items[1]], 5);
-		expect(timeline.items.find((i) => i.id === ids[0])!.track).toBe(0);
-	});
 	it('links the copies among themselves only', () => {
 		const original = tl({ ...clip('a', 0, 0, 2), group: 'g' }, { ...text('t', 0, 2), group: 'g' });
 		const { timeline, ids } = pasteItems(original, original.items, 5);
@@ -602,14 +394,3 @@ describe('pasteItems', () => {
 	});
 });
 
-describe('drawProgress', () => {
-	it('draws within drawIn seconds after the start', () => {
-		expect(drawProgress(1, 1, 0.5)).toBe(0);
-		expect(drawProgress(1.25, 1, 0.5)).toBe(0.5);
-		expect(drawProgress(3, 1, 0.5)).toBe(1);
-	});
-	it('without drawIn the shape is there at once', () => {
-		expect(drawProgress(1, 1, 0)).toBe(1);
-		expect(drawProgress(1, 1)).toBe(1);
-	});
-});

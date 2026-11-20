@@ -1,42 +1,47 @@
 <script lang="ts">
 	// The drawing surface of a notebook: canvases of the stage plus the input pipeline. Svelte only sets it up; while
-	// drawing, nothing here is reactive (see `render/stage.ts`, `input/controller.ts`).
+	// drawing, nothing here is reactive (see `@in-browser/ink/render/stage.ts`, `input/controller.ts`).
 	import { untrack } from 'svelte';
-	import { InputController, type EraserMode } from '#lib/input/controller.js';
-	import { Selection } from '#lib/input/selection.svelte.js';
-	import { ShapeSuggestion } from '#lib/input/suggestion.svelte.js';
+	import { InputController, type EraserMode } from '@in-browser/ink/input/controller.js';
+	import { Selection } from '@in-browser/ink/input/selection.svelte.js';
+	import { ShapeSuggestion } from '@in-browser/ink/input/suggestion.svelte.js';
 	import type { NotebookDoc } from '#lib/model/notebook.svelte.js';
 	import { tools } from '#lib/model/tools.svelte.js';
-	import { Stage } from '#lib/render/stage.js';
+	import { inkKit } from '@in-browser/ink/render/ink-kit.js';
+	import { Stage, type StageElements } from '@in-browser/ink/render/stage.js';
+	import { attachSurface } from '@in-browser/ink/ui/surface.js';
+	import SurfaceLayers from '@in-browser/ink/ui/SurfaceLayers.svelte';
+	import { isInk } from '#lib/model/types.js';
+	import { notesBackdrop, type NotesSelection, type NotesStage, type NotesSuggestion } from '#lib/render/surface.js';
 
 	interface Props {
 		doc: NotebookDoc;
 		/** The stage is ready (zoom, current page …), with the selection and the shape suggestion */
-		onready: (stage: Stage, selection: Selection, suggestion: ShapeSuggestion) => void;
+		onready: (stage: NotesStage, selection: NotesSelection, suggestion: NotesSuggestion) => void;
 		/** View moved or zoomed (at most once per frame) */
 		onview: () => void;
-		/** Any press on the surface (closes open panels) */
-		onpress: () => void;
 	}
 
-	let { doc, onready, onview, onpress }: Props = $props();
+	let { doc, onready, onview }: Props = $props();
 
-	let root = $state<HTMLDivElement>();
-	let base = $state<HTMLCanvasElement>();
-	let live = $state<HTMLCanvasElement>();
-	let marker = $state<HTMLCanvasElement>();
-	let overlay = $state<HTMLCanvasElement>();
-	let ghost = $state<HTMLCanvasElement>();
-	let cursor = $state<HTMLDivElement>();
+	let elements = $state.raw<StageElements | null>(null);
+	/** The stage, for the layers (guides) */
+	let surface = $state.raw<NotesStage | null>(null);
 
 	$effect(() => {
-		if (!root || !base || !live || !marker || !ghost || !overlay || !cursor) return;
+		if (!elements) return;
 		const notebook = doc;
-		const elements = { root, base, live, marker, ghost, overlay, cursor };
+		const el = elements;
 		return untrack(() => {
-			const stage = new Stage(elements, (id) => notebook.scene(id), (id) => void notebook.load(id), notebook.backgrounds);
-			const selection = new Selection(stage, notebook);
-			const suggestion = new ShapeSuggestion(stage, notebook);
+			const stage: NotesStage = new Stage(el, {
+				sceneOf: (id) => notebook.scene(id),
+				load: (id) => void notebook.load(id),
+				backdrop: notesBackdrop(notebook.backgrounds),
+				kit: inkKit,
+				label: '[notes]'
+			});
+			const selection = new Selection(stage, notebook.items);
+			const suggestion = new ShapeSuggestion(stage, notebook.items);
 			notebook.listener = {
 				pages: (pages) => {
 					stage.setPages(pages);
@@ -63,19 +68,19 @@
 					});
 			};
 
-			const input = new InputController(elements.root, stage, {
+			const input = new InputController(el.root, stage, {
 				tool: () => tools.state(),
-				commit: (s) => notebook.addStroke(s.page, s),
-				commitShape: (page, fit, color, size, style) => notebook.addShape(page, fit, color, size, style),
+				commit: (s) => notebook.items.addStroke(s.page, s),
+				commitShape: (page, fit, color, size, style) => notebook.items.addShape(page, fit, color, size, style),
 				suggest: (s) => suggestion.show(s),
 				erase: (sx, sy, radius, mode) => erase(sx, sy, radius, mode),
 				eraseEnd: () => {
 					lastErase = null;
-					notebook.eraseEnd();
+					notebook.items.eraseEnd();
 				},
 				selection,
 				hover: () => (tools.penHover = true)
-			});
+			}, '[notes]');
 			// The eraser follows its path in steps of half its radius (events can be far apart or very dense)
 			let lastErase: { x: number; y: number } | null = null;
 			function erase(sx: number, sy: number, radius: number, mode: EraserMode) {
@@ -87,48 +92,27 @@
 				for (let i = lastErase ? 1 : 0; i <= n; i++) {
 					const x = from.x + ((sx - from.x) * i) / n;
 					const y = from.y + ((sy - from.y) * i) / n;
-					const hit = stage.strokesAt(x, y, radius);
-					if (!hit || !hit.strokes.length) continue;
-					if (mode === 'stroke') notebook.erase(hit.page, hit.strokes);
+					const hit = stage.erasableAt(x, y, radius);
+					if (!hit || !hit.items.length) continue;
+					// The ink kit only lets erasers touch ink
+					const strokes = hit.items.filter(isInk);
+					if (mode === 'stroke') notebook.items.erase(hit.page, strokes);
 					else {
 						const [px, py] = stage.toPage(hit.page, x, y);
-						notebook.erasePixels(hit.page, hit.strokes, px, py, radius / stage.view.zoom);
+						notebook.items.erasePixels(hit.page, strokes, px, py, radius / stage.view.zoom);
 					}
 				}
 				lastErase = { x: sx, y: sy };
 			}
 
 			const detach = input.attach();
-			const press = () => onpress();
-			elements.root.addEventListener('pointerdown', press);
-
-			const resize = () => {
-				const rect = elements.root.getBoundingClientRect();
-				stage.resize(rect.width, rect.height, window.devicePixelRatio || 1);
-			};
-			const observer = new ResizeObserver(resize);
-			observer.observe(elements.root);
-			// Moving the window to a screen with another pixel density
-			window.addEventListener('resize', resize);
-			const scroll = () => stage.updateOrigin();
-			window.addEventListener('scroll', scroll, { passive: true, capture: true });
-			// Theme switch (system or the switch in the header): the desk color around the pages follows
-			const dark = matchMedia('(prefers-color-scheme: dark)');
-			const theme = () => requestAnimationFrame(() => stage.themeChanged());
-			dark.addEventListener('change', theme);
-			const themeObserver = new MutationObserver(theme);
-			themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
-
-			resize();
+			const detachSurface = attachSurface(el.root, stage);
 			onready(stage, selection, suggestion);
+			surface = stage;
 			return () => {
+				surface = null;
 				detach();
-				elements.root.removeEventListener('pointerdown', press);
-				observer.disconnect();
-				window.removeEventListener('resize', resize);
-				window.removeEventListener('scroll', scroll, { capture: true });
-				dark.removeEventListener('change', theme);
-				themeObserver.disconnect();
+				detachSurface();
 				cancelAnimationFrame(viewFrame);
 				selection.clear();
 				suggestion.clear();
@@ -139,26 +123,4 @@
 	});
 </script>
 
-<!-- No browser gestures, selection, magnifier or callout on the surface (iOS needs the prefixed properties) -->
-<div
-	bind:this={root}
-	class="bg-base-200 relative size-full touch-none overflow-hidden select-none"
-	style="-webkit-user-select: none; -webkit-touch-callout: none"
-	data-testid="surface"
->
-	<canvas bind:this={base} class="absolute inset-0 size-full"></canvas>
-	<!-- Opaque low-latency layer: only visible while a pen stroke is drawn -->
-	<canvas bind:this={live} class="pointer-events-none invisible absolute inset-0 size-full"></canvas>
-	<!-- Highlighter strokes: painted opaque, see-through as a whole (overlaps don't darken) -->
-	<canvas bind:this={marker} class="pointer-events-none absolute inset-0 size-full opacity-35 mix-blend-multiply"></canvas>
-	<canvas bind:this={ghost} class="pointer-events-none absolute inset-0 size-full"></canvas>
-	<!-- Lasso, selection frame and dragged strokes, laser pointer -->
-	<canvas bind:this={overlay} class="pointer-events-none absolute inset-0 size-full"></canvas>
-	<!-- Brush/eraser preview over the paper (a document color, so fixed contrast colors instead of theme colors) -->
-	<div
-		bind:this={cursor}
-		class="pointer-events-none absolute top-0 left-0 hidden rounded-full"
-		style="border: 1px solid rgb(0 0 0 / 0.55); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.8)"
-		aria-hidden="true"
-	></div>
-</div>
+<SurfaceLayers bind:elements stage={surface} />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { prepareImage } from '#lib/model/insert.js';
 import type { IconItem, ImageItem } from '#lib/model/types.js';
-import { drawPicture, PictureCache } from './pictures';
+import { drawPicture, PictureCache } from '@in-browser/ink/render/pictures.js';
 
 // Decoding and drawing pictures in real Chromium
 

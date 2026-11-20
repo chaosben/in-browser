@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The frame of every tool (its `pages/Layout.svelte` wraps the app's route in it): language, PWA, “Recently
 	// used”, the sync with the folder on disk, head tags, BrandBar, BrandFooter with the sync indicator, help
-	// window and keys, and the overlays every tool uses. Addresses come from the tool (`resolve`/`asset` of the app).
+	// window and keys, the settings, and the overlays every tool uses. Addresses come from the tool (`resolve`/`asset` of the app).
 	import { untrack, type Snippet } from 'svelte';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import BrandFooter from '@in-browser/brand/BrandFooter.svelte';
@@ -17,6 +17,8 @@
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import FileDialog from './FileDialog.svelte';
+	import SettingsDialog from './SettingsDialog.svelte';
+	import { openSettings, suiteSettings } from './suite-settings.svelte.js';
 	import SyncIndicator from './SyncIndicator.svelte';
 	import { startSync } from './sync/sync.svelte.js';
 
@@ -54,6 +56,8 @@
 	initPwa();
 	// Keeps the shared file system in sync with the folder on disk while the tool is open (if connected in Files)
 	startSync();
+	// The suite settings (author name …) as the tool's pages read them
+	void suiteSettings.load();
 	// Help window (BrandBar button, F1, ?)
 	$effect(() => installHelpKeys(help));
 
@@ -75,7 +79,7 @@
 </svelte:head>
 
 <div class="flex h-full flex-col">
-	<BrandBar tool={name} {home} {help} />
+	<BrandBar tool={name} {home} {help} onsettings={() => openSettings()} />
 	<div class={['min-h-0 flex-1', scroll && 'overflow-auto']}>
 		{@render children()}
 	</div>
@@ -87,5 +91,6 @@
 <ConfirmDialog />
 <ContextMenu />
 <FileDialog />
+<SettingsDialog />
 <UpdateBanner />
 <HelpWindow content={helpContent} {help} page={helpPage} anchor={helpAnchor} />

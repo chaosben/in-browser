@@ -30,7 +30,7 @@ const de: Messages = {
 		local: { title: 'Keine Uploads', text: 'deine Dateien bleiben auf deinem Gerät' },
 		account: { title: 'Kein Konto', text: 'Seite öffnen und loslegen' },
 		tracking: { title: 'Kein Tracking', text: 'keine Cookies, keine Werbung' },
-		devices: { title: 'Abgleich ohne Cloud', text: 'direkt zwischen deinen Geräten' },
+		devices: { title: 'Sync ohne Cloud', text: 'direkt zwischen deinen Geräten' },
 		offline: { title: 'Installierbar & offline', text: 'läuft auch ohne Internet' },
 		openSource: { title: 'Open Source', text: 'MIT-Lizenz', link: 'Quellcode auf GitHub' }
 	},
@@ -52,7 +52,7 @@ const de: Messages = {
 		},
 		files: {
 			name: brand.tools['files'],
-			summary: 'Deine Dateien verwalten, abgleichen und herunterladen',
+			summary: 'Deine Dateien verwalten, synchronisieren und herunterladen',
 			keywords: 'files, dateimanager, explorer, ordner, abgleich, synchronisieren, hochladen, herunterladen, vorschau, geräte'
 		},
 		textEditor: {
@@ -64,6 +64,11 @@ const de: Messages = {
 			name: brand.tools['notes'],
 			summary: 'Handschriftliche Notizbücher für Stift, Finger oder Maus',
 			keywords: 'notes, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen, pdf, kommentieren, tafel'
+		},
+		pdfEditor: {
+			name: brand.tools['pdf-editor'],
+			summary: 'PDFs kommentieren, Formulare ausfüllen, Seiten ordnen und zusammenführen',
+			keywords: 'pdf editor, pdf, kommentieren, markieren, hervorheben, formular, ausfüllen, zusammenführen, teilen, seiten, drehen, acrobat, betrachter'
 		}
 	},
 

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { exists, list, readText, remove, write } from './fs.js';
-import { emptyTrash, listTrash, moveToTrash, restoreFromTrash, setTrashRetention, trashRetention } from './trash-browser.js';
+import { suiteSettings } from './suite-settings.svelte.js';
+import { emptyTrash, listTrash, moveToTrash, restoreFromTrash, trashRetention } from './trash-browser.js';
+import { SUITE_SETTINGS } from './settings.js';
 import { SETTINGS_PATH, TRASH_ROOT } from './trash.js';
 
 // The trash in the real OPFS: what the user deletes, restored where it was
@@ -42,11 +44,11 @@ describe('trash', () => {
 		expect(await exists(TRASH_ROOT)).toBe(false);
 	});
 
-	it('stores the retention in the synced settings, keeping other settings', async () => {
-		expect(await trashRetention()).toBe(30);
-		await write(SETTINGS_PATH, JSON.stringify({ other: 1 }));
-		await setTrashRetention(null);
+	it('takes the retention of the suite settings before where earlier versions kept it', async () => {
+		await write(SETTINGS_PATH, JSON.stringify({ trashDays: 90 }));
+		expect(await trashRetention()).toBe(90);
+		await write(SUITE_SETTINGS, JSON.stringify({ profile: { name: 'A' } }));
+		await suiteSettings.set('trash', 'days', null);
 		expect(await trashRetention()).toBeNull();
-		expect(JSON.parse(await readText(SETTINGS_PATH))).toEqual({ other: 1, trashDays: null });
 	});
 });

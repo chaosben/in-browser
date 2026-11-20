@@ -13,14 +13,9 @@ beforeAll(async () => {
 });
 
 describe('sign-in', () => {
-	it('accepts a member answering for this connection', async () => {
+	it('accepts a member answering for this connection only (not relayed)', async () => {
 		const answer = await answerHello(a, log, 'n1', 'fp');
-		const check = await checkHello(answer, 'n1', 'fp', log);
-		expect(check.ok).toBe(true);
-	});
-
-	it('rejects answers for another nonce or connection (relayed)', async () => {
-		const answer = await answerHello(a, log, 'n1', 'fp');
+		expect((await checkHello(answer, 'n1', 'fp', log)).ok).toBe(true);
 		expect(await checkHello(answer, 'n2', 'fp', log)).toEqual({ ok: false, reason: 'signature' });
 		expect(await checkHello(answer, 'n1', 'other', log)).toEqual({ ok: false, reason: 'signature' });
 	});

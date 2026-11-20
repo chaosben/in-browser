@@ -1,0 +1,80 @@
+/* Inputs of form fields over the pages (`form-layers.ts`). The page shows the values; an input is see-through until it
+   has the focus, then it is the field (white like the paper, the field's text color). Presses reach them only while a
+   tool lets them (`.pdfFormsActive` on the host). */
+.pdfFormLayer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	transform-origin: 0 0;
+	pointer-events: none;
+}
+
+.pdfField {
+	position: absolute;
+	box-sizing: border-box;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: transparent;
+	line-height: 1.2;
+	outline: none;
+	resize: none;
+	appearance: none;
+	-webkit-appearance: none;
+	caret-color: var(--field-color);
+	pointer-events: none;
+}
+
+.pdfFormsActive .pdfField:not(:disabled) {
+	pointer-events: auto;
+	cursor: text;
+}
+
+.pdfFormsActive .pdfField-checkbox:not(:disabled),
+.pdfFormsActive .pdfField-radio:not(:disabled),
+.pdfFormsActive .pdfField-combo:not(:disabled),
+.pdfFormsActive .pdfField-list:not(:disabled) {
+	cursor: pointer;
+}
+
+.pdfFormsHighlight .pdfField:not(:disabled) {
+	background: color-mix(in oklab, var(--color-field) 30%, transparent);
+}
+
+.pdfFormsHighlight .pdfField.required:not(:disabled) {
+	box-shadow: inset 0 0 0 1px var(--color-field);
+}
+
+.pdfFormsActive .pdfField:not(:disabled):hover {
+	background: color-mix(in oklab, var(--color-field) 45%, transparent);
+}
+
+
+
+.pdfField:focus-visible,
+.pdfField:focus {
+	outline: 2px solid var(--color-selection);
+	outline-offset: 1px;
+}
+
+.pdfField-text.comb {
+	font-family: monospace;
+	letter-spacing: calc(var(--comb) - 1ch);
+	padding-left: calc(var(--comb) / 2 - 0.5ch) !important;
+}
+
+.pdfField option {
+	color: #000;
+	background: #fff;
+}
+
+/* Typed into or chosen from: the field itself, covering what the page shows (after the tints, and stronger than them);
+   also just after it was left, until the page shows the new value (`holding`) – no flash of the old one */
+.pdfField.pdfField-text:focus:not(:disabled),
+.pdfField.pdfField-combo:focus:not(:disabled),
+.pdfField.pdfField-list:focus:not(:disabled),
+.pdfField.holding:not(:disabled) {
+	background: #fff;
+	color: var(--field-color);
+}

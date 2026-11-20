@@ -1,7 +1,6 @@
-import type { Component } from 'svelte';
 import type { Player } from '#lib/preview/player.svelte.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
-import type { IconData, Point, ToolKind } from '#lib/project/types.js';
+import type { IconData, ImageAsset, Point, Source, ToolKind } from '#lib/project/types.js';
 import type { DragPayload } from './drag.js';
 import type { LibraryScope } from '#lib/ui/library.svelte.js';
 
@@ -20,18 +19,19 @@ export interface ToolActions {
 	addIcon(icon: IconData, at?: DropPlace): void;
 	addZoom(at?: DropPlace): void;
 	/** Library entry: at the playhead or the dropped time, keeping its place in the picture */
-	insertLibrary(scope: LibraryScope, id: string, at?: DropPlace): void;
+	insertLibrary(scope: LibraryScope, id: string, at?: DropPlace): Promise<void>;
 	/** Copies or moves a library entry into the other library */
-	transferLibrary(scope: LibraryScope, id: string, move: boolean): void;
+	transferLibrary(scope: LibraryScope, id: string, move: boolean): Promise<void>;
 	record(): void;
 	importMedia(): void;
 	importFromFiles(): void;
 }
 
-export interface ToolProps {
-	editor: Editor;
-	player: Player;
-	actions: ToolActions;
+/** What every side panel gets as its `context` (the open project; getters, so a reload shows the new one) */
+export interface PanelContext {
+	readonly editor: Editor;
+	readonly player: Player;
+	readonly actions: ToolActions;
 }
 
 /** Tile: inserts something at the playhead on click, or where it is dropped when dragged */
@@ -43,18 +43,5 @@ export interface ToolItem {
 	drag?: DragPayload;
 }
 
-/** Tab within a group: its own content (`component`) and/or tiles below */
-export interface ToolTab {
-	id: string;
-	label: string;
-	items?: ToolItem[];
-	component?: Component<ToolProps>;
-}
-
-/** Group in the left tool rail; multiple tabs only when the content becomes varied */
-export interface ToolGroup {
-	id: string;
-	icon: string;
-	label: string;
-	tabs: ToolTab[];
-}
+/** One entry of the media bin */
+export type BinEntry = { kind: 'source'; id: string; source: Source } | { kind: 'image'; id: string; image: ImageAsset };

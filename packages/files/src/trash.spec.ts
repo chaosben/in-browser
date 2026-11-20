@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RETENTION, entryName, expired, inTrash, itemPath, originalPath, parseEntry, parseRetention } from './trash';
+import { DEFAULT_RETENTION, entryName, expired, itemPath, originalPath, parseEntry, parseRetention, suiteRetention } from './trash';
 
 const day = 24 * 60 * 60 * 1000;
 
@@ -11,30 +11,40 @@ describe('trash entries', () => {
 		expect(parseEntry(name)).toBe(now);
 		expect(parseEntry('something else')).toBeNull();
 	});
+
 	it('keep the item under its original path', () => {
 		const path = itemPath('20261118-102233-123-abcd', '/Docs/Plan.md');
 		expect(path).toBe('/.in-browser-trash/20261118-102233-123-abcd/Docs/Plan.md');
-		expect(inTrash(path)).toBe(true);
 		expect(originalPath(path)).toBe('/Docs/Plan.md');
 		expect(originalPath('/.in-browser-trash/20261118-102233-123-abcd/.trashinfo.json')).toBeNull();
-		expect(originalPath('/.in-browser-trash/20261118-102233-123-abcd')).toBeNull();
 		expect(originalPath('/Docs/Plan.md')).toBeNull();
 	});
-	it('expire after the retention, never with “keep until emptied”', () => {
-		const name = entryName(0);
-		expect(expired(name, 6 * day, 7)).toBe(false);
-		expect(expired(name, 8 * day, 7)).toBe(true);
-		expect(expired(name, 1000 * day, null)).toBe(false);
-		expect(expired('foreign folder', 1000 * day, 7)).toBe(false);
+
+	it.each([
+		[entryName(0), 6 * day, 7, false],
+		[entryName(0), 8 * day, 7, true],
+		[entryName(0), 1000 * day, null, false],
+		['foreign folder', 1000 * day, 7, false]
+	])('%s expired at %i with retention %s: %s', (name, now, retention, expected) => {
+		expect(expired(name, now, retention)).toBe(expected);
 	});
 });
 
-describe('parseRetention', () => {
-	it('reads the setting, falls back to the default, keeps everything when the file is broken', () => {
-		expect(parseRetention(null)).toBe(DEFAULT_RETENTION);
-		expect(parseRetention('{"trashDays":90}')).toBe(90);
-		expect(parseRetention('{"trashDays":null}')).toBeNull();
-		expect(parseRetention('{"trashDays":-3}')).toBe(DEFAULT_RETENTION);
-		expect(parseRetention('{broken')).toBeNull();
+describe('retention', () => {
+	// A broken file keeps everything (null)
+	it.each([
+		[null, DEFAULT_RETENTION],
+		['{"trashDays":90}', 90],
+		['{"trashDays":null}', null],
+		['{"trashDays":-3}', DEFAULT_RETENTION],
+		['{broken', null]
+	])('of the earlier settings file %s: %s', (text, expected) => {
+		expect(parseRetention(text)).toBe(expected);
+	});
+
+	it('of the suite settings: none when the file holds none, everything kept when broken', () => {
+		expect(suiteRetention('{"trash":{"days":7}}')).toBe(7);
+		expect(suiteRetention('{"profile":{}}')).toBeUndefined();
+		expect(suiteRetention('{broken')).toBeNull();
 	});
 });

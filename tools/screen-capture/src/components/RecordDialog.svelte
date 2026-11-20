@@ -161,7 +161,10 @@
 			// Sharing ended in the browser: before the recording runs back to the settings, afterwards it stops
 			await rec.acquire(options, () => (rec.state === 'idle' ? back() : stop()));
 		} catch (e) {
-			if (!isAbort(e)) error = errorMessage(e);
+			if (!isAbort(e)) {
+				console.error('[screen-capture] share', e);
+				error = errorMessage(e);
+			}
 			await rec.cancel();
 			starting = false;
 			return;
@@ -199,6 +202,7 @@
 		try {
 			await rec.start(chosen);
 		} catch (e) {
+			console.error('[screen-capture] recording', e);
 			error = errorMessage(e);
 			floatingWindow.close();
 			await rec.cancel();
@@ -227,6 +231,7 @@
 				mic: await describe(mic, m.record.micName(clock))
 			});
 		} catch (e) {
+			console.error('[screen-capture] save recording', e);
 			error = m.record.saveFailed(errorMessage(e));
 			recorder = null;
 			stopping = false;

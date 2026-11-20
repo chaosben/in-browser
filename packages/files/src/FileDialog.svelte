@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import PickMark from '@in-browser/brand/PickMark.svelte';
+	import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 	import { closeFileDialog, fileDialogState } from './dialog.svelte.js';
 	import FileIcon from './FileIcon.svelte';
 	import { formatsOf } from './formats.js';
@@ -9,17 +11,19 @@
 	import { FilesError } from './fs.js';
 	import { accessAction, connectionLabel, connections } from './sources/connections.svelte.js';
 
-	// One instance per tool (in its layout); opened via `chooseFile()`.
+	// One instance per tool (in its layout); opened via `chooseFile()`. Entries are picked like in Files (`ui.md`
+	// Selection): a click picks, double-click or Enter opens, arrow keys move; with `multiple` Ctrl/Shift+click, Ctrl+A
+	// and on touch screens the selection mode (a long press starts it, taps then pick).
 
 	const t = $derived(filesMessages());
 
 	let folder = $state('/');
 	let entries = $state<Entry[] | null>(null);
-	let selected = $state<string[]>([]);
+	/** Picked files (open) */
+	const pick = new Picker<string>();
 	/** Folder marked by a click (like in Files: a click marks, double-click or Enter opens) */
 	let markedFolder = $state<string | null>(null);
-	/** Start of Shift ranges */
-	let anchor: string | null = null;
+	let listEl = $state<HTMLElement>();
 	let name = $state('');
 	let newFolder = $state<string | null>(null);
 	let error = $state<string | null>(null);
@@ -36,6 +40,9 @@
 			.filter((e) => !e.name.startsWith('.') && (isFolder(e) || accepts(e)))
 			.sort((a, b) => Number(isFolder(b)) - Number(isFolder(a)) || a.name.localeCompare(b.name))
 	);
+	/** The files shown (the order of Shift ranges) */
+	const files = $derived(shown.filter((e) => !isFolder(e)).map((e) => e.path));
+	const selected = $derived(pick.ordered(files));
 
 	/** Name as saved: with the (first) extension of the format if the user gave none of the accepted ones */
 	const fullName = $derived.by(() => {
@@ -54,7 +61,7 @@
 	/** Saving: the entry matching the typed name is marked, so changing the name clears the mark */
 	const isSelected = (entry: Entry) =>
 		markedFolder === entry.path ||
-		(options?.mode === 'save' ? existing?.path === entry.path : selected.includes(entry.path));
+		(options?.mode === 'save' ? existing?.path === entry.path : pick.has(entry.path));
 	const canConfirm = $derived(
 		!!markedFolder || options?.mode === 'folder' || (options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0)
 	);
@@ -70,9 +77,8 @@
 	async function load(path: string): Promise<unknown> {
 		error = null;
 		access = undefined;
-		selected = [];
+		pick.clear();
 		markedFolder = null;
-		anchor = null;
 		entries = null;
 		try {
 			const result = await list(path);
@@ -123,10 +129,10 @@
 		closeFileDialog(options?.mode === 'save' ? [join(folder, replacing && existing ? existing.name : fullName)] : selected);
 	}
 
-	/** Click on a file: alone; with `multiple` Ctrl/Cmd toggles, Shift selects the range from the last click */
-	function pick(e: MouseEvent, entry: Entry) {
+	/** Click on an entry: a folder is marked, a file picked (with `multiple` like in Files: Ctrl/Shift, touch mode) */
+	function choose(e: MouseEvent, entry: Entry) {
 		if (isFolder(entry)) {
-			selected = [];
+			pick.clear();
 			markedFolder = entry.path;
 			return;
 		}
@@ -135,16 +141,41 @@
 			name = entry.name;
 			return;
 		}
-		const files = shown.filter((s) => !isFolder(s)).map((s) => s.path);
-		if (options?.multiple && e.shiftKey && anchor && files.includes(anchor)) {
-			const [a, b] = [files.indexOf(anchor), files.indexOf(entry.path)].sort((x, y) => x - y);
-			selected = files.slice(a, b + 1);
+		if (!options?.multiple) return pick.only(entry.path);
+		// A tap outside the selection mode opens the file, like in Files
+		if (pick.click(e, entry.path, files) === 'open') closeFileDialog([entry.path]);
+	}
+
+	/** Long press (touch) on a file with `multiple`: the selection mode starts */
+	function press(e: MouseEvent, entry: Entry) {
+		if (!options?.multiple || isFolder(entry) || options.mode === 'save') return;
+		e.preventDefault();
+		markedFolder = null;
+		pick.menu(e, entry.path);
+	}
+
+	/** Arrow keys move through the entries (Shift extends the pick with `multiple`), Ctrl+A picks every file */
+	function listKey(e: KeyboardEvent) {
+		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+			if (!options?.multiple || options.mode === 'save') return;
+			e.preventDefault();
+			markedFolder = null;
+			pick.selectAll(files);
 			return;
 		}
-		if (options?.multiple && (e.ctrlKey || e.metaKey)) {
-			selected = selected.includes(entry.path) ? selected.filter((p) => p !== entry.path) : [...selected, entry.path];
-		} else selected = [entry.path];
-		anchor = entry.path;
+		const step = ({ ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 } as Record<string, number>)[e.key];
+		if (!step || e.altKey || e.ctrlKey || e.metaKey || !listEl) return;
+		e.preventDefault();
+		const rows = [...listEl.querySelectorAll<HTMLElement>('[role="option"]')];
+		const at = rows.indexOf(document.activeElement as HTMLElement);
+		const next = Math.max(0, Math.min(shown.length - 1, at < 0 ? 0 : at + step));
+		const entry = shown[next];
+		if (!entry) return;
+		rows[next]?.focus();
+		if (e.shiftKey && options?.multiple && !isFolder(entry) && options.mode !== 'save') {
+			markedFolder = null;
+			pick.extend(entry.path, files);
+		} else choose(new MouseEvent('click'), entry);
 	}
 
 	async function createFolder() {
@@ -160,7 +191,9 @@
 			newFolder = null;
 			await load(join(folder, folderName));
 		} catch (e) {
+			console.error(e);
 			error = filesErrorText(e);
+			access = accessAction(e, () => void createFolder());
 		}
 	}
 
@@ -225,9 +258,15 @@
 							{/each}
 						</ul>
 					</div>
-					<button class="btn btn-ghost btn-sm gap-1" onclick={() => (newFolder = newFolder === null ? '' : null)}>
+					<!-- Icon only on narrow screens, so the row fits 360 px -->
+					<button
+						class="btn btn-ghost btn-sm max-sm:btn-square shrink-0 gap-1"
+						onclick={() => (newFolder = newFolder === null ? '' : null)}
+						title={t.dialog.newFolder}
+						aria-label={t.dialog.newFolder}
+					>
 						<span class="icon-[material-symbols-light--create-new-folder-outline] size-5" aria-hidden="true"></span>
-						{t.dialog.newFolder}
+						<span class="hidden sm:inline">{t.dialog.newFolder}</span>
 					</button>
 				</div>
 
@@ -240,12 +279,33 @@
 						}}
 					>
 						<!-- svelte-ignore a11y_autofocus -->
-						<input class="input input-sm flex-1" bind:value={newFolder} placeholder={t.dialog.folderName} aria-label={t.dialog.folderName} autofocus />
+						<input
+							class="input input-sm flex-1"
+							bind:value={newFolder}
+							placeholder={t.dialog.folderName}
+							aria-label={t.dialog.folderName}
+							autofocus
+							onkeydown={(e) => {
+								// Esc leaves the field, not the dialog
+								if (e.key !== 'Escape') return;
+								e.preventDefault();
+								e.stopPropagation();
+								newFolder = null;
+							}}
+						/>
 						<button class="btn btn-sm btn-primary" type="submit">{t.dialog.create}</button>
 					</form>
 				{/if}
 
-				<ul class="border-base-300 rounded-box min-h-48 flex-1 overflow-y-auto border p-1" role="listbox" aria-label={t.root} aria-multiselectable={options.multiple}>
+				<ul
+					bind:this={listEl}
+					class="border-base-300 rounded-box min-h-48 flex-1 overflow-y-auto border p-1"
+					role="listbox"
+					aria-label={t.root}
+					aria-multiselectable={options.multiple}
+					onkeydown={listKey}
+					onpointerdown={(e) => pick.pointerdown(e)}
+				>
 					{#if entries === null}
 						<li class="flex justify-center p-6"><span class="loading loading-spinner"></span></li>
 					{:else if shown.length === 0}
@@ -257,7 +317,8 @@
 								role="option"
 								aria-selected={isSelected(entry)}
 								class={['flex w-full items-center gap-2 rounded px-2 py-1.5 text-left', isSelected(entry) ? 'bg-selection/20' : 'hover:bg-base-200']}
-								onclick={(e) => pick(e, entry)}
+								onclick={(e) => choose(e, entry)}
+								oncontextmenu={(e) => press(e, entry)}
 								ondblclick={() => open(entry)}
 								onkeydown={(e) => {
 									if (e.key !== 'Enter') return;
@@ -265,6 +326,7 @@
 									open(entry);
 								}}
 							>
+								{#if pick.marking && !isFolder(entry)}<PickMark picked={pick.has(entry.path)} />{/if}
 								<FileIcon name={entry.name} kind={entry.kind} remote={entry.remote} />
 								<span class="min-w-0 flex-1 truncate">{entry.name}</span>
 							</button>
@@ -282,25 +344,25 @@
 							onkeydown={(e) => e.key === 'Enter' && confirm()}
 						/>
 					</label>
-					{#if nameIssue}
-						<p class="text-error text-sm">{t.names[nameIssue]}</p>
-					{:else if taken}
-						<p class="text-error text-sm">{t.dialog.exists(fullName)}</p>
-					{:else if replacing && existing}
-						<p class="text-warning text-sm">{t.dialog.replaces(existing.name)}</p>
+				{/if}
+				<!-- One line kept free for messages, so the buttons never jump -->
+				<p class="flex min-h-8 flex-wrap items-center gap-2 text-sm" role="status">
+					{#if error}
+						<span class="text-error">{error}</span>
+						{#if access}<button class="btn btn-sm btn-primary" onclick={access.run}>{access.label}</button>{/if}
+					{:else if options.mode === 'save' && nameIssue}
+						<span class="text-error">{t.names[nameIssue]}</span>
+					{:else if options.mode === 'save' && taken}
+						<span class="text-error">{t.dialog.exists(fullName)}</span>
+					{:else if options.mode === 'save' && replacing && existing}
+						<span class="text-warning">{t.dialog.replaces(existing.name)}</span>
 					{/if}
-				{/if}
-				{#if error}
-					<p class="text-error flex flex-wrap items-center gap-2 text-sm">
-						{error}
-						{#if access}<button class="btn btn-sm" onclick={access.run}>{access.label}</button>{/if}
-					</p>
-				{/if}
+				</p>
 
 				<div class="modal-action mt-0">
 					<button class="btn btn-ghost" onclick={() => closeFileDialog(null)}>{t.dialog.cancel}</button>
 					<button
-						class={['btn', replacing && !nameIssue && !markedFolder ? 'btn-warning' : 'btn-primary']}
+						class={['btn', !(replacing && !nameIssue && !markedFolder) && 'btn-primary']}
 						disabled={!canConfirm}
 						onclick={confirm}
 					>

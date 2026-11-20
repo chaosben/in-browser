@@ -28,7 +28,7 @@ const german = /^de\b/i.test(process.env.LC_ALL || process.env.LC_MESSAGES || pr
 const messages = german ? de : en;
 
 const tree = fsTree(folder);
-/** Expired entries of the trash go this often (the retention chosen in Files is synced into this folder too) */
+/** Expired entries of the trash go this often (the retention, a suite setting, is synced into this folder too) */
 const TRASH_INTERVAL = 60 * 60 * 1000;
 /** Fixed WebRTC ports forwarded by the router (`IN_BROWSER_ICE_PORTS=off`: random ports, no forwarding – tests) */
 const icePorts = process.env.IN_BROWSER_ICE_PORTS === 'off' ? undefined : ICE_PORTS;

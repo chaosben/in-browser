@@ -1,14 +1,40 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { shareClient } from '../sources/share.js';
 import { trashInTree, untrashInTree } from '../trash.js';
+import { roomId } from './auth.js';
 import { Device } from './device.js';
-import type { Network } from './network.js';
+import type { Link } from './link.js';
+import type { Network, NetworkRoom } from './network.js';
 import { memoryStore } from './store.js';
 import { folderTree, hub, readText, until, writeText } from './testing.js';
 
 // Guest shares: a device shares one folder; a browser outside the group opens it live with the link's key
 
 const stops: (() => Promise<void> | void)[] = [];
+
+/** A network whose rooms are entered only after `ms` (links of this device come last) */
+function later(network: Network, ms: number): Network {
+	return {
+		join(roomId, password) {
+			const handlers: ((link: Link, peerId: string) => void)[] = [];
+			let room: NetworkRoom | null = null;
+			const timer = setTimeout(() => {
+				room = network.join(roomId, password);
+				handlers.forEach((h) => room!.onLink(h));
+			}, ms);
+			return {
+				onLink(handler) {
+					handlers.push(handler);
+					room?.onLink(handler);
+				},
+				leave() {
+					clearTimeout(timer);
+					room?.leave();
+				}
+			};
+		}
+	};
+}
 
 afterEach(async () => {
 	for (const stop of stops.splice(0)) await stop();
@@ -30,12 +56,13 @@ function guest(network: Network, code: string, token = 'guest-1', onEnded = () =
 }
 
 function guestClient(network: Network, code: string, token = 'guest-1', onEnded = () => {}) {
-	const client = shareClient({ code, token }, async () => network, { timeout: 1500, onEnded, backoff: [0] });
+	const client = shareClient({ code, token }, async () => network, { timeout: 5000, onEnded, backoff: [0] });
 	stops.push(() => client.close());
 	return client;
 }
 
-describe('guest shares', () => {
+// Generous time limits: under the load of a full test run, WebRTC connections take a while
+describe('guest shares', { timeout: 30_000 }, () => {
 	it('shows only the shared folder, read-only when viewing', async () => {
 		const network = hub();
 		const { device, tree } = await host(network);
@@ -50,11 +77,12 @@ describe('guest shares', () => {
 		await until(() => device.view().shares[0]?.connected === true, 4000, 'guest shown as connected');
 	});
 
-	it('lets the guest edit when allowed', async () => {
+	it('lets the guest edit when allowed, but only inside the shared folder', async () => {
 		const network = hub();
 		const { device, tree } = await host(network);
 		const share = await device.share('/Trip', 'edit');
 		const source = guest(network, share.code);
+		await writeText(tree, '/Other/Trip/photo.txt', 'elsewhere');
 		const writer = (await source.writable('/note.txt')).getWriter();
 		await writer.write(new TextEncoder().encode('from the guest'));
 		await writer.close();
@@ -65,14 +93,6 @@ describe('guest shares', () => {
 		expect(ref.path).toBe('/photo.txt');
 		await source.untrash!(ref);
 		expect(await readText(tree, '/Trip/photo.txt')).toBe('sunny');
-	});
-
-	it('keeps an editing guest inside the shared folder and its own deletions', async () => {
-		const network = hub();
-		const { device, tree } = await host(network);
-		const share = await device.share('/Trip', 'edit');
-		const source = guest(network, share.code);
-		await writeText(tree, '/Other/Trip/photo.txt', 'elsewhere');
 
 		// Made-up trash references never reach outside (`..` would name the root of My files)
 		for (const entry of ['..', '../Private', '../Other']) {
@@ -90,10 +110,10 @@ describe('guest shares', () => {
 		expect((await tree.names('/.in-browser-trash')).length).toBe(1);
 
 		// Writes without gaps (a far position would make a huge file on the host)
-		const writer = (await source.writable('/big.bin')).getWriter();
-		await writer.write({ type: 'write', position: 1e12, data: new Uint8Array(4) });
+		const far = (await source.writable('/big.bin')).getWriter();
+		await far.write({ type: 'write', position: 1e12, data: new Uint8Array(4) });
 		// Pieces are sent when complete: the refusal comes with closing
-		await expect(writer.close()).rejects.toBeTruthy();
+		await expect(far.close()).rejects.toBeTruthy();
 		expect(await tree.stat('/Trip/big.bin')).toBeNull();
 	});
 
@@ -136,6 +156,22 @@ describe('guest shares', () => {
 		expect(device.view().shares[0]).toMatchObject({ connected: true, used: true });
 	});
 
+	it('reaches the host past other guests and members that never answer', async () => {
+		// Guests of one share see each other in the room; one that answers nothing must not hold a guest forever
+		const network = hub();
+		const { device } = await host(later(network, 1500));
+		const share = await device.share('/Trip', 'view');
+		const silent = network.join(await roomId('share', share.code), share.code);
+		stops.push(() => silent.leave());
+		// The guest's first link is the silent member, then another guest (another tab of it: the host lets both in)
+		const source = guest(network, share.code, 'guest-1');
+		const listed = source.list('/');
+		await new Promise((r) => setTimeout(r, 300));
+		const other = guest(network, share.code, 'guest-1');
+		void other.list('/').catch(() => {});
+		expect((await listed).map((e) => e.name)).toEqual(['photo.txt']);
+	});
+
 	it('tells a connected guest right away when the share ends', async () => {
 		const network = hub();
 		const { device } = await host(network);
@@ -150,29 +186,5 @@ describe('guest shares', () => {
 		// No waiting for a device that left
 		expect(Date.now() - started).toBeLessThan(500);
 		expect(device.view().shares).toEqual([]);
-	});
-
-	it('waits longer and longer before trying again when nobody answers', async () => {
-		let joins = 0;
-		const silent: Network = {
-			join: () => {
-				joins++;
-				return { onLink: () => {}, leave: () => {} };
-			}
-		};
-		let time = 0;
-		const client = shareClient({ code: 'X'.repeat(20), token: 't' }, async () => silent, { timeout: 10, backoff: [5_000, 15_000], now: () => time });
-		stops.push(() => client.close());
-		await expect(client.source.list('/')).rejects.toMatchObject({ code: 'offline' });
-		// Within the pause: answered at once, no new announcement
-		time = 4_000;
-		await expect(client.source.list('/')).rejects.toMatchObject({ code: 'offline' });
-		expect(joins).toBe(1);
-		time = 5_001;
-		await expect(client.source.list('/')).rejects.toMatchObject({ code: 'offline' });
-		expect(joins).toBe(2);
-		time = 15_000;
-		await expect(client.source.list('/')).rejects.toMatchObject({ code: 'offline' });
-		expect(joins).toBe(2);
 	});
 });

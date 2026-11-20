@@ -29,7 +29,7 @@ export class DevicePreview {
 				stream = s;
 				this.error[kind] = false;
 				cleanup = onopen(s);
-				devices.refresh().catch(() => {});
+				devices.refresh().catch((e) => console.warn('[screen-capture]', e));
 			})
 			.catch(() => (this.error[kind] = true));
 		return () => {
@@ -73,7 +73,7 @@ export class DevicePreview {
 		measure();
 		return () => {
 			cancelAnimationFrame(raf);
-			context.close().catch(() => {});
+			context.close().catch((e) => console.warn('[screen-capture]', e));
 			this.micLevel = 0;
 		};
 	}

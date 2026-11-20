@@ -1,35 +1,48 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
 	import { setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
-	import { openContextMenu, openMenuBelow } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import type { Command } from '@in-browser/brand/commands.js';
+	import { panelCommand, type PanelSpec } from '@in-browser/brand/panels.js';
+	import PanelRail from '@in-browser/brand/PanelRail.svelte';
+	import Ribbon from '@in-browser/brand/Ribbon.svelte';
+	import type { GroupSize, RibbonTab } from '@in-browser/brand/ribbon.js';
+	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import { inTextField } from '@in-browser/brand/ui/typing.js';
+	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
+	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-	import { FilesError, stat, supported, watch, watchSettled } from '@in-browser/files/fs.js';
+	import { FilesError, supported, watch, watchSettled } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, isConnected, isInside, join, normalize, parent, placeRoot, segments } from '@in-browser/files/path.js';
-	import { allowAccess, connectionLabel, connections, openShare, disconnect, renameConnection } from '@in-browser/files/sources/connections.svelte.js';
+	import {
+		allowAccess,
+		connectionLabel,
+		connections,
+		connectionsSupported,
+		openShare,
+		disconnect,
+	} from '@in-browser/files/sources/connections.svelte.js';
 	import { displayName } from '@in-browser/files/sources/registry.js';
 	import { parseInviteCode, parseShareCode } from '@in-browser/files/p2p/auth.js';
-	import { excludedNow, holdersOf, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
-	import { inScope } from '@in-browser/files/p2p/scope.js';
-	import { newFolder, paste, removeItems, rename, toClipboard, toolUrl, transfer } from '#lib/actions.js';
-	import ConnectedSection from '#lib/components/ConnectedSection.svelte';
-	import SharesSection from '#lib/components/SharesSection.svelte';
+	import { excludedNow, holdersOf, includeFolder, p2pStatus, syncDevicesNow } from '@in-browser/files/p2p/p2p.svelte.js';
+	import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
+	import { syncNow, syncStatus } from '@in-browser/files/sync/sync.svelte.js';
+	import { fail, newFolder, newTextFile, paste, removeItems, rename, toClipboard, toolUrl, transfer, duplicate, openInNewTab } from '#lib/actions.js';
+	import { connect } from '#lib/connections.js';
 	import ShareDialog from '#lib/components/ShareDialog.svelte';
 	import FileList from '#lib/components/FileList.svelte';
-	import FolderTree from '#lib/components/FolderTree.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
 	import PropertiesDialog from '#lib/components/PropertiesDialog.svelte';
 	import SyncDialog from '#lib/components/SyncDialog.svelte';
-	import SyncEntry from '#lib/components/SyncEntry.svelte';
-	import TrashDialog from '#lib/components/TrashDialog.svelte';
-	import TrashEntry from '#lib/components/TrashEntry.svelte';
+	import TrashView from '#lib/components/TrashView.svelte';
 	import ExcludeFolderDialog from '#lib/components/ExcludeFolderDialog.svelte';
 	import ExplainDialog from '#lib/components/ExplainDialog.svelte';
 	import FolderScopeDialog from '#lib/components/FolderScopeDialog.svelte';
@@ -39,14 +52,27 @@
 	import { closeDevicesDialog, devicesUi, openDevicesDialog } from '#lib/devices.svelte.js';
 	import { acceptsDrag, DRAG_TYPE } from '#lib/dnd.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
-	import { areaEntries, connectionEntries, itemEntries, openFolderEntries, shareEntries, uploadEntries, type MenuContext } from '#lib/menus.js';
+	import { KEYS, installFilesKeys, keyLabel, listHasFocus } from '#lib/keys.js';
+	import {
+		areaEntries,
+		connectionEntries,
+		itemEntries,
+		rootEntries,
+		shareEntries,
+		sortEntries,
+		uploadEntries,
+		disconnectConnection,
+		type MenuContext
+	} from '#lib/menus.js';
 	import { toItem, type Item } from '#lib/items.js';
-	import { Manager, treeVersion } from '#lib/manager.svelte.js';
+	import { clipboard, lastUndo, Manager, treeVersion } from '#lib/manager.svelte.js';
+	import type { FilesPanelContext } from '#lib/panels/context.js';
+	import { trash, TRASH } from '#lib/trash.svelte.js';
+	import { inTrash } from '@in-browser/files/trash.js';
 	import { download, fromDrop, fromInput, upload, zipName, type Upload } from '#lib/transfer.js';
-	import { inTextField } from '@in-browser/brand/ui/typing.js';
-	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 
 	const manager = new Manager();
+	manager.relocate = navigate;
 	const t = $derived(filesMessages());
 
 	let preview = $state<Item | null>(null);
@@ -60,8 +86,11 @@
 	let usage = $state<string | null>(null);
 	let fileInput = $state<HTMLInputElement>();
 	let folderInput = $state<HTMLInputElement>();
-	/** Small screens: the search is a button until it is opened (or has a query) */
-	let searchOpen = $state(false);
+	/** The list and the free area around it: keys for the list act while the focus is here (`keys.ts`) */
+	let listArea = $state<HTMLElement>();
+	/** The open side panel (`files:panel`; the folders by default) */
+	let panel = $state<string | null>(null);
+	const narrow = new MediaQuery('max-width: 639px', false);
 
 	/** What the menus (`menus.ts`) do on this page */
 	const menus: MenuContext = {
@@ -96,8 +125,10 @@
 	/** My files (`/`) or the root of the connected folder the open folder lies in */
 	const root = $derived(placeRoot(manager.folder));
 	const connection = $derived(connections.list.find((c) => c.path === root) ?? null);
-	/** A guest share for viewing: nothing can be added, changed or deleted here */
-	const readOnlyPlace = $derived(connection?.mode === 'view');
+	/** The trash is shown instead of a folder (`/files?trash`) */
+	const trashOpen = $derived(page.url.searchParams.has('trash'));
+	/** A guest share for viewing (nothing can be added, changed or deleted here) – or the trash */
+	const readOnlyPlace = $derived(trashOpen || connection?.mode === 'view');
 
 	/** `path` lies in a guest share for viewing */
 	function readOnlyAt(path: string): boolean {
@@ -105,7 +136,7 @@
 		return connections.list.find((c) => c.path === place)?.mode === 'view';
 	}
 
-	/** Shortcuts and drops into such a place: says why nothing happens */
+	/** Drops into such a place: says why nothing happens */
 	function refusedAt(path: string): boolean {
 		if (!readOnlyAt(path)) return false;
 		toast(filesErrorText(new FilesError('readOnly', path)), 'error');
@@ -119,33 +150,465 @@
 			.map((name, i, all) => ({ name, path: join(root, ...all.slice(0, i + 1)) }))
 	]);
 
-	/** The open folder as an entry (for its menu: download, properties) */
+	/** The open folder as an entry (for its menu: download, properties, its own actions) */
 	const current = $derived(toItem({ name: crumbs.at(-1)?.name ?? t.root, path: manager.folder, kind: 'directory' }));
 
-	// Folder path with all actions of the open folder on the left of the BrandBar, upload and new folder right after it;
-	// search and view on the right
-	// Count, selection, upload and storage on the left of the BrandFooter
+	// --- What commands act on: the selection, else the open folder (`ui.md`) ---
+
+	/** What the commands of a folder act on – none in the trash, whose own commands act on `manager.selected` */
+	const selected = $derived(trashOpen ? [] : manager.selected);
+	const one = $derived(selected.length === 1 ? selected[0] : null);
+	/** The selection lies in a guest share for viewing */
+	const lockedSelection = $derived(selected.some((item) => readOnlyAt(item.path)));
+	/** Entry Enter opens: the one with the keyboard focus, else the first selected */
+	const focused = $derived(manager.visible.find((i) => i.path === manager.focus && manager.pick.has(i.path)) ?? selected[0] ?? null);
+	/** Folder that sharing and the sync choice act on: a selected folder, else the open one */
+	const folderTarget = $derived(one?.folder ? one.path : manager.folder);
+	const online = $derived(p2pStatus.view.state === 'online');
+
+	/** “Sync on this device” can change for the folder (My files, not the top, not inside a left-out folder) */
+	function scopeChangeable(path: string): boolean {
+		if (!online || path === '/' || isConnected(path) || !canExclude(path)) return false;
+		return inScope(path, p2pStatus.view.scope) || parent(path) === '/' || inScope(parent(path), p2pStatus.view.scope);
+	}
+
+	const commands = {
+		undo: {
+			id: 'undo',
+			label: m.commands.undo,
+			icon: 'icon-[material-symbols-light--undo]',
+			tip: m.commands.undoTip,
+			shortcut: KEYS.undo,
+			enabled: () => !!lastUndo.current,
+			run: () => void lastUndo.current?.()
+		},
+		upload: {
+			id: 'upload',
+			label: m.toolbar.upload,
+			icon: 'icon-[material-symbols-light--upload]',
+			enabled: () => !readOnlyPlace,
+			menu: () => uploadEntries(menus)
+		},
+		newFolder: {
+			id: 'newFolder',
+			label: m.toolbar.newFolder,
+			icon: 'icon-[material-symbols-light--create-new-folder-outline]',
+			enabled: () => !readOnlyPlace,
+			run: () => void newFolder(manager)
+		},
+		newTextFile: {
+			id: 'newTextFile',
+			label: m.toolbar.newTextFile,
+			icon: 'icon-[material-symbols-light--note-add-outline]',
+			enabled: () => !readOnlyPlace,
+			run: () => void newTextFile(manager)
+		},
+		paste: {
+			id: 'paste',
+			label: m.menu.paste,
+			icon: 'icon-[material-symbols-light--content-paste]',
+			shortcut: KEYS.paste,
+			enabled: () => !readOnlyPlace && !!clipboard.current,
+			run: () => void paste(manager)
+		},
+		cut: {
+			id: 'cut',
+			label: m.menu.cut,
+			icon: 'icon-[material-symbols-light--content-cut]',
+			shortcut: KEYS.cut,
+			enabled: () => selected.length > 0 && !lockedSelection,
+			run: () => toClipboard(selected, 'cut')
+		},
+		copy: {
+			id: 'copy',
+			label: m.menu.copy,
+			icon: 'icon-[material-symbols-light--content-copy]',
+			shortcut: KEYS.copy,
+			enabled: () => selected.length > 0,
+			run: () => toClipboard(selected, 'copy')
+		},
+		duplicate: {
+			id: 'duplicate',
+			label: m.menu.duplicate,
+			icon: 'icon-[material-symbols-light--folder-copy-outline]',
+			enabled: () => selected.length > 0 && !lockedSelection,
+			run: () => void duplicate(manager, selected)
+		},
+		moveTo: {
+			id: 'moveTo',
+			label: m.menu.moveTo,
+			icon: 'icon-[material-symbols-light--drive-file-move-outline]',
+			enabled: () => selected.length > 0 && !lockedSelection,
+			run: () => void moveTo(selected)
+		},
+		rename: {
+			id: 'rename',
+			label: m.menu.rename,
+			icon: 'icon-[material-symbols-light--edit-outline]',
+			shortcut: KEYS.rename,
+			enabled: () => !!one && !lockedSelection,
+			run: () => one && (manager.renaming = one.path)
+		},
+		delete: {
+			id: 'delete',
+			label: m.menu.delete,
+			icon: 'icon-[material-symbols-light--delete-outline]',
+			shortcut: KEYS.delete,
+			enabled: () => selected.length > 0 && !lockedSelection,
+			run: () => void removeItems(manager, selected)
+		},
+		selectAll: {
+			id: 'selectAll',
+			label: m.menu.selectAll,
+			icon: 'icon-[material-symbols-light--select-all]',
+			shortcut: KEYS.selectAll,
+			enabled: () => manager.visible.length > 0,
+			run: () => manager.selectAll()
+		},
+		clearSelection: {
+			id: 'clearSelection',
+			label: m.menu.clearSelection,
+			icon: 'icon-[material-symbols-light--deselect]',
+			shortcut: KEYS.clear,
+			enabled: () => manager.selected.length > 0 || manager.pick.selecting,
+			run: () => manager.clearSelection()
+		},
+		open: {
+			id: 'open',
+			label: m.menu.open,
+			icon: 'icon-[material-symbols-light--open-in-new]',
+			shortcut: KEYS.open,
+			enabled: () => !!focused,
+			run: () => focused && open(focused)
+		},
+		openWith: {
+			id: 'openWith',
+			label: m.commands.openWith,
+			icon: 'icon-[material-symbols-light--apps]',
+			enabled: () => !!one && !one.folder && one.openWith.length > 0,
+			menu: () =>
+				one && !one.folder
+					? one.openWith.map((format) => ({
+							label: m.menu.openWith(toolName(format.tool)),
+							icon: 'icon-[material-symbols-light--open-in-new]',
+							run: () => location.assign(toolUrl(one, format)!)
+						}))
+					: []
+		},
+		preview: {
+			id: 'preview',
+			label: m.menu.preview,
+			icon: 'icon-[material-symbols-light--visibility-outline]',
+			shortcut: KEYS.preview,
+			enabled: () => one?.kind === 'file',
+			run: () => one?.kind === 'file' && (preview = one)
+		},
+		download: {
+			id: 'download',
+			label: m.common.download,
+			icon: 'icon-[material-symbols-light--download]',
+			tip: m.commands.downloadTip,
+			run: () => void downloadItems(selected.length ? selected : [current])
+		},
+		properties: {
+			id: 'properties',
+			label: m.menu.properties,
+			icon: 'icon-[material-symbols-light--info-outline]',
+			enabled: () => selected.length <= 1,
+			run: () => (properties = one ?? current)
+		},
+		share: {
+			id: 'share',
+			label: m.share.action,
+			icon: 'icon-[material-symbols-light--share-outline]',
+			tip: m.commands.shareTip,
+			enabled: () => p2pStatus.supported,
+			run: () => (shareable(folderTarget) ? (sharing = { path: folderTarget }) : void shareNew())
+		},
+		connect: {
+			id: 'connect',
+			label: m.connected.connect,
+			icon: 'icon-[material-symbols-light--add-link]',
+			tip: m.connected.connectHint,
+			enabled: () => connectionsSupported(),
+			run: () => void connect(navigate)
+		},
+		allowAccess: {
+			id: 'allowAccess',
+			label: m.connected.allow,
+			icon: 'icon-[material-symbols-light--key-outline]',
+			enabled: () => !!connection && connection.kind === 'folder' && connection.access !== 'granted',
+			run: () => void (connection && allowAccess(connection.id))
+		},
+		disconnect: {
+			id: 'disconnect',
+			label: m.connected.disconnect,
+			icon: 'icon-[material-symbols-light--link-off]',
+			enabled: () => !!connection,
+			run: () => void (connection && disconnectConnection(menus, connection))
+		},
+		syncNow: {
+			id: 'syncNow',
+			label: m.devices.syncNow,
+			icon: 'icon-[material-symbols-light--sync]',
+			enabled: () => online || !!syncStatus.folder,
+			run: () => {
+				if (syncStatus.folder) syncNow();
+				if (online) syncDevicesNow().catch(fail);
+			}
+		},
+		syncSettings: {
+			id: 'syncSettings',
+			label: m.commands.syncSettings,
+			icon: 'icon-[material-symbols-light--settings-outline]',
+			run: () => openDevicesDialog('sync')
+		},
+		addDevice: {
+			id: 'addDevice',
+			label: m.devices.addDevice,
+			icon: 'icon-[material-symbols-light--qr-code-2]',
+			enabled: () => p2pStatus.supported && p2pStatus.view.state !== 'removed',
+			run: () => openDevicesDialog(online ? 'pair' : 'setup')
+		},
+		chooseFolders: {
+			id: 'chooseFolders',
+			label: m.devices.chooseFolders,
+			icon: 'icon-[material-symbols-light--folder-open-outline]',
+			enabled: () => online,
+			run: () => openDevicesDialog('scope')
+		},
+		syncHere: {
+			id: 'syncHere',
+			label: m.commands.syncHere,
+			icon: 'icon-[material-symbols-light--sync-saved-locally-outline]',
+			tip: m.commands.syncHereTip,
+			enabled: () => scopeChangeable(folderTarget),
+			active: () => online && !isConnected(folderTarget) && inScope(folderTarget, p2pStatus.view.scope),
+			run: () => {
+				const path = folderTarget;
+				if (inScope(path, p2pStatus.view.scope)) devicesUi.exclude = path;
+				else includeFolder(path).catch(fail);
+			}
+		},
+		trashRestore: {
+			id: 'trashRestore',
+			label: m.trash.restore,
+			icon: 'icon-[material-symbols-light--restore-from-trash-outline]',
+			shortcut: KEYS.open,
+			enabled: () => !trash.busy && manager.selected.length > 0,
+			run: () => void trash.restore(trash.of(manager.selected))?.then(() => manager.refresh())
+		},
+		trashRemove: {
+			id: 'trashRemove',
+			label: m.trash.remove,
+			icon: 'icon-[material-symbols-light--delete-forever-outline]',
+			shortcut: KEYS.delete,
+			enabled: () => !trash.busy && manager.selected.length > 0,
+			run: () => void trash.remove(trash.of(manager.selected)).then(() => manager.refresh())
+		},
+		trashEmpty: {
+			id: 'trashEmpty',
+			label: m.trash.empty,
+			icon: 'icon-[material-symbols-light--delete-sweep-outline]',
+			enabled: () => !trash.busy && (!trashOpen || manager.visible.length > 0 || !!manager.query),
+			run: () =>
+				void trash.empty().then(() => {
+					if (trashOpen) void manager.refresh();
+				})
+		},
+		list: {
+			id: 'list',
+			label: m.toolbar.list,
+			icon: 'icon-[material-symbols-light--view-list-outline]',
+			active: () => manager.view === 'list',
+			run: () => manager.setView('list')
+		},
+		grid: {
+			id: 'grid',
+			label: m.toolbar.grid,
+			icon: 'icon-[material-symbols-light--grid-view-outline]',
+			active: () => manager.view === 'grid',
+			run: () => manager.setView('grid')
+		},
+		sort: {
+			id: 'sort',
+			label: m.view.sortBy,
+			icon: 'icon-[material-symbols-light--sort]',
+			menu: () => sortEntries(manager)
+		},
+		refresh: {
+			id: 'refresh',
+			label: m.toolbar.refresh,
+			icon: 'icon-[material-symbols-light--refresh]',
+			run: () => void manager.refresh()
+		},
+		up: {
+			id: 'up',
+			label: m.commands.up,
+			icon: 'icon-[material-symbols-light--arrow-upward]',
+			shortcut: KEYS.up,
+			enabled: () => manager.folder !== '/',
+			run: () => navigate(parent(manager.folder))
+		}
+	} satisfies Record<string, Command>;
+	const upAlt: Command = { ...commands.up, id: 'upAlt', shortcut: KEYS.upAlt };
+
+	// --- Side panels ---
+
+	const panels: PanelSpec<FilesPanelContext>[] = [
+		{ id: 'folders', icon: 'icon-[material-symbols-light--account-tree-outline]', label: m.panels.folders, load: async () => (await import('#lib/panels/FoldersPanel.svelte')).default },
+		{ id: 'shares', icon: 'icon-[material-symbols-light--share-outline]', label: m.share.section, load: async () => (await import('#lib/panels/SharesPanel.svelte')).default }
+	];
+	const openPanel = { get: () => panel, set: (id: string | null) => (panel = id) };
+
+	/** The trash's entries as a menu (right click, long press, the crumb) */
+	function trashEntries(): MenuEntry[] {
+		const entry = (c: Command): MenuEntry => ({ label: c.label, icon: c.icon, keys: c.shortcut && keyLabel(c.shortcut), disabled: c.enabled?.() === false, run: () => c.run?.() });
+		return [entry(commands.trashRestore), entry(commands.trashRemove), { separator: true }, entry(commands.selectAll), entry(commands.trashEmpty)];
+	}
+
+	const panelContext: FilesPanelContext = {
+		current: () => (trashOpen ? '' : manager.folder),
+		navigate,
+		trashOpen: () => trashOpen,
+		openTrash,
+		trashMenu: () => [
+			{ label: m.menu.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: `${resolve('/files')}?trash`, run: openTrash },
+			{ label: m.trash.empty, icon: 'icon-[material-symbols-light--delete-sweep-outline]', run: () => commands.trashEmpty.run() }
+		],
+		dropOnTrash: (paths) => void removeItems(manager, paths.map((path) => toItem({ name: basename(path), path, kind: 'file' }))),
+		sheet: () => coarsePointer.current || narrow.current,
+		dropItems,
+		dropFiles,
+		rootMenu: () => rootEntries(menus, toItem({ name: t.root, path: '/', kind: 'directory' })),
+		folderMenu: (item) =>
+			itemEntries(menus, [item], (it) => {
+				// Renamed in the list of the folder it is in
+				if (manager.folder !== parent(it.path)) navigate(parent(it.path));
+				setTimeout(() => (manager.renaming = it.path), 150);
+			}),
+		connectionMenu: (c) => connectionEntries(menus, c),
+		shareMenu: (share) => shareEntries(menus, share),
+		openShare: (share) => (sharing = { path: share.folder, id: share.id }),
+		shareNew
+	};
+
+	// --- Ribbon ---
+
+	const tabs: RibbonTab[] = [
+		{
+			id: 'home',
+			label: m.ribbon.tabs.home,
+			groups: [
+				{ id: 'new', label: m.ribbon.groups.new, items: [commands.upload, commands.newFolder, commands.newTextFile] },
+				{ id: 'clipboard', label: m.ribbon.groups.clipboard, items: [commands.paste, commands.cut, commands.copy] },
+				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.duplicate, commands.moveTo, commands.rename, commands.delete] },
+				{ id: 'select', label: m.ribbon.groups.select, items: [commands.selectAll, commands.clearSelection] },
+				{ id: 'find', label: m.ribbon.groups.find, items: [{ id: 'search', label: m.toolbar.search, custom: searchField }] }
+			]
+		},
+		{
+			id: 'share',
+			label: m.ribbon.tabs.share,
+			groups: [
+				{ id: 'share', label: m.ribbon.groups.share, items: [commands.share] },
+				{ id: 'download', label: m.ribbon.groups.download, items: [commands.download] }
+			]
+		},
+		// Folders opened live (decided by the user: a place of their own, not part of sharing)
+		{
+			id: 'connect',
+			label: m.ribbon.tabs.connect,
+			groups: [{ id: 'connected', label: m.connected.title, items: [commands.connect, commands.allowAccess, commands.disconnect] }]
+		},
+		{
+			id: 'sync',
+			label: m.ribbon.tabs.sync,
+			groups: [
+				{ id: 'sync', label: m.ribbon.groups.sync, items: [commands.syncNow, commands.syncSettings] },
+				{ id: 'devices', label: m.ribbon.groups.devices, items: [commands.addDevice, commands.chooseFolders, commands.syncHere] }
+			]
+		},
+		{
+			id: 'view',
+			label: m.ribbon.tabs.view,
+			groups: [
+				{ id: 'show', label: m.ribbon.groups.show, items: [commands.list, commands.grid, commands.sort, commands.refresh] },
+				{ id: 'panels', label: m.ribbon.groups.panels, items: panels.map((spec) => panelCommand(spec, openPanel)) }
+			]
+		},
+		// The selected entries (phones switch to it in the selection mode – instead of other buttons in the top bar)
+		{
+			id: 'selection',
+			label: m.ribbon.tabs.selection,
+			contextual: true,
+			visible: () => selected.length > 0,
+			groups: [
+				{ id: 'open', label: m.ribbon.groups.open, items: [commands.open, commands.openWith, commands.preview, commands.download] },
+				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.rename, commands.moveTo, commands.delete, commands.properties] },
+				{ id: 'select', label: m.ribbon.groups.select, items: [commands.selectAll, commands.clearSelection] }
+			]
+		},
+		// The trash, while it is shown (phones switch to it)
+		{
+			id: 'trash',
+			label: m.ribbon.tabs.trash,
+			contextual: true,
+			visible: () => trashOpen,
+			groups: [
+				{ id: 'entries', label: m.ribbon.groups.entries, items: [commands.trashRestore, commands.trashRemove] },
+				{ id: 'select', label: m.ribbon.groups.select, items: [commands.selectAll, commands.clearSelection] },
+				{ id: 'trash', label: m.ribbon.groups.trash, items: [commands.trashEmpty] }
+			]
+		}
+	];
+
+	// Shortcuts: Ctrl+Z everywhere (outside text fields); the list's keys only while the focus is in the list – never
+	// on a button, menu entry or link, where Enter and Space press it
+	$effect(() =>
+		installFilesKeys(
+			() => listArea,
+			() => [commands.undo],
+			() =>
+				trashOpen
+					? [commands.trashRestore, commands.trashRemove, commands.selectAll, commands.clearSelection]
+					: [
+				commands.open,
+				commands.preview,
+				commands.rename,
+				commands.delete,
+				commands.copy,
+				commands.cut,
+				commands.paste,
+				commands.selectAll,
+				commands.clearSelection,
+				commands.up,
+				upAlt
+					]
+		)
+	);
+
+	// Arrow keys move through the list (held down they repeat); Shift extends the selection
+	$effect(() => {
+		const key = (e: KeyboardEvent) => {
+			const step = ({ ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 } as Record<string, number>)[e.key];
+			if (!step || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || !listHasFocus(listArea)) return;
+			e.preventDefault();
+			manager.step(step, e.shiftKey);
+		};
+		addEventListener('keydown', key);
+		return () => removeEventListener('keydown', key);
+	});
+
+	// Count, upload, storage and the selection on the left of the BrandFooter
 	$effect(() => setBrandFooter({ status: footerStatus }));
 
+	// Where you are: the folder path from the first folder (“Files” itself is the top level) – no actions, they are
+	// in the ribbon (`branding.md`)
 	$effect(() => {
-		const menu = openFolderEntries(menus, current, connection, readOnlyPlace);
-		// The tool name stands for the top level: the levels start with the first folder, the menu of the top level
-		// hangs at the tool name
+		if (trashOpen) return setBrandBar({ crumbs: [{ label: m.trash.title }] });
 		return setBrandBar({
-			crumbs: crumbs.map((level, i) =>
-				i < crumbs.length - 1
-					? { label: level.name, onclick: () => navigate(level.path) }
-					: {
-							label: level.name,
-							menu,
-							// The name of a connection is only how it is shown here
-							rename:
-								connection?.kind === 'folder' && level.path === connection.path ? (name: string) => void renameConnection(connection.id, name) : undefined
-						}
-			),
-			menu,
-			primary: barPrimary,
-			actions: barActions
+			crumbs: crumbs.map((level, i) => (i < crumbs.length - 1 ? { label: level.name, onclick: () => navigate(level.path) } : { label: level.name }))
 		});
 	});
 
@@ -155,9 +618,24 @@
 		goto(path === '/' ? base : `${base}?path=${encodeURIComponent(path)}`, { reset: false });
 	}
 
+	/** The trash, as the address `/files?trash` */
+	function openTrash() {
+		goto(`${resolve('/files')}?trash`, { reset: false });
+	}
+
+	// The trash is listed like a folder; entries also arrive from other devices
 	$effect(() => {
-		const path = normalize(page.url.searchParams.get('path') ?? '/');
-		untrack(() => manager.load(path));
+		if (!trashOpen) return;
+		return untrack(() => watchSettled((paths) => paths.some(inTrash), 500, () => void manager.refresh()));
+	});
+
+	$effect(() => {
+		const path = trashOpen ? TRASH : normalize(page.url.searchParams.get('path') ?? '/');
+		untrack(() => {
+			void manager.load(path);
+			// The keys of the list work right away (after a click on a folder in the tree or the path)
+			if (!inTextField(document.activeElement) && !document.querySelector(':popover-open, dialog[open]')) listArea?.focus({ preventScroll: true });
+		});
 	});
 
 	async function updateUsage() {
@@ -213,6 +691,14 @@
 	});
 
 	function open(item: Item) {
+		// Nothing in the trash opens: a tap picks (touch selection mode), restoring is a command
+		if (trashOpen) {
+			if (manager.pick.touch) {
+				manager.pick.selecting = true;
+				manager.pick.toggle(item.path);
+			}
+			return;
+		}
 		if (item.folder) return navigate(item.path);
 		const url = toolUrl(item);
 		if (url) location.assign(url);
@@ -229,22 +715,6 @@
 			return;
 		}
 		sharing = { path: folder };
-	}
-
-	/** Menu of a folder in the tree: the same actions as in the list, for exactly this folder */
-	async function treeMenu(e: MouseEvent, path: string) {
-		const listed = manager.visible.find((i) => i.path === path);
-		const entry = listed ? null : await stat(path).catch(() => null);
-		const item = listed ?? (entry && toItem(entry));
-		if (!item) return;
-		openContextMenu(
-			e,
-			itemEntries(menus, [item], (it) => {
-				// Renamed in the list of the folder it is in
-				if (manager.folder !== parent(it.path)) navigate(parent(it.path));
-				setTimeout(() => (manager.renaming = it.path), 150);
-			})
-		);
 	}
 
 	async function disconnectShare() {
@@ -278,8 +748,7 @@
 			if (items.length > 1 || items[0].kind === 'directory') toast(m.toasts.zipping);
 			await download(paths, zipName(paths, manager.folder, t.root));
 		} catch (e) {
-			console.error(e);
-			toast(filesErrorText(e), 'error', 8000);
+			fail(e, () => void downloadItems(items));
 		}
 	}
 
@@ -288,8 +757,7 @@
 			const count = await upload(await uploads, folder, (name) => (uploading = name));
 			if (count) toast(m.toasts.uploaded(count), 'success');
 		} catch (e) {
-			console.error(e);
-			toast(filesErrorText(e), 'error', 8000);
+			fail(e);
 		} finally {
 			uploading = null;
 			manager.refresh();
@@ -300,21 +768,21 @@
 	async function moveTo(items: Item[]) {
 		const folder = await chooseFile({ mode: 'folder', folder: manager.folder, accept: [], title: m.menu.moveTo, confirmLabel: m.menu.moveHere });
 		if (!folder) return;
-		const done = await transfer(
+		await transfer(
+			manager,
 			items.map((i) => i.path),
 			folder,
-			'move'
+			'move',
+			m.toasts.moved
 		);
-		if (done) toast(m.toasts.moved(done), 'success');
-		await manager.refresh();
 	}
 
-	async function dropItems(paths: string[], folder: string, copy: boolean) {
+	function dropItems(paths: string[], folder: string, copy: boolean) {
 		if (refusedAt(folder)) return;
 		// Between My files and a connected folder dragging copies, as between drives
 		const across = paths.some((path) => placeRoot(path) !== placeRoot(folder));
-		await transfer(paths, folder, copy || across ? 'copy' : 'move');
-		manager.refresh();
+		const mode = copy || across ? 'copy' : 'move';
+		void transfer(manager, paths, folder, mode, mode === 'copy' ? m.toasts.copied : m.toasts.moved);
 	}
 
 	async function commitRename(item: Item, name: string) {
@@ -324,36 +792,16 @@
 		if (!(await rename(manager, item.path, name))) manager.renaming = item.path;
 	}
 
-	/** Menu of the selection (`item`) or of the free area (`null`); at the pointer, or below a button */
-	function menu(e: MouseEvent, item: Item | null, show = openContextMenu) {
-		show(e, item ? itemEntries(menus, manager.selected) : areaEntries(menus, readOnlyPlace));
-	}
+	/** The selection's actions (context menu, ⋯ on touch) */
+	const selectionEntries = (): MenuEntry[] => (trashOpen ? trashEntries() : itemEntries(menus, manager.selected));
 
-	function onKey(e: KeyboardEvent) {
-		if (inTextField(e.target) || document.querySelector('dialog[open]')) return;
-		const mod = e.ctrlKey || e.metaKey;
-		const items = manager.selected;
-		const focused = manager.visible.find((i) => i.path === manager.focus);
-		const handled = () => e.preventDefault();
-		if (mod && e.key === 'a') return handled(), manager.selectAll();
-		if (mod && e.key === 'c') return handled(), toClipboard(items, 'copy');
-		// In a guest share for viewing nothing changes (cutting would delete the originals when pasting)
-		const changes = (path: string | undefined) => !!path && !refusedAt(path);
-		if (mod && e.key === 'x') return handled(), changes(items[0]?.path) && toClipboard(items, 'cut');
-		if (mod && e.key === 'v') return handled(), changes(manager.folder) && paste(manager);
-		if (e.key === 'Delete') return handled(), changes(items[0]?.path) && removeItems(manager, items);
-		if (e.key === 'F2' && items.length === 1) return handled(), changes(items[0].path) && (manager.renaming = items[0].path);
-		if (e.key === 'Enter' && (focused ?? items[0])) return handled(), open((focused ?? items[0])!);
-		if (e.key === ' ' && items.length === 1 && items[0].kind === 'file') return handled(), (preview = items[0]);
-		if (e.key === 'Escape') return manager.clearSelection();
-		if (e.key === 'Backspace' || (e.altKey && e.key === 'ArrowUp')) return handled(), navigate(parent(manager.folder));
-		const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
-		if (step && !e.altKey) return handled(), manager.step(step, e.shiftKey);
+	function areaMenu(e: MouseEvent) {
+		openContextMenu(e, trashOpen ? trashEntries() : areaEntries(menus, readOnlyPlace));
 	}
 
 	function areaDragOver(e: DragEvent) {
 		// Own entries over the free area stay where they are; files from the computer get uploaded here
-		if (!acceptsDrag(e) || e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+		if (trashOpen || !acceptsDrag(e) || e.dataTransfer?.types.includes(DRAG_TYPE)) return;
 		e.preventDefault();
 		dropping = true;
 	}
@@ -375,7 +823,6 @@
 {#snippet footerStatus()}
 	<span class="flex min-w-0 items-center gap-3 px-1 opacity-70">
 		<span>{m.list.items(manager.visible.length)}</span>
-		{#if manager.selected.length}<span>{m.list.selected(manager.selected.length)}</span>{/if}
 		{#if uploading}
 			<span class="flex items-center gap-1"><span class="loading loading-spinner loading-xs"></span>{m.toasts.uploading(uploading)}</span>
 		{/if}
@@ -391,195 +838,111 @@
 			</span>
 		{:else if usage}<span class="hidden lg:inline">{usage}</span>{/if}
 		<span class="hidden truncate 2xl:inline">{m.list.hint}</span>
+		<!-- Last, so the other items never move when the selection changes -->
+		{#if manager.selected.length}<span>{m.list.selected(manager.selected.length)}</span>{/if}
 	</span>
 {/snippet}
 
-{#snippet barActions()}
-	{#if coarsePointer.current && manager.selecting && manager.selected.length}
-		<!-- Touch selection mode: its actions and the way out instead of search and view -->
-		<button
-			class="btn btn-ghost btn-sm btn-square"
-			onclick={(e) => menu(e, manager.selected[0], openMenuBelow)}
-			title={m.menu.selection}
-			aria-label={m.menu.selection}
-		>
-			<span class="icon-[material-symbols-light--more-vert] size-5" aria-hidden="true"></span>
-		</button>
-		<button class="btn btn-ghost btn-sm btn-square" onclick={() => manager.clearSelection()} title={m.menu.clearSelection} aria-label={m.menu.clearSelection}>
-			<span class="icon-[material-symbols-light--close] size-5" aria-hidden="true"></span>
-		</button>
-	{:else}
-		{@render search()}
-	{/if}
+<!-- The search in the open folder: a field in the ribbon (tab “Home”, group “Find”) -->
+{#snippet searchField(_size: GroupSize)}
+	<label class="input input-sm w-36 lg:w-48">
+		<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
+		<input type="search" bind:value={manager.query} placeholder={m.toolbar.search} aria-label={m.toolbar.search} />
+	</label>
 {/snippet}
-
-{#snippet search()}
-	<button class="btn btn-ghost btn-sm btn-square md:hidden" onclick={() => openDevicesDialog('sync')} title={m.syncHub.open} aria-label={m.syncHub.open}>
-		<span class="icon-[material-symbols-light--sync] size-5" aria-hidden="true"></span>
-	</button>
-	{#if !searchOpen && !manager.query}
-		<button class="btn btn-ghost btn-sm btn-square sm:hidden" onclick={() => (searchOpen = true)} title={m.toolbar.search} aria-label={m.toolbar.search}>
-			<span class="icon-[material-symbols-light--search] size-5" aria-hidden="true"></span>
-		</button>
-	{/if}
-	<div class={searchOpen || manager.query ? 'contents' : 'hidden sm:contents'}>
-		<label class="input input-sm w-36 lg:w-48">
-			<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
-			<input
-				type="search"
-				bind:value={manager.query}
-				placeholder={m.toolbar.search}
-				aria-label={m.toolbar.search}
-				onblur={() => (searchOpen = false)}
-				{@attach (input) => {
-					if (searchOpen) input.focus();
-				}}
-			/>
-		</label>
-	</div>
-	<div class="hidden sm:block">
-		<div class="join">
-			<button
-				class={['btn btn-sm join-item', manager.view === 'list' && 'btn-active']}
-				onclick={() => manager.setView('list')}
-				title={m.toolbar.list}
-				aria-label={m.toolbar.list}
-			>
-				<span class="icon-[material-symbols-light--view-list-outline] size-5" aria-hidden="true"></span>
-			</button>
-			<button
-				class={['btn btn-sm join-item', manager.view === 'grid' && 'btn-active']}
-				onclick={() => manager.setView('grid')}
-				title={m.toolbar.grid}
-				aria-label={m.toolbar.grid}
-			>
-				<span class="icon-[material-symbols-light--grid-view-outline] size-5" aria-hidden="true"></span>
-			</button>
-		</div>
-	</div>
-{/snippet}
-
-{#snippet barPrimary()}
-	<button
-		class="btn btn-primary btn-sm"
-		disabled={readOnlyPlace}
-		onclick={(e) => openMenuBelow(e, uploadEntries(menus))}
-	>
-		<span class="icon-[material-symbols-light--upload] size-5" aria-hidden="true"></span>
-		{m.toolbar.upload}
-		<span class="icon-[material-symbols-light--keyboard-arrow-down] size-4" aria-hidden="true"></span>
-	</button>
-	<button class="btn btn-ghost btn-sm" disabled={readOnlyPlace} onclick={() => newFolder(manager)}>
-		<span class="icon-[material-symbols-light--create-new-folder-outline] size-5" aria-hidden="true"></span>
-		{m.toolbar.newFolder}
-	</button>
-{/snippet}
-
-<svelte:window onkeydown={onKey} />
 
 {#if !supported()}
 	<div class="alert alert-error m-6">{m.list.unsupported}</div>
 {:else}
-	<div class="flex h-full">
-		<aside class="border-base-300 bg-base-200 hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r p-3 md:flex">
-			<ul role="tree" aria-label={t.root}>
-				<FolderTree
-					path="/"
-					onfoldermenu={treeMenu}
-					current={manager.folder}
-					onnavigate={navigate}
-					ondropitems={dropItems}
-					ondropfiles={dropFiles}
+	<div class="flex h-full min-h-0 flex-col">
+		<Ribbon {tabs} quick={[commands.undo]} storage="files" />
+		<div class="flex min-h-0 flex-1">
+			<PanelRail {panels} context={panelContext} bind:open={panel} storage="files" initial="folders" />
+
+			<main class="flex min-w-0 flex-1 flex-col">
+				<input bind:this={fileInput} type="file" multiple hidden onchange={(e) => uploadAll(fromInput(e.currentTarget.files!), manager.folder)} />
+				<input
+					bind:this={folderInput}
+					type="file"
+					webkitdirectory
+					hidden
+					onchange={(e) => uploadAll(fromInput(e.currentTarget.files!), manager.folder)}
 				/>
-			</ul>
-			<ConnectedSection
-				current={manager.folder}
-				onnavigate={navigate}
-				ondropitems={dropItems}
-				ondropfiles={dropFiles}
-				onmenu={(e, c) => openContextMenu(e, connectionEntries(menus, c))}
-				onfoldermenu={treeMenu}
-			/>
-			<SharesSection
-				onshare={(share) => (sharing = { path: share.folder, id: share.id })}
-				onsharemenu={(e, share) => openContextMenu(e, shareEntries(menus, share))}
-				onnew={shareNew}
-			/>
-			<div class="mt-auto flex flex-col gap-2">
-				<TrashEntry />
-				<SyncEntry />
-			</div>
-		</aside>
 
-		<main class="flex min-w-0 flex-1 flex-col">
-			<input bind:this={fileInput} type="file" multiple hidden onchange={(e) => uploadAll(fromInput(e.currentTarget.files!), manager.folder)} />
-			<input
-				bind:this={folderInput}
-				type="file"
-				webkitdirectory
-				hidden
-				onchange={(e) => uploadAll(fromInput(e.currentTarget.files!), manager.folder)}
-			/>
-
-			<div
-				class="relative min-h-0 flex-1 overflow-auto"
-				role="presentation"
-				onclick={() => manager.clearSelection()}
-				oncontextmenu={(e) => menu(e, null)}
-				ondragover={areaDragOver}
-				ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}
-				ondrop={areaDrop}
-			>
-				{#if connection?.ended}
-					<div class="flex flex-col items-start gap-2 p-6">
-						<p class="flex items-center gap-2">
-							<span class="icon-[material-symbols-light--link-off] size-6 shrink-0" aria-hidden="true"></span>
-							{m.share.ended}
-						</p>
-						<p class="text-sm opacity-70">{m.share.endedHint}</p>
-						<button class="btn btn-sm" onclick={() => disconnectShare()}>{m.share.remove}</button>
-					</div>
-				{:else if connection && connection.access !== 'granted'}
-					<div class="flex flex-col items-start gap-2 p-6">
-						<p>{m.connected.noAccess(connection.name)}</p>
-						<button class="btn btn-sm btn-primary" onclick={() => allowAccess(connection.id)}>{m.connected.allow}</button>
-						<p class="text-xs opacity-60">{m.connected.allowHint}</p>
-					</div>
-				{:else if manager.items === null}
-					<p class="p-6 text-sm opacity-60">{m.list.loading}</p>
-				{:else if manager.error && remoteFolder}
-					<div class="flex flex-col items-start gap-2 p-6">
-						<p class="flex items-center gap-2">
-							<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
-							{m.remote.unreachable(basename(remoteFolder), holders)}
-						</p>
-						<a class="link text-sm" href={resolve('/help/sync')} target="_blank" rel="noopener">{m.remote.help}</a>
-					</div>
-				{:else if manager.error && connection?.kind === 'share' && (manager.errorCode === 'offline' || manager.errorCode === 'taken')}
-					<p class="flex items-center gap-2 p-6">
-						<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
-						{manager.errorCode === 'offline' ? m.share.unreachable : manager.error}
-					</p>
-				{:else if manager.error}
-					<p class="text-error p-6">{manager.error}</p>
-				{:else}
-					<FileList
-						{manager}
-						onopen={open}
-						onmenu={menu}
-						ondropitems={dropItems}
-						ondropfiles={dropFiles}
-						onrename={commitRename}
-					/>
-					{#if manager.visible.length === 0}
-						<p class="p-6 text-center text-sm opacity-60">{manager.query ? m.list.noMatch : m.list.empty}</p>
+				<!-- Takes the focus on a click, so the list's keys apply (keys.ts, installed for the window) -->
+				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+				<div
+					bind:this={listArea}
+					class="relative min-h-0 flex-1 overflow-auto outline-none"
+					role="region"
+					aria-label={trashOpen ? m.trash.title : (crumbs.at(-1)?.name ?? t.root)}
+					tabindex="-1"
+					data-testid="file-area"
+					onpointerdown={(e) => manager.pick.pointerdown(e)}
+					onclick={() => manager.clearSelection()}
+					oncontextmenu={areaMenu}
+					ondragover={areaDragOver}
+					ondragleave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && (dropping = false)}
+					ondrop={areaDrop}
+				>
+					{#if trashOpen}
+						<TrashView />
 					{/if}
-				{/if}
-				{#if dropping}
-					<DropOverlay label={m.list.dropHere(crumbs.at(-1)?.name ?? t.root)} />
-				{/if}
-			</div>
-		</main>
+					{#if connection?.ended && !trashOpen}
+						<div class="flex flex-col items-start gap-2 p-6">
+							<p class="flex items-center gap-2">
+								<span class="icon-[material-symbols-light--link-off] size-6 shrink-0" aria-hidden="true"></span>
+								{m.share.ended}
+							</p>
+							<p class="text-sm opacity-70">{m.share.endedHint}</p>
+							<button class="btn btn-sm" onclick={() => disconnectShare()}>{m.share.remove}</button>
+						</div>
+					{:else if connection && connection.access !== 'granted' && !trashOpen}
+						<div class="flex flex-col items-start gap-2 p-6">
+							<p>{m.connected.noAccess(connection.name)}</p>
+							<button class="btn btn-sm btn-primary" onclick={() => allowAccess(connection.id)}>{m.connected.allow}</button>
+							<p class="text-xs opacity-60">{m.connected.allowHint}</p>
+						</div>
+					{:else if manager.items === null}
+						<p class="p-6 text-sm opacity-60">{m.list.loading}</p>
+					{:else if manager.error && remoteFolder}
+						<div class="flex flex-col items-start gap-2 p-6">
+							<p class="flex items-center gap-2">
+								<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
+								{m.remote.unreachable(basename(remoteFolder), holders)}
+							</p>
+							<a class="link text-sm" href={resolve('/help/sync')} target="_blank" rel="noopener">{m.remote.help}</a>
+						</div>
+					{:else if manager.error && connection?.kind === 'share' && (manager.errorCode === 'offline' || manager.errorCode === 'taken')}
+						<p class="flex items-center gap-2 p-6">
+							<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
+							{manager.errorCode === 'offline' ? m.share.unreachable : manager.error}
+						</p>
+					{:else if manager.error}
+						<p class="text-error p-6">{manager.error}</p>
+					{:else}
+						<FileList
+							{manager}
+							onopen={open}
+							onmenu={(e) => openContextMenu(e, selectionEntries())}
+							entries={selectionEntries}
+							onrenamestart={(item) => !readOnlyAt(item.path) && (manager.renaming = item.path)}
+							ondropitems={dropItems}
+							ondropfiles={dropFiles}
+							onrename={commitRename}
+							trash={trashOpen}
+							onopentab={openInNewTab}
+						/>
+						{#if manager.visible.length === 0}
+							<p class="p-6 text-center text-sm opacity-60">{manager.query ? m.list.noMatch : trashOpen ? m.trash.nothing : m.list.empty}</p>
+						{/if}
+					{/if}
+					{#if dropping}
+						<DropOverlay label={m.list.dropHere(crumbs.at(-1)?.name ?? t.root)} />
+					{/if}
+				</div>
+			</main>
+		</div>
 	</div>
 {/if}
 
@@ -604,8 +967,6 @@
 	<JoinDialog code={devicesUi.joinCode} onclose={() => ((devicesUi.joinCode = ''), closeDevicesDialog())} />
 {:else if devicesUi.dialog === 'scope'}
 	<FolderScopeDialog onclose={closeDevicesDialog} />
-{:else if devicesUi.dialog === 'trash'}
-	<TrashDialog onclose={closeDevicesDialog} />
 {/if}
 {#if devicesUi.exclude}
 	<ExcludeFolderDialog path={devicesUi.exclude} onclose={() => (devicesUi.exclude = null)} />

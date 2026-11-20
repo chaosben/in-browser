@@ -54,13 +54,6 @@ export async function projectFileDate(path: string): Promise<number | undefined>
 /** Name of the project in the package at `path` (its file name without extension) */
 export const projectName = documentName;
 
-/** Renames the package and the project in it (saved first); the new path */
-export async function renameProject(project: Project, name: string): Promise<string> {
-	const target = await projects.rename(project.id, name, m.common.untitled);
-	if (target !== project.id) await saveProject({ ...project, id: target, name: projectName(target) });
-	return target;
-}
-
 /**
  * Asks where a new project goes (save dialog, suggested name from `title`) and creates its empty package;
  * returns its path (= project id), `null` if canceled.
@@ -104,7 +97,7 @@ export async function mediaWritable(project: string, file: string): Promise<Writ
 }
 
 export async function deleteMediaFile(project: string, file: string): Promise<void> {
-	await remove(mediaPath(project, file)).catch(() => {});
+	await remove(mediaPath(project, file)).catch((e) => console.warn('[screen-capture]', e));
 }
 
 export async function listMediaFiles(project: string): Promise<string[]> {
@@ -139,7 +132,7 @@ export async function clearExports(keep?: string): Promise<void> {
 	const exportsDir = await cacheDir('screen-capture', 'exports');
 	const names: string[] = [];
 	for await (const name of exportsDir.keys()) if (name !== keep) names.push(name);
-	await Promise.all(names.map((n) => exportsDir.removeEntry(n).catch(() => {})));
+	await Promise.all(names.map((n) => exportsDir.removeEntry(n).catch((e) => console.warn('[screen-capture]', e))));
 }
 
 /** Path of the global library file (other tabs and the sync change it too) */
@@ -169,5 +162,5 @@ export async function libraryMediaWritable(file: string): Promise<WritableStream
 }
 
 export async function deleteLibraryMedia(file: string): Promise<void> {
-	await remove(join(LIBRARY, 'media', file)).catch(() => {});
+	await remove(join(LIBRARY, 'media', file)).catch((e) => console.warn('[screen-capture]', e));
 }

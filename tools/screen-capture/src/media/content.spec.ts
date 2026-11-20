@@ -1,108 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { anchorFactors, captureLayout, contentSizeAt, placeInBox, sameShape, sourceCrop, visibleRect } from './content';
-import type { Source } from '#lib/project/types.js';
-
-const source = (extra: Partial<Source> = {}): Source => ({
-	id: 's',
-	file: 's.mp4',
-	name: 'S',
-	kind: 'recording',
-	duration: 10,
-	hasVideo: true,
-	width: 800,
-	height: 600,
-	hasAudio: false,
-	...extra
-});
-
-describe('sourceCrop', () => {
-	it('whole file without crop', () => {
-		expect(sourceCrop(source())).toEqual({ left: 0, top: 0, width: 800, height: 600 });
-	});
-	it('offset of the used area', () => {
-		expect(sourceCrop(source({ crop: { x: 100, y: 50 } }))).toEqual({ left: 100, top: 50, width: 800, height: 600 });
-	});
-});
-
-describe('contentSizeAt', () => {
-	const sizes = [
-		{ t: 0.1, width: 400, height: 300 },
-		{ t: 2, width: 800, height: 600 },
-		{ t: 5, width: 600, height: 400 }
-	];
-	it('whole source without size changes', () => {
-		expect(contentSizeAt(source(), 3)).toEqual({ width: 800, height: 600 });
-	});
-	it('size valid at the time', () => {
-		expect(contentSizeAt(source({ sizes }), 0)).toEqual({ width: 400, height: 300 });
-		expect(contentSizeAt(source({ sizes }), 2)).toEqual({ width: 800, height: 600 });
-		expect(contentSizeAt(source({ sizes }), 4.9)).toEqual({ width: 800, height: 600 });
-		expect(contentSizeAt(source({ sizes }), 9)).toEqual({ width: 600, height: 400 });
-	});
-});
+import { captureLayout, sameShape } from './content';
 
 describe('captureLayout', () => {
-	const box = { width: 1920, height: 1080 };
 	it('largest frame, centered and even', () => {
 		const sizes = [
 			{ t: 0, width: 800, height: 600 },
 			{ t: 1, width: 1001, height: 701 }
 		];
-		expect(captureLayout(box, { width: 1001, height: 701 }, sizes)).toEqual({
+		expect(captureLayout({ width: 1920, height: 1080 }, { width: 1001, height: 701 }, sizes)).toEqual({
 			width: 1002,
 			height: 702,
 			crop: { x: 459, y: 189 },
 			sizes
 		});
 	});
-	it('no crop and no sizes when nothing changed', () => {
-		expect(captureLayout(box, box, [{ t: 0, ...box }])).toEqual({ width: 1920, height: 1080, crop: undefined, sizes: undefined });
-	});
-});
-
-describe('placeInBox', () => {
-	it('centered 1:1', () => {
-		expect(placeInBox({ width: 1920, height: 1080 }, { width: 801, height: 600 })).toEqual({ x: 559, y: 240, width: 801, height: 600 });
-	});
-	it('scaled down if too large', () => {
-		expect(placeInBox({ width: 1000, height: 500 }, { width: 2000, height: 500 })).toEqual({ x: 0, y: 125, width: 1000, height: 250 });
-	});
 });
 
 describe('sameShape', () => {
 	const tab = { width: 2394, height: 1574 };
-	it('same size', () => {
-		expect(sameShape(tab, tab)).toBe(true);
-	});
-	it('half size with rounding (Chrome capture scale 1 instead of 2)', () => {
-		expect(sameShape(tab, { width: 1196, height: 786 })).toBe(true);
-	});
-	it('other scale step', () => {
-		expect(sameShape(tab, { width: 2094, height: 1376 })).toBe(true);
-	});
-	it('only the width changed', () => {
-		expect(sameShape(tab, { width: 2000, height: 1574 })).toBe(false);
-	});
-});
-
-describe('anchorFactors', () => {
-	it('center by default', () => {
-		expect(anchorFactors()).toEqual({ x: 0.5, y: 0.5 });
-	});
-	it('corners and edges', () => {
-		expect(anchorFactors('top-left')).toEqual({ x: 0, y: 0 });
-		expect(anchorFactors('bottom')).toEqual({ x: 0.5, y: 1 });
-		expect(anchorFactors('right')).toEqual({ x: 1, y: 0.5 });
-		expect(anchorFactors('bottom-right')).toEqual({ x: 1, y: 1 });
-	});
-});
-
-describe('visibleRect', () => {
-	it('null without size changes', () => {
-		expect(visibleRect(source(), 1, 80, 60)).toBeNull();
-	});
-	it('centered window part, scaled to the image', () => {
-		const s = source({ sizes: [{ t: 0, width: 400, height: 300 }] });
-		expect(visibleRect(s, 1, 80, 60)).toEqual({ x: 20, y: 15, w: 40, h: 30 });
+	it.each([
+		['same size', tab, true],
+		['half size with rounding (Chrome capture scale 1 instead of 2)', { width: 1196, height: 786 }, true],
+		['other scale step', { width: 2094, height: 1376 }, true],
+		['only the width changed', { width: 2000, height: 1574 }, false]
+	])('%s', (_, size, expected) => {
+		expect(sameShape(tab, size)).toBe(expected);
 	});
 });

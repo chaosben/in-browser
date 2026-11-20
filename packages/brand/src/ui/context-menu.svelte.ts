@@ -5,10 +5,18 @@ export interface MenuAction {
 	label: string;
 	/** Full icon class, e.g. `icon-[material-symbols-light--content-copy]` */
 	icon?: string;
+	/** A small drawing instead of an icon: the points of a line in a 24 × 24 box (`x,y x,y …`), e.g. a shape – or
+	 * several lines */
+	glyph?: string | readonly string[];
+	/** The current choice (a check at the right) */
+	checked?: boolean;
 	/** Shortcut shown on the right, e.g. `Ctrl+C` */
 	keys?: string;
 	disabled?: boolean;
 	run: () => void;
+	/** Where the entry leads (opening a folder or document): the middle mouse button or Ctrl/⌘+click opens it in a
+	 * new tab instead of running it, like a link */
+	href?: string;
 	/** Pointer or focus on the entry (e.g. to highlight what it stands for), `false` when it leaves */
 	onhover?: (on: boolean) => void;
 }

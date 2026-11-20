@@ -17,7 +17,7 @@ export async function exportPng(source: ExportSource, page: PageMeta): Promise<B
 	ctx.setTransform(scale, 0, 0, scale, 0, 0);
 	drawPaper(ctx, page.paper, page.w, page.h, { x0: 0, y0: 0, x1: page.w, y1: page.h }, scale);
 	if (page.background) {
-		const pdf = await source.backgrounds.render(page.background, scale);
+		const pdf = await source.backgrounds.render(page.background.asset, page.background.page, scale);
 		ctx.drawImage(pdf, 0, 0, page.w, page.h);
 	}
 	// Pictures are drawn from the cache: wait until all of them are there

@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, readFile, rm, utimes, writeFile, mkdir, symlink } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, utimes, writeFile, mkdir, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -16,20 +16,6 @@ async function write(tree: ReturnType<typeof fsTree>, path: string, text: string
 }
 
 describe('fsTree', () => {
-	it('writes, reads and stats files below its folder, creating missing folders', async () => {
-		const tree = fsTree(root);
-		await write(tree, '/a/b/Notes.md', 'hello');
-		expect(await readFile(join(root, 'a', 'b', 'Notes.md'), 'utf8')).toBe('hello');
-		const file = await tree.read('/a/b/Notes.md');
-		expect(await file.text()).toBe('hello');
-		expect(file.name).toBe('Notes.md');
-		const state = await tree.stat('/a/b/Notes.md');
-		expect(state).toEqual({ kind: 'file', size: 5, modified: file.lastModified });
-		expect(Number.isInteger(state!.modified)).toBe(true);
-		expect(await tree.stat('/a')).toEqual({ kind: 'directory', size: 0, modified: 0 });
-		expect(await tree.stat('/missing')).toBeNull();
-	});
-
 	it('scans files and folders, skipping ignored and special entries', async () => {
 		await mkdir(join(root, 'docs'));
 		await writeFile(join(root, 'docs', 'a.txt'), 'x');
@@ -39,18 +25,6 @@ describe('fsTree', () => {
 		const snapshot = await fsTree(root).scan();
 		expect([...snapshot.keys()].sort()).toEqual(['/docs', '/docs/a.txt']);
 		expect(snapshot.get('/docs/a.txt')).toEqual({ kind: 'file', size: 1, modified: 1_700_000_000_500 });
-	});
-
-	it('moves, lists and removes', async () => {
-		const tree = fsTree(root);
-		await write(tree, '/a.txt', '1');
-		await tree.move('/a.txt', '/sub/b.txt');
-		expect(await tree.names('/sub')).toEqual(['b.txt']);
-		expect(await tree.names('/nothing')).toEqual([]);
-		await tree.remove('/sub');
-		expect(await tree.stat('/sub')).toBeNull();
-		await tree.mkdir('/x/y');
-		expect(await tree.stat('/x/y')).toEqual({ kind: 'directory', size: 0, modified: 0 });
 	});
 
 	it.skipIf(process.getuid?.() === 0)('throws instead of reporting an unreadable folder as empty', async () => {

@@ -14,15 +14,31 @@ const help = {
 			},
 			layout: {
 				title: 'Layout',
-				text: 'Left: the folder tree, starting with “My files”; below it “Connected” with folders on your computer you opened live, then “Trash” and “Sync” with a short status. Middle: the content of the open folder. The top bar shows the path of the open folder – click a level to go back to it – followed by “Upload” and “New folder”; on the right the search and the switch between “List” and “Tiles”. The bottom line counts the items of the folder and the selected ones, shows a running upload and how much storage is used. At its right end the sync symbol shows the state of syncing, as in every tool.'
+				text: 'The top bar shows the path of the open folder – click a level to go back to it. Below it lies the ribbon: “Undo” on the left, then the tabs “Home” (new and “Upload”, clipboard, organize, select, find), “Share” (share with a guest, download), “Connect” (connect a folder on your computer, allow access, disconnect), “Sync” (sync now, sync settings, devices) and “View” (list or tiles, sort, panels, refresh). While entries are selected, the tab “Selection”, set off in color, holds what you can do with them (in the trash: the tab “Trash”). On the left edge a narrow bar holds the side panels “Folders” (open at the start: My files as a tree, below it your connected folders, at the end the trash) and “Shares”; click one to open it next to the list, click it again to close it, and drag its right edge to make it wider. Middle: the content of the open folder. The bottom line counts the items of the folder, shows a running upload, how much storage is used and how many items are selected; at its right end the sync symbol shows the state of syncing, as in every tool.'
+			},
+			ribbon: {
+				title: 'Ribbon display',
+				text: 'When the window gets narrower, the groups on the right get smaller first: their buttons lose the text below the icon, then their text altogether, and at last a whole group becomes one button that opens it. The button with the bar icon at the right end of the tabs chooses how the ribbon is shown; the arrow next to it switches to “Tabs only” and back.',
+				options: {
+					classic: { label: 'Classic (default)', text: 'Large buttons in groups with their names. Easiest to find things, takes about 120 pixels of height.' },
+					simplified: { label: 'Simplified', text: 'One compact row of buttons, without group names. Leaves more room for the list.' },
+					tabs: { label: 'Tabs only', text: 'Only the tabs; a click on a tab opens its commands over the list until you pick one. Most room for the list.' }
+				},
+				tip: 'Start with Classic until you know where things are, then switch to Simplified or Tabs only to see more of the list.',
+				keys: [['Ctrl', 'F1']]
+			},
+			accessKeys: {
+				title: 'Access keys',
+				text: 'Press and release Alt (or press F10): letters appear on the tabs and a number on “Undo”. Type a tab’s letter, then the letter shown on a command to run it – everything works without the mouse. Esc goes back one step.',
+				keys: [['Alt'], ['F10']]
 			},
 			menus: {
 				title: 'Where the actions are',
-				text: 'The name of the open folder in the top bar (at the top level: “Files” next to “in-browser”) opens the menu of that folder: “New folder”, “New text file”, uploading, “Paste”, “Select all”, the view, “Download as ZIP”, “Properties” and “Trash”. It always holds the complete list, also what the buttons next to it do. Right-clicking an entry shows everything you can do with it or with the selection; right-clicking the free area shows the actions for the folder. Folders in the tree on the left have the same menu as in the list.'
+				text: 'Right-clicking an entry shows everything you can do with it or with the selection; right-clicking the free area shows what you can add to the open folder (new, upload, paste), “Select all”, “Refresh” and the sorting. Folders in the panel “Folders” have the same menu as in the list – that is where you rename, move, delete or look up the properties of the open folder itself; “My files” there has its own (open, paste, download, properties). The ribbon holds the rest; its commands act on the selection, those that also work without one (“Download”, “Share …”) on the open folder. What can’t be done right now – e.g. changing anything in a shared folder you may only view – stays in the menus, greyed out.'
 			},
 			phone: {
 				title: 'On a phone',
-				text: 'On narrow screens the folder tree is hidden: you move through folders by tapping them and go back via the path in the top bar. “Upload” and “New folder” are in the menu at the folder name, “Trash” too. The sync symbol in the top bar opens the sync settings, the magnifier the search. Instead of right-clicking you press and hold an entry or tap its ⋮ button.'
+				text: 'On a phone the ribbon is a single bar below the top bar: the button on the left picks the tab, the commands next to it are icons and scroll sideways; press and hold an icon to see its name. The side panels open over the whole screen from “View” → “Panels” and close after you tap a folder. You move through folders by tapping them and go back via the path in the top bar; the search is in the tab “Home”. Instead of right-clicking you press and hold an entry or tap its ⋮ button – also in the panels.'
 			},
 			storage: {
 				title: 'Storage space',
@@ -36,24 +52,24 @@ const help = {
 		items: {
 			open: {
 				title: 'Opening',
-				text: 'Double-click an entry, or select it and press Enter. A folder opens in Files. A document of a tool (e.g. a Screen Capture project or a text file) opens in that tool – if several tools can open it, the menu of the entry offers “Open with …” for each. Other files open in the preview. Some of them can also be edited as text: the menu of an SVG image offers “Open with Text Editor”, while a double-click shows the picture. On touch screens a tap opens.'
+				text: 'Double-click an entry, or select it and press Enter. A folder opens in Files. A document of a tool (e.g. a Screen Capture project or a text file) opens in that tool – if several tools can open it, the menu of the entry offers “Open with …” for each. Other files open in the preview. Some of them can also be edited as text: the menu of an SVG image offers “Open with Text Editor”, while a double-click shows the picture. On touch screens a tap opens. To keep this folder in view, open an entry in a new browser tab: click it with the middle mouse button (the wheel), or middle-click “Open” or “Open with …” in its menu – a folder opens in Files there, a document in its tool. This also works for folders in the panel “Folders” and for the trash.'
 			},
 			select: {
 				title: 'Selecting',
-				text: 'A click selects one entry. With Ctrl held (Cmd on a Mac) a click adds an entry to the selection or removes it; with Shift held it selects everything between the last clicked entry and this one. “Select all” is in the menus, Esc or a click on the free area clears the selection. The bottom line counts what is selected.'
+				text: 'A click selects one entry. With Ctrl held (Cmd on a Mac) a click adds an entry to the selection or removes it; with Shift held it selects everything between the last clicked entry and this one. The arrow keys move the selection, with Shift held they extend it. “Select all” and “Clear selection” are in the “Home” tab, in the “Selection” tab and in the menus; Esc or a click on the free area clears the selection too. The bottom line counts what is selected; commands of the ribbon act on the selection, those that work without one (“Download”, “Share …”) on the open folder.'
 			},
 			touch: {
 				title: 'Selecting on a touch screen',
-				text: 'Press and hold an entry: the selection mode starts, the entry gets a check mark and its menu opens. Every further tap then selects or deselects an entry instead of opening it. Meanwhile the top bar shows “Actions for the selection” (⋮) with everything you can do with the selected entries, and “Clear selection” (×), which ends the mode. It also ends when you deselect the last entry. “Select all” is in the menu of each entry.'
+				text: 'Press and hold an entry: the selection mode starts, the entry gets a check mark and its menu opens. Every further tap then selects or deselects an entry instead of opening it, and the ribbon switches to the tab “Selection” with everything you can do with the selected entries – among them “Select all” and “Clear selection”, which ends the mode. It also ends when you deselect the last entry. The ⋮ button of an entry opens the menu for the selection too.'
 			},
 			preview: {
 				title: 'Preview',
-				text: '“Preview” in the menu of a file (or the Space key) shows pictures, videos, audio and text right in Files, without opening a tool. Text files larger than about 1 MB are not shown; for other kinds there is no preview. “Download” in the preview saves the file.'
+				text: '“Preview” in the menu of a file or in the “Selection” tab (or the Space key) shows pictures, videos, audio and text right in Files, without opening a tool. Text files larger than about 1 MB are not shown; for other kinds there is no preview. “Download” in the preview saves the file.'
 			},
 			properties: {
 				title: 'Properties',
-				text: '“Properties” in the menu of an entry shows its type, location, size and the time of the last change. For a folder it adds up the size of everything inside and counts the files and folders it contains – the folder menu at the top shows this for the open folder.'
-			}
+				text: '“Properties” in the menu of an entry or in the “Selection” tab shows its type, location, size and the time of the last change. For a folder it adds up the size of everything inside and counts the files and folders it contains – for the open folder use its menu in the panel “Folders”.'
+			},
 		}
 	},
 	transfer: {
@@ -61,11 +77,11 @@ const help = {
 		items: {
 			upload: {
 				title: 'Uploading',
-				text: '“Upload” copies files from your computer or phone into the open folder – “Upload files” for single files, “Upload folder” for a whole folder with its subfolders (not offered on iPhone and iPad). You can also drag files or folders from your computer onto the list: dropped on the free area they land in the open folder, dropped on a folder in the list or in the tree they land there. The bottom line shows which file is being copied. “Upload” only means copying into the browser storage – nothing leaves your device.'
+				text: '“Upload” (“Home” tab, group “New”) copies files from your computer or phone into the open folder – “Upload files” for single files, “Upload folder” for a whole folder with its subfolders (not offered on iPhone and iPad). You can also drag files or folders from your computer onto the list: dropped on the free area they land in the open folder, dropped on a folder in the list or in the panel “Folders” they land there. The bottom line shows which file is being copied. “Upload” only means copying into the browser storage – nothing leaves your device.'
 			},
 			download: {
 				title: 'Downloading',
-				text: '“Download” in the menu of a file saves it as it is. Folders, tool projects and several selected entries are saved as one ZIP file (“Download as ZIP”); the ZIP is put together while it is saved, so even large folders work. Chrome and Edge ask where to save it, other browsers save it to the download folder. “Download as ZIP” in the folder menu at the top saves the whole open folder.',
+				text: '“Download” in the menu of a file saves it as it is. Folders, tool projects and several selected entries are saved as one ZIP file (“Download as ZIP”); the ZIP is put together while it is saved, so even large folders work. Chrome and Edge ask where to save it, other browsers save it to the download folder. “Download” in the “Share” tab saves the selection – or, with nothing selected, the whole open folder as ZIP.',
 				tip: 'For a lasting backup of everything, a folder on your computer that stays in sync is more convenient than downloading by hand.',
 				link: { href: '/help/storage', label: 'Backups and the folder on your computer' }
 			},
@@ -80,25 +96,36 @@ const help = {
 		items: {
 			create: {
 				title: 'New folder and new text file',
-				text: '“New folder” (top bar or folder menu) and “New text file” (folder menu or right-click on the free area) create the entry in the open folder and let you type its name right away. A new text file is empty; opening it takes you to the Text Editor.'
+				text: '“New folder” and “New text file” (“Home” tab or right-click on the free area) create the entry in the open folder and let you type its name right away. A new text file is empty; opening it takes you to the Text Editor.'
 			},
 			rename: {
 				title: 'Renaming',
-				text: '“Rename” in the menu of an entry (or F2) turns the name into a field; the part before the extension is selected, so the type stays. Enter or clicking elsewhere keeps the new name, Esc cancels. Names that aren’t allowed (e.g. with “/”) are refused with a message.'
+				text: '“Rename” in the menu of an entry or in the ribbon (or F2) turns the name into a field; the part before the extension is selected, so the type stays. A click on the name of the entry that is already the only one selected does the same after a moment (a double click still opens it). The open folder itself is renamed in the list of the folder above it or with “Rename” in its menu in the panel “Folders” – not at the path in the top bar. Enter or clicking elsewhere keeps the new name, Esc cancels. Names that aren’t allowed (e.g. with “/”) are refused with a message.'
 			},
 			move: {
 				title: 'Moving and copying',
-				text: 'Drag entries onto a folder in the list or in the folder tree to move them there; hold Ctrl (Cmd or Alt on a Mac) while dropping to copy them instead. Without dragging: “Cut” or “Copy” in the menu, then “Paste” in the target folder (folder menu or right-click on the free area) or “Paste” in the menu of a folder. “Move to …” lets you pick the target folder in a dialog – the easiest way on a phone. “Duplicate” makes a copy in the same folder. Cut entries look faded until you paste them.',
+				text: 'Drag entries onto a folder in the list or in the panel “Folders” to move them there; hold Ctrl (Cmd or Alt on a Mac) while dropping to copy them instead. Without dragging: “Cut” or “Copy”, then “Paste” in the target folder (“Home” tab or right-click on the free area) or “Paste” in the menu of a folder. “Move to …” lets you pick the target folder in a dialog – the easiest way on a phone. “Duplicate” makes a copy in the same folder. Cut entries look faded until you paste them.',
 				tip: 'Move when the document should only be in the new place. Copy or duplicate when you want to change one version and keep the other – the copy is a separate document from then on, changes to one don’t reach the other.'
+			},
+			undo: {
+				title: 'Undo',
+				text: 'After renaming, moving, pasting, duplicating or deleting, a message says what happened and offers “Undo” for a few seconds: it renames or moves the entries back, puts the copies into the trash or takes deleted entries out of it again. “Undo” at the left end of the ribbon (or Ctrl+Z) does the same for the last such step, also after the message is gone. Deleting for good in a connected folder can’t be undone.',
+				keys: [['Ctrl', 'Z']]
 			},
 			search: {
 				title: 'Searching',
-				text: 'The search field in the top bar (on phones the magnifier) filters the open folder while you type: an entry stays when every word you typed occurs in its name. It doesn’t search subfolders or the content of files. When nothing matches, the list says so.'
+				text: 'The search field in the “Home” tab (group “Find”) filters the open folder while you type: an entry stays when every word you typed occurs in its name. It doesn’t search subfolders or the content of files. When nothing matches, the list says so.'
 			},
 			view: {
 				title: 'Sorting and view',
-				text: '“List” shows name, type, size and the time of the last change in columns – click a column heading to sort by it, click it again to reverse the order. Folders always come first. “Tiles” shows large icons, good for many pictures. The choice is remembered. On phones the view switch is in the folder menu.'
-			}
+				text: '“List” and “Tiles” in the “View” tab switch the view: “List” shows name, type, size and the time of the last change in columns, “Tiles” large icons, good for many pictures. The choice is remembered. “Sort by” (“View” tab or right-click on the free area) sorts by name, type, size or date, ascending or descending; the current choice has a check mark. In the list a click on a column heading sorts by it, a second click reverses the order. Folders always come first.',
+				options: {
+					name: { label: 'Name (default)', text: 'Alphabetically, numbers in their natural order (“2” before “10”).' },
+					kind: { label: 'Type', text: 'By extension or tool, so documents of one kind stand together.' },
+					size: { label: 'Size', text: 'Largest first when you choose it – to find what takes room.' },
+					modified: { label: 'Modified', text: 'Newest first when you choose it – to find what you worked on last.' }
+				}
+			},
 		}
 	},
 	trash: {
@@ -111,30 +138,24 @@ const help = {
 			},
 			open: {
 				title: 'Opening the trash',
-				text: '“Trash” at the bottom of the sidebar, or in the folder menu at the top (on phones only there). It lists what was deleted – here or on another device – with the folder it came from, when it was deleted and its size.'
+				text: 'The trash is a special folder at the end of the panel “Folders” (on phones: “View” tab → “Folders”). Click it and it shows what was deleted – here or on another device – like a folder: as a list or as tiles (“View” tab), sorted and searched the same way, with the columns “Original location” and “Deleted”; the tab “Trash” of the ribbon holds what you can do with it. You can also drag entries onto it to delete them.'
 			},
 			restore: {
 				title: 'Restoring',
-				text: '“Restore” puts an entry back in its old folder; a message tells you where it ended up. If that name is taken in the meantime, it gets a number instead of overwriting anything.'
+				text: 'Select entries in the trash like in a folder – a click, Ctrl+click, Shift+click, Ctrl+A; on a touch screen a tap selects or deselects – then click “Restore” in the tab “Trash” (or in the menu of an entry, or press Enter): they go back to their old folders, and a message tells you where one ended up. If a name is taken in the meantime, the entry gets a number instead of overwriting anything.'
 			},
 			remove: {
 				title: 'Deleting for good',
-				text: '“Delete for good” (bin with a cross next to an entry) and “Empty trash” remove entries for good, after a question – on all your devices. Only then is their storage space free.'
+				text: '“Delete for good” (or Del) removes the selected entries, “Empty trash” all of them – each after a question, on all your devices. Only then is their storage space free. “Empty trash” stays greyed out while the trash is empty.'
 			},
 			keep: {
-				title: 'Keep for',
-				text: 'How long deleted items stay in the trash before they are removed by themselves. The setting applies to all your devices.',
-				options: {
-					days7: { label: '7 days', text: 'Frees space soon; a mistake has to be noticed within a week.' },
-					days30: { label: '30 days (default)', text: 'Enough time to notice a mistake, without filling the storage for long.' },
-					days90: { label: '90 days', text: 'For documents you rarely look at; deleted media keep using space for a long time.' },
-					forever: { label: 'Until I empty it', text: 'Nothing is removed by itself – you empty the trash yourself.' }
-				},
-				tip: 'Keep 30 days. Take 7 days if storage gets tight (large recordings), 90 days or “Until I empty it” if you work with documents you only check now and then.'
+				title: 'How long it keeps',
+				text: 'The trash names how long entries stay (30 days unless you change it). “Change in the settings” opens “Settings” → “Trash”, where you choose it for all your devices – also with the gear at the top right.',
+				link: { href: '/help/settings#trash', label: 'Choosing how long' }
 			},
 			elsewhere: {
 				title: 'Trash in the folder on your computer',
-				text: 'In the synced folder on your computer and on a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files there are removed according to the same setting.'
+				text: 'In the synced folder on your computer and on a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files there are removed after the same time.'
 			}
 		}
 	},
@@ -143,7 +164,7 @@ const help = {
 		items: {
 			connect: {
 				title: 'Connecting a folder',
-				text: '“Connect folder …” under “Connected” in the sidebar lets you choose a folder on your computer; the browser asks whether in-browser may view and edit it. The folder appears under “Connected” with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced. Only Chrome and Edge on a computer can do this.',
+				text: '“Connect folder …” (“Connect” tab, or in the panel “Folders” below My files) lets you choose a folder on your computer; the browser asks whether in-browser may view and edit it. The folder appears in the panel “Folders” below My files with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced. Only Chrome and Edge on a computer can do this.',
 				tip: 'Connect a folder to work on files where they are (e.g. a project folder of another program). Want a copy of My files on your computer instead? Use “Folder on your computer” in the sync settings.',
 				link: { href: '/help/connected', label: 'Connected folders' }
 			},
@@ -153,12 +174,12 @@ const help = {
 			},
 			access: {
 				title: '“Allow access”',
-				text: 'After a restart the browser usually asks again for access. The folder then shows “Allow access” in the sidebar and when you open it; click it and confirm the browser’s question.',
+				text: 'After a restart the browser usually asks again for access. The folder then shows “Allow access” in the panel “Folders” and when you open it; click it and confirm the browser’s question. Messages about a failed action in such a folder carry “Allow access” too.',
 				tip: 'Choose “Allow on every visit” – then it stays connected.'
 			},
 			manage: {
-				title: 'Rename and disconnect',
-				text: 'Right-click a connected folder in the sidebar, or open the menu at its name in the top bar: “Rename” changes only the name shown here (the folder keeps its name), “Disconnect” removes it from in-browser. Nothing in the folder is deleted.'
+				title: 'Disconnecting',
+				text: 'A connected folder is shown with the name of the folder on your computer. “Disconnect” – in the “Connect” tab while the folder is open, or in its menu in the panel “Folders” (right-click, on touch screens its ⋮ button) – removes it from in-browser. Nothing in the folder is deleted.'
 			},
 			delete: {
 				title: 'Deleting in a connected folder',
@@ -166,14 +187,14 @@ const help = {
 			},
 			share: {
 				title: 'Sharing a folder with a guest',
-				text: '“Share a folder …” under “Shares” in the sidebar (or “Share …” in the menu of a folder in My files) makes a link and QR code for one browser outside your devices – e.g. a friend’s computer you are visiting. The guest sees only that folder, live from this device; nothing stays with them. Choose “View only” (default) or “Edit”. The link works until you end the share, for one browser at a time. Your shares appear under “Shares” (green dot: guest connected); a click shows the link again, right-click offers “End share”.',
+				text: '“Share …” in the “Share” tab shares the selected folder, or else the open one (in My files; otherwise it asks which folder) – also in the menu of a folder, and “Share a folder …” in the panel “Shares”. It makes a link and QR code for one browser outside your devices – e.g. a friend’s computer you are visiting. The guest sees only that folder, live from this device; nothing stays with them. Choose “View only” (default) or “Edit”. The link works until you end the share, for one browser at a time. Your shares appear in the panel “Shares” (green dot: guest connected); a click shows the link again, right-click (or ⋮) offers “End share”.',
 				tip: '“View only” to hand over files; “Edit” when the guest should save or upload into the folder. Keep in-browser open here while they use it.',
 				link: { href: '/help/connected#share', label: 'Sharing with a guest' }
 			},
 			guest: {
 				title: 'Opening a shared link',
-				text: 'A link someone shared with you opens Files with the folder under “Connected”, named after it and the device that shares it (a lock means view only). It lives only in this tab: “Disconnect” or closing the tab ends it, nothing of it stays in your browser; the link opens it again while the share lasts. If another browser is in it right now, Files says so and tries again by itself. Copy files into My files to keep them. When the share ends, Files says so at once; “Remove” takes it out of “Connected”.'
-			}
+				text: 'A link someone shared with you opens Files with the folder in the panel “Folders” below My files, named after it and the device that shares it (a lock means view only). It lives only in this tab: “Disconnect” or closing the tab ends it, nothing of it stays in your browser; the link opens it again while the share lasts. If another browser is in it right now, Files says so and tries again by itself. Copy files into My files to keep them. When the share ends, Files says so at once; “Remove” takes it out of the panel.'
+			},
 		}
 	},
 	folder: {
@@ -181,7 +202,7 @@ const help = {
 		items: {
 			connect: {
 				title: 'Syncing with a folder',
-				text: '“Sync” in the sidebar (on phones the sync symbol in the top bar) opens the sync settings; under “Folder on your computer” click “Choose folder” and pick a folder. From then on Files keeps the browser storage and that folder in sync in both directions; when a file was changed on both sides, the newer version wins. Syncing runs while any in-browser tool is open in this browser. Only Chrome and Edge on a desktop computer can do this.',
+				text: '“Sync settings” in the “Sync” tab opens the sync settings; under “Folder on your computer” click “Choose folder” and pick a folder. From then on Files keeps the browser storage and that folder in sync in both directions; when a file was changed on both sides, the newer version wins. Syncing runs while any in-browser tool is open in this browser. Only Chrome and Edge on a desktop computer can do this.',
 				tip: 'Choose an empty folder or one meant only for in-browser – everything in it becomes part of Files. A folder your sync tool (Syncthing, Nextcloud, Dropbox …) carries along gets your documents to other computers as well.',
 				link: { href: '/help/storage', label: 'The folder on your computer' }
 			},
@@ -197,8 +218,8 @@ const help = {
 			},
 			manage: {
 				title: 'Sync now and disconnecting',
-				text: '“Sync now” syncs right away instead of waiting for the next change. If single files can’t be synced, a line says how many. “Disconnect” ends syncing with the folder; nothing is deleted, neither in Files nor in the folder, and you can choose a folder again at any time.'
-			}
+				text: '“Sync now” (in the sync settings, or in the “Sync” tab for the folder and your devices at once) syncs right away instead of waiting for the next change. If single files can’t be synced, a line says how many. “Disconnect” ends syncing with the folder; nothing is deleted, neither in Files nor in the folder, and you can choose a folder again at any time.'
+			},
 		}
 	},
 	devices: {
@@ -206,7 +227,7 @@ const help = {
 		items: {
 			where: {
 				title: 'Where to find it',
-				text: '“Sync” in the sidebar (on phones the sync symbol in the top bar) opens the sync settings with “Your devices” at the top. Its entry in the sidebar shows how many devices are connected and shows a warning symbol when something needs you. In every tool the sync symbol at the right end of the bottom line shows the state; its menu leads here with “Manage devices”.',
+				text: 'The “Sync” tab holds “Sync now”, “Sync settings” (with “Your devices” at the top), “Add device”, “Choose folders” and “Sync on this device”. In every tool the sync symbol at the right end of the bottom line shows the state and a warning symbol when something needs you; its menu leads here with “Manage devices”.',
 				link: { href: '/help/sync', label: 'Syncing your devices' }
 			},
 			first: {
@@ -216,7 +237,7 @@ const help = {
 			},
 			add: {
 				title: 'Adding more devices',
-				text: '“Add device” on any connected device shows a new key. It works once, for 24 hours, and only while the device that shows it is online. Whoever has it can connect a device and read and change all your synced files – share it only with yourself.'
+				text: '“Add device” (“Sync” tab or the sync settings) on any connected device shows a new key. It works once, for 24 hours, and only while the device that shows it is online. Whoever has it can connect a device and read and change all your synced files – share it only with yourself.'
 			},
 			status: {
 				title: 'Status of the devices',
@@ -225,7 +246,7 @@ const help = {
 			},
 			folders: {
 				title: 'Leaving out folders',
-				text: '“Choose folders” shows all folders with their size and where they are; untick one to stop syncing it on this device. The same is in the menu of a folder: “Don’t sync on this device”, and back with “Sync again on this device”. The copy on this device is deleted, the other devices keep the folder. It stays in the tree with a cloud: opening it reads it live from a device that has it, and you can work in it like anywhere else (deleting goes into that device’s trash). If none of them is connected, Files names where the folder is.',
+				text: '“Choose folders” (“Sync” tab) shows all folders with their size and where they are; untick one to stop syncing it on this device. For a single folder: select it (or open it) and switch off “Sync on this device” in the “Sync” tab – the same as “Don’t sync on this device” in the menu of a folder; back with “Sync again on this device”. The copy on this device is deleted, the other devices keep the folder. It stays in the tree with a cloud: opening it reads it live from a device that has it, and you can work in it like anywhere else (deleting goes into that device’s trash). If none of them is connected, Files names where the folder is.',
 				tip: 'Leave out what you rarely need here, e.g. large recordings on a phone – you can still open them live. Sync a folder again if you need it while your other devices are off.',
 				link: { href: '/help/sync', label: 'Live from your devices' }
 			},
@@ -256,18 +277,25 @@ const help = {
 	keys: {
 		title: 'Keyboard shortcuts',
 		items: {
+			focus: {
+				title: 'When they work',
+				text: 'The keys for the list work while the list has the focus – after a click on an entry or the free area, or after going to a folder. On a button, a menu entry or in a field Enter and Space press that instead, and while you type or a dialog is open no shortcut applies. Menus and tooltips name the key of each command.'
+			},
 			move: {
 				title: 'Moving through the list',
-				text: 'The arrow keys select the previous or next entry; with Shift held they extend the selection. Shortcuts don’t apply while you type in a field or a dialog is open.',
+				text: 'The arrow keys select the previous or next entry; with Shift held they extend the selection from where it started.',
 				keys: [['↑'], ['↓'], ['Shift', '↓']]
 			},
 			open: { title: 'Open', text: 'Opens the selected entry: a folder in Files, a document in its tool, other files in the preview.', keys: [['Enter']] },
+			newTab: { title: 'Open in new tab', text: 'Click an entry or a folder in the panel “Folders” with the middle mouse button.' },
 			up: { title: 'Up one folder', text: 'Goes to the folder that contains the open one.', keys: [['Backspace'], ['Alt', '↑']] },
 			preview: { title: 'Preview', text: 'Shows the selected file in the preview.', keys: [['Space']] },
 			selectAll: { title: 'Select all and clear', text: 'Selects every entry of the open folder; Esc clears the selection.', keys: [['Ctrl', 'A'], ['Esc']] },
 			clipboard: { title: 'Copy, cut, paste', text: 'Copy or cut the selection, then paste it into the open folder. On a Mac use Cmd instead of Ctrl.', keys: [['Ctrl', 'C'], ['Ctrl', 'X'], ['Ctrl', 'V']] },
 			rename: { title: 'Rename', text: 'Renames the selected entry; Enter keeps the new name, Esc cancels.', keys: [['F2']] },
-			delete: { title: 'Delete', text: 'Moves the selection into the trash.', keys: [['Del']] }
+			delete: { title: 'Delete', text: 'Moves the selection into the trash.', keys: [['Del']] },
+			undo: { title: 'Undo', text: 'Takes back the last renaming, moving, pasting, duplicating or deleting.', keys: [['Ctrl', 'Z']] },
+			ribbon: { title: 'Ribbon', text: 'Ctrl+F1 shows or hides the ribbon’s commands; Alt or F10 show the access keys.', keys: [['Ctrl', 'F1'], ['Alt'], ['F10']] }
 		}
 	}
 } satisfies HelpContent;

@@ -41,7 +41,7 @@ const de: Messages = {
 		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien, lege ein leeres Projekt an oder zieh Videos, Ton oder Bilder hierher.',
 		changed: (date) => `geändert ${date}`,
 		footer:
-			'Projekte sind Dateien in deinem Browserspeicher, in jedem Ordner, den du willst. Verwalte sie in Dateien – dort kannst du sie auch mit einem Ordner auf deinem Rechner abgleichen.',
+			'Projekte sind Dateien in deinem Browserspeicher, in jedem Ordner, den du willst. Verwalte sie in Dateien – dort kannst du sie auch mit einem Ordner auf deinem Rechner synchronisieren.',
 		dropToCreate: 'Loslassen, um ein neues Projekt aus den Dateien zu erstellen'
 	},
 
@@ -72,16 +72,16 @@ const de: Messages = {
 			countdown
 				? 'Prüfe das Bild. „Aufnahme starten“ startet den Countdown – wechsle währenddessen zum Fenster, das du aufnimmst.'
 				: 'Prüfe das Bild. „Aufnahme starten“ startet die Aufnahme sofort.',
-		sharePreview: 'Vorschau des geteilten Bildschirms',
-		shared: 'Geteilt',
+		sharePreview: 'Vorschau des freigegebenen Bildschirms',
+		shared: 'Freigegeben',
 		surfaces: { monitor: 'Ganzer Bildschirm', window: 'Fenster', browser: 'Browser-Tab' },
 		systemAudioShared: 'System-/Tab-Ton',
 		included: 'Dabei',
 		notIncluded: 'Nicht dabei',
 		estimatedSize: 'Geschätzte Größe',
-		windowHint: 'Menüs, Dialoge und Pop-ups dieses Fensters fehlen in der Aufnahme. Teile den ganzen Bildschirm, wenn du sie brauchst.',
+		windowHint: 'Menüs, Dialoge und Pop-ups dieses Fensters fehlen in der Aufnahme. Gib den ganzen Bildschirm frei, wenn du sie brauchst.',
 		monitorHint: 'Das schwebende Kontrollfenster wird mit aufgenommen – blende es aus oder schieb es auf einen anderen Bildschirm.',
-		tabScaleHint: 'Der Browser zeichnet einen geteilten Tab in eigener Auflösung (bis doppelt so groß wie sichtbar) und kann sie während der Aufnahme ändern. Der Zoom der Seite (Strg +/−) bestimmt, wie groß Text im Video ist.',
+		tabScaleHint: 'Der Browser zeichnet einen freigegebenen Tab in eigener Auflösung (bis doppelt so groß wie sichtbar) und kann sie während der Aufnahme ändern. Der Zoom der Seite (Strg +/−) bestimmt, wie groß Text im Video ist.',
 		scaleHint: (percent) =>
 			`Skalierung deines Systems: ${percent} %. Aufgenommen wird in voller Pixelauflösung, Text wirkt im Video so groß wie auf deinem Bildschirm.`,
 		back: 'Zurück',
@@ -162,6 +162,7 @@ const de: Messages = {
 		finalizing: 'Datei wird abgeschlossen …',
 		keepTabOpen: 'Lass diesen Tab bitte geöffnet.',
 		finished: 'Export fertig. Lade die Datei herunter oder speichere sie in Dateien.',
+		showInFiles: 'In Dateien zeigen',
 		renderedIn: (time) => `gerendert in ${time}`,
 		otherSettings: 'Andere Einstellungen',
 		backToResult: 'Zurück zum Ergebnis',
@@ -178,22 +179,46 @@ const de: Messages = {
 		gifFailed: 'Das GIF konnte nicht erstellt werden.'
 	},
 
+	ribbon: {
+		tabs: { home: 'Start', insert: 'Einfügen', view: 'Ansicht', arrange: 'Anordnen', clip: 'Clip' },
+		groups: {
+			project: 'Projekt',
+			playback: 'Wiedergabe',
+			edit: 'Bearbeiten',
+			clipboard: 'Zwischenablage',
+			select: 'Auswahl',
+			media: 'Medien',
+			annotations: 'Markierungen',
+			text: 'Text',
+			icon: 'Icon',
+			zoom: 'Zoom',
+			library: 'Bibliothek',
+			timeline: 'Timeline',
+			panels: 'Bereiche',
+			canvas: 'Leinwand',
+			order: 'Reihenfolge',
+			link: 'Verknüpfen',
+			crop: 'Zuschneiden',
+			placement: 'Platzierung',
+			audio: 'Ton'
+		}
+	},
+
 	editor: {
 		footerSize: (width, height) => `${width} × ${height} px`,
-		footerLength: (length) => `Länge ${length}`,
 		title: 'Editor',
 		loadFailed: (error) => `Projekt konnte nicht geladen werden: ${error}`,
 		backToOverview: 'Zur Übersicht',
-		rename: 'Umbenennen',
 		addRecording: 'Aufnahme hinzufügen',
 		importMedia: 'Vom Rechner importieren',
 		importFromFiles: 'Aus Dateien importieren',
 		chooseFromFiles: 'Medien aus Dateien importieren',
 		saveAs: 'Speichern unter …',
+		showInFiles: 'In Dateien zeigen',
 		savedAs: (name) => `Als „${name}“ gespeichert – du bearbeitest jetzt die Kopie`,
 		openElsewhere: 'Dieses Projekt ist schon in einem anderen Tab oder Fenster geöffnet. Schließ es dort, um es hier zu bearbeiten.',
 		targetOpenElsewhere: (name) => `„${name}“ ist in einem anderen Tab oder Fenster geöffnet und kann nicht ersetzt werden. Schließ es dort zuerst.`,
-		reloaded: 'Das Projekt wurde woanders geändert (z. B. durch den Abgleich) und neu geladen.',
+		reloaded: 'Das Projekt wurde woanders geändert (z. B. durch das Synchronisieren) und neu geladen.',
 		changedElsewhere: 'Das Projekt wurde auch woanders geändert. Deine nächste Änderung überschreibt diese Fassung.',
 		export: 'Exportieren',
 		recordingAdded: 'Aufnahme hinzugefügt',
@@ -209,17 +234,28 @@ const de: Messages = {
 		dragHint: 'Klicken: am Abspielkopf einfügen · Ziehen: in Vorschau oder Timeline ablegen',
 		zoomSegment: 'Zoom-Abschnitt',
 		holdFrame: 'Frame halten',
-		holdFrameTitle: 'Frame am Abspielkopf halten (F)',
-		freezeDuration: 'Dauer des Standbilds',
+		holdFrameTip: 'Standbild am Abspielkopf einfügen (für die ausgewählten Clips, sonst alle Clips mit Bild dort); ▾ wählt seine Länge',
+		seconds: (s) => `${String(s).replace('.', ',')} s`,
 		playheadAtEnd: 'Der Abspielkopf steht am Ende – setz ihn bitte weiter nach vorne.',
 		zoomExists: 'An dieser Stelle liegt schon ein Zoom-Abschnitt.',
-		properties: 'Eigenschaften',
 		toStart: 'Zum Anfang',
-		play: 'Abspielen',
-		pause: 'Pause',
+		toEnd: 'Zum Ende',
+		playPause: 'Wiedergabe/Pause',
+		frameBack: 'Vorheriger Frame',
+		frameForward: 'Nächster Frame',
+		secondBack: 'Eine Sekunde zurück',
+		secondForward: 'Eine Sekunde vor',
 		split: 'Teilen',
+		splitTip: 'Die ausgewählten Elemente am Abspielkopf teilen (sonst alle Clips dort)',
 		delete: 'Löschen',
-		deleteTitle: 'Auswahl löschen – Späteres rückt nach (Umschalt: Lücke lassen)',
+		deleteTip: 'Auswahl löschen – Späteres rückt nach; ▾ lässt stattdessen eine Lücke',
+		deleteGap: 'Löschen, Lücke lassen',
+		selectAll: 'Alles auswählen',
+		shapes: 'Formen',
+		insertTip: 'Am Abspielkopf einfügen – oder die Kachel aus dem Bereich links auf Vorschau oder Timeline ziehen',
+		iconTip: 'Öffnet die Icons links: Klick auf eines fügt es am Abspielkopf ein',
+		canvasSize: 'Leinwandgröße',
+		properties: 'Eigenschaften …',
 		undo: 'Rückgängig',
 		redo: 'Wiederholen',
 		dropToImport: 'Zum Importieren loslassen',
@@ -229,7 +265,6 @@ const de: Messages = {
 
 	tools: {
 		groups: { media: 'Medien', library: 'Bibliothek', annotations: 'Markierungen', text: 'Text', icons: 'Icons', zoom: 'Zoom' },
-		collapse: 'Seitenleiste einklappen',
 		dropHint: 'Oder Video-, Audio- und Bilddateien auf den Editor ziehen: Sie landen in der Medienablage, auf der Timeline abgelegt werden sie dort eingefügt.'
 	},
 
@@ -237,11 +272,13 @@ const de: Messages = {
 		hint: 'Klick: am Abspielkopf einfügen · Ziehen: auf Vorschau oder Timeline ablegen'
 	},
 
-	keys: { del: 'Entf', ctrl: 'Strg', shift: 'Umschalt' },
+	keys: { del: 'Entf', enter: 'Eingabe' },
 
 	timeline: {
 		zoom: 'Zoom',
 		zoomLabel: 'Timeline-Zoom',
+		zoomIn: 'Vergrößern',
+		zoomOut: 'Verkleinern',
 		itemLabel: (kind, label) => `${kind}: ${label}`,
 		resize: 'Höhe der Timeline (ziehen oder Pfeiltasten, Doppelklick: Standard)',
 		fitAll: 'Alles zeigen',
@@ -299,9 +336,6 @@ const de: Messages = {
 			time: 'Zeit',
 			canvas: 'Leinwand'
 		},
-		search: 'Eigenschaften suchen',
-		clearSearch: 'Suche leeren',
-		noMatches: 'Keine passende Eigenschaft.',
 		text: 'Text',
 		fontSize: 'Schriftgröße',
 		align: 'Ausrichtung',
@@ -309,8 +343,13 @@ const de: Messages = {
 		alignCenter: 'Zentriert',
 		alignRight: 'Rechts',
 		alignJustify: 'Blocksatz',
-		autoWidth: 'Breite automatisch',
-		autoWidthHint: 'Die Box ist wieder so breit wie die längste Zeile, ohne Umbruch. Ziehst du an einer Seite der Box, legst du eine feste Breite fest.',
+		boxSize: 'Größe der Box',
+		autoWidth: 'Automatische Breite',
+		autoWidthHint: 'So breit wie die längste Zeile; neue Zeilen nur, wo du Enter drückst',
+		autoHeight: 'Automatische Höhe',
+		autoHeightHint: 'Behält ihre Breite; die Zeilen brechen um und die Box wächst mit dem Text',
+		fixedSize: 'Feste Größe',
+		fixedSizeHint: 'Behält Breite und Höhe; Text, der nicht hineinpasst, ragt unten heraus',
 		background: 'Hintergrundfarbe',
 		color: 'Farbe',
 		lineWidth: 'Linienstärke',
@@ -344,28 +383,27 @@ const de: Messages = {
 		frameAt: 'Frame bei',
 		nothing: 'Nichts ausgewählt.',
 		nothingHint:
-			'Klicke einen Clip, eine Markierung oder einen Zoom-Abschnitt in der Timeline an, oder füge über die Leiste links etwas Neues hinzu.',
+			'Klicke einen Clip, eine Markierung oder einen Zoom-Abschnitt in der Timeline an, oder füge über die Bereiche links oder die Registerkarte „Einfügen“ etwas Neues hinzu.',
 		shortcuts: {
-			split: 'Teilen',
-			hold: 'Frame halten',
-			delete: 'Löschen',
-			deleteGap: 'Löschen, Lücke lassen',
-			link: 'Verknüpfen',
 			deselect: 'Auswahl aufheben',
+			frames: 'Vorheriger/nächster Frame (Umschalt: 1 s)',
 			nudge: 'In der Vorschau um 1 px verschieben (Umschalt: 10 px)',
 			cycle: 'In der Vorschau: nächstes Element (Umschalt: voriges)',
-			clipboard: 'Kopieren, Ausschneiden, Einfügen',
 			help: 'Hilfe'
 		},
 		project: 'Projekt',
 		canvas: 'Leinwand',
 		growCanvasHint: 'Bisheriger Inhalt behält seine Größe und rückt in die Mitte.',
+		growCanvasSize: (w, h) => `Zeigt bei ${w} × ${h} jeden Clip 1:1.`,
+		growCanvasNone: 'Jeder Clip wird schon 1:1 gezeigt.',
 		cropCanvasHint: 'Die Leinwand bekommt die Größe des größten Clips; nichts wird skaliert, Inhalt außerhalb ragt über den Rand.',
 		changeCanvas: 'Ändern',
 		applyCanvas: 'Übernehmen',
 		changeCanvasHint: 'Der Inhalt behält seine Größe und bleibt mittig; auf einer kleineren Leinwand ragt er evtl. über den Rand.',
 		fitCanvasToClip: 'Leinwand an Clip anpassen',
 		fitCanvasToClipHint: 'Die Leinwand bekommt die Originalgröße des sichtbaren Teils, der Clip füllt sie 1:1. Alles andere behält seine Größe.',
+		fitCanvasToClipSize: (w, h) => `Neue Größe: ${w} × ${h}.`,
+		fitCanvasToClipNone: 'Die Leinwand passt schon zu diesem Clip.',
 		clickStyle: 'Animation',
 		clickStyles: { ripple: 'Welle', rings: 'Doppelring', dot: 'Punkt', burst: 'Strahlen' },
 		clickHint: 'Läuft einmal über die Dauer ab; setz den Anfang auf den Moment des Klicks.',
@@ -375,7 +413,6 @@ const de: Messages = {
 		placementHint:
 			'Verschiebe den Clip in der Vorschau oder zieh ihn an den Ecken größer und kleiner (Bild im Bild).',
 		crop: 'Zuschneiden',
-		cropDone: 'Fertig',
 		removeCrop: 'Zuschnitt entfernen',
 		cropHint: 'Zieh die Kanten in der Vorschau; das Bild bleibt dabei stehen. Doppelklick auf einen Clip startet das Zuschneiden, Esc oder Enter beendet es.',
 		cropLeft: 'Links',
@@ -391,7 +428,8 @@ const de: Messages = {
 		drawIn: 'Zeichnen',
 		areaShape: 'Form',
 		windowPosition: 'Fensterposition',
-		windowPositionHint: 'Wo das Fenster steht, solange es kleiner als seine größte Ausdehnung ist.',
+		windowPositionHint: 'Wo das Fenster steht, solange es kleiner als seine größte Ausdehnung ist – nur bei aufgenommenen Fenstern, die ihre Größe geändert haben.',
+		windowPositionCropped: 'Mit Zuschnitt bleibt das Fenster mittig.',
 		anchors: {
 			'top-left': 'Oben links',
 			top: 'Oben',
@@ -438,6 +476,7 @@ const de: Messages = {
 	mediaBin: {
 		dragHint: 'In die Timeline ziehen, um an dieser Stelle einzufügen',
 		empty: 'Noch keine Medien.',
+		hint: 'Doppelklick oder Eingabe fügt am Abspielkopf ein; zieh Einträge auf Timeline oder Vorschau.',
 		noAudio: 'ohne Ton',
 		insert: 'Einfügen',
 		insertTitle: 'Am Abspielkopf einfügen (vor allem, was dort liegt)',
@@ -449,7 +488,10 @@ const de: Messages = {
 		deleteTitle: 'Medium löschen?',
 		confirmDelete: (name) => `„${name}“ endgültig löschen? Das kann nicht rückgängig gemacht werden.`,
 		confirmDeleteHistory: (name) =>
-			`„${name}“ endgültig löschen? Rückgängig-Schritte, die diese Datei noch verwenden, gehen dabei verloren. Das kann nicht rückgängig gemacht werden.`
+			`„${name}“ endgültig löschen? Rückgängig-Schritte, die diese Datei noch verwenden, gehen dabei verloren. Das kann nicht rückgängig gemacht werden.`,
+		confirmDeleteMany: (n) => `${n} Mediendateien endgültig löschen? Das kann nicht rückgängig gemacht werden.`,
+		confirmDeleteManyHistory: (n) =>
+			`${n} Mediendateien endgültig löschen? Rückgängig-Schritte, die sie noch verwenden, gehen dabei verloren. Das kann nicht rückgängig gemacht werden.`
 	},
 
 	preview: {
@@ -476,6 +518,8 @@ const de: Messages = {
 		copyToProject: 'In dieses Projekt kopieren',
 		moveToGlobal: 'In alle Projekte verschieben',
 		moveToProject: 'In dieses Projekt verschieben',
+		moveToOther: 'In die andere Bibliothek verschieben',
+		copyToOther: 'In die andere Bibliothek kopieren',
 		moved: (name, where) => `„${name}“ verschoben nach „${where}“`,
 		copied: (name, where) => `„${name}“ kopiert nach „${where}“`,
 		dragHint: 'Auf der Bibliothek ablegen (öffnen: über ihr Symbol links halten)',
@@ -487,6 +531,7 @@ const de: Messages = {
 		remove: 'Aus der Bibliothek entfernen',
 		removeTitle: 'Aus der Bibliothek entfernen?',
 		removeMessage: (name) => `„${name}“ wird aus der Bibliothek entfernt. Schon eingefügte Elemente bleiben.`,
+		removeMany: (n) => `${n} Einträge werden aus der Bibliothek entfernt. Schon eingefügte Elemente bleiben.`,
 		removeConfirm: 'Entfernen',
 		elements: (n) => (n === 1 ? '1 Element' : `${n} Elemente`),
 		entry: (name, duration) => `${name}, ${duration}`

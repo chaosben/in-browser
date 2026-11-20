@@ -1,10 +1,12 @@
 import { SvelteSet } from 'svelte/reactivity';
+import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 import { readStored, writeStored } from '@in-browser/brand/storage.js';
 import { FilesError, list, stat } from '@in-browser/files/fs.js';
 import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
-import { join, segments } from '@in-browser/files/path.js';
+import { isInside, join, segments } from '@in-browser/files/path.js';
 import { matches, sortItems, toItem, type Item, type SortKey } from './items.js';
+import { trash, TRASH } from './trash.svelte.js';
 
 // State of the file manager: the open folder, its entries, selection, sorting, search and view.
 
@@ -20,18 +22,22 @@ export const treeVersion = $state({ current: 0 });
 /** Copied or cut entries (inside Files only, not the system clipboard) */
 export const clipboard = $state<{ current: { mode: 'copy' | 'cut'; paths: string[] } | null }>({ current: null });
 
+/** The last step that can be undone (the ribbon's “Undo”); null after deleting (its message has its own “Undo”) */
+export const lastUndo = $state<{ current: (() => Promise<void>) | null }>({ current: null });
+
 export class Manager {
 	folder = $state('/');
 	items = $state.raw<Item[] | null>(null);
 	error = $state<string | null>(null);
 	/** Code of a known failure (`FilesError`), e.g. `offline` for a folder of another device or a guest share */
 	errorCode = $state<string | null>(null);
-	selection = new SvelteSet<string>();
-	/** Entry with the keyboard focus (start of Shift ranges) */
+	/** Picked entries (`ui.md` Selection: click, Ctrl/Shift+click, touch selection mode) */
+	readonly pick = new Picker<string>();
+	/** Entry with the keyboard focus (arrow keys move it; Shift extends the pick from the anchor) */
 	focus = $state<string | null>(null);
 	renaming = $state<string | null>(null);
-	/** Touch: selection mode (started by a long press), taps toggle entries instead of opening them */
-	selecting = $state(false);
+	/** Goes to another folder (set by the page): follows the open folder when it is moved or renamed */
+	relocate: ((path: string) => void) | null = null;
 	sortKey = $state<SortKey>('name');
 	desc = $state(false);
 	query = $state('');
@@ -41,12 +47,13 @@ export class Manager {
 	visible = $derived(
 		sortItems((this.items ?? []).filter((i) => !i.name.startsWith('.') && matches(i, this.query)), this.sortKey, this.desc)
 	);
-	selected = $derived(this.visible.filter((i) => this.selection.has(i.path)));
+	/** Paths as shown (the order of Shift ranges) */
+	order = $derived(this.visible.map((i) => i.path));
+	selected = $derived(this.visible.filter((i) => this.pick.has(i.path)));
 
 	async load(folder: string) {
 		if (folder !== this.folder) {
-			this.selection.clear();
-			this.selecting = false;
+			this.pick.clear();
 			this.focus = null;
 			this.query = '';
 			this.items = null;
@@ -54,22 +61,21 @@ export class Manager {
 		this.folder = folder;
 		this.renaming = null;
 		// Show the way to the folder in the tree
-		segments(folder).forEach((_, i, all) => expanded.add('/' + all.slice(0, i + 1).join('/')));
+		if (folder !== TRASH) segments(folder).forEach((_, i, all) => expanded.add('/' + all.slice(0, i + 1).join('/')));
 		await this.refresh();
 	}
 
 	async refresh() {
 		const folder = this.folder;
 		try {
-			const entries = await list(folder);
-			const items = await Promise.all(entries.map(withDate));
+			// The trash is shown like a folder (`trash.svelte.ts`)
+			const items = folder === TRASH ? await trash.list() : await Promise.all((await list(folder)).map(withDate));
 			if (folder !== this.folder) return;
 			this.items = items;
 			this.error = null;
 			this.errorCode = null;
 			// Drop what is gone from the selection
-			const present = new Set(items.map((i) => i.path));
-			for (const path of this.selection) if (!present.has(path)) this.selection.delete(path);
+			this.pick.keep(items.map((i) => i.path));
 		} catch (e) {
 			if (folder !== this.folder) return;
 			// Known states (not reachable, no access, gone) are shown in place; anything else is a bug worth logging
@@ -85,56 +91,55 @@ export class Manager {
 		writeStored(VIEW_KEY, view);
 	}
 
+	/** Click on a column heading: by that key, again reverses the order */
 	sortBy(key: SortKey) {
 		if (this.sortKey === key) this.desc = !this.desc;
-		else {
-			this.sortKey = key;
-			this.desc = key === 'modified' || key === 'size';
-		}
+		else this.setSort(key);
 	}
 
-	/** Click on an entry: alone, toggled (Ctrl/Cmd) or as a range from the focus (Shift) */
-	select(path: string, { ctrl = false, shift = false } = {}) {
-		if (shift && this.focus) {
-			const paths = this.visible.map((i) => i.path);
-			const [a, b] = [paths.indexOf(this.focus), paths.indexOf(path)].sort((x, y) => x - y);
-			if (a >= 0 && b >= 0) {
-				if (!ctrl) this.selection.clear();
-				paths.slice(a, b + 1).forEach((p) => this.selection.add(p));
-				return;
-			}
-		}
-		if (ctrl) {
-			if (this.selection.has(path)) this.selection.delete(path);
-			else this.selection.add(path);
-		} else {
-			this.selection.clear();
-			this.selection.add(path);
-		}
+	/** By `key`, in its natural direction (dates and sizes: newest and largest first) */
+	setSort(key: SortKey, desc = key === 'modified' || key === 'size') {
+		this.sortKey = key;
+		this.desc = desc;
+	}
+
+	/** Picks exactly this entry (new, renamed, pasted) */
+	select(path: string) {
+		this.pick.only(path);
 		this.focus = path;
 	}
 
+	/** Picks these (e.g. what was pasted), keeping the selection mode */
+	selectPaths(paths: string[]) {
+		this.pick.set(paths);
+		this.focus = paths.at(-1) ?? null;
+	}
+
 	selectAll() {
-		this.visible.forEach((i) => this.selection.add(i.path));
-		this.selecting = true;
+		this.pick.selectAll(this.order);
 	}
 
-	/** Leaves the touch selection mode with nothing selected */
+	/** Clears the pick and ends the touch selection mode */
 	clearSelection() {
-		this.selection.clear();
-		this.selecting = false;
+		this.pick.clear();
 	}
 
-	/** Moves the focus by `step` entries (arrow keys); Shift extends the selection */
+	/** Moves the focus by `step` entries (arrow keys); Shift extends the pick from the anchor */
 	step(step: number, shift: boolean) {
-		const paths = this.visible.map((i) => i.path);
+		const paths = this.order;
 		if (paths.length === 0) return;
 		const current = this.focus ? paths.indexOf(this.focus) : -1;
 		const next = paths[Math.max(0, Math.min(paths.length - 1, current < 0 ? 0 : current + step))];
-		if (shift) {
-			this.selection.add(next);
-			this.focus = next;
-		} else this.select(next);
+		if (shift) this.pick.extend(next, paths);
+		else this.pick.only(next);
+		this.focus = next;
+	}
+
+	/** `from` was moved to `to`: the open folder follows when it was in it (returns whether it did) */
+	followMove(from: string, to: string): boolean {
+		if (!this.relocate || !isInside(this.folder, from)) return false;
+		this.relocate(to + this.folder.slice(from.length));
+		return true;
 	}
 }
 

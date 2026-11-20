@@ -13,10 +13,8 @@ const de: Messages = {
 
 	home: {
 		tagline: 'Schreib und skizziere von Hand – mit Stift, Finger oder Maus. Deine Notizbücher bleiben in deinem Browser.',
-		unsupported: 'Dieser Browser hat kein Dateisystem für Websites (OPFS). Nutze bitte einen aktuellen Browser.',
 		newNotebook: 'Neues Notizbuch',
 		open: 'Öffnen …',
-		openNotebook: 'Öffnen',
 		newTitle: 'Wohin soll das neue Notizbuch?',
 		openTitle: 'Notizbuch öffnen',
 		untitled: 'Notizbuch',
@@ -24,10 +22,9 @@ const de: Messages = {
 		empty: 'Noch keine Notizbücher. Leg eins an, um loszuschreiben.',
 		pages: (n) => (n === 1 ? '1 Seite' : `${n} Seiten`),
 		loadFailed: (error) => `Die Notizbücher konnten nicht aufgelistet werden: ${error}`,
-		actions: (name) => `Aktionen für ${name}`,
+		showInFiles: 'In Dateien zeigen',
 		failed: (error) => `Das hat nicht geklappt: ${error}`,
-		importPdf: 'PDF importieren',
-		importing: 'PDF wird gelesen …'
+		importPdf: 'PDF importieren'
 	},
 
 	editor: {
@@ -37,98 +34,46 @@ const de: Messages = {
 		newerVersion: 'Das Notizbuch wurde mit einer neueren Version der App erstellt. Lade die Seite neu, um sie zu bekommen.',
 		pageFailed: (error) => `Eine Seite konnte nicht geladen werden: ${error}`,
 		changedElsewhere: 'Das Notizbuch wurde woanders geändert. Deine Änderungen hier bleiben erhalten.',
-		rename: 'Umbenennen',
 		undo: 'Rückgängig',
 		redo: 'Wiederholen',
 		pageOf: (n, total) => `Seite ${n} von ${total}`,
 		zoom: (percent) => `${percent} %`,
 		zoomMenu: 'Zoom',
 		fitWidth: 'An Breite anpassen',
-		actualSize: '100 %',
+		actualSize: 'Originalgröße',
 		zoomIn: 'Vergrößern',
 		zoomOut: 'Verkleinern',
 		penOnly: 'Nur der Stift zeichnet',
+		penOnlyTip: 'Finger scrollen und zoomen nur, schon bei der ersten Berührung',
 		penOnlyOn: 'Nur der Stift zeichnet – Finger verschieben die Seite',
+		selectAll: 'Alles auswählen',
+		selectAllTip: 'Alles auf der Seite, die du siehst',
+		showInFiles: 'In Dateien zeigen',
 		back: 'Alle Notizbücher'
 	},
 
-	tools: {
-		label: 'Werkzeuge',
-		pen: 'Stift',
-		highlighter: 'Textmarker',
-		shape: 'Formen',
-		eraser: 'Radierer',
-		lasso: 'Auswählen',
-		lassoHint: 'Auswählen – tippe ein Element an oder umkreise mehrere',
-		laser: 'Laserpointer',
-		eraserMode: 'Radiert',
-		eraserModes: { stroke: 'Ganze Striche', pixel: 'Pixel' },
-		size: 'Stärke',
-		sizeValue: (n) => `Stärke ${n}`,
-		options: 'Farbe, Stärke und Glättung',
-		smoothing: 'Glättung',
-		smoothingLevels: ['Aus', 'Leicht', 'Mittel', 'Stark'],
-		smoothingHint: 'Glattere Linien, die dem Stift mit kleiner Verzögerung folgen',
-		shapes: {
-			line: 'Linie',
-			arrow: 'Pfeil',
-			doubleArrow: 'Doppelpfeil',
-			rect: 'Rechteck',
-			roundedRect: 'Abgerundetes Rechteck',
-			ellipse: 'Ellipse',
-			triangle: 'Dreieck',
-			diamond: 'Raute',
-			parallelogram: 'Parallelogramm',
-			pentagon: 'Fünfeck',
-			hexagon: 'Sechseck',
-			star: 'Stern'
-		},
-		shapeHint: 'Zieh die Form auf der Seite auf. Fast quadratische Formen werden zu Quadrat oder Kreis.',
-		snap: 'Einrasten',
-		snapHint: 'Linien in 15°-Schritten; Kanten und Mitten an Seite, Formen und Bildern; gleiche Abstände. Halte beim Ziehen Alt gedrückt für das Gegenteil.'
-	},
-
-	shapeStyle: {
-		fill: 'Füllung',
-		noFill: 'Keine',
-		line: 'Linie',
-		dashes: { solid: 'Durchgezogen', dashed: 'Gestrichelt', dotted: 'Gepunktet' },
-		sketch: 'Handgezeichnet',
-		heads: 'Pfeilspitzen',
-		headOptions: { none: 'Keine', end: 'Am Ende', start: 'Am Anfang', both: 'An beiden Enden' }
-	},
-
-	suggest: {
-		label: (shape) => `In ${shape} umwandeln`,
-		hint: 'Ersetzt den Strich durch eine Form, deren Punkte du verschieben kannst',
-		names: {
-			line: 'Linie',
-			arrow: 'Pfeil',
-			doubleArrow: 'Doppelpfeil',
-			triangle: 'Dreieck',
-			rectangle: 'Rechteck',
-			quadrilateral: 'Viereck',
-			polygon: 'Vieleck',
-			roundedRect: 'abgerundetes Rechteck',
-			circle: 'Kreis',
-			ellipse: 'Ellipse'
+	ribbon: {
+		tabs: { draw: 'Zeichnen', insert: 'Einfügen', pages: 'Seiten', view: 'Ansicht', drawing: 'Zeichnung', selection: 'Auswahl', arrange: 'Anordnen' },
+		groups: {
+			notebook: 'Notizbuch',
+			tools: 'Werkzeuge',
+			format: 'Format',
+			options: 'Optionen',
+			object: 'Objekt',
+			pictures: 'Bilder',
+			pages: 'Seiten',
+			page: 'Seite',
+			organize: 'Organisieren',
+			zoom: 'Zoom'
 		}
 	},
 
-	selection: {
-		label: (n) => (n === 1 ? '1 Element ausgewählt' : `${n} Elemente ausgewählt`),
-		color: 'Farbe',
-		size: 'Stärke',
-		style: 'Stil',
-		duplicate: 'Duplizieren',
-		delete: 'Löschen'
-	},
-
 	insert: {
-		menu: 'Einfügen',
+		image: 'Bild',
+		pdf: 'PDF',
 		imageFromFiles: 'Bild aus Dateien …',
 		imageFromDevice: 'Bild von diesem Gerät …',
-		icon: 'Icon …',
+		icon: 'Icon',
 		pdfFromFiles: 'PDF aus Dateien …',
 		pdfFromDevice: 'PDF von diesem Gerät …',
 		choosePdf: 'PDF auswählen',
@@ -137,9 +82,7 @@ const de: Messages = {
 		pdfError: (error) => `Das PDF konnte nicht geöffnet werden: ${error}`,
 		pdfFailed: (name) => `„${name}“ konnte nicht gelesen werden – ist es ein PDF?`,
 		chooseImage: 'Bild auswählen',
-		iconsTitle: 'Icon einfügen',
 		iconHint: 'Das Icon bekommt die Stiftfarbe. Verschiebe und skaliere es mit dem Rahmen.',
-		close: 'Schließen',
 		imageFailed: (name) => `„${name}“ konnte nicht eingefügt werden – ist es ein Bild?`
 	},
 
@@ -157,27 +100,24 @@ const de: Messages = {
 		download: 'Herunterladen',
 		saveToFiles: 'In Dateien speichern …',
 		savedToFiles: (path) => `Als ${path} gespeichert`,
+		open: 'Öffnen',
 		pageFile: (name, n) => `${name} – Seite ${n}`,
 		failed: (error) => `Exportieren fehlgeschlagen: ${error}`,
 		close: 'Schließen'
 	},
 
 	page: {
-		menu: 'Seite',
 		add: 'Seite hinzufügen',
 		delete: 'Seite löschen',
+		deleteTip: 'Löscht die Seite, die du siehst, mit allem darauf – die Meldung bietet an, das rückgängig zu machen',
+		deleted: (n) => `Seite ${n} gelöscht`,
 		moveUp: 'Seite nach oben',
 		moveDown: 'Seite nach unten',
 		paper: 'Papier',
 		papers: { blank: 'Blanko', lined: 'Liniert', grid: 'Kariert', dotted: 'Gepunktet' },
 		size: 'Seitengröße',
 		sizes: { a4: 'A4', a5: 'A5', a3: 'A3', letter: 'US Letter' },
-		landscape: 'Querformat',
-		deleteQuestion: {
-			title: 'Seite löschen?',
-			message: (n) => `Seite ${n} wird mit allem darauf gelöscht. Du kannst das rückgängig machen.`,
-			confirm: 'Löschen'
-		}
+		landscape: 'Querformat'
 	},
 
 	perf: {

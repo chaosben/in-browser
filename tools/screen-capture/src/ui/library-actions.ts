@@ -9,7 +9,7 @@ import { globalLibrary } from '#lib/project/library.svelte.js';
 import { prepareMedia, type ItemsWithMedia } from '#lib/project/transfer.js';
 import type { Item } from '#lib/project/types.js';
 import { libraryMediaFile, mediaFile } from '#lib/storage/store.js';
-import { toolState } from '#lib/tools/state.svelte.js';
+import { panelState } from '#lib/tools/state.svelte.js';
 import type { DropPlace } from '#lib/tools/types.js';
 import { libraryUi, type LibraryScope } from '#lib/ui/library.svelte.js';
 import { errorMessage } from '#lib/util/format.js';
@@ -82,7 +82,7 @@ export async function saveToLibrary(editor: Editor, name: string, scope: Library
 	try {
 		await addToLibrary(editor, name, scope, items);
 		libraryUi.scope = scope;
-		toolState.group = 'library';
+		panelState.open = 'library';
 		toast(m.library.added(name), 'success');
 	} catch (e) {
 		failed(e);

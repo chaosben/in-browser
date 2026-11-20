@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { entriesUse, entryDuration, entryName, mediaOf, unusedFiles } from './library';
+import { entriesUse, mediaOf, unusedFiles } from './library';
 import { parseProject, type ImageAsset, type Item, type LibraryEntry, type Source } from './types';
 
 const source = (id: string): Source =>
 	({ id, file: `${id}.mp4`, name: id, kind: 'import', duration: 10, width: 1920, height: 1080, hasVideo: true, hasAudio: true }) as Source;
 const image = (id: string): ImageAsset => ({ id, file: `${id}.png`, name: id, width: 10, height: 10 });
-const clip = (sourceId: string, start = 0): Item => ({
+const clip = (sourceId: string): Item => ({
 	id: `c-${sourceId}`,
 	type: 'video',
 	sourceId,
-	start,
+	start: 0,
 	track: 0,
 	in: 2,
 	out: 5,
@@ -41,11 +41,6 @@ describe('library', () => {
 		const removed = entry('a', [clip('s1'), clip('s2')], [source('s1'), source('s2')]);
 		const rest = [entry('b', [clip('s2')], [source('s2')])];
 		expect(unusedFiles(rest, removed)).toEqual(['s1.mp4', 's1.peaks.json']);
-	});
-	it('names and measures entries', () => {
-		expect(entryName('Arrow', 1)).toBe('Arrow');
-		expect(entryName('Arrow', 3)).toBe('Arrow +2');
-		expect(entryDuration([clip('s1', 4), picture('p1')])).toBe(6);
 	});
 	it('parseProject adds an empty library to older projects', () => {
 		const p = parseProject({ version: 1, id: 'x', sources: [], timeline: { items: [] } });

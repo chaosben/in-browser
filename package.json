@@ -33,7 +33,10 @@
 		"@in-browser/files": "*",
 		"@in-browser/files-app": "*",
 		"@in-browser/graphics": "*",
+		"@in-browser/ink": "*",
 		"@in-browser/notes": "*",
+		"@in-browser/pdf": "*",
+		"@in-browser/pdf-editor": "*",
 		"@in-browser/screen-capture": "*",
 		"@in-browser/text-editor": "*"
 	},

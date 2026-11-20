@@ -1,11 +1,13 @@
 <script lang="ts">
 	import CanvasSizeField from './CanvasSizeField.svelte';
 	import ColorField from '@in-browser/graphics/ColorField.svelte';
-	import InspectorField from './InspectorField.svelte';
-	import InspectorSection from './InspectorSection.svelte';
+	import InspectorField from '@in-browser/brand/InspectorField.svelte';
+	import InspectorSearchField from '@in-browser/brand/InspectorSearchField.svelte';
+	import InspectorSection from '@in-browser/brand/InspectorSection.svelte';
+	import { getInspector } from '@in-browser/brand/inspector.svelte.js';
 	import NumberField from '@in-browser/graphics/NumberField.svelte';
 	import type { Size } from '#lib/project/canvas.js';
-	import { croppedSize, cropInsets, FULL, insetsCrop, type CropInsets } from '#lib/project/crop.js';
+	import { cropInsets, insetsCrop, type CropInsets } from '#lib/project/crop.js';
 	import { fitRect, FREEZE_ICON, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 	import { zoomRectAt } from '#lib/project/geometry.js';
 	import type { Editor } from '#lib/project/editor.svelte.js';
@@ -24,13 +26,12 @@
 	import { rememberDuration, rememberStyle } from '#lib/project/styles.js';
 	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
 	import { fitTextToCanvas, overlayBounds } from '#lib/render/overlays.js';
+	import type { TextSizing } from '@in-browser/graphics/text-box.js';
 	import { ANCHORS } from '#lib/media/content.js';
 	import {
 		clampFade,
 		clipDuration,
 		fadeEdges,
-		remove,
-		removeZoom,
 		retimeAnnotation,
 		retimeZoom,
 		trim,
@@ -39,16 +40,22 @@
 	} from '#lib/timeline/ops.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
-	import { InspectorSearch, setInspectorSearch } from '#lib/ui/inspector.svelte.js';
+	import { shortcutLabel, type Command } from '@in-browser/brand/commands.js';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
+	import { placeClip, type EditorCommands } from '#lib/ui/commands.js';
 
 	interface Props {
 		editor: Editor;
+		/** The editor's commands (link, crop, delete … act like in the ribbon) */
+		commands: EditorCommands;
+		/** Commands listed with their keys in the project's properties */
+		shortcuts: Command[];
 	}
 
-	let { editor }: Props = $props();
+	let { editor, commands, shortcuts }: Props = $props();
 
 	/** Filters the properties of the selected element; kept when the selection changes */
-	const search = setInspectorSearch(new InspectorSearch());
+	const search = getInspector().search;
 
 	const overlay = $derived(editor.selectedOverlay);
 	const zoom = $derived(editor.selectedZoom);
@@ -63,8 +70,6 @@
 	const multiple = $derived(editor.selectedItems.length > 1 && !editor.selectedItem ? editor.selectedItems : null);
 	/** Other items selected along with it (e.g. the group of the clicked clip) */
 	const others = $derived(editor.selectedItem ? editor.selectedItems.length - 1 : 0);
-	/** Are selected items linked? */
-	const grouped = $derived(editor.selectedItems.some((item) => item.group));
 
 	// Sliders: all changes of one drag form one undo step (ended via `onchange`)
 	function setOverlay(patch: Partial<Annotation>, field: string) {
@@ -89,6 +94,23 @@
 		rememberStyle(o.kind, patch);
 	}
 
+	/** Figma's three: the box as wide as the longest line, a fixed width with the height following, or a fixed size */
+	const SIZINGS: { value: TextSizing; label: string; hint: string; icon: string }[] = [
+		{ value: 'auto-width', label: m.inspector.autoWidth, hint: m.inspector.autoWidthHint, icon: 'icon-[material-symbols-light--width]' },
+		{ value: 'auto-height', label: m.inspector.autoHeight, hint: m.inspector.autoHeightHint, icon: 'icon-[material-symbols-light--height]' },
+		{ value: 'fixed', label: m.inspector.fixedSize, hint: m.inspector.fixedSizeHint, icon: 'icon-[material-symbols-light--crop-free]' }
+	];
+
+	function setSizing(to: TextSizing) {
+		const o = overlay;
+		if (!o || (o.kind !== 'text' && o.kind !== 'callout')) return;
+		const { width: W, height: H } = editor.project;
+		const b = overlayBounds(o, W, H);
+		const patch =
+			to === 'auto-width' ? { boxWidth: undefined, boxHeight: undefined } : to === 'auto-height' ? { boxWidth: b.w, boxHeight: undefined } : { boxWidth: b.w, boxHeight: b.h };
+		setTextBox(patch, 'boxWidth');
+	}
+
 	function setZoom(patch: Partial<Omit<ZoomSegment, 'start' | 'end'>>, field: string) {
 		const z = zoom;
 		if (z) editor.update((t) => updateZoom(t, z.id, patch), `insp-${z.id}-${field}`);
@@ -109,11 +131,6 @@
 		else if (zoom) editor.update((t) => retimeZoom(t, zoom.id, start, start + length), `insp-${zoom.id}-timing`);
 	}
 
-	function removeSelected() {
-		const ids = editor.selectedIds;
-		if (ids.length) editor.update((t) => remove(t, ids, true, (id) => !!editor.source(id)?.hasVideo));
-		else if (zoom) editor.update((t) => removeZoom(t, zoom.id));
-	}
 
 	function setClip(c: Clip, patch: Partial<Clip>, field: string) {
 		editor.update((t) => updateItem(t, c.id, patch), `insp-${c.id}-${field}`);
@@ -147,13 +164,14 @@
 	const end = () => editor.endGesture();
 
 	/** Fit the clip or let it fill the canvas (center: canvas center) */
-	function place(c: Clip, cover: boolean) {
-		const source = editor.source(c.sourceId);
-		if (!source) return;
-		// The visible part fits or fills, so a crop counts
-		const rect = fitRect(croppedSize(source, c.crop), editor.project.width, editor.project.height, cover);
-		editor.update((t) => updateItem(t, c.id, { rect }));
+	const place = (c: Clip, cover: boolean) => placeClip(editor, c, cover);
+
+	/** View → “Canvas size”: opens the size field (the page shows the project's properties first) */
+	export function openCanvasSize() {
+		canvasDraft = { width: editor.project.width, height: editor.project.height, clip: false };
 	}
+
+	const keyNames = brandMessages().keys;
 
 	const CROP_SIDES: { side: keyof CropInsets; label: string }[] = [
 		{ side: 'left', label: m.inspector.cropLeft },
@@ -300,35 +318,7 @@
 		<span class="{icon} size-5" aria-hidden="true"></span>
 		{title}
 	</h3>
-	<label class="input input-sm w-full">
-		<span class="icon-[material-symbols-light--search] size-4 opacity-60" aria-hidden="true"></span>
-		<input
-			type="text"
-			class="grow"
-			placeholder={m.inspector.search}
-			aria-label={m.inspector.search}
-			bind:value={search.query}
-			onkeydown={(e) => {
-				if (e.key === 'Escape' && search.query) {
-					search.query = '';
-					e.stopPropagation();
-				}
-			}}
-		/>
-		{#if search.query}
-			<button
-				class="btn btn-ghost btn-xs btn-circle"
-				onclick={() => (search.query = '')}
-				title={m.inspector.clearSearch}
-				aria-label={m.inspector.clearSearch}
-			>
-				<span class="icon-[material-symbols-light--close] size-4" aria-hidden="true"></span>
-			</button>
-		{/if}
-	</label>
-	{#if search.active && !search.matches.any}
-		<p class="text-xs opacity-70">{m.inspector.noMatches}</p>
-	{/if}
+	<InspectorSearchField />
 {/snippet}
 
 <div class="flex flex-col gap-4 p-3 text-sm">
@@ -375,7 +365,7 @@
 							<div class="grid grid-cols-2 gap-1">
 								{#each CLICK_STYLES as style (style.value)}
 									<button
-										class="btn btn-sm justify-start {o.style === style.value ? 'btn-primary' : ''}"
+										class="btn btn-sm justify-start {o.style === style.value ? 'btn-active' : ''}"
 										aria-pressed={o.style === style.value}
 										onclick={() => {
 											setOverlay({ style: style.value }, 'style');
@@ -423,38 +413,46 @@
 					</label>
 				</InspectorField>
 				{@render pixels(m.inspector.fontSize, o.size, 4 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
-				<InspectorField label={m.inspector.align} keywords={[...ALIGNS.map((a) => a.label), m.inspector.autoWidth]}>
+				<InspectorField label={m.inspector.align} keywords={ALIGNS.map((a) => a.label)}>
 					<div class="flex flex-col gap-1">
 						<span class="text-xs opacity-70">{m.inspector.align}</span>
-						<div class="flex items-center gap-2">
-							<div class="join">
-								{#each ALIGNS as a (a.value)}
-									<button
-										class="btn btn-xs join-item {o.align === a.value ? 'btn-active' : ''}"
-										onclick={() => {
-											setOverlay({ align: a.value }, 'align');
-											end();
-										}}
-										title={a.label}
-										aria-label={a.label}
-										aria-pressed={o.align === a.value}
-									>
-										<span class="{a.icon} size-4" aria-hidden="true"></span>
-									</button>
-								{/each}
-							</div>
-							{#if o.boxWidth !== undefined}
+						<div class="join">
+							{#each ALIGNS as a (a.value)}
 								<button
-									class="btn btn-xs btn-ghost ml-auto"
+									class="btn btn-xs join-item {o.align === a.value ? 'btn-active' : ''}"
 									onclick={() => {
-										setTextBox({ boxWidth: undefined }, 'boxWidth');
+										setOverlay({ align: a.value }, 'align');
 										end();
 									}}
-									title={m.inspector.autoWidthHint}
+									title={a.label}
+									aria-label={a.label}
+									aria-pressed={o.align === a.value}
 								>
-									{m.inspector.autoWidth}
+									<span class="{a.icon} size-4" aria-hidden="true"></span>
 								</button>
-							{/if}
+							{/each}
+						</div>
+					</div>
+				</InspectorField>
+				{@const sizing = o.boxWidth === undefined ? 'auto-width' : o.boxHeight === undefined ? 'auto-height' : 'fixed'}
+				<InspectorField label={m.inspector.boxSize} keywords={SIZINGS.map((z) => z.label)}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.boxSize}</span>
+						<div class="join">
+							{#each SIZINGS as z (z.value)}
+								<button
+									class="btn btn-xs join-item {sizing === z.value ? 'btn-active' : ''}"
+									onclick={() => {
+										setSizing(z.value);
+										end();
+									}}
+									title={z.hint}
+									aria-label={z.label}
+									aria-pressed={sizing === z.value}
+								>
+									<span class="{z.icon} size-4" aria-hidden="true"></span>
+								</button>
+							{/each}
 						</div>
 					</div>
 				</InspectorField>
@@ -489,7 +487,8 @@
 						<div class="join">
 							{#each AREA_SHAPES as shape (shape.value)}
 								<button
-									class="btn btn-sm join-item flex-1 {o.shape === shape.value ? 'btn-primary' : ''}"
+									class="btn btn-sm join-item flex-1 {o.shape === shape.value ? 'btn-active' : ''}"
+									aria-pressed={o.shape === shape.value}
 									onclick={() => {
 										setOverlay({ shape: shape.value }, 'shape');
 										end();
@@ -619,17 +618,18 @@
 			{#if source?.hasVideo}
 				{@render placement(m.inspector.placement, (cover) => place(c, cover), m.inspector.placementHint)}
 				{@const fit = editor.clipCanvasOf(c.id)}
-				{#if fit}
-					<InspectorField label={m.inspector.fitCanvasToClip} keywords={[m.inspector.canvas]}>
-						<div class="flex flex-col gap-1">
-							<button class="btn btn-sm" onclick={() => editor.fitCanvasToClip(c.id)}>
-								<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span>
-								{m.inspector.fitCanvasToClip} ({fit.size.width} × {fit.size.height})
-							</button>
-							<p class="text-xs opacity-60">{m.inspector.fitCanvasToClipHint}</p>
-						</div>
-					</InspectorField>
-				{/if}
+				<InspectorField label={m.inspector.fitCanvasToClip} keywords={[m.inspector.canvas]}>
+					<div class="flex flex-col gap-1">
+						<button class="btn btn-sm" disabled={!fit} onclick={() => editor.fitCanvasToClip(c.id)}>
+							<span class="icon-[material-symbols-light--fit-screen-outline] size-5" aria-hidden="true"></span>
+							{m.inspector.fitCanvasToClip}
+						</button>
+						<p class="text-xs opacity-60">
+							{fit ? m.inspector.fitCanvasToClipSize(fit.size.width, fit.size.height) : m.inspector.fitCanvasToClipNone}
+							{m.inspector.fitCanvasToClipHint}
+						</p>
+					</div>
+				</InspectorField>
 				{@const cropping = editor.croppingClip?.id === c.id}
 				{@const insets = cropInsets(source, c.crop)}
 				<InspectorField label={m.inspector.crop} keywords={[m.inspector.removeCrop, ...CROP_SIDES.map((s) => s.label)]}>
@@ -637,16 +637,18 @@
 						<span class="text-xs opacity-70">{m.inspector.crop}</span>
 						<div class="flex gap-1">
 							<button
-								class="btn btn-sm flex-1 {cropping ? 'btn-primary' : ''}"
-								onclick={() => (cropping ? editor.endCrop() : editor.startCrop(c.id))}
+								class="btn btn-sm flex-1 {cropping ? 'btn-active' : ''}"
+								onclick={() => commands.crop.run()}
+								disabled={!commands.crop.enabled()}
 								aria-pressed={cropping}
 							>
 								<span class="icon-[material-symbols-light--crop] size-5" aria-hidden="true"></span>
-								{cropping ? m.inspector.cropDone : m.inspector.crop}
+								{m.inspector.crop}
 							</button>
-							{#if c.crop}
-								<button class="btn btn-sm" onclick={() => editor.setCrop(c.id, FULL)}>{m.inspector.removeCrop}</button>
-							{/if}
+							<button class="btn btn-sm flex-1" disabled={!commands.removeCrop.enabled()} onclick={() => commands.removeCrop.run()}>
+								<span class="icon-[material-symbols-light--crop-free] size-5" aria-hidden="true"></span>
+								{m.inspector.removeCrop}
+							</button>
 						</div>
 						<div class="grid grid-cols-2 gap-x-3 gap-y-1">
 							{#each CROP_SIDES as { side, label } (side)}
@@ -665,27 +667,28 @@
 						<p class="text-xs opacity-60">{m.inspector.cropHint}</p>
 					</div>
 				</InspectorField>
-				{#if source.sizes && !c.crop}
-					<!-- Recorded window was resized: where it sits while it is smaller -->
-					<InspectorField label={m.inspector.windowPosition}>
-						<div class="flex flex-col gap-1">
-							<span class="text-xs opacity-70">{m.inspector.windowPosition}</span>
-							<div class="grid w-fit grid-cols-3 gap-1">
-								{#each ANCHORS as anchor (anchor)}
-									<button
-										class="btn btn-xs btn-square {(c.anchor ?? 'center') === anchor ? 'btn-primary' : ''}"
-										onclick={() => editor.update((t) => updateItem(t, c.id, { anchor }))}
-										title={m.inspector.anchors[anchor]}
-										aria-label={m.inspector.anchors[anchor]}
-									>
-										<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
-									</button>
-								{/each}
-							</div>
-							<p class="text-xs opacity-60">{m.inspector.windowPositionHint}</p>
+				<!-- Recorded window was resized: where it sits while it is smaller (only then, and without a crop) -->
+				{@const anchorable = !!source.sizes && !c.crop}
+				<InspectorField label={m.inspector.windowPosition}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.windowPosition}</span>
+						<div class="grid w-fit grid-cols-3 gap-1">
+							{#each ANCHORS as anchor (anchor)}
+								<button
+									class="btn btn-xs btn-square {anchorable && (c.anchor ?? 'center') === anchor ? 'btn-active' : ''}"
+									disabled={!anchorable}
+									aria-pressed={anchorable && (c.anchor ?? 'center') === anchor}
+									onclick={() => editor.update((t) => updateItem(t, c.id, { anchor }))}
+									title={m.inspector.anchors[anchor]}
+									aria-label={m.inspector.anchors[anchor]}
+								>
+									<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+								</button>
+							{/each}
 						</div>
-					</InspectorField>
-				{/if}
+						<p class="text-xs opacity-60">{c.crop ? m.inspector.windowPositionCropped : m.inspector.windowPositionHint}</p>
+					</div>
+				</InspectorField>
 			{/if}
 		</InspectorSection>
 		{#if source?.hasVideo}
@@ -696,7 +699,8 @@
 						<div class="join">
 							{#each SHAPES as shape (shape.value)}
 								<button
-									class="btn btn-sm join-item flex-1 {(c.shape ?? 'rect') === shape.value ? 'btn-primary' : ''}"
+									class="btn btn-sm join-item flex-1 {(c.shape ?? 'rect') === shape.value ? 'btn-active' : ''}"
+									aria-pressed={(c.shape ?? 'rect') === shape.value}
 									onclick={() => editor.update((t) => updateItem(t, c.id, { shape: shape.value }))}
 									title={shape.label}
 									aria-label={shape.label}
@@ -726,7 +730,7 @@
 							/>
 						</div>
 						<button
-							class="btn btn-xs btn-square {volume === 0 ? 'btn-warning' : 'btn-ghost'}"
+							class="btn btn-xs btn-square btn-ghost {volume === 0 ? 'btn-active' : ''}"
 							onclick={() => editor.update((t) => updateItem(t, c.id, { volume: volume === 0 ? 1 : 0 }))}
 							title={m.inspector.mute}
 							aria-label={m.inspector.mute}
@@ -800,14 +804,14 @@
 							{m.inspector.applyCanvas}
 						</button>
 					{/if}
-					{#if largerCanvas}
-						{@const size = largerCanvas}
-						<button class="btn btn-sm" onclick={() => editor.resizeCanvas(size)}>
-							<span class="icon-[material-symbols-light--open-in-full] size-5" aria-hidden="true"></span>
-							{m.editor.growCanvas} ({size.width} × {size.height})
-						</button>
-						<p class="text-xs opacity-60">{m.inspector.growCanvasHint}</p>
-					{/if}
+					<button class="btn btn-sm" disabled={!largerCanvas} onclick={() => largerCanvas && editor.resizeCanvas(largerCanvas)}>
+						<span class="icon-[material-symbols-light--open-in-full] size-5" aria-hidden="true"></span>
+						{m.editor.growCanvas}
+					</button>
+					<p class="text-xs opacity-60">
+						{largerCanvas ? m.inspector.growCanvasSize(largerCanvas.width, largerCanvas.height) : m.inspector.growCanvasNone}
+						{m.inspector.growCanvasHint}
+					</p>
 
 				</div>
 			</InspectorField>
@@ -816,7 +820,15 @@
 			<InspectorField label={m.inspector.background}>
 				<div class="flex flex-col gap-1">
 					<span class="text-xs opacity-70">{m.inspector.background}</span>
-					<ColorField value={editor.project.background} opaque projectColors={editor.colors} onchange={(v) => v && editor.setBackground(v)} />
+					<ColorField
+						value={editor.project.background}
+						opaque
+						projectColors={editor.colors}
+						onchange={(v, final) => {
+							if (v) editor.setBackground(v, 'background');
+							if (final) end();
+						}}
+					/>
 				</div>
 			</InspectorField>
 		</InspectorSection>
@@ -824,20 +836,31 @@
 			<div class="flex flex-col gap-2 text-xs opacity-70">
 				<p>{m.inspector.nothing}</p>
 				<p>{m.inspector.nothingHint}</p>
-				<p>
-					<kbd class="kbd kbd-xs">S</kbd> {m.inspector.shortcuts.split} · <kbd class="kbd kbd-xs">F</kbd>
-					{m.inspector.shortcuts.hold} · <kbd class="kbd kbd-xs">{m.keys.del}</kbd>
-					{m.inspector.shortcuts.delete} · <kbd class="kbd kbd-xs">⇧</kbd>+<kbd class="kbd kbd-xs">{m.keys.del}</kbd>
-					{m.inspector.shortcuts.deleteGap} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">G</kbd>
-					{m.inspector.shortcuts.link} · <kbd class="kbd kbd-xs">{m.keys.ctrl}</kbd>+<kbd class="kbd kbd-xs">C</kbd>/<kbd
-						class="kbd kbd-xs">X</kbd
-					>/<kbd class="kbd kbd-xs">V</kbd>
-					{m.inspector.shortcuts.clipboard} · <kbd class="kbd kbd-xs">Esc</kbd>
-					{m.inspector.shortcuts.deselect} · <kbd class="kbd kbd-xs">← ↑ → ↓</kbd>
-					{m.inspector.shortcuts.nudge} · <kbd class="kbd kbd-xs">Tab</kbd>
-					{m.inspector.shortcuts.cycle} · <kbd class="kbd kbd-xs">F1</kbd>
-					{m.inspector.shortcuts.help}
-				</p>
+				<ul class="flex flex-col gap-1">
+					{#each shortcuts as cmd (cmd.id)}
+						{#if cmd.shortcut}
+							<li class="flex items-center justify-between gap-2">
+								<span>{cmd.label}</span>
+								<kbd class="kbd kbd-xs shrink-0">{shortcutLabel(cmd.shortcut, keyNames)}</kbd>
+							</li>
+						{/if}
+					{/each}
+					<li class="flex items-center justify-between gap-2">
+						<span>{m.inspector.shortcuts.deselect}</span><kbd class="kbd kbd-xs shrink-0">Esc</kbd>
+					</li>
+					<li class="flex items-center justify-between gap-2">
+						<span>{m.inspector.shortcuts.frames}</span><kbd class="kbd kbd-xs shrink-0">← →</kbd>
+					</li>
+					<li class="flex items-center justify-between gap-2">
+						<span>{m.inspector.shortcuts.nudge}</span><kbd class="kbd kbd-xs shrink-0">← ↑ → ↓</kbd>
+					</li>
+					<li class="flex items-center justify-between gap-2">
+						<span>{m.inspector.shortcuts.cycle}</span><kbd class="kbd kbd-xs shrink-0">Tab</kbd>
+					</li>
+					<li class="flex items-center justify-between gap-2">
+						<span>{m.inspector.shortcuts.help}</span><kbd class="kbd kbd-xs shrink-0">F1</kbd>
+					</li>
+				</ul>
 			</div>
 		{/if}
 	{/if}
@@ -845,18 +868,15 @@
 	{#if others > 0}
 		<p class="text-xs opacity-70">{m.inspector.alsoSelected(others)}</p>
 	{/if}
-	{#if editor.canLink}
-		<button class="btn btn-sm btn-outline" onclick={() => editor.link()} title={m.inspector.linkTitle}>
-			<span class="icon-[material-symbols-light--link] size-5" aria-hidden="true"></span> {m.inspector.link}
-		</button>
-	{/if}
-	{#if grouped}
-		<button class="btn btn-sm btn-outline" onclick={() => editor.unlink()} title={m.inspector.unlinkTitle}>
-			<span class="icon-[material-symbols-light--link-off] size-5" aria-hidden="true"></span> {m.inspector.unlink}
-		</button>
-	{/if}
 	{#if multiple || overlay || zoom || clip}
-		<button class="btn btn-sm btn-outline btn-error" onclick={removeSelected}>
+		<div class="flex gap-1">
+			{#each [commands.link, commands.unlink] as cmd (cmd.id)}
+				<button class="btn btn-sm btn-outline flex-1" disabled={!cmd.enabled()} onclick={() => cmd.run()} title={cmd.tip}>
+					<span class="{cmd.icon} size-5" aria-hidden="true"></span> {cmd.label}
+				</button>
+			{/each}
+		</div>
+		<button class="btn btn-sm btn-outline" disabled={!commands.delete.enabled()} onclick={() => commands.delete.run()} title={commands.delete.tip}>
 			<span class="icon-[material-symbols-light--delete-outline] size-5" aria-hidden="true"></span> {m.common.delete}
 		</button>
 	{/if}

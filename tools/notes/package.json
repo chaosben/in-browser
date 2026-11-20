@@ -19,7 +19,7 @@
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
 		"@in-browser/graphics": "*",
-		"pdf-lib": "1.17.1",
-		"pdfjs-dist": "6.5.438"
+		"@in-browser/ink": "*",
+		"@in-browser/pdf": "*"
 	}
 }

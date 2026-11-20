@@ -13,8 +13,19 @@ export async function folderTree(name: string): Promise<Tree & { clear(): Promis
 	return { ...handleTree(root), clear: () => opfs.removeEntry(name, { recursive: true }).catch(() => {}) };
 }
 
-/** Two ends of a real RTCPeerConnection pair inside this page */
-export async function linkedPair(): Promise<[Link, Link]> {
+/** Two ends of a real RTCPeerConnection pair inside this page. Under load Chromium sometimes refuses
+ * `setLocalDescription` ("Fingerprint provided but no identity available"): then it tries again with new connections */
+export async function linkedPair(tries = 3): Promise<[Link, Link]> {
+	try {
+		return await connectPair();
+	} catch (e) {
+		if (tries <= 1) throw e;
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		return linkedPair(tries - 1);
+	}
+}
+
+async function connectPair(): Promise<[Link, Link]> {
 	const a = new RTCPeerConnection();
 	const b = new RTCPeerConnection();
 	a.onicecandidate = (e) => e.candidate && b.addIceCandidate(e.candidate);

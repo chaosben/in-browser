@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { BRAND } from './brand.js';
-	import { brandBar, startRename } from './brand-bar.svelte.js';
+	import { brandBar } from './brand-bar.svelte.js';
 	import type { HelpState } from './help.svelte.js';
 	import { brandMessages } from './i18n/index.svelte.js';
 	import ThemeSwitch from './ThemeSwitch.svelte';
-	import { openMenuBelow, type MenuEntry } from './ui/context-menu.svelte.js';
 
 	interface Props {
 		/** Tool name; without it (overview) the brand links to its own home page. */
@@ -16,41 +15,19 @@
 		help?: HelpState;
 		/** Without a help window (overview): the help button links to this page */
 		helpHref?: string;
+		/** Opens the suite settings (the gear at the right end) */
+		onsettings?: () => void;
 	}
 
-	let { tool, home, help, helpHref }: Props = $props();
+	let { tool, home, help, helpHref, onsettings }: Props = $props();
 
 	const t = $derived(brandMessages());
-
-	/** Rename field: whole name selected; Enter keeps, Esc cancels, leaving keeps */
-	function renameField(input: HTMLInputElement) {
-		input.focus();
-		input.select();
-	}
-
-	function commit(input: HTMLInputElement, rename: (name: string) => void, label: string) {
-		if (!brandBar.renaming) return;
-		brandBar.renaming = false;
-		const name = input.value.trim();
-		if (name && name !== label) rename(name);
-	}
 </script>
 
-{#snippet menuButton(name: string, entries: MenuEntry[])}
-	<button
-		class="btn btn-ghost btn-xs btn-square"
-		onclick={(e) => openMenuBelow(e, entries)}
-		title={t.bar.actions(name)}
-		aria-label={t.bar.actions(name)}
-	>
-		<span class="icon-[material-symbols-light--keyboard-arrow-down] size-5" aria-hidden="true"></span>
-	</button>
-{/snippet}
-
 <!--
-	Shared header of the in-browser apps. Left: brand / tool / the navigation inside the tool (`setBrandBar`,
-	the current object with the menu of all its actions), then its main actions as buttons (from `md`); right: the
-	less important actions of the tool and the theme.
+	Shared header of the in-browser apps. Left: brand / tool / where you are in the tool (`setBrandBar`: levels to go
+	back to, the current one last). No actions of the tool (decided by the user: they are in its ribbon); right only
+	what belongs to the suite: help, the theme and the settings.
 -->
 <header class="bg-base-300 text-base-content flex h-10 shrink-0 items-center gap-2 px-3 text-sm">
 	<!-- From a tool, load the overview as a fresh page (separate layout and language handling) -->
@@ -71,7 +48,6 @@
 	{#if tool}
 		<span class="opacity-40" aria-hidden="true">/</span>
 		<a href={home} class="shrink-0 font-semibold hover:underline" title={t.brand.toolHome(tool)}>{tool}</a>
-		{#if brandBar.menu?.length && brandBar.crumbs.length === 0}{@render menuButton(tool, brandBar.menu)}{/if}
 	{/if}
 
 	<nav class="flex min-w-0 flex-1 items-center gap-2">
@@ -79,46 +55,19 @@
 			{@const last = i === brandBar.crumbs.length - 1}
 			<span class="opacity-40" aria-hidden="true">/</span>
 			<!-- Earlier levels give way first; on narrow screens the current one truncates too -->
-			<span class={['flex min-w-0 items-center gap-1', last && brandBar.renaming ? 'flex-1' : last ? 'shrink' : 'shrink-[4]']}>
-				{#if last && crumb.rename && brandBar.renaming}
-					{@const rename = crumb.rename}
-					<input
-						class="input input-xs w-full max-w-56 min-w-24 font-semibold"
-						value={crumb.label}
-						aria-label={crumb.label}
-						{@attach renameField}
-						onkeydown={(e) => {
-							if (e.key === 'Enter') commit(e.currentTarget, rename, crumb.label);
-							else if (e.key === 'Escape') brandBar.renaming = false;
-						}}
-						onblur={(e) => commit(e.currentTarget, rename, crumb.label)}
-					/>
-				{:else if crumb.href}
-					<a href={crumb.href} class="truncate hover:underline">{crumb.label}</a>
-				{:else if crumb.onclick || (last && crumb.rename)}
-					<button
-						class={['truncate hover:underline', last && 'font-semibold']}
-						title={last && crumb.rename ? t.bar.rename : undefined}
-						onclick={() => (crumb.onclick ? crumb.onclick() : startRename())}
-					>
-						{crumb.label}
-					</button>
+			<span class={['flex min-w-0 items-center', last ? 'shrink' : 'shrink-[4]']}>
+				{#if crumb.href}
+					<a href={crumb.href} class={['truncate hover:underline', last && 'font-semibold']}>{crumb.label}</a>
+				{:else if crumb.onclick}
+					<button class={['truncate hover:underline', last && 'font-semibold']} onclick={crumb.onclick}>{crumb.label}</button>
 				{:else}
 					<span class={['truncate', last && 'font-semibold']}>{crumb.label}</span>
 				{/if}
-				{#if crumb.menu?.length}{@render menuButton(crumb.label, crumb.menu)}{/if}
 			</span>
 		{/each}
-		{#if brandBar.primary}
-			<div class="hidden shrink-0 items-center gap-1 md:flex">
-				<span class="bg-base-content/20 mx-1 h-5 w-px" aria-hidden="true"></span>
-				{@render brandBar.primary()}
-			</div>
-		{/if}
 	</nav>
 
 	<div class="flex shrink-0 items-center gap-1">
-		{@render brandBar.actions?.()}
 		{#if help}
 			<button
 				class={['btn btn-sm btn-ghost', help.open && 'btn-active']}
@@ -136,5 +85,10 @@
 			</a>
 		{/if}
 		<ThemeSwitch />
+		{#if onsettings}
+			<button class="btn btn-sm btn-ghost btn-square" onclick={onsettings} title={t.bar.settings} aria-label={t.bar.settings}>
+				<span class="icon-[material-symbols-light--settings-outline] size-5" aria-hidden="true"></span>
+			</button>
+		{/if}
 	</div>
 </header>
