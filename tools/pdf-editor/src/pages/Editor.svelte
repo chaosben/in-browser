@@ -651,6 +651,7 @@
 		// The format of what is selected or what the chosen tool draws, and how a selection is arranged (like PDF-XChange)
 		formatTab('text', m.ribbon.tabs.textbox, [
 			{ id: 'text', label: m.ribbon.groups.text, items: [sc.editText, { id: 'textColor', label: m.textbox.textColor, custom: formatColor }, sc.fontSize] },
+			{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [sc.alignLeft, sc.alignCenter, sc.alignRight, sc.justify] },
 			{
 				id: 'box',
 				label: m.ribbon.groups.box,
@@ -668,7 +669,9 @@
 			id: 'arrange',
 			label: m.ribbon.tabs.arrange,
 			contextual: true,
-			visible: () => kind !== null,
+			// Only for a selection (its commands work on one), like Notes
+			visible: () => !!sc.sel(),
+			follow: () => false,
 			groups: arrangeGroups(sc)
 		}
 	];

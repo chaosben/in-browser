@@ -9,7 +9,8 @@
 //   it into that shape (`recognize.ts`, shown by `ShapeSuggestion`), checked once when the pen is lifted.
 // - shape tool: dragging draws the chosen shape from the start point to the pointer (a shape item, see `shapes.ts`).
 // - select ("lasso"): a tap selects the item there, a loop selects what it encloses; dragging the selection (a
-//   corner, a point of a shape) moves/scales/reshapes it; dragging an item not selected yet selects and moves it. Laser: a fading trail, not stored.
+//   corner, a point of a shape) moves/scales/reshapes it; dragging an item not selected yet selects and moves it;
+//   with Shift or Ctrl/⌘ a tap adds the item or takes it out, a loop adds what it encloses. Laser: a fading trail, not stored.
 // - tools of the tool using this core (a text box, a note …) get the pointer as a `Gesture` from `InputHandlers.gesture`.
 
 import { debug } from '@in-browser/brand/debug.js';
@@ -61,7 +62,8 @@ export interface SelectionLike {
 	start(handle: SelectionHandle, sx: number, sy: number): void;
 	move(sx: number, sy: number, snap: boolean, keys?: { keepAspect?: boolean; scaleText?: boolean; axis?: boolean }): void;
 	end(): void;
-	lasso(points: number[], touch: boolean): void;
+	lasso(points: number[], touch: boolean, add: boolean): void;
+	toggleAt(sx: number, sy: number, touch: boolean): boolean;
 	/** Selects the item at a screen point, if any (it is then dragged right away) */
 	grab(sx: number, sy: number, touch: boolean): boolean;
 }
@@ -124,6 +126,8 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 	private fling: { vx: number; vy: number; t: number; raf: number } | null = null;
 	private track: { x: number; y: number; t: number }[] = [];
 	private lassoPoints: number[] = [];
+	/** The loop adds to the selection (Shift, Ctrl/⌘ when it started) */
+	private lassoAdd = false;
 	/** The running gesture of one of the tool's own tools */
 	private gesture: Gesture | null = null;
 	/** Shape tool: what is dragged, from where (page points of the live stroke's page) and with which pen size */
@@ -261,6 +265,9 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			return 'erase';
 		}
 		if (s.tool === 'lasso') {
+			const add = e.shiftKey || e.ctrlKey || e.metaKey;
+			// Shift or Ctrl/⌘ on an item: adds it to the selection or takes it out (no dragging)
+			if (add && selection.toggleAt(x, y, e.pointerType !== 'mouse')) return null;
 			this.drawId = e.pointerId;
 			const handle = selection.handleAt(x, y, e.pointerType !== 'mouse');
 			if (handle) {
@@ -272,7 +279,8 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 				selection.start('move', x, y);
 				return 'select';
 			}
-			selection.clear();
+			if (!add) selection.clear();
+			this.lassoAdd = add;
 			this.lassoPoints = [x, y];
 			this.stage.setLasso(this.lassoPoints);
 			return 'lasso';
@@ -420,7 +428,7 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		} else if (a.mode === 'lasso' && this.drawId === e.pointerId) {
 			this.drawId = null;
 			this.stage.setLasso(null);
-			if (!cancelled) this.h.selection.lasso(this.lassoPoints, a.type !== 'mouse');
+			if (!cancelled) this.h.selection.lasso(this.lassoPoints, a.type !== 'mouse', this.lassoAdd);
 		} else if (a.mode === 'select' && this.drawId === e.pointerId) {
 			this.drawId = null;
 			this.h.selection.end();

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { PDFDict, PDFDocument, PDFHexString, PDFName, rgb, StandardFonts } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, rgb, StandardFonts } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 import { formPdf, getFile, putFile, scriptedPdf, shot } from './pdf.js';
 
@@ -189,6 +189,37 @@ test('opens a PDF from the files and moves through its pages', async ({ page }) 
 		)
 		.toBe('Typed onto the page');
 	await shot(page, 'pdf-editor-textbox');
+
+	// Shift+click adds a second text box to the selection, "Align left" lines both up (a click alone replaced the
+	// selection, so "Arrange" stayed disabled)
+	await page.keyboard.press('t');
+	await page.mouse.click(placeAt.x + 400, placeAt.y + 560);
+	await typing.fill('Second');
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('l');
+	await page.mouse.click(placeAt.x + 320, placeAt.y + 482);
+	await page.keyboard.down('Shift');
+	await page.mouse.click(placeAt.x + 420, placeAt.y + 562);
+	await page.keyboard.up('Shift');
+	await expect(page.getByRole('toolbar', { name: '2 items selected' })).toBeVisible();
+	await page.getByRole('tab', { name: 'Arrange' }).click();
+	await page.locator('[data-command="align:left"]').first().click();
+	await expect
+		.poll(
+			async () => {
+				const saved = await PDFDocument.load(await getFile(page, 'Test.pdf'));
+				const annots = saved.getPage(0).node.Annots();
+				const lefts: number[] = [];
+				for (let i = 0; i < (annots?.size() ?? 0); i++) {
+					const a = saved.context.lookup(annots!.get(i));
+					if (a instanceof PDFDict && a.lookup(PDFName.of('Subtype'))?.toString() === '/FreeText')
+						lefts.push(Math.round(Number(a.lookup(PDFName.of('Rect'), PDFArray).get(0).toString())));
+				}
+				return lefts.length === 2 && lefts[0] === lefts[1];
+			},
+			{ timeout: 10_000 }
+		)
+		.toBe(true);
 
 	// The start page lists it
 	await page.goto('/pdf-editor');

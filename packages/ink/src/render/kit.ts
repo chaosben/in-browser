@@ -75,7 +75,7 @@ export interface ItemKit<I extends SceneItem> {
 	/** The item moved/scaled (a new object) */
 	transform(item: I, t: Transform): I;
 	/** Stays where it is (it belongs to the page's content, e.g. marked text): selected, recolored, reordered and
-	 * deleted, never moved, scaled, aligned or duplicated */
+	 * deleted, never moved, scaled, aligned or duplicated (the rest of a selection is, around it) */
 	fixed?(item: I): boolean;
 	/** Points of a single selected item that are dragged instead of the corner handles (a shape's points, a text
 	 * box's corners and sides); null: the corners scale it */

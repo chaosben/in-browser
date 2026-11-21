@@ -44,6 +44,8 @@ export interface NewAnnotation {
 	open?: boolean;
 	/** FreeText: `/DA` */
 	defaultAppearance?: string;
+	/** FreeText: how its lines are aligned (`/Q`: 1 centered, 2 right; missing: left) */
+	quadding?: 1 | 2;
 	/** A reply (`/IRT`): the annotation it answers – a ref of the file (`12 0 R`) or the `name` of one written in the
 	 * same update before it */
 	replyTo?: string;
@@ -186,6 +188,8 @@ export interface ExistingAnnotation {
 	vertices?: number[];
 	quadPoints?: number[];
 	/** `/DA` (FreeText: font size and color) */
+	/** FreeText: `/Q` (0 left, 1 centered, 2 right) */
+	quadding?: number;
 	/** Opacities its appearance paints with (first fill, stroke, text) – how PDF-XChange & co. keep a see-through
 	 * background apart from text and border; on top of them comes `/CA` (`opacity`) */
 	paint?: PaintOpacity;
@@ -198,7 +202,7 @@ export interface ExistingAnnotation {
  * when an annotation is written anew (whatever else it has – popup, replies, creation date … – stays) */
 export const REPLACED_KEYS = [
 	'Type', 'Subtype', 'Rect', 'P', 'NM', 'M', 'F', 'AP', 'AS', 'C', 'IC', 'CA', 'ca', 'BS', 'Border', 'BE', 'RD', 'InkList', 'L', 'LE',
-	'Vertices', 'QuadPoints', 'Name', 'Open', 'DA', 'InBrowser'
+	'Vertices', 'QuadPoints', 'Name', 'Open', 'DA', 'Q', 'InBrowser'
 ];
 
 /** A literal string of JSON text (other characters than printable ASCII as JSON's `\u` escapes) */
@@ -240,6 +244,7 @@ export function annotationObjects(a: NewAnnotation, appearance: number, pageRef:
 	if (a.icon && NAME.test(a.icon)) entries.push(`/Name /${a.icon}`);
 	if (a.open !== undefined) entries.push(`/Open ${a.open}`);
 	if (a.defaultAppearance) entries.push(`/DA (${a.defaultAppearance.replace(/[()\\]/g, '\\$&')})`);
+	if (a.quadding) entries.push(`/Q ${a.quadding}`);
 	if (a.data) entries.push(`/InBrowser ${literal(a.data)}`);
 	if (extra) entries.push(extra);
 

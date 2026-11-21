@@ -68,7 +68,7 @@ const en = {
 		top: 'Align top',
 		middle: 'Align middle',
 		bottom: 'Align bottom',
-		alignTip: 'Lines up two or more selected items with the box around them',
+		alignTip: 'Lines up the selected items with the box around them – a single one with the page',
 		horizontal: 'Distribute horizontally',
 		vertical: 'Distribute vertically',
 		distributeTip: 'Spreads three or more selected items with equal gaps'

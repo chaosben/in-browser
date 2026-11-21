@@ -89,6 +89,7 @@ const de: Messages = {
 			box: 'Feld',
 			object: 'Objekt',
 			sizing: 'Größe',
+			paragraph: 'Absatz',
 			organize: 'Organisieren',
 			insert: 'Einfügen',
 			newFile: 'Neue PDF',
@@ -142,7 +143,11 @@ const de: Messages = {
 		autoHeight: 'Automatische Höhe',
 		autoHeightTip: 'Behält seine Breite; die Zeilen brechen um und das Feld wächst mit dem Text',
 		fixedSize: 'Feste Größe',
-		fixedSizeTip: 'Behält Breite und Höhe; Text, der nicht hineinpasst, ragt unten heraus'
+		fixedSizeTip: 'Behält Breite und Höhe; Text, der nicht hineinpasst, ragt unten heraus',
+		alignLeft: 'Text linksbündig',
+		alignCenter: 'Text zentrieren',
+		alignRight: 'Text rechtsbündig',
+		justify: 'Blocksatz'
 	},
 
 	note: {

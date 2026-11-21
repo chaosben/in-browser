@@ -140,8 +140,8 @@ const help = {
 		items: {
 			selecting: {
 				title: 'Select',
-				text: 'With “Select” (tab “Draw”) you tap an item to select the topmost one there (a stroke, shape, image or icon), or draw a loop around several (starting beside them): strokes count when at least half of them lies inside the loop, pictures when their center does. Dragging an item moves it right away, without selecting it first. A frame with handles appears around the selection. Choosing another tool ends the selection; Esc ends it too, and without a selection Esc goes back from any tool to “Select”.',
-				keys: [['Esc']]
+				text: 'With “Select” (tab “Draw”) you tap an item to select the topmost one there (a stroke, shape, image or icon), or draw a loop around several (starting beside them): strokes count when at least half of them lies inside the loop, pictures when their center does. Ctrl+click or Shift+click adds an item to the selection or takes it out again; a loop drawn with Shift or Ctrl held adds what it encloses. Dragging an item moves it right away, without selecting it first. A frame with handles appears around the selection. Choosing another tool ends the selection; Esc ends it too, and without a selection Esc goes back from any tool to “Select”.',
+				keys: [['Ctrl', 'Click'], ['Shift', 'Click'], ['Esc']]
 			},
 			moving: {
 				title: 'Move and resize',
@@ -168,7 +168,7 @@ const help = {
 			},
 			arrange: {
 				title: 'Arrange',
-				text: 'The tab “Arrange” appears with a selection. “Bring to front”, “Bring forward”, “Send backward” and “Send to back” change which item lies on top where they overlap. “Align left”, “Align center”, “Align right”, “Align top”, “Align middle” and “Align bottom” line up two or more selected items with the box around them; “Distribute horizontally” and “Distribute vertically” give three or more the same gaps. Each is one undo step.'
+				text: 'The tab “Arrange” appears with a selection. “Bring to front”, “Bring forward”, “Send backward” and “Send to back” change which item lies on top where they overlap. “Align left”, “Align center”, “Align right”, “Align top”, “Align middle” and “Align bottom” line up the selected items with the box around them – a single item with the page; “Distribute horizontally” and “Distribute vertically” give three or more the same gaps. Each is one undo step.'
 			}
 		}
 	},

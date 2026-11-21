@@ -137,8 +137,8 @@ const help: typeof enHelp = {
 		items: {
 			selecting: {
 				title: 'Auswählen',
-				text: 'Mit „Auswählen“ (Registerkarte „Zeichnen“) tippst du ein Element an, um das oberste dort auszuwählen (einen Strich, eine Form, ein Bild oder Icon), oder ziehst eine Schleife um mehrere (neben ihnen beginnen): Striche zählen, wenn mindestens die Hälfte in der Schleife liegt, Bilder, wenn ihre Mitte darin liegt. Ziehst du an einem Element, verschiebst du es sofort, ohne es vorher auszuwählen. Um die Auswahl erscheint ein Rahmen mit Griffen. Ein anderes Werkzeug beendet die Auswahl; Esc beendet sie auch, und ohne Auswahl geht Esc von jedem Werkzeug zurück zu „Auswählen“.',
-				keys: [['Esc']]
+				text: 'Mit „Auswählen“ (Registerkarte „Zeichnen“) tippst du ein Element an, um das oberste dort auszuwählen (einen Strich, eine Form, ein Bild oder Icon), oder ziehst eine Schleife um mehrere (neben ihnen beginnen): Striche zählen, wenn mindestens die Hälfte in der Schleife liegt, Bilder, wenn ihre Mitte darin liegt. Strg+Klick oder Umschalt+Klick nimmt ein Element zur Auswahl hinzu oder wieder heraus; eine Schleife mit gedrückter Umschalt- oder Strg-Taste fügt hinzu, was sie umschließt. Ziehst du an einem Element, verschiebst du es sofort, ohne es vorher auszuwählen. Um die Auswahl erscheint ein Rahmen mit Griffen. Ein anderes Werkzeug beendet die Auswahl; Esc beendet sie auch, und ohne Auswahl geht Esc von jedem Werkzeug zurück zu „Auswählen“.',
+				keys: [['Strg', 'Klick'], ['Umschalt', 'Klick'], ['Esc']]
 			},
 			moving: {
 				title: 'Verschieben und skalieren',
@@ -165,7 +165,7 @@ const help: typeof enHelp = {
 			},
 			arrange: {
 				title: 'Anordnen',
-				text: 'Die Registerkarte „Anordnen“ erscheint mit einer Auswahl. „In den Vordergrund“, „Eine Ebene nach vorne“, „Eine Ebene nach hinten“ und „In den Hintergrund“ ändern, welches Element oben liegt, wo sie sich überlappen. „Linksbündig ausrichten“, „Horizontal zentrieren“, „Rechtsbündig ausrichten“, „Oben ausrichten“, „Vertikal zentrieren“ und „Unten ausrichten“ richten zwei oder mehr ausgewählte Elemente am Rahmen um alle aus; „Horizontal verteilen“ und „Vertikal verteilen“ geben drei oder mehr gleiche Abstände. Jedes ist ein Rückgängig-Schritt.'
+				text: 'Die Registerkarte „Anordnen“ erscheint mit einer Auswahl. „In den Vordergrund“, „Eine Ebene nach vorne“, „Eine Ebene nach hinten“ und „In den Hintergrund“ ändern, welches Element oben liegt, wo sie sich überlappen. „Linksbündig ausrichten“, „Horizontal zentrieren“, „Rechtsbündig ausrichten“, „Oben ausrichten“, „Vertikal zentrieren“ und „Unten ausrichten“ richten die ausgewählten Elemente am Rahmen um alle aus – ein einzelnes an der Seite; „Horizontal verteilen“ und „Vertikal verteilen“ geben drei oder mehr gleiche Abstände. Jedes ist ein Rückgängig-Schritt.'
 			}
 		}
 	},

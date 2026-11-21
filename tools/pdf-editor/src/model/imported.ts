@@ -93,7 +93,8 @@ export function itemsOf(a: ExistingAnnotation, toPage: ToPage, rotation: number,
 		const box = { x: Math.min(ax, bx), y: Math.min(ay, by), w: Math.abs(bx - ax), h: Math.abs(by - ay) };
 		const text = a.contents ?? '';
 		const along = rotation % 180 ? box.h : box.w;
-		return [{ id: id(a.name), type: 'text', ...box, rot: ((rotation % 360) + 360) % 360, size, color: withOpacity(hex(color), opacityOf(a, a.paint?.text)), text, lines: layoutText(text, size, along, padOf(style)), ...style, sizing: 'fixed' }];
+		const align = a.quadding === 1 ? ({ align: 'center' } as const) : a.quadding === 2 ? ({ align: 'right' } as const) : {};
+		return [{ id: id(a.name), type: 'text', ...align, ...box, rot: ((rotation % 360) + 360) % 360, size, color: withOpacity(hex(color), opacityOf(a, a.paint?.text)), text, lines: layoutText(text, size, along, padOf(style)), ...style, sizing: 'fixed' }];
 	}
 	if (a.subtype === 'Text') {
 		// Upright around its box's middle (its size is ours)

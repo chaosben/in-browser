@@ -318,6 +318,7 @@ export class IncrementalPdf {
 					vertices: numbers(dict.get(key('Vertices'))),
 					quadPoints: numbers(dict.get(key('QuadPoints'))),
 					defaultAppearance: text('DA'),
+					quadding: dict.lookupMaybe(key('Q'), PDFNumber)?.asNumber(),
 					paint: this.paintOpacity(dict),
 					data: text('InBrowser')
 				});

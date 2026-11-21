@@ -223,14 +223,14 @@
 				}
 				const page = pdf.pages[hit.index];
 				const dragged = Math.hypot(end[0] - hit.x, end[1] - hit.y) * s.view.zoom > 8;
-				const { size, color, fill, border, borderWidth } = textStyle;
+				const { size, color, fill, border, borderWidth, align } = textStyle;
 				const style = { fill, border, borderWidth: border ? borderWidth : undefined };
 				// Dragged: the box as drawn (at least two characters and one line); clicked: auto width from there
 				const min = minTextSize({ size, ...style });
 				const x = dragged ? Math.min(hit.x, end[0]) : hit.x;
 				const y = dragged ? Math.min(hit.y, end[1]) : hit.y - size * 0.6;
 				const box = dragged ? { w: Math.max(min.w, Math.abs(end[0] - hit.x)), h: Math.max(min.h, Math.abs(end[1] - hit.y)) } : { w: 0, h: 0 };
-				const blank: TextItem = { id: crypto.randomUUID(), type: 'text', x, y, ...box, rot: 0, size, color, text: '', lines: [], ...style, sizing: dragged ? 'fixed' : 'auto-width' };
+				const blank: TextItem = { id: crypto.randomUUID(), type: 'text', x, y, ...box, rot: 0, size, color, text: '', lines: [], ...style, ...(align !== 'left' && { align }), sizing: dragged ? 'fixed' : 'auto-width' };
 				const item = withText(blank, '', roomOf(blank, page));
 				const id = pdf.items.addItem(hit.index, item);
 				if (!id) return;

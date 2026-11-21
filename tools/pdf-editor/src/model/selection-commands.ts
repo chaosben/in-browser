@@ -10,11 +10,11 @@ import { inkSelectionCommands } from '@in-browser/ink/ui/selection-commands.js';
 import { m } from '#lib/i18n/index.js';
 import type { EditorState } from '#lib/model/editor.svelte.js';
 import type { PdfPage } from '#lib/model/document.svelte.js';
-import { isMarkTool, noteIcon, setNoteIcon, setTextBoxStyle, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
+import { isMarkTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
 import { isMarkup, type PdfItem } from '#lib/render/markup.js';
 import { isNote, NOTE_ICONS, noteGlyph, noteIconOf, type NoteItem } from '#lib/render/note.js';
 import type { TextSizing } from '@in-browser/graphics/text-box.js';
-import { BORDER_WIDTHS, isText, roomOf, sizingOf, withText, type TextItem } from '#lib/render/textbox.js';
+import { alignOf, BORDER_WIDTHS, isText, roomOf, sizingOf, withText, type TextAlign, type TextItem } from '#lib/render/textbox.js';
 
 /** What a format tab is for: one kind of item, or several kinds */
 export type FormatKind = 'text' | 'note' | 'markup' | 'drawing' | 'mixed';
@@ -93,6 +93,18 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 		active: () => texts().length > 0 && texts().every((t) => sizingOf(t) === to),
 		run: () => changeTexts((t) => ({ ...t, sizing: to }))
 	});
+	/** How the lines of the selected text boxes are aligned, else those of new ones */
+	const align = (to: TextAlign, label: string, icon: string): Command => ({
+		id: `textAlign:${to}`,
+		label,
+		icon,
+		enabled: () => texts().length > 0 || forTool('text'),
+		active: () => (sel() ? texts().length > 0 && texts().every((t) => alignOf(t) === to) : forTool('text') && textStyle.align === to),
+		run: () => {
+			if (!sel()) return setTextAlign(to);
+			changeTexts(({ align: _, ...t }) => (to === 'left' ? t : { ...t, align: to }));
+		}
+	});
 	const singleNote = single(isNote);
 	const notes = () => (sel()?.items ?? []).filter(isNote);
 	/** Gives the selected notes another icon (one undo step) */
@@ -153,6 +165,10 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 		},
 		autoWidth: sizing('auto-width', m.textbox.autoWidth, m.textbox.autoWidthTip, 'icon-[material-symbols-light--width]'),
 		autoHeight: sizing('auto-height', m.textbox.autoHeight, m.textbox.autoHeightTip, 'icon-[material-symbols-light--height]'),
+		alignLeft: align('left', m.textbox.alignLeft, 'icon-[material-symbols-light--format-align-left]'),
+		alignCenter: align('center', m.textbox.alignCenter, 'icon-[material-symbols-light--format-align-center]'),
+		alignRight: align('right', m.textbox.alignRight, 'icon-[material-symbols-light--format-align-right]'),
+		justify: align('justify', m.textbox.justify, 'icon-[material-symbols-light--format-align-justify]'),
 		fixedSize: sizing('fixed', m.textbox.fixedSize, m.textbox.fixedSizeTip, 'icon-[material-symbols-light--crop-free]'),
 		fontSize: {
 			id: 'fontSize',

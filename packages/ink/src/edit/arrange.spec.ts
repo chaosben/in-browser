@@ -60,6 +60,14 @@ describe('ItemEditor arranging', () => {
 		expect(at('a').y).toBe(10);
 	});
 
+	it('aligns a single item with the page', () => {
+		const { editor, at } = setup(items());
+		editor.align(0, new Set(['b']), 'right');
+		expect(at('b').x).toBe(460);
+		editor.align(0, new Set(['b']), 'middle');
+		expect(at('b').y).toBe(240);
+	});
+
 	it('spreads three or more with equal gaps', () => {
 		const { editor, at } = setup(items());
 		editor.distribute(0, new Set(['a', 'b', 'c']), 'x');

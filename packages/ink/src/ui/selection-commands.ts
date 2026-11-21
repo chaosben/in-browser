@@ -1,5 +1,5 @@
 // The commands every drawing tool offers for a selection of ink items and pictures (Notes, the PDF Editor): duplicate,
-// delete, thickness, and arranging – draw order, align (2+), distribute (3+). Each acts on the selection, one undo step;
+// delete, thickness, and arranging – draw order, align (a single item with the page), distribute (3+). Each acts on the selection, one undo step;
 // without one the thickness sets the chosen tool's (remembered). The tools place them in their ribbon (format and
 // "Arrange" tabs, `arrangeGroups`); the color and style popovers are `InkColorButton`/`InkStyleButton`.
 // Speed: `enabled`/`active` read only the selection's and the tools' state, never anything of the drawing path.
@@ -36,8 +36,8 @@ export function inkSelectionCommands<P extends SurfacePage, I extends SceneItem>
 		return s?.count ? s : null;
 	};
 	const count = () => sel()?.count ?? 0;
-	/** Selected items that may move (fixed ones – marked text – make the whole selection stay) */
-	const movable = () => (sel()?.fixed ? 0 : count());
+	/** Selected items that may move (fixed ones – marked text – stay where they are) */
+	const movable = () => sel()?.movable ?? 0;
 	const sm = inkMessages().selection;
 	const tm = inkMessages().tools;
 	const am = inkMessages().arrange;
@@ -54,7 +54,7 @@ export function inkSelectionCommands<P extends SurfacePage, I extends SceneItem>
 		label,
 		tip: am.alignTip,
 		icon,
-		enabled: () => movable() > 1,
+		enabled: () => movable() > 0,
 		run: () => sel()?.align(edge)
 	});
 	const distribute = (axis: 'x' | 'y', label: string, icon: string): Command => ({

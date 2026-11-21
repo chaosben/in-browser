@@ -293,6 +293,38 @@ describe('annotations of drawn items', () => {
 		expect(plain).toMatchObject({ type: 'text', size: 20, color: '#000000', lines: box.lines, rot: 0 });
 	});
 
+	it('writes a right-aligned text box with its lines at the right edge and /Q 2, and reads it back', async () => {
+		await loadTextFont();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const empty: TextItem = { id: 't5', type: 'text', x: 40, y: 100, w: 200, h: 0, rot: 0, size: 20, color: '#000000', text: '', lines: [], align: 'right', sizing: 'auto-height' };
+		const box = withText(empty, 'Hi');
+		const date = new Date();
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [withData(annotationOf(box, toUser, undefined, date), box, date, 0, 300, 400)]]]) });
+		// Ink at the right end of the box (inside its padding), none at the left
+		expect(await darkIn(out, 210, 104, 238, 119)).toBeGreaterThan(10);
+		expect(await darkIn(out, 42, 100, 180, 125)).toBe(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.quadding).toBe(2);
+		const [plain] = itemsOf({ ...found, data: undefined }, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x');
+		expect(plain).toMatchObject({ type: 'text', align: 'right' });
+	});
+
+	it('justifies all but the last line of a paragraph, without /Q (other programs know no justified text)', async () => {
+		await loadTextFont();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const empty: TextItem = { id: 't6', type: 'text', x: 40, y: 100, w: 200, h: 0, rot: 0, size: 20, color: '#000000', text: '', lines: [], align: 'justify', sizing: 'auto-height' };
+		const box = withText(empty, 'aa bb cc dd ee ff gg hh ii');
+		expect(box.lines.length).toBe(2);
+		const date = new Date();
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [withData(annotationOf(box, toUser, undefined, date), box, date, 0, 300, 400)]]]) });
+		// The first line reaches the right edge, the last one stays short at the left
+		expect(await darkIn(out, 220, 104, 238, 119)).toBeGreaterThan(5);
+		expect(await darkIn(out, 42, 128, 60, 143)).toBeGreaterThan(5);
+		expect(await darkIn(out, 200, 128, 238, 143)).toBe(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.quadding).toBeUndefined();
+	});
+
 	it('writes lines beyond WinAnsi in an embedded subset of Liberation Sans, the others in Helvetica', async () => {
 		await loadTextFont();
 		const base = await sample();

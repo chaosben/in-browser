@@ -303,12 +303,13 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 		this.host.push(command);
 	}
 
-	/** Lines items up with an edge or the middle of the box around all of them (one undo step) */
+	/** Lines items up with an edge or the middle of the box around all of them – a single one with the page's (one
+	 * undo step) */
 	align(pageIndex: number, ids: ReadonlySet<string>, edge: AlignEdge) {
 		const items = this.itemsById(pageIndex, ids);
-		if (items.length < 2) return;
-		const boxes = new Map(items.map((item) => [item.id, this.kit.snapBox(item)]));
-		const all = [...boxes.values()];
+		const page = this.host.pages[pageIndex];
+		if (!items.length || !page) return;
+		const all = items.length > 1 ? items.map((item) => this.kit.snapBox(item)) : [{ x: 0, y: 0, w: page.w, h: page.h }];
 		const x0 = Math.min(...all.map((b) => b.x));
 		const y0 = Math.min(...all.map((b) => b.y));
 		const x1 = Math.max(...all.map((b) => b.x + b.w));

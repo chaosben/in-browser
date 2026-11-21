@@ -10,7 +10,7 @@ import { paintOf } from '@in-browser/ink/paint.js';
 import { inWinAnsi, num, winAnsi, type NewAnnotation, type Rgb } from '@in-browser/pdf/write/annotations.js';
 import { UNICODE_FONT, unicodeText } from '@in-browser/pdf/write/unicode.js';
 import { isMarkup, markLine, type Annotatable, type MarkupItem } from '#lib/render/markup.js';
-import { ASCENT, borderOf, isText, LINE_HEIGHT, padOf, textBounds, textExtent, type TextItem } from '#lib/render/textbox.js';
+import { ASCENT, borderOf, isText, LINE_HEIGHT, lineRuns, padOf, textBounds, textExtent, type TextItem } from '#lib/render/textbox.js';
 import { isNote, NOTE_INK, NOTE_SHAPES, NOTE_SIZE, noteIconOf, type NoteItem } from '#lib/render/note.js';
 
 /** Page points as shown → PDF user space (`toUserSpace` of `@in-browser/pdf/geometry.js`) */
@@ -274,11 +274,15 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 	item.lines.forEach((line, i) => {
 		if (!line) return;
 		const off = pad + item.size * (ASCENT + i * LINE_HEIGHT);
-		const [ex, ey] = toUser(cx + along[0] * pad + down[0] * off, cy + along[1] * pad + down[1] * off);
 		const plain = [...line].every(inWinAnsi);
 		unicode ||= !plain;
-		const show = plain ? `/Helv ${num(item.size)} Tf ${winAnsi(line)}` : `/Uni ${num(item.size)} Tf ${unicodeText(line)}`;
-		text.push(`BT ${rgbOps(color, false)} ${[a, b, c, d, ex, ey].map(num).join(' ')} Tm ${show} Tj ET`);
+		// Each run where it is on screen (aligned or justified word by word – the same in every viewer)
+		for (const run of lineRuns(item, i)) {
+			const start = pad + run.at;
+			const [ex, ey] = toUser(cx + along[0] * start + down[0] * off, cy + along[1] * start + down[1] * off);
+			const show = plain ? `/Helv ${num(item.size)} Tf ${winAnsi(run.text)}` : `/Uni ${num(item.size)} Tf ${unicodeText(run.text)}`;
+			text.push(`BT ${rgbOps(color, false)} ${[a, b, c, d, ex, ey].map(num).join(' ')} Tm ${show} Tj ET`);
+		}
 	});
 	if (text.length) ops.push(withAlpha(states, alphaOf(item.color), text.join('\n')));
 	return {
@@ -292,6 +296,8 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 		// Like Acrobat: the background is `/C`, the border's color a stroke color in `/DA`, its width `/BS`
 		color: fill,
 		width: bw,
+		// `/Q` knows no justified text: other programs editing it see it left-aligned (the appearance stays justified)
+		...((item.align === 'center' || item.align === 'right') && { quadding: item.align === 'center' ? 1 : 2 }),
 		defaultAppearance: `${border ? `${rgbOps(border, true)} ` : ''}/Helv ${num(item.size)} Tf ${rgbOps(color, false)}`,
 		appearance: { content: ops.join('\n'), fonts: unicode ? { Helv: 'Helvetica', Uni: UNICODE_FONT } : { Helv: 'Helvetica' }, states }
 	};

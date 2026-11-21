@@ -3,7 +3,8 @@
 // screen and every PDF viewer break them in the same places; drawing just writes the stored lines. The box lies on the
 // page as shown; `rot` turns its text (the page turned after it was written). A background and a border (inside the
 // box, the text inside it) are optional. Sizing and handles as everywhere in the suite (`@in-browser/graphics/text-box.js`):
-// auto width, auto height or a fixed size; text that doesn't fit a fixed size runs out below the box.
+// auto width, auto height or a fixed size; text that doesn't fit a fixed size runs out below the box. Lines are
+// aligned left, centered, right or justified in the box (`align`; justified: the last line of a paragraph stays left).
 
 import { handlePoint, resizeTextBox, TEXT_HANDLES, textBoxSize, wrapText, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Box } from '@in-browser/ink/geometry.js';
@@ -34,7 +35,14 @@ export interface TextItem {
 	borderWidth?: number;
 	/** How the box follows the text; missing: auto height (boxes written before there was a choice) */
 	sizing?: TextSizing;
+	/** How its lines are aligned in the box; missing: left */
+	align?: 'center' | 'right' | 'justify';
 }
+
+/** How the lines of a text box are aligned */
+export type TextAlign = 'left' | 'center' | 'right' | 'justify';
+export const TEXT_ALIGNS: TextAlign[] = ['left', 'center', 'right', 'justify'];
+export const alignOf = (t: Pick<TextItem, 'align'>): TextAlign => t.align ?? 'left';
 
 export const sizingOf = (t: Pick<TextItem, 'sizing'>): TextSizing => t.sizing ?? 'auto-height';
 
@@ -184,6 +192,59 @@ export function moveTextHandle(t: TextItem, index: number, x: number, y: number,
 	return withText({ ...t, ...scaled, sizing: r.sizing, x: mx - box.w / 2, y: my - box.h / 2, ...box }, t.text, room);
 }
 
+/** Which lines end a paragraph (by index): found again in the text, since the lines keep only their words */
+const ends = new WeakMap<TextItem, Set<number>>();
+function paragraphEnds(t: TextItem): Set<number> {
+	let found = ends.get(t);
+	if (found) return found;
+	found = new Set();
+	const paragraphs = t.text.split('\n');
+	let p = 0;
+	let at = 0;
+	t.lines.forEach((line, i) => {
+		const paragraph = paragraphs[p] ?? '';
+		const start = line ? paragraph.indexOf(line, at) : at;
+		at = (start < 0 ? at : start) + line.length;
+		while (paragraph[at] === ' ') at++;
+		if (at >= paragraph.trimEnd().length) {
+			found!.add(i);
+			p++;
+			at = 0;
+		}
+	});
+	ends.set(t, found);
+	return found;
+}
+
+/** A piece of a line written in one go and where it starts after the padding, along the text (points) */
+export interface LineRun {
+	text: string;
+	at: number;
+}
+
+/**
+ * How line `i` is written: one run moved right by the room it leaves when centered or aligned right; justified lines
+ * (not the last of a paragraph) word by word, the room shared out between the words
+ */
+export function lineRuns(t: TextItem, i: number): LineRun[] {
+	const line = t.lines[i] ?? '';
+	const align = alignOf(t);
+	if (align === 'left' || !line) return [{ text: line, at: 0 }];
+	const inner = textExtent(t).w - 2 * padOf(t);
+	const room = inner - textWidth(line, t.size);
+	if (align !== 'justify') return [{ text: line, at: Math.max(0, align === 'center' ? room / 2 : room) }];
+	const words = line.split(/ +/).filter(Boolean);
+	if (words.length < 2 || room <= 0 || paragraphEnds(t).has(i)) return [{ text: line, at: 0 }];
+	const widths = words.map((w) => textWidth(w, t.size));
+	const gap = (inner - widths.reduce((sum, w) => sum + w, 0)) / (words.length - 1);
+	let at = line.length - line.trimStart().length ? textWidth(line.slice(0, line.length - line.trimStart().length), t.size) : 0;
+	return words.map((text, k) => {
+		const run = { text, at };
+		at += widths[k] + gap;
+		return run;
+	});
+}
+
 /** The box and text running out of it (below the lines, in the text's direction) */
 export function textBounds(t: TextItem): Box {
 	const over = overflowOf(t);
@@ -217,6 +278,7 @@ export function drawText(ctx: Ctx, t: TextItem) {
 	ctx.font = fontOf(t.size);
 	ctx.fillStyle = t.color;
 	ctx.textBaseline = 'alphabetic';
-	for (let i = 0; i < t.lines.length; i++) ctx.fillText(t.lines[i], -w / 2 + pad, -h / 2 + pad + t.size * (ASCENT + i * LINE_HEIGHT));
+	for (let i = 0; i < t.lines.length; i++)
+		for (const run of lineRuns(t, i)) ctx.fillText(run.text, -w / 2 + pad + run.at, -h / 2 + pad + t.size * (ASCENT + i * LINE_HEIGHT));
 	ctx.restore();
 }

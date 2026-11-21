@@ -49,8 +49,10 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 	shapes = $state({ any: false, fillable: false, lines: false });
 	style = $state<ShapeStyle>({ ...PLAIN });
 	heads = $state({ start: false, end: false });
-	/** Some selected item can't move (`ItemKit.fixed`): no handles, no dragging, aligning or duplicating */
+	/** Some selected item can't move (`ItemKit.fixed`): no handles, no dragging; aligning and duplicating leave it */
 	fixed = $state(false);
+	/** Selected items that may move (aligned, distributed, duplicated – fixed ones stay where they are) */
+	movable = $state(0);
 	/** The selected items and their page (for menus of the tool's own items) */
 	items = $state.raw<I[]>([]);
 	pageIndex = $state(-1);
@@ -85,9 +87,15 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		return this.ids.size > 0;
 	}
 
-	/** Selects what a lasso loop (screen pixels) encloses on the page where it started; a tap selects the item there */
-	lasso(points: number[], touch = false) {
+	/**
+	 * Selects what a lasso loop (screen pixels) encloses on the page where it started; a tap selects the item there.
+	 * `add` (Shift, Ctrl/⌘): adds to the selection on the same page instead.
+	 */
+	lasso(points: number[], touch = false, add = false) {
+		const before = add ? { page: this.page, ids: this.ids } : null;
 		this.clear();
+		const select = (page: number, ids: Set<string>) =>
+			this.select(page, before && before.page === page ? new Set([...before.ids, ...ids]) : ids);
 		let x0 = Infinity;
 		let y0 = Infinity;
 		let x1 = -Infinity;
@@ -100,13 +108,20 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		}
 		if (x1 - x0 < 8 && y1 - y0 < 8) {
 			const hit = this.stage.itemAt(points[0], points[1], touch ? 16 : 8);
-			if (hit) this.select(hit.page, new Set([hit.id]));
+			if (hit) select(hit.page, new Set([hit.id]));
+			else if (before) this.select(before.page, before.ids);
 			return;
 		}
-		if (points.length < 6) return;
+		if (points.length < 6) {
+			if (before) this.select(before.page, before.ids);
+			return;
+		}
 		const hit = this.stage.pageAt(points[0], points[1]);
 		const scene = hit && this.doc.scene(this.doc.pages[hit.index].id);
-		if (!hit || !scene) return;
+		if (!hit || !scene) {
+			if (before) this.select(before.page, before.ids);
+			return;
+		}
 		const poly: number[] = [];
 		let box: Box | null = null;
 		for (let i = 0; i < points.length; i += 2) {
@@ -116,7 +131,25 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		}
 		const ids = new Set<string>();
 		if (poly.length >= 6) for (const item of scene.itemsIn(box!)) if (scene.kit.inLasso(item, poly)) ids.add(item.id);
-		this.select(hit.index, ids);
+		select(hit.index, ids);
+	}
+
+	/**
+	 * Ctrl/⌘+click or Shift+click: adds the item at a screen point to the selection or takes it out (another page's
+	 * starts a new selection). False when there is no item there.
+	 */
+	toggleAt(sx: number, sy: number, touch: boolean): boolean {
+		const hit = this.stage.itemAt(sx, sy, touch ? 16 : 8);
+		if (!hit) return false;
+		if (hit.page !== this.page || !this.ids.size) {
+			this.select(hit.page, new Set([hit.id]));
+			return true;
+		}
+		const ids = new Set(this.ids);
+		if (!ids.delete(hit.id)) ids.add(hit.id);
+		if (ids.size) this.select(this.page, ids);
+		else this.clear();
+		return true;
 	}
 
 	/** Selects the item at a screen point, if any – a press with "Select" on it, so it can be dragged right away */
@@ -167,6 +200,7 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		this.style = shapes.length ? styleOf(shapes.find((s) => closed(s.fit)) ?? shapes[0]) : { ...PLAIN };
 		this.heads = { start: !!lines[0]?.start, end: !!lines[0]?.end };
 		this.fixed = !!scene && items.some((i) => scene.kit.fixed?.(i));
+		this.movable = scene ? items.filter((i) => !scene.kit.fixed?.(i)).length : 0;
 		if (!scene || !items.length) {
 			this.stage.setSelection(null);
 			this.rect = null;
@@ -295,8 +329,7 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		if (this.drag) return;
 		if (!this.nudging) {
 			const s = this.stage.selection;
-			const kit = this.stage.kit;
-			const ids = new Set(this.items.filter((i) => !kit.fixed?.(i)).map((i) => i.id));
+			const ids = this.movableIds();
 			const lifted = s && ids.size ? this.doc.lift(this.page, ids) : null;
 			if (!s || !lifted) return;
 			this.nudging = { lifted, dx: 0, dy: 0 };
@@ -325,9 +358,16 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		this.clear();
 	}
 
+	/** The selected items that may move (`ItemKit.fixed` ones stay) */
+	private movableIds(): Set<string> {
+		const kit = this.stage.kit;
+		return new Set(this.items.filter((i) => !kit.fixed?.(i)).map((i) => i.id));
+	}
+
+	/** Copies the movable items (fixed ones belong to the page's content) and selects the copies */
 	duplicate() {
-		if (this.fixed) return;
-		this.select(this.page, this.doc.duplicate(this.page, this.ids));
+		const ids = this.movableIds();
+		if (ids.size) this.select(this.page, this.doc.duplicate(this.page, ids));
 	}
 
 	recolor(color: string) {
@@ -353,17 +393,15 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		this.refresh();
 	}
 
-	/** Lines the selected items up (two or more; one undo step) */
+	/** Lines the movable items up – a single one with the page (one undo step) */
 	align(edge: AlignEdge) {
-		if (this.fixed) return;
-		this.doc.align(this.page, this.ids, edge);
+		this.doc.align(this.page, this.movableIds(), edge);
 		this.refresh();
 	}
 
-	/** Spreads the selected items evenly (three or more; one undo step) */
+	/** Spreads the movable items evenly (three or more; one undo step) */
 	distribute(axis: 'x' | 'y') {
-		if (this.fixed) return;
-		this.doc.distribute(this.page, this.ids, axis);
+		this.doc.distribute(this.page, this.movableIds(), axis);
 		this.refresh();
 	}
 

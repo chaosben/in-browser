@@ -9,7 +9,7 @@
 	import type { PdfDocument } from '#lib/model/document.svelte.js';
 	import { typing } from '#lib/render/markup.js';
 	import type { PdfSelection, PdfStage } from '#lib/render/surface.js';
-	import { borderOf, fontOf, isText, LINE_HEIGHT, roomOf, sizingOf, TEXT_PAD, textBounds, textExtent, withText, type TextItem } from '#lib/render/textbox.js';
+	import { alignOf, borderOf, fontOf, isText, LINE_HEIGHT, roomOf, sizingOf, TEXT_PAD, textBounds, textExtent, withText, type TextItem } from '#lib/render/textbox.js';
 
 	interface Props {
 		selection: PdfSelection;
@@ -27,6 +27,9 @@
 		return editing && selection.items.length === 1 && isText(first) && first.id === editing ? first : null;
 	});
 	let draft = $state('');
+	/** The box whose text `draft` holds: the field shows only then, so it is as high as that text from the start
+	 * (shown with the previous draft, it measured one line and grew only while typing) */
+	let drafted = $state('');
 
 	/** Room to the page's edge for a box of auto width */
 	function room(t: TextItem, page: number) {
@@ -56,12 +59,14 @@
 		if (!t) return;
 		untrack(() => {
 			draft = t.text;
+			drafted = t.id;
 			typing.id = t.id;
 			selection.hideFrame(true);
 			repaint(t, page);
 		});
 		return () =>
 			untrack(() => {
+				drafted = '';
 				typing.id = '';
 				repaint(t, page);
 				commit(t, page);
@@ -84,7 +89,7 @@
 	}
 </script>
 
-{#if item && live && rect}
+{#if item && live && rect && drafted === item.id}
 	{@const along = textExtent(live).w * zoom}
 	<!-- An auto width doesn't wrap, unless it reached the page's edge -->
 	{@const auto = sizingOf(item) === 'auto-width' && live.lines.length <= (draft || ' ').split('\n').length}
@@ -98,7 +103,7 @@
 		class="outline-selection pointer-events-auto absolute z-10 box-border block resize-none overflow-hidden outline-2"
 		style="left: {left}px; top: {top}px; width: {along}px; min-height: {least}px; white-space: {auto ? 'pre' : 'pre-wrap'}; transform-origin: 0 0; transform: rotate({item.rot}deg); margin: 0;
 			border: {bw ? `${bw}px solid ${item.border}` : '0'}; background: {item.fill ?? '#ffffff'};
-			font: {fontOf(item.size * zoom)}; line-height: {LINE_HEIGHT}; padding: {TEXT_PAD * zoom}px; color: {item.color}"
+			font: {fontOf(item.size * zoom)}; line-height: {LINE_HEIGHT}; text-align: {alignOf(item)}; padding: {TEXT_PAD * zoom}px; color: {item.color}"
 		bind:value={draft}
 		aria-label={m.textbox.label}
 		oninput={(e) => grow(e.currentTarget)}

@@ -67,7 +67,7 @@ const de: InkMessages = {
 		top: 'Oben ausrichten',
 		middle: 'Vertikal zentrieren',
 		bottom: 'Unten ausrichten',
-		alignTip: 'Richtet zwei oder mehr ausgewählte Elemente am Rahmen um alle aus',
+		alignTip: 'Richtet die ausgewählten Elemente am Rahmen um alle aus – ein einzelnes an der Seite',
 		horizontal: 'Horizontal verteilen',
 		vertical: 'Vertikal verteilen',
 		distributeTip: 'Verteilt drei oder mehr ausgewählte Elemente mit gleichen Abständen'

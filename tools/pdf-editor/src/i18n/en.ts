@@ -90,6 +90,7 @@ const en = {
 			box: 'Box',
 			object: 'Object',
 			sizing: 'Size',
+			paragraph: 'Paragraph',
 			organize: 'Organize',
 			insert: 'Insert',
 			newFile: 'New PDF',
@@ -143,7 +144,11 @@ const en = {
 		autoHeight: 'Auto height',
 		autoHeightTip: 'Keeps its width; lines wrap and the box grows with the text',
 		fixedSize: 'Fixed size',
-		fixedSizeTip: 'Keeps width and height; text that doesn’t fit runs out below'
+		fixedSizeTip: 'Keeps width and height; text that doesn’t fit runs out below',
+		alignLeft: 'Align text left',
+		alignCenter: 'Center text',
+		alignRight: 'Align text right',
+		justify: 'Justify'
 	},
 
 	note: {
