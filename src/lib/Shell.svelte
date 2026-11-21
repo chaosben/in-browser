@@ -1,12 +1,13 @@
 <script lang="ts">
 	// Frame of the overview pages (home page, help pages and error page): header, footer, metadata, language switch, PWA
-	// (the launcher installs as the app of the whole suite)
+	// (the launcher installs as the app of the whole suite), the syncs like in every tool
 	import { onMount, type Component, type Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
 	import { sourceUrl } from '@in-browser/brand/build.js';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
+	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
 	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
@@ -28,8 +29,10 @@
 	const fullTitle = () => (title ? `${title} · ${BRAND.suite}` : `${BRAND.suite} – ${m.brand.claim}`);
 	const canonical = $derived(`${BRAND.suiteUrl}${path}`);
 
-	// The suite settings (gear in the BrandBar), loaded on first use: the overview itself never touches the files
+	// The suite settings (gear in the BrandBar), loaded on first use
 	let SettingsDialog = $state<Component | null>(null);
+	// Sync status in the footer; the files modules load only in the browser (prerendering never touches them)
+	let SyncIndicator = $state<Component | null>(null);
 	async function openSettings() {
 		const [dialog, store] = await Promise.all([import('@in-browser/files/SettingsDialog.svelte'), import('@in-browser/files/suite-settings.svelte.js')]);
 		SettingsDialog = dialog.default;
@@ -40,6 +43,16 @@
 	onMount(() => {
 		applyBrowserLocale();
 		initPwa();
+		// The syncs run while any page of the suite is open, so an open overview keeps the devices connected
+		void Promise.all([
+			import('@in-browser/files/sync/sync.svelte.js'),
+			import('@in-browser/files/suite-settings.svelte.js'),
+			import('@in-browser/files/SyncIndicator.svelte')
+		]).then(([sync, settings, indicator]) => {
+			sync.startSync();
+			void settings.suiteSettings.load();
+			SyncIndicator = indicator.default;
+		});
 	});
 </script>
 
@@ -69,7 +82,8 @@
 			class="border-base-300 mx-auto mt-auto flex w-full max-w-5xl flex-wrap items-baseline gap-x-4 border-t px-4 py-6 text-sm opacity-70"
 		>
 			<span><span class="font-semibold">{BRAND.suite}</span> – {m.brand.claim}</span>
-			<a class="link link-hover ml-auto" href={resolve('/help')}>{m.help.title}</a>
+			<span class="ml-auto">{#if SyncIndicator}<SyncIndicator />{/if}</span>
+			<a class="link link-hover" href={resolve('/help')}>{m.help.title}</a>
 			<a class="link link-hover" href={BRAND.repoUrl} target="_blank" rel="noopener">
 				{m.footer.openSource}
 			</a>
@@ -82,4 +96,5 @@
 	{#if SettingsDialog}<SettingsDialog />{/if}
 {/key}
 <Toasts />
+<ContextMenu />
 <UpdateBanner />

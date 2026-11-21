@@ -64,7 +64,7 @@ const help = {
 					items: {
 						folder: {
 							title: 'Folder on your computer',
-							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while any in-browser tool is open in this browser. Only Chrome and Edge on a computer can access folders.',
+							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while in-browser is open in this browser – the overview or any tool. Only Chrome and Edge on a computer can access folders.',
 							tip: 'Choose a folder your sync program (Syncthing, Nextcloud, Dropbox …) or your backup already covers – then your files reach your other computers and your backup by themselves. When the browser asks again for access, choose “Allow on every visit”, so the sync continues without asking.'
 						},
 						devices: {
@@ -113,7 +113,7 @@ const help = {
 						},
 						when: {
 							title: 'When devices sync',
-							text: 'Two devices sync while both have in-browser open – one tab with any tool is enough, also in the background. On a phone the page has to be in front. What a device missed is caught up the next time it meets one of the others; the hint “Probably not up to date” in Files shows which device may still lack changes.',
+							text: 'Two devices sync while both have in-browser open – one tab is enough, the overview or any tool, also in the background. On a phone the page has to be in front. What a device missed is caught up the next time it meets one of the others; the hint “Probably not up to date” in Files shows which device may still lack changes.',
 							tip: 'If your devices are rarely open at the same time, set up a p2p-node on a computer or home server that is always on: it syncs with each device whenever that one is open.'
 						},
 						p2pNode: {

@@ -60,7 +60,7 @@ const help: typeof enHelp = {
 					items: {
 						folder: {
 							title: 'Ordner auf deinem Rechner',
-							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
+							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange in-browser in diesem Browser offen ist – die Übersicht oder irgendein Tool. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
 							tip: 'Wähle einen Ordner, den dein Sync-Programm (Syncthing, Nextcloud, Dropbox …) oder deine Datensicherung schon erfasst – dann kommen deine Dateien von selbst auf deine anderen Rechner und in die Sicherung. Fragt der Browser erneut nach Zugriff, wähle „Bei jedem Besuch zulassen“, dann läuft das Synchronisieren ohne Nachfrage weiter.'
 						},
 						devices: {
@@ -109,7 +109,7 @@ const help: typeof enHelp = {
 						},
 						when: {
 							title: 'Wann sich Geräte synchronisieren',
-							text: 'Zwei Geräte synchronisieren sich, solange auf beiden in-browser offen ist – ein Tab mit irgendeinem Tool reicht, auch im Hintergrund. Auf dem Telefon muss die Seite im Vordergrund sein. Was ein Gerät verpasst hat, holt es nach, sobald es wieder auf eines der anderen trifft; der Hinweis „Wahrscheinlich nicht aktuell“ in Dateien zeigt, welchem Gerät noch Änderungen fehlen könnten.',
+							text: 'Zwei Geräte synchronisieren sich, solange auf beiden in-browser offen ist – ein Tab reicht, die Übersicht oder irgendein Tool, auch im Hintergrund. Auf dem Telefon muss die Seite im Vordergrund sein. Was ein Gerät verpasst hat, holt es nach, sobald es wieder auf eines der anderen trifft; der Hinweis „Wahrscheinlich nicht aktuell“ in Dateien zeigt, welchem Gerät noch Änderungen fehlen könnten.',
 							tip: 'Sind deine Geräte selten gleichzeitig offen, richte einen p2p-node auf einem Rechner oder Heimserver ein, der immer läuft: Er synchronisiert sich mit jedem Gerät, sobald es offen ist.'
 						},
 						p2pNode: {
