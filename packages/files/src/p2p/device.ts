@@ -45,6 +45,11 @@ const INTERVAL = 60_000;
 const OWN_WRITE_FOR = 10_000;
 /** A confirmation of held deletions counts for the sessions within this time (on both devices of a session) */
 const ALLOW_DELETES_FOR = 60_000;
+/**
+ * A live request waits this long for a device that has the path to connect (right after a page load the connections
+ * are still being made) before it fails with `offline`
+ */
+const LIVE_CONNECT_WAIT = 15_000;
 
 export type DeviceEvent =
 	| { type: 'conflicts'; paths: string[] }
@@ -860,6 +865,8 @@ export class Device {
 
 	/** Write sessions of live requests: their pieces go to the device that opened them */
 	private liveSessions = new Map<string, Peer>();
+	/** Live requests waiting for a device to connect, woken on every change */
+	private connectWaiters = new Set<() => void>();
 
 	/**
 	 * A live request (`live.ts`) to a connected device that has the path (not excluded there), trying the next one
@@ -875,7 +882,7 @@ export class Device {
 			return rpcLiveCall(peer.rpc)(method, params, upload);
 		}
 		const path = p.path ?? p.from ?? '/';
-		const candidates = [...this.peers.values()].filter((peer) => peer.live && inScope(path, this.state.devices[peer.id]?.scope ?? []));
+		const candidates = await this.liveCandidates(path);
 		let last: unknown = null;
 		for (const peer of candidates) {
 			try {
@@ -890,6 +897,26 @@ export class Device {
 		}
 		if (last) console.warn('[P2P] live request failed', last);
 		throw new FilesError('offline', path);
+	}
+
+	/**
+	 * Connected devices that answer live requests for `path`; while none is connected but a device of the group has
+	 * the path, waits up to `LIVE_CONNECT_WAIT` for one (connections are made anew after every page load)
+	 */
+	private async liveCandidates(path: string): Promise<Peer[]> {
+		const connected = () => [...this.peers.values()].filter((peer) => peer.live && inScope(path, this.state.devices[peer.id]?.scope ?? []));
+		let found = connected();
+		if (found.length || !this.holdersOf(path).length) return found;
+		const deadline = Date.now() + LIVE_CONNECT_WAIT;
+		while (!found.length && Date.now() < deadline) {
+			await new Promise<void>((resolve) => {
+				const wake = () => (clearTimeout(timer), this.connectWaiters.delete(wake), resolve());
+				const timer = setTimeout(wake, deadline - Date.now());
+				this.connectWaiters.add(wake);
+			});
+			found = connected();
+		}
+		return found;
 	}
 
 	/** Devices that have `path` (for the message when none is connected) */
@@ -976,6 +1003,7 @@ export class Device {
 	}
 
 	private emit() {
+		for (const wake of [...this.connectWaiters]) wake();
 		this.options.onChange?.(this.view());
 	}
 }

@@ -3,7 +3,7 @@ import { Device } from './device.js';
 import type { P2pView } from './view.js';
 import { liveSource } from './live-client.js';
 import type { Network } from './network.js';
-import { memoryStore } from './store.js';
+import { memoryStore, type Store } from './store.js';
 import { folderTree, hub, readText, until, writeText } from './testing.js';
 
 // Opening a folder live from another device: B doesn't sync /Videos, A has it; B reads and writes it through A
@@ -11,17 +11,18 @@ import { folderTree, hub, readText, until, writeText } from './testing.js';
 interface TestDevice {
 	device: Device;
 	tree: Awaited<ReturnType<typeof folderTree>>;
+	store: Store;
 	view: () => P2pView;
 }
 
 const started: TestDevice[] = [];
 
-async function device(network: Network, name: string): Promise<TestDevice> {
-	const tree = await folderTree(`live-${name}`);
+async function device(network: Network, name: string, store = memoryStore(), tree?: TestDevice['tree']): Promise<TestDevice> {
+	tree ??= await folderTree(`live-${name}`);
 	let view: P2pView | null = null;
-	const device = new Device({ store: memoryStore(), tree, network, conflictLabel: (n) => `conflict ${n}`, onChange: (v) => (view = v) });
+	const device = new Device({ store, tree, network, conflictLabel: (n) => `conflict ${n}`, onChange: (v) => (view = v) });
 	await device.start();
-	const d = { device, tree, view: () => view! };
+	const d = { device, tree, store, view: () => view! };
 	started.push(d);
 	return d;
 }
@@ -96,6 +97,17 @@ describe('live access to another device', { timeout: 30_000 }, () => {
 		// B itself never got the folder
 		expect(await b.tree.stat('/Videos')).toBeNull();
 		await expect(source.list('/Private')).rejects.toMatchObject({ code: 'offline' });
+	});
+
+	it('waits for the device that has the folder to connect after a page load', async () => {
+		const network = hub();
+		const [a, b] = await pair(network);
+		await b.device.excludeFolder('/Videos');
+		await writeText(a.tree, '/Videos/notes.txt', 'hello');
+		// A page load: the device starts again (same storage), its connections are made anew
+		b.device.stop();
+		const again = await device(network, 'B', b.store, b.tree);
+		expect((await through(again).list('/Videos')).map((e) => e.name)).toEqual(['notes.txt']);
 	});
 });
 
