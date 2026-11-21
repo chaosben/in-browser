@@ -19,13 +19,13 @@ const help: typeof enHelp = {
 			},
 			ribbon: {
 				title: 'Das Menüband',
-				text: 'Unter der oberen Leiste liegt das Menüband: links „Rückgängig“ und „Wiederholen“, dann die Registerkarten „Datei“ (neu, öffnen, speichern, herunterladen, schließen), „Start“ (Zwischenablage; „Suchen“, dessen Pfeil „Ersetzen“ und „Gehe zu Zeile“ anbietet; Zeilen bearbeiten), „Format“ (Markdown-Formatierung) und „Ansicht“ (Layout, Zeilenumbruch, Schriftgröße). Farbig abgesetzte Registerkarten kommen mit der Ansicht neben dem Text: „Tabelle“, solange eine Tabelle zu sehen ist, „Baum“, solange ein Baum zu sehen ist. Jede Registerkarte zeigt ihre Befehle in Gruppen mit ihren Namen darunter; was gerade nicht geht, ist ausgegraut, damit nichts verrutscht. Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner, und zuletzt wird eine ganze Gruppe zu einem Knopf, der sie öffnet. Der Knopf am rechten Ende der Registerkarten wählt, wie das Menüband erscheint; ein Doppelklick auf eine Registerkarte wechselt zu „Nur Registerkarten“ und zurück.',
+				text: 'Unter der oberen Leiste liegt das Menüband: links „Rückgängig“ und „Wiederholen“, dann die Registerkarten „Datei“ (neu, öffnen, speichern, herunterladen, schließen), „Start“ (Zwischenablage; „Suchen“, dessen Pfeil „Ersetzen“ und „Gehe zu Zeile“ anbietet; Zeilen bearbeiten), „Format“ (Markdown-Formatierung) und „Ansicht“ (Layout, Zeilenumbruch, Schriftgröße). Farbig abgesetzte Registerkarten kommen mit der Ansicht neben dem Text: „Tabelle“, solange eine Tabelle zu sehen ist, „Baum“, solange ein Baum zu sehen ist. Jede Registerkarte zeigt ihre Befehle in Gruppen mit ihren Namen darunter; was gerade nicht geht, ist ausgegraut, damit nichts verrutscht. Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner, und zuletzt wird eine ganze Gruppe zu einem Knopf, der sie öffnet. Der Knopf am rechten Ende der Registerkarten wählt, wie das Menüband erscheint – für alle Tools von in-browser auf diesem Gerät. Der Pfeil daneben klappt das Menüband zusammen: Nur die Registerkarten bleiben, und ein Klick auf eine öffnet ihre Befehle über dem Text, bis du einen wählst; ein Doppelklick auf eine Registerkarte oder Strg+F1 tun dasselbe, und der Pfeil holt das Menüband zurück, wie es war.',
 				options: {
-					classic: { label: 'Klassisch (Standard)', text: 'Große Knöpfe in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
+					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Große Knöpfe in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
 					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile Knöpfe, ohne Gruppennamen. Lässt mehr Platz für den Text.' },
-					tabs: { label: 'Nur Registerkarten', text: 'Nur die Registerkarten; ein Klick auf eine öffnet ihre Befehle über dem Text, bis du einen wählst. Der meiste Platz für den Text.' }
+					minimal: { label: 'Minimal (Standard auf Handy und Tablet)', text: 'Eine Zeile Symbole ohne Text; halte den Zeiger über ein Symbol – oder halte es gedrückt –, um seinen Namen zu sehen. Am wenigsten Höhe, und jeder Befehl bleibt erreichbar.' }
 				},
-				tip: 'Fang mit „Klassisch“ an, bis du weißt, wo alles ist, und wechsle dann zu „Vereinfacht“ oder „Nur Registerkarten“, um mehr vom Text zu sehen.',
+				tip: 'Fang mit „Klassisch“ an, bis du weißt, wo alles ist, und wechsle dann zu „Vereinfacht“ oder „Minimal“ – oder klapp das Menüband zusammen –, um mehr vom Text zu sehen.',
 				keys: [['Strg', 'F1']]
 			},
 			accessKeys: {
@@ -147,7 +147,7 @@ const help: typeof enHelp = {
 		items: {
 			undo: {
 				title: 'Rückgängig',
-				text: '„Rückgängig“ und „Wiederholen“ sind die Pfeile links im Menüband (auf Telefonen am Anfang seiner Leiste). Der Verlauf geht verloren, wenn du eine andere Datei öffnest oder die Seite neu lädst.',
+				text: '„Rückgängig“ und „Wiederholen“ sind die Pfeile links im Menüband (auch auf Telefonen). Der Verlauf geht verloren, wenn du eine andere Datei öffnest oder die Seite neu lädst.',
 				keys: [['Strg', 'Z'], ['Strg', 'Umschalt', 'Z'], ['Strg', 'Y']]
 			},
 			clipboard: {
@@ -280,7 +280,7 @@ const help: typeof enHelp = {
 			},
 			ribbon: {
 				title: 'Menüband',
-				text: 'Nur Registerkarten und zurück, Zugriffstasten',
+				text: 'Menüband zusammen- oder aufklappen, Zugriffstasten',
 				keys: [['Strg', 'F1'], ['Alt'], ['F10']]
 			}
 		}
@@ -290,7 +290,7 @@ const help: typeof enHelp = {
 		items: {
 			touch: {
 				title: 'Mit dem Finger bedienen',
-				text: 'Alles geht ohne Tastatur. Auf dem Telefon ist das Menüband eine Leiste unter der oberen Leiste: Der Knopf links wählt die Registerkarte („Datei“, „Start“, „Format“, „Ansicht“ und „Tabelle“ oder „Baum“, solange eine solche Ansicht zu sehen ist), die Befehle daneben sind Symbole und scrollen seitlich – halte eins gedrückt, um seinen Namen zu sehen. Neu, Öffnen, Speichern und Schließen stehen in der Registerkarte „Datei“; der gezeigte Tab hat einen ⋯-Knopf mit dem Menü der Datei und „Andere schließen“. In Tabelle oder Baum wählt ein Tippen aus, ein zweites Tippen auf dieselbe Zelle, denselben Schlüssel oder Wert bearbeitet ihn. Langes Drücken öffnet das Menü und startet den Auswahlmodus: Kästchen erscheinen (in den Zeilennummern einer Tabelle, am Anfang der Zeilen eines Baums), Tippen wählt aus und ab, und die Befehle der Registerkarte „Tabelle“ oder „Baum“ wirken auf das Ausgewählte; „Auswahl aufheben“ dort beendet ihn. Ein Tippen auf eine Zeilennummer öffnet das Menü ihrer Zeile, der ⋯-Knopf einer Baumzeile ihr Menü. Tippe in der unteren Leiste auf Zeilenende oder Kodierung, um sie zu ändern.'
+				text: 'Alles geht ohne Tastatur. Auf Telefon und Tablet beginnt das Menüband als „Minimal“: die Registerkarten in einer Zeile („Datei“, „Start“, „Format“, „Ansicht“ und „Tabelle“ oder „Baum“, solange eine solche Ansicht zu sehen ist), darunter die Befehle der Registerkarte als Symbole, die seitlich scrollen – halte eins gedrückt, um seinen Namen zu sehen. Der Pfeil rechts neben den Registerkarten klappt das Menüband zusammen, wenn du die Höhe brauchst. Neu, Öffnen, Speichern und Schließen stehen in der Registerkarte „Datei“; der gezeigte Tab hat einen ⋯-Knopf mit dem Menü der Datei und „Andere schließen“. In Tabelle oder Baum wählt ein Tippen aus, ein zweites Tippen auf dieselbe Zelle, denselben Schlüssel oder Wert bearbeitet ihn. Langes Drücken öffnet das Menü und startet den Auswahlmodus: Kästchen erscheinen (in den Zeilennummern einer Tabelle, am Anfang der Zeilen eines Baums), Tippen wählt aus und ab, und die Befehle der Registerkarte „Tabelle“ oder „Baum“ wirken auf das Ausgewählte; „Auswahl aufheben“ dort beendet ihn. Ein Tippen auf eine Zeilennummer öffnet das Menü ihrer Zeile, der ⋯-Knopf einer Baumzeile ihr Menü. Tippe in der unteren Leiste auf Zeilenende oder Kodierung, um sie zu ändern.'
 			},
 			mobileView: {
 				title: 'Lesen und schreiben auf kleinem Bildschirm',

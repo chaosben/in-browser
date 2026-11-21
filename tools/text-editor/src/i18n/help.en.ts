@@ -23,13 +23,13 @@ const help = {
 			},
 			ribbon: {
 				title: 'The ribbon',
-				text: 'Below the top bar lies the ribbon: “Undo” and “Redo” on the left, then the tabs “File” (new, open, save, download, close), “Home” (clipboard; “Find”, whose arrow offers “Replace” and “Go to line”; editing lines), “Format” (Markdown formatting) and “View” (layout, word wrap, text size). Tabs set off in color come with the view next to the text: “Table” while a table is shown, “Tree” while a tree is shown. Each tab shows its commands in groups with their names below; what can’t be used right now is greyed out, so nothing moves. When the window gets narrower, the groups on the right get smaller first, and at last a whole group becomes one button that opens it. The button at the right end of the tabs chooses how the ribbon is shown; a double click on a tab switches to “Tabs only” and back.',
+				text: 'Below the top bar lies the ribbon: “Undo” and “Redo” on the left, then the tabs “File” (new, open, save, download, close), “Home” (clipboard; “Find”, whose arrow offers “Replace” and “Go to line”; editing lines), “Format” (Markdown formatting) and “View” (layout, word wrap, text size). Tabs set off in color come with the view next to the text: “Table” while a table is shown, “Tree” while a tree is shown. Each tab shows its commands in groups with their names below; what can’t be used right now is greyed out, so nothing moves. When the window gets narrower, the groups on the right get smaller first, and at last a whole group becomes one button that opens it. The button at the right end of the tabs chooses how the ribbon is shown – for every in-browser tool on this device. The arrow next to it collapses the ribbon: only the tabs stay, and a click on a tab opens its commands over the text until you pick one; a double click on a tab or Ctrl+F1 do the same, and the arrow brings the ribbon back as it was.',
 				options: {
-					classic: { label: 'Classic (default)', text: 'Large buttons in groups with their names. Easiest to find things, takes about 120 pixels of height.' },
+					classic: { label: 'Classic (default on a computer)', text: 'Large buttons in groups with their names. Easiest to find things, takes about 120 pixels of height.' },
 					simplified: { label: 'Simplified', text: 'One compact row of buttons, without group names. Leaves more room for the text.' },
-					tabs: { label: 'Tabs only', text: 'Only the tabs; a click on a tab opens its commands over the text until you pick one. Most room for the text.' }
+					minimal: { label: 'Minimal (default on phones and tablets)', text: 'One row of icons without text; hold the pointer over an icon – or press and hold it – to see its name. Least height with every command in reach.' }
 				},
-				tip: 'Start with Classic until you know where things are, then switch to Simplified or Tabs only to see more of the text.',
+				tip: 'Start with Classic until you know where things are, then switch to Simplified or Minimal – or collapse the ribbon – to see more of the text.',
 				keys: [['Ctrl', 'F1']]
 			},
 			accessKeys: {
@@ -151,7 +151,7 @@ const help = {
 		items: {
 			undo: {
 				title: 'Undo',
-				text: '“Undo” and “Redo” are the arrows at the left of the ribbon (on phones at the start of its bar). The history is lost when you open another file or reload the page.',
+				text: '“Undo” and “Redo” are the arrows at the left of the ribbon (on phones too). The history is lost when you open another file or reload the page.',
 				keys: [['Ctrl', 'Z'], ['Ctrl', 'Shift', 'Z'], ['Ctrl', 'Y']]
 			},
 			clipboard: {
@@ -284,7 +284,7 @@ const help = {
 			},
 			ribbon: {
 				title: 'Ribbon',
-				text: 'Only the tabs and back, access keys',
+				text: 'Collapse or expand the ribbon, access keys',
 				keys: [['Ctrl', 'F1'], ['Alt'], ['F10']]
 			}
 		}
@@ -294,7 +294,7 @@ const help = {
 		items: {
 			touch: {
 				title: 'Using it by touch',
-				text: 'Everything works without a keyboard. On a phone the ribbon is one bar below the top bar: the button on the left picks the tab (“File”, “Home”, “Format”, “View”, and “Table” or “Tree” while such a view is shown), the commands next to it are icons and scroll sideways – press and hold one to see its name. New, open, save and close are in the tab “File”; the shown tab has a ⋯ button with the menu of the file plus “Close others”. In a table or tree a tap selects, a second tap on the same cell, key or value edits it. A long press opens the menu and starts the selection mode: check boxes appear (in the row numbers of a table, at the start of the rows of a tree), taps pick and unpick, and the commands of the tab “Table” or “Tree” act on what is picked; “Clear selection” there ends it. A tap on a row number opens the menu of its row, the ⋯ of a tree row its menu. In the bottom bar tap the line ending or encoding to change it.'
+				text: 'Everything works without a keyboard. On a phone or tablet the ribbon starts as “Minimal”: the tabs in one row (“File”, “Home”, “Format”, “View”, and “Table” or “Tree” while such a view is shown), below it the tab’s commands as icons that scroll sideways – press and hold one to see its name. The arrow at the right of the tabs collapses the ribbon when you need the height. New, open, save and close are in the tab “File”; the shown tab has a ⋯ button with the menu of the file plus “Close others”. In a table or tree a tap selects, a second tap on the same cell, key or value edits it. A long press opens the menu and starts the selection mode: check boxes appear (in the row numbers of a table, at the start of the rows of a tree), taps pick and unpick, and the commands of the tab “Table” or “Tree” act on what is picked; “Clear selection” there ends it. A tap on a row number opens the menu of its row, the ⋯ of a tree row its menu. In the bottom bar tap the line ending or encoding to change it.'
 			},
 			mobileView: {
 				title: 'Reading and writing on a small screen',

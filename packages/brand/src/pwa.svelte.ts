@@ -25,12 +25,24 @@ function workerVersion(worker: ServiceWorker): Promise<string | null> {
 
 let waiting: ServiceWorker | null = null;
 let started = false;
+/** The user chose “Reload” on this page */
+let applying = false;
 
 export function initPwa() {
 	if (started || typeof window === 'undefined') return;
 	started = true;
 
-	if (dev || !('serviceWorker' in navigator)) return;
+	if (!('serviceWorker' in navigator)) return;
+	if (dev) {
+		// The dev server has no Service Worker – but one left behind by a build served from this address (a preview)
+		// would keep answering with what it cached, e.g. old tool icons after every normal reload. Remove it.
+		void navigator.serviceWorker.getRegistrations().then((registrations) => {
+			for (const registration of registrations) void registration.unregister();
+			if (registrations.length) console.warn('[PWA] removed a Service Worker left behind on the dev server – reload once');
+		});
+		if ('caches' in window) void caches.keys().then((keys) => keys.filter((key) => key.startsWith('in-browser-')).forEach((key) => void caches.delete(key)));
+		return;
+	}
 	navigator.serviceWorker
 		.register(resolve('/') + 'service-worker.js', { type: 'module' })
 		.then((registration) => {
@@ -57,15 +69,24 @@ export function initPwa() {
 		})
 		.catch((e) => console.error('[PWA] Service worker could not be registered', e));
 
-	let reloading = false;
-	navigator.serviceWorker.addEventListener('controllerchange', () => {
-		if (reloading || !waiting) return;
-		reloading = true;
-		location.reload();
+	// A new version took over. Only the page whose user said “Reload” reloads; every other one keeps running what it
+	// has (a recording, unsaved input – never taken over unasked) and offers the reload. The worker keeps the files
+	// of the versions open pages still run (it asks for them with `VERSION`).
+	navigator.serviceWorker.addEventListener('controllerchange', async () => {
+		if (applying) return location.reload();
+		const controller = navigator.serviceWorker.controller;
+		if (controller && (await workerVersion(controller)) !== version) pwa.updateReady = true;
+	});
+	navigator.serviceWorker.addEventListener('message', (event) => {
+		if (event.data === 'VERSION') event.ports[0]?.postMessage(version);
 	});
 }
 
-/** Activates the waiting version; the page reloads afterwards. */
+/** Takes over the new version: activates it if it still waits; the page reloads. */
 export function applyUpdate() {
-	waiting?.postMessage('SKIP_WAITING');
+	if (applying) return;
+	applying = true;
+	// Another page may have activated it already: then nothing changes hands anymore, just reload
+	if (waiting?.state === 'installed') waiting.postMessage('SKIP_WAITING');
+	else location.reload();
 }

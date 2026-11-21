@@ -1,7 +1,9 @@
 import { caseRenames, holdDeletes, holdLarge, pathKey, plan, renameKeys, type Base, type FileState, type HeldFolder, type HoldLimits, type Op, type Snapshot } from './plan.js';
+import { FilesError } from '../entry.js';
 import type { LogFn } from './log.js';
 import { DIR, stateOf } from './scan.js';
-import { discard, hashFile, isGone, receive, renameIn, validName, type Other, type PutResult } from './tree-ops.js';
+import { packageOf } from '../formats.js';
+import { discard, hashFile, isGone, receive, renameIn, validName, type Other, type PackageCopies, type PutResult } from './tree-ops.js';
 import type { Tree } from './tree.js';
 
 // Carrying out a plan (`plan.ts`) between this side's tree and the other side – shared by the folder sync (the other
@@ -35,7 +37,7 @@ export interface SyncResult {
 	failed: number;
 	/** Steps left alone because something changed since the plan: run again soon */
 	skipped: number;
-	/** Paths whose losing version was kept as a conflict copy */
+	/** Paths whose losing version was kept as a conflict copy (for a file inside a package: the package) */
 	conflicts: string[];
 	/** Files whose deletion waits for confirmation */
 	pendingDeletes: number;
@@ -118,13 +120,26 @@ export async function runSync(mine: Tree, other: Other, local: Snapshot, remote:
 	// Keys of paths written in this run: a deletion of a path that only differs in case would hit the new file on
 	// Windows/macOS
 	const written = new Set<string>();
+	const copies: PackageCopies = new Map();
+	// Where storage is limited (a browser's quota), a file that doesn't fit isn't even started: it would arrive,
+	// fail and start again on every run
+	const room = { in: options.holdLarge?.free.in ?? null, out: options.holdLarge?.free.out ?? null };
 	for (const [i, op] of ops.entries()) {
 		try {
+			if (op.type === 'toLocal' || op.type === 'toDisk') {
+				const side = op.type === 'toLocal' ? 'in' : 'out';
+				const size = (side === 'in' ? remote : local).get(op.path)?.size ?? 0;
+				const left = room[side];
+				if (left !== null) {
+					if (size > left) throw new FilesError('full', op.path);
+					room[side] = left - size;
+				}
+			}
 			if ((op.type === 'deleteLocal' || op.type === 'deleteDisk') && written.has(pathKey(op.path))) {
 				result.skipped++;
 				log?.('sync.skipped', { ...op, reason: 'a name differing only in case was written in this run' });
 			} else {
-				const outcome = await apply(mine, other, options, base, op, local, remote, write, result);
+				const outcome = await apply(mine, other, options, base, op, local, remote, write, result, copies);
 				if (outcome === 'applied') result.applied++;
 				if (outcome === 'skipped') {
 					result.skipped++;
@@ -170,9 +185,16 @@ async function apply(
 	local: Snapshot,
 	remote: Snapshot,
 	write: (path: string) => void,
-	result: SyncResult
+	result: SyncResult,
+	copies: PackageCopies
 ): Promise<'applied' | 'skipped' | 'none'> {
 	const { path } = op;
+	/** A package is one document: a conflict inside it is the package's */
+	const conflict = (copy: string, kept: 'here' | 'there') => {
+		const document = packageOf(path) ?? path;
+		if (!result.conflicts.includes(document)) result.conflicts.push(document);
+		options.log?.('sync.conflictCopy', { path, copy, kept });
+	};
 	switch (op.type) {
 		case 'toLocal': {
 			if (!validName(path)) throw new Error(`Invalid name: ${path}`);
@@ -181,7 +203,8 @@ async function apply(
 				received = await receive(mine, path, (target) => other.get(path, target), {
 					keep: op.both ? options.conflictLabel('mine') : undefined,
 					expect: local.get(path) ?? null,
-					onWrite: write
+					onWrite: write,
+					packages: copies
 				});
 			} catch (e) {
 				// Gone there since the plan
@@ -189,10 +212,7 @@ async function apply(
 				throw e;
 			}
 			if ('stale' in received) return 'skipped';
-			if (received.copy) {
-				result.conflicts.push(path);
-				options.log?.('sync.conflictCopy', { path, copy: received.copy, kept: 'here' });
-			}
+			if (received.copy) conflict(received.copy, 'here');
 			base.set(path, { local: (await mine.stat(path))!, disk: received.result });
 			return 'applied';
 		}
@@ -208,10 +228,7 @@ async function apply(
 				throw e;
 			}
 			if ('stale' in reply) return 'skipped';
-			if (reply.copy) {
-				result.conflicts.push(path);
-				options.log?.('sync.conflictCopy', { path, copy: reply.copy, kept: 'there' });
-			}
+			if (reply.copy) conflict(reply.copy, 'there');
 			base.set(path, { local: stateOf(file), disk: reply.state });
 			return 'applied';
 		}

@@ -1,4 +1,5 @@
-import { isConnected } from '../path.js';
+import { loadJson, readStored, storeJson, writeStored } from '@in-browser/brand/storage.js';
+import { isConnected, parent } from '../path.js';
 import { excludedFolderOf } from './registry.js';
 
 // Documents of a tool that lie in connected folders or in folders this device doesn't sync (opened live from the
@@ -43,4 +44,36 @@ export function connectedDocuments(tool: string, storage: Storage = localStorage
 /** Forgets a document (gone, or its connection was removed) */
 export function forgetConnected(tool: string, path: string, storage: Storage = localStorage): void {
 	store(tool, load(tool, storage).filter((p) => p !== path), storage);
+}
+
+/**
+ * “Recently opened” of a tool whose documents are plain files anywhere (Text Editor, PDF Editor): the paths, newest
+ * first (`<tool>:recent`, this device only), and the folder dialogs start in (`<tool>:folder`: where the last
+ * document was opened or saved). Documents in connected folders are remembered for the start page's access notice
+ * too. Tools with packages list all of theirs instead (`packageDocuments`).
+ */
+export function recentDocuments(tool: string, max = 30) {
+	const RECENT = `${tool}:recent`;
+	const FOLDER = `${tool}:folder`;
+	const list = (): string[] => {
+		const value = loadJson<unknown>(RECENT, []);
+		return Array.isArray(value) ? value.filter((p): p is string => typeof p === 'string') : [];
+	};
+	return {
+		list,
+		/** A document was opened or saved: first in the list, its folder is where dialogs start next time */
+		remember(path: string) {
+			storeJson(RECENT, [path, ...list().filter((p) => p !== path)].slice(0, max));
+			writeStored(FOLDER, parent(path));
+			rememberConnected(tool, path);
+		},
+		/** Off the list (gone, or removed by the user) */
+		forget(path: string) {
+			storeJson(RECENT, list().filter((p) => p !== path));
+			forgetConnected(tool, path);
+		},
+		lastFolder: (): string => readStored(FOLDER) ?? '/',
+		/** A dialog was used in the folder of `path` */
+		usedFolderOf: (path: string) => writeStored(FOLDER, parent(path))
+	};
 }

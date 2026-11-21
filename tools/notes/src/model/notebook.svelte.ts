@@ -8,6 +8,7 @@ import { ExternalVersions, reportSaveFailure } from '@in-browser/files/documents
 import { stat } from '@in-browser/files/fs.js';
 import { basename, isInside, stem } from '@in-browser/files/path.js';
 import { ItemEditor, type Command } from '@in-browser/ink/edit/items.js';
+import { History } from '@in-browser/graphics/history.js';
 import { union, type Box } from '@in-browser/ink/geometry.js';
 import { inkKit } from '@in-browser/ink/render/ink-kit.js';
 import { m } from '#lib/i18n/index.js';
@@ -33,7 +34,6 @@ export interface NotebookListener {
 }
 
 const SAVE_DELAY_MS = 800;
-const HISTORY_LIMIT = 300;
 /** Own writes come back as change notifications; those within this time are ignored */
 const OWN_WRITE_MS = 3000;
 
@@ -53,8 +53,7 @@ export class NotebookDoc {
 	private readonly dirtyPages = new Set<string>();
 	private readonly removedPages = new Set<string>();
 	private metaDirty = false;
-	private undoStack: Command[] = [];
-	private redoStack: Command[] = [];
+	private readonly history = new History<Command>();
 	private saveTimer: ReturnType<typeof setTimeout> | undefined;
 	private readonly ownWrites = new Map<string, number>();
 	listener: NotebookListener | null = null;
@@ -143,31 +142,21 @@ export class NotebookDoc {
 	// --- Editing ---
 
 	private push(command: Command) {
-		this.undoStack.push(command);
-		if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
-		this.redoStack = [];
+		this.history.push(command);
 		this.updateHistory();
 	}
 
 	private updateHistory() {
-		this.canUndo = this.undoStack.length > 0;
-		this.canRedo = this.redoStack.length > 0;
+		this.canUndo = this.history.canUndo;
+		this.canRedo = this.history.canRedo;
 	}
 
 	undo() {
-		const command = this.undoStack.pop();
-		if (!command) return;
-		command.undo();
-		this.redoStack.push(command);
-		this.updateHistory();
+		if (this.history.undo()) this.updateHistory();
 	}
 
 	redo() {
-		const command = this.redoStack.pop();
-		if (!command) return;
-		command.redo();
-		this.undoStack.push(command);
-		this.updateHistory();
+		if (this.history.redo()) this.updateHistory();
 	}
 
 	// --- Pictures ---
@@ -256,7 +245,7 @@ export class NotebookDoc {
 		};
 		this.push(command);
 		return () => {
-			if (this.undoStack.at(-1) === command) this.undo();
+			if (this.history.last === command) this.undo();
 		};
 	}
 
@@ -426,8 +415,7 @@ export class NotebookDoc {
 		try {
 			this.scenes.set(id, pageScene(await readPage(this.path, id), this.pictures));
 			// Undo steps of this page point to strokes that are gone now
-			this.undoStack = [];
-			this.redoStack = [];
+			this.history.clear();
 			this.updateHistory();
 			this.listener?.content(id);
 		} catch (e) {

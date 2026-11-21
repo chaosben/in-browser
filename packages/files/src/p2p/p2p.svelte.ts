@@ -104,7 +104,14 @@ export function startP2p() {
 		p2pStatus.supported = ok;
 		if (!ok) return showView(OFF_VIEW);
 		navigator.locks.request('files:p2p-leader', async () => {
-			await lead();
+			try {
+				await lead();
+			} catch (e) {
+				// A page of an older version (still open after an update) can't read what a newer one keeps: it
+				// gives the lead away, so a newer tab syncs
+				if (e instanceof Error && e.name === 'StateError') return console.warn('[P2P] this page is older than the sync state – reload it');
+				throw e;
+			}
 			return new Promise<never>(() => {});
 		});
 	});

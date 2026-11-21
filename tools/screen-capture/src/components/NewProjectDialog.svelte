@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import CanvasSizeField from './CanvasSizeField.svelte';
 	import { m } from '#lib/i18n/index.js';
 	import { CANVAS_PRESETS, type Size } from '#lib/project/canvas.js';
@@ -11,23 +12,12 @@
 
 	let { oncreate, oncancel }: Props = $props();
 
-	let dialog: HTMLDialogElement;
 	let name = $state(emptyProjectName());
 	let size = $state<Size>({ width: CANVAS_PRESETS[0].width, height: CANVAS_PRESETS[0].height });
 
-	$effect(() => {
-		dialog.showModal();
-	});
 </script>
 
-<dialog
-	bind:this={dialog}
-	class="modal"
-	oncancel={(e) => {
-		e.preventDefault();
-		oncancel();
-	}}
->
+<Modal onclose={oncancel}>
 	<form
 		class="modal-box flex flex-col gap-4"
 		onsubmit={(e) => {
@@ -52,4 +42,4 @@
 			<button type="submit" class="btn btn-primary">{m.newProject.create}</button>
 		</div>
 	</form>
-</dialog>
+</Modal>

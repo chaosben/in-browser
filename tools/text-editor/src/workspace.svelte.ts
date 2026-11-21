@@ -1,3 +1,5 @@
+import { showError } from '@in-browser/files/errors.js';
+import { filesUrl } from '@in-browser/files/formats.js';
 import { isolateHistory, redoDepth, undoDepth } from '@codemirror/commands';
 import { EditorSelection, type ChangeSpec, type TransactionSpec, type Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
@@ -11,7 +13,7 @@ import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.
 import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 import { basename, isInside, parent } from '@in-browser/files/path.js';
 import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
-import { forgetConnected, rememberConnected } from '@in-browser/files/sources/recent.js';
+import { recentDocuments } from '@in-browser/files/sources/recent.js';
 import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Encoding, type LineEnding } from '#lib/document.js';
 import { loadDraft, newDraftId, pathDraftId, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
 import { markdownKeymap } from '#lib/editor/commands.js';
@@ -29,7 +31,6 @@ import { downloadBlob } from '@in-browser/brand/download.js';
 // Saving keeps the encoding and line ending; changes made elsewhere (other browser tabs, the sync) are noticed via
 // `watch()`. Unsaved changes are kept as drafts (`drafts.ts`) and come back with the file's address.
 
-const RECENT_KEY = 'text-editor:recent';
 const WRAP_KEY = 'text-editor:wrap';
 /** Until layouts existed: whether the Markdown preview was shown */
 const OLD_PREVIEW_KEY = 'text-editor:preview';
@@ -38,9 +39,9 @@ const SPLIT_KEY = 'text-editor:split';
 const VIEWS_KEY = 'text-editor:views';
 const HEADER_KEY = 'text-editor:table-header';
 const FONT_KEY = 'text-editor:font-size';
-const MAX_RECENT = 10;
 /** Folder of the last open/save dialog (kept across the pages of this browser tab) */
-let lastFolder = '/';
+/** “Recently opened” and the folder dialogs start in – the suite's list (`text-editor:recent`, `text-editor:folder`) */
+const recent = recentDocuments('text-editor');
 /** Pause after typing before saving automatically */
 const SAVE_DELAY = 1000;
 export const FONT_SIZES = { min: 10, default: 14, max: 28 };
@@ -56,9 +57,7 @@ export function encodingName(encoding: Encoding) {
 
 /** An error as a toast (and in the console); `retry` runs again once the browser allows access to a connected folder */
 function fail(e: unknown, retry?: () => void) {
-	console.error(e);
-	const allow = retry && accessAction(e, retry);
-	toast(m.toasts.failed(filesErrorText(e)), 'error', allow ? 10000 : 8000, allow);
+	showError(e, { text: m.toasts.failed(filesErrorText(e)), retry });
 }
 
 export class Workspace {
@@ -266,14 +265,14 @@ export class Workspace {
 			if (auto) return false;
 			path = await chooseFile({
 				mode: 'save',
-				folder: tab.path ? parent(tab.path) : lastFolder,
+				folder: tab.path ? parent(tab.path) : recent.lastFolder(),
 				accept: EDITABLE_EXTENSIONS,
 				name: tab.suggestedName,
 				title: m.dialogs.saveAs,
 				overwrite: true
 			});
 			if (!path) return false;
-			lastFolder = parent(path);
+			recent.usedFolderOf(path);
 		}
 		if (auto && tab.conflict === 'changed') return false;
 		this.#cancelSave();
@@ -487,9 +486,7 @@ export class Workspace {
 	// --- Drafts, recently opened, settings ---
 
 	#remember(path: string) {
-		storeJson(RECENT_KEY, [path, ...recentFiles().filter((p) => p !== path)].slice(0, MAX_RECENT));
-		// Connected folders: the start page's access notice knows about it
-		rememberConnected('text-editor', path);
+		recent.remember(path);
 	}
 
 	#scheduleDraft(tab: Tab) {
@@ -569,23 +566,22 @@ export class Workspace {
 
 /** Files in a new browser tab, in the folder of `path` */
 export function showFolderOf(path: string) {
-	window.open(`${resolve('/files')}?path=${encodeURIComponent(parent(path))}`, '_blank', 'noopener');
+	window.open(filesUrl(path), '_blank', 'noopener');
 }
 
 /** The paths of “Recently opened” (start page), newest first */
-export const recentFiles = () => loadJson<string[]>(RECENT_KEY, []);
+export const recentFiles = () => recent.list();
 
 /** Forgets a file of “Recently opened” */
 export function forgetRecent(path: string) {
-	storeJson(RECENT_KEY, recentFiles().filter((p) => p !== path));
-	forgetConnected('text-editor', path);
+	recent.forget(path);
 }
 
 /** “Open from Files …”: the chosen file's path; the dialog starts next to `near` (the shown file), else where it was last */
 export async function chooseFileToOpen(near?: string | null): Promise<string | null> {
-	const folder = near ? parent(near) : lastFolder;
+	const folder = near ? parent(near) : recent.lastFolder();
 	const path = await chooseFile({ mode: 'open', folder, accept: EDITABLE_EXTENSIONS, title: m.dialogs.open });
-	if (path) lastFolder = parent(path);
+	if (path) recent.usedFolderOf(path);
 	return path;
 }
 

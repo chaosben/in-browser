@@ -10,13 +10,13 @@ const help: typeof enHelp = {
 			},
 			ribbon: {
 				title: 'Menüband',
-				text: 'Befehle, die gerade nicht wirken können, bleiben an ihrem Platz und sind ausgegraut. Knöpfe mit kleinem Pfeil öffnen eine Auswahl („Frame halten“ seine Länge, „Löschen“ das Löschen mit Lücke, „Formen“ die vier Formen). Das Menü am rechten Ende des Menübands stellt seine Anzeige um; Alt oder F10 zeigen zu jeder Registerkarte und jedem Befehl einen Buchstaben.',
+				text: 'Befehle, die gerade nicht wirken können, bleiben an ihrem Platz und sind ausgegraut. Knöpfe mit kleinem Pfeil öffnen eine Auswahl („Frame halten“ seine Länge, „Löschen“ das Löschen mit Lücke, „Formen“ die vier Formen). Das Menü am rechten Ende des Menübands stellt seine Anzeige um – für alle Tools von in-browser auf diesem Gerät –, und der Pfeil daneben klappt das Menüband auf seine Registerkarten zusammen (ein Klick auf eine öffnet dann ihre Befehle über dem Editor; auch ein Doppelklick auf eine Registerkarte oder Strg+F1); Alt oder F10 zeigen zu jeder Registerkarte und jedem Befehl einen Buchstaben.',
 				options: {
-					classic: { label: 'Klassisch (Standard)', text: 'Gruppen mit großen Knöpfen und ihren Namen – alles auf einen Blick.' },
+					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Gruppen mit großen Knöpfen und ihren Namen – alles auf einen Blick.' },
 					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile – mehr Platz für Vorschau und Timeline.' },
-					tabs: { label: 'Nur Registerkarten', text: 'Nur die Namen der Registerkarten; ein Klick darauf öffnet ihre Befehle über dem Editor.' }
+					minimal: { label: 'Minimal (Standard auf Handy und Tablet)', text: 'Eine Zeile Symbole ohne Text; halte den Zeiger über ein Symbol – oder halte es gedrückt –, um seinen Namen zu sehen. Am wenigsten Höhe, und jeder Befehl bleibt erreichbar.' }
 				},
-				tip: 'Auf einem kleinen Bildschirm lassen „Vereinfacht“ oder „Nur Registerkarten“ der Vorschau mehr Höhe; die meisten Aktionen haben auch eine Taste oder stehen im Kontextmenü.',
+				tip: 'Auf einem kleinen Bildschirm lassen „Vereinfacht“ oder „Minimal“ der Vorschau mehr Höhe, das zusammengeklappte Menüband am meisten; die meisten Aktionen haben auch eine Taste oder stehen im Kontextmenü.',
 				keys: [['Strg', 'F1'], ['Alt'], ['F10']]
 			},
 			panels: {
@@ -37,7 +37,7 @@ const help: typeof enHelp = {
 			},
 			storage: {
 				title: 'Speicherplatz',
-				text: 'Die Startseite zeigt, wie viel vom Browserspeicher die Tools von in-browser belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst (auf der Startseite oder in Dateien), landet es im Papierkorb; sein Platz wird frei, wenn der Papierkorb geleert wird.',
+				text: 'Die Startseite zeigt deine Projekte als Karten: Ein Klick öffnet eines; Rechtsklick, gedrückt halten oder die Schaltfläche ⋯ bieten „Öffnen“, „In Dateien zeigen“ und „Löschen“ (auch Entf auf einer fokussierten Karte). Die Fußzeile von Dateien zeigt, wie viel vom Browserspeicher die Tools von in-browser belegen. Den größten Teil machen Aufnahmen und importierte Medien aus; wenn du ein Projekt löschst (auf der Startseite oder in Dateien), landet es im Papierkorb, mit „Rückgängig“ in der Meldung; sein Platz wird frei, wenn der Papierkorb geleert wird.',
 				link: { href: '/help/storage', label: 'Speicherplatz und der Ordner auf deinem Rechner' }
 			},
 			browser: {
@@ -712,7 +712,7 @@ const help: typeof enHelp = {
 			scaleText: { title: 'Schrift skalieren', text: 'Während du einen Anfasser einer Textbox oder Sprechblase ziehst', keys: [['K']] },
 			zoom: { title: 'Timeline-Zoom', text: 'In der Timeline', keys: [['Strg', 'Mausrad']] },
 			properties: { title: 'Eigenschaften', text: 'Ein- oder ausblenden', keys: [['Alt', 'Eingabe']] },
-			ribbon: { title: 'Menüband', text: 'Zwischen vollem Menüband und nur den Registerkarten wechseln; Alt oder F10 zeigen seine Zugriffstasten', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
+			ribbon: { title: 'Menüband', text: 'Menüband zusammen- oder aufklappen; Alt oder F10 zeigen seine Zugriffstasten', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
 			entries: { title: 'Medienablage und Bibliothek', text: 'Ausgewählte Einträge einfügen, einen Eintrag umbenennen, sie löschen oder entfernen', keys: [['Eingabe'], ['F2'], ['Entf']] }
 		}
 	}

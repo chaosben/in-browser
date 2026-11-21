@@ -25,7 +25,6 @@ const de: Messages = {
 		tagline: 'Bildschirm aufnehmen, schneiden und als MP4, WebM oder GIF exportieren – komplett im Browser, nichts verlässt deinen Rechner.',
 		desktopOnly:
 			'Die Bildschirmaufnahme braucht einen Computer: Handys und Tablets können ihren Bildschirm im Browser nicht aufnehmen. Öffne diese Seite auf deinem Computer (empfohlen: Chrome oder Edge).',
-		allTools: 'Alle Tools anzeigen',
 		unsupported: (missing) =>
 			`Dieser Browser unterstützt nicht alles, was die App braucht (${missing}). Bitte verwende einen aktuellen Desktop-Browser (empfohlen: Chrome oder Edge).`,
 		screenCapture: 'Bildschirmaufnahme',
@@ -35,13 +34,8 @@ const de: Messages = {
 		emptyProject: 'Leeres Projekt',
 		openProject: 'Öffnen …',
 		newProjectTitle: 'Wohin soll das neue Projekt?',
-		inFolder: (folder) => `in ${folder}`,
 		projects: 'Projekte',
-		storage: (used, quota) => `${used} von ${quota} belegt`,
 		empty: 'Noch keine Projekte. Starte eine Aufnahme, importiere Medien, lege ein leeres Projekt an oder zieh Videos, Ton oder Bilder hierher.',
-		changed: (date) => `geändert ${date}`,
-		footer:
-			'Projekte sind Dateien in deinem Browserspeicher, in jedem Ordner, den du willst. Verwalte sie in Dateien – dort kannst du sie auch mit einem Ordner auf deinem Rechner synchronisieren.',
 		dropToCreate: 'Loslassen, um ein neues Projekt aus den Dateien zu erstellen'
 	},
 
@@ -384,13 +378,6 @@ const de: Messages = {
 		nothing: 'Nichts ausgewählt.',
 		nothingHint:
 			'Klicke einen Clip, eine Markierung oder einen Zoom-Abschnitt in der Timeline an, oder füge über die Bereiche links oder die Registerkarte „Einfügen“ etwas Neues hinzu.',
-		shortcuts: {
-			deselect: 'Auswahl aufheben',
-			frames: 'Vorheriger/nächster Frame (Umschalt: 1 s)',
-			nudge: 'In der Vorschau um 1 px verschieben (Umschalt: 10 px)',
-			cycle: 'In der Vorschau: nächstes Element (Umschalt: voriges)',
-			help: 'Hilfe'
-		},
 		project: 'Projekt',
 		canvas: 'Leinwand',
 		growCanvasHint: 'Bisheriger Inhalt behält seine Größe und rückt in die Mitte.',

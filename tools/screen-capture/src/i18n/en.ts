@@ -26,7 +26,6 @@ const en = {
 		tagline: 'Record your screen, edit it and export it as MP4, WebM or GIF – entirely in the browser, nothing leaves your computer.',
 		desktopOnly:
 			'Screen Capture needs a computer: phones and tablets can’t record their screen in the browser. Open this page on your computer (Chrome or Edge recommended).',
-		allTools: 'Show all tools',
 		unsupported: (missing: string) =>
 			`This browser does not support everything the app needs (${missing}). Please use a current desktop browser (recommended: Chrome or Edge).`,
 		screenCapture: 'Screen capture',
@@ -36,13 +35,8 @@ const en = {
 		emptyProject: 'Empty project',
 		openProject: 'Open …',
 		newProjectTitle: 'Where should the new project go?',
-		inFolder: (folder: string) => `in ${folder}`,
 		projects: 'Projects',
-		storage: (used: string, quota: string) => `${used} of ${quota} used`,
 		empty: 'No projects yet. Start a recording, import media, create an empty project or drop videos, audio or images here.',
-		changed: (date: string) => `modified ${date}`,
-		footer:
-			'Projects are files in your browser storage, in any folder you like. Manage them in Files – there you can also keep them in sync with a folder on your computer.',
 		dropToCreate: 'Drop to create a new project from the files'
 	},
 
@@ -383,13 +377,6 @@ const en = {
 		frameAt: 'Frame at',
 		nothing: 'Nothing selected.',
 		nothingHint: 'Click a clip, an annotation or a zoom segment in the timeline, or add something new from the panels on the left or the “Insert” tab.',
-		shortcuts: {
-			deselect: 'Deselect',
-			frames: 'Previous/next frame (Shift: 1 s)',
-			nudge: 'In the preview: move by 1 px (Shift: 10 px)',
-			cycle: 'In the preview: next element (Shift: previous)',
-			help: 'Help'
-		},
 		project: 'Project',
 		canvas: 'Canvas',
 		growCanvasHint: 'Existing content keeps its size and moves to the center.',

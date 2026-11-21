@@ -84,6 +84,7 @@
 
 	function stateText(d: DeviceView) {
 		if (d.outdated) return m.devices.outdated;
+		if (d.newer) return m.devices.newer;
 		if (d.syncing) return m.devices.syncing(d.syncing.done, d.syncing.total);
 		if (d.online) return m.devices.online;
 		if (d.unreachable) return m.devices.unreachable;
@@ -165,7 +166,7 @@
 				<li class="flex items-start gap-2">
 					{#if d.syncing}
 						<span class="icon-[material-symbols-light--sync] mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true"></span>
-					{:else if d.outdated || d.unreachable || behind}
+					{:else if d.outdated || d.newer || d.unreachable || behind}
 						<span class="icon-[material-symbols-light--sync-problem] text-warning mt-0.5 size-4 shrink-0" aria-hidden="true"></span>
 					{:else if d.online}
 						<span class="icon-[material-symbols-light--devices-outline] text-success mt-0.5 size-4 shrink-0" aria-hidden="true"></span>
@@ -174,7 +175,7 @@
 					{/if}
 					<div class="flex min-w-0 flex-1 flex-col">
 						<span class="truncate font-medium">{d.name}</span>
-						<span class={['text-xs', d.outdated || d.unreachable ? 'text-warning' : 'opacity-60']}>{stateText(d)}</span>
+						<span class={['text-xs', d.outdated || d.newer || d.unreachable ? 'text-warning' : 'opacity-60']}>{stateText(d)}</span>
 						{#if behind && d.missing}
 							<span class="text-warning text-xs">{m.devices.probablyBehind(m.devices.changes(d.missing.changes, d.missing.more), d.lastSync ? ago(d.lastSync) : m.devices.never)}</span>
 						{:else if d.lastSync && !d.syncing}

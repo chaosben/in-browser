@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { createGroup } from '@in-browser/files/p2p/p2p.svelte.js';
 	import { openDevicesDialog, suggestedName } from '#lib/devices.svelte.js';
@@ -26,23 +27,12 @@
 			busy = false;
 		}
 	}
-
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
 {#if step === 'explain'}
 	<ExplainDialog {onclose} onnext={() => (step = 'name')} />
 {:else}
-	<dialog
-		class="modal"
-		{@attach start}
-		oncancel={(e) => {
-			e.preventDefault();
-			onclose();
-		}}
-	>
+	<Modal {onclose}>
 		<form
 			class="modal-box flex flex-col gap-4"
 			onsubmit={(e) => {
@@ -60,5 +50,5 @@
 				</button>
 			</div>
 		</form>
-	</dialog>
+	</Modal>
 {/if}

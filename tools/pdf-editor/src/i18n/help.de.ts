@@ -19,13 +19,13 @@ const de: typeof help = {
 			},
 			ribbon: {
 				title: 'Menüband-Anzeige',
-				text: 'Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner: Ihre Schaltflächen verlieren den Text unter dem Symbol, dann den Text ganz, und zuletzt wird eine ganze Gruppe zu einer Schaltfläche, die sie öffnet. Die Schaltfläche mit dem Leisten-Symbol am rechten Ende der Registerkarten wählt, wie das Menüband aussieht; der Pfeil daneben schaltet auf „Nur Registerkarten“ und zurück.',
+				text: 'Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner: Ihre Schaltflächen verlieren den Text unter dem Symbol, dann den Text ganz, und zuletzt wird eine ganze Gruppe zu einer Schaltfläche, die sie öffnet. Die Schaltfläche mit dem Leisten-Symbol am rechten Ende der Registerkarten wählt, wie das Menüband aussieht – für alle Tools von in-browser auf diesem Gerät. Der Pfeil daneben klappt das Menüband zusammen: Nur die Registerkarten bleiben, und ein Klick auf eine öffnet ihre Befehle über der Seite, bis du einen wählst; ein Doppelklick auf eine Registerkarte oder Strg+F1 tun dasselbe, und der Pfeil holt das Menüband zurück, wie es war.',
 				options: {
-					classic: { label: 'Klassisch (Standard)', text: 'Große Schaltflächen in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
+					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Große Schaltflächen in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
 					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile Schaltflächen, ohne Gruppennamen. Lässt mehr Platz für die Seiten.' },
-					tabs: { label: 'Nur Registerkarten', text: 'Nur die Registerkarten; ein Klick auf eine öffnet ihre Befehle über der Seite, bis du einen wählst. Am meisten Platz für die Seiten.' }
+					minimal: { label: 'Minimal (Standard auf Handy und Tablet)', text: 'Eine Zeile Symbole ohne Text; halte den Zeiger über ein Symbol – oder halte es gedrückt –, um seinen Namen zu sehen. Am wenigsten Höhe, und jeder Befehl bleibt erreichbar.' }
 				},
-				tip: 'Bleib bei „Klassisch“, bis du weißt, wo alles ist; dann schalte auf „Vereinfacht“ oder „Nur Registerkarten“, um mehr von der Seite zu sehen.',
+				tip: 'Bleib bei „Klassisch“, bis du weißt, wo alles ist; dann schalte auf „Vereinfacht“ oder „Minimal“ – oder klapp das Menüband zusammen –, um mehr von der Seite zu sehen.',
 				keys: [['Strg', 'F1']]
 			},
 			accessKeys: {
@@ -35,7 +35,7 @@ const de: typeof help = {
 			},
 			phone: {
 				title: 'Auf dem Handy',
-				text: 'Auf dem Handy ist das Menüband eine einzelne Leiste unter der Kopfzeile: Die Schaltfläche links wählt die Registerkarte, die Befehle daneben sind Symbole und lassen sich seitwärts schieben. Halte ein Symbol gedrückt, um seinen Namen zu sehen. Wählst du Kommentare aus, springt es von selbst zu ihrer Registerkarte; die Format-Registerkarte eines Werkzeugs findest du in der Registerkarten-Wahl. Seitenleisten öffnen sich über den ganzen Bildschirm, über die Registerkarte „Ansicht“.'
+				text: 'Auf Handy und Tablet beginnt das Menüband als „Minimal“: die Registerkarten in einer Zeile, darunter die Befehle der Registerkarte als Symbole, die sich seitwärts schieben lassen. Halte ein Symbol gedrückt, um seinen Namen zu sehen. Der Pfeil rechts neben den Registerkarten klappt das Menüband zusammen, wenn du die Höhe brauchst. Wählst du Kommentare aus, springt es von selbst zu ihrer Registerkarte; die Format-Registerkarte eines Werkzeugs steht bei den Registerkarten. Seitenleisten öffnen sich über den ganzen Bildschirm, über die Registerkarte „Ansicht“.'
 			},
 			connected: {
 				title: 'In einem verbundenen Ordner',

@@ -141,7 +141,11 @@ export const LIBRARY_FILE = join(LIBRARY, 'library.json');
 /** Entries of the global library */
 export async function loadLibrary(): Promise<LibraryEntry[]> {
 	try {
-		const raw = JSON.parse(await readText(LIBRARY_FILE));
+		const text = await readText(LIBRARY_FILE);
+		// Empty: the file was created but its content never arrived (a tab closed in between, or it is being
+		// written right now) – no entries, not an error; the next change is read again (`watch`)
+		if (!text.trim()) return [];
+		const raw = JSON.parse(text);
 		return Array.isArray(raw) ? raw.map((e: LibraryEntry) => ({ ...e, items: e.items.map(fillItem) })) : [];
 	} catch (e) {
 		if (e instanceof FilesError && e.code === 'notFound') return [];

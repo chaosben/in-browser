@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { m } from '#lib/i18n/index.js';
 	import type { Size } from '#lib/project/canvas.js';
 
@@ -12,23 +13,11 @@
 
 	let { canvas, size, onanswer }: Props = $props();
 
-	let dialog: HTMLDialogElement;
-
-	$effect(() => {
-		dialog.showModal();
-	});
 
 	const format = (s: Size) => `${s.width} × ${s.height}`;
 </script>
 
-<dialog
-	bind:this={dialog}
-	class="modal"
-	oncancel={(e) => {
-		e.preventDefault();
-		onanswer(false);
-	}}
->
+<Modal onclose={() => onanswer(false)}>
 	<div class="modal-box">
 		<h3 class="flex items-center gap-2 text-lg font-bold">
 			<span class="icon-[material-symbols-light--open-in-full] size-6" aria-hidden="true"></span>
@@ -41,4 +30,4 @@
 			<button class="btn btn-primary" onclick={() => onanswer(true)}>{m.editor.growCanvas} ({format(size)})</button>
 		</div>
 	</div>
-</dialog>
+</Modal>

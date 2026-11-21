@@ -21,7 +21,7 @@ import type { Link } from './link.js';
 import type { LogFn } from '../sync/log.js';
 import type { HeldFolder } from '../sync/plan.js';
 import { askAboveOf } from '../settings.js';
-import { createOp, heads, mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
+import { createOp, heads, knownRooms, mergeOps, resolve, roomHashOf, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
 import { wireErrorOf } from './live.js';
@@ -40,6 +40,8 @@ import type { P2pState, Store } from './store.js';
 /** Old rooms are visited this long after a removal, so devices that were offline learn about it */
 const OLD_ROOMS_FOR = 30 * 24 * 60 * 60 * 1000;
 const HELLO_TIMEOUT = 10_000;
+/** A device leaving its group waits this long for the others to take note */
+const LEAVE_WAIT = 2000;
 const INTERVAL = 60_000;
 /** Paths a session wrote are no local changes for this long */
 const OWN_WRITE_FOR = 10_000;
@@ -98,6 +100,8 @@ export class Device {
 	private peers = new Map<string, Peer>();
 	private unreachable = new Set<string>();
 	private outdated = new Set<string>();
+	/** Devices with a newer protocol version (this one needs the update) */
+	private newer = new Set<string>();
 	private rooms = new Map<string, NetworkRoom>();
 	private pairRooms = new Map<string, NetworkRoom>();
 	/** Rooms of guest shares and the guests connected to each */
@@ -137,7 +141,7 @@ export class Device {
 		this.identity = await this.options.store.identity();
 		this.state = await this.options.store.load();
 		this.state.invites = this.state.invites.filter((invite) => invite.expires > this.now());
-		this.group = resolve(this.state.ops);
+		this.group = resolve(this.state.ops, this.state.rooms);
 		this.log('device.start', { self: this.nameOf(this.identity.id), members: this.group ? [...this.group.members.keys()].map((id) => this.nameOf(id)) : [], scope: this.state.scope });
 		await this.connect();
 		for (const share of this.shares()) await this.listenForShare(share);
@@ -303,7 +307,7 @@ export class Device {
 		if (this.group) throw new Error('Already in a group');
 		if (this.state.removed) {
 			this.identity = await this.options.store.resetIdentity();
-			this.state = { ...this.state, removed: undefined, ops: [], devices: {}, log: [], vector: {} };
+			this.state = { ...this.state, removed: undefined, ops: [], rooms: undefined, devices: {}, log: [], vector: {} };
 		}
 		const room = this.options.network.join(await roomId('pair', code), code);
 		try {
@@ -318,13 +322,14 @@ export class Device {
 							key: this.identity.key,
 							name,
 							proof: await pairProof(code, 'new', fingerprints)
-						})) as unknown as { ops: Op[]; proof: string };
+						})) as unknown as { ops: Op[]; rooms?: Record<string, string>; proof: string };
 						if (reply.proof !== (await pairProof(code, 'inviter', fingerprints))) throw new Error('Wrong proof');
 						const ops = await verifyOps(reply.ops);
 						if (!resolve(ops)?.members.has(this.identity.id)) throw new Error('Not added');
 						clearTimeout(timer);
 						if (setup) this.state.setupPending = true;
 						if (scope) this.state.scope = scope;
+						this.state.rooms = await knownRooms(ops, reply.rooms ?? {});
 						await this.setOps(ops);
 						resolveJoin();
 					} catch (e) {
@@ -348,7 +353,11 @@ export class Device {
 	/** Removes another device (or this one: leaving the group) */
 	async remove(device: string) {
 		const name = this.group?.members.get(device)?.name ?? '';
-		await this.addOp({ type: 'remove', device, room: newRoomSecret() });
+		// The log only gets the hash of the new room secret: the removed device receives the log too
+		const room = newRoomSecret();
+		const roomHash = await roomHashOf(room);
+		this.state.rooms = { ...this.state.rooms, [roomHash]: room };
+		await this.addOp({ type: 'remove', device, roomHash });
 		this.peers.get(device)?.rpc.close();
 		if (device !== this.identity.id) this.options.onEvent?.({ type: 'removed', name });
 	}
@@ -367,7 +376,7 @@ export class Device {
 		this.leaveDevices();
 		await this.options.store.clearBases(peers);
 		this.identity = await this.options.store.resetIdentity();
-		this.state = { ...this.state, ops: [], devices: {}, log: [], vector: {}, invites: [], removed: undefined };
+		this.state = { ...this.state, ops: [], rooms: undefined, devices: {}, log: [], vector: {}, invites: [], removed: undefined };
 		this.group = null;
 		await this.save();
 		this.emit();
@@ -495,7 +504,8 @@ export class Device {
 		if (this.stopped) return;
 		const wanted = new Map<string, string>();
 		if (this.group && this.group.members.has(this.identity.id)) {
-			wanted.set(await roomId('group', this.group.room), this.group.room);
+			// Without the current secret (a removal this device only has the entry of) the old rooms lead to the others
+			if (this.group.room !== null) wanted.set(await roomId('group', this.group.room), this.group.room);
 			for (const old of this.group.oldRooms) {
 				if (old.until > this.now() - OLD_ROOMS_FOR) wanted.set(await roomId('group', old.room), old.room);
 			}
@@ -549,7 +559,7 @@ export class Device {
 		this.log('pair.added', { device: unique });
 		this.options.onEvent?.({ type: 'added', name: unique });
 		this.emit();
-		return { value: { ops: this.state.ops, proof: await pairProof(code, 'inviter', fingerprints) } as unknown as Json };
+		return { value: { ops: this.state.ops, rooms: this.state.rooms ?? {}, proof: await pairProof(code, 'inviter', fingerprints) } as unknown as Json };
 	}
 
 	/** A device connected in a group room: sign in both ways, then sync */
@@ -566,9 +576,11 @@ export class Device {
 		};
 		const handle = (method: string, handler: Handler) => rpc.handle(method, guarded(handler));
 
+		// Answered before the asker is known (it needs the log to know us): the log and nothing else – no room
+		// secrets, nothing about files or devices. A removed device that still finds a room learns only its removal.
 		rpc.handle('hello', async (params) => {
 			const answer = await answerHello(this.identity, this.state.ops, (params as { nonce: string }).nonce, link.fingerprints());
-			return { value: { ...answer, info: this.knowledge() } as unknown as Json };
+			return { value: answer as unknown as Json };
 		});
 		const release = serve(
 			{ handle },
@@ -607,7 +619,8 @@ export class Device {
 			})
 		);
 		handle('members', async (params) => {
-			await this.mergeMembers(await verifyOps(params as unknown as Op[]));
+			const { ops, rooms } = params as unknown as { ops: Op[]; rooms?: Record<string, string> };
+			await this.mergeMembers(await verifyOps(ops ?? []), rooms);
 		});
 		handle('knowledge', async (params) => {
 			const theirs = params as unknown as Knowledge;
@@ -625,14 +638,15 @@ export class Device {
 		rpc
 			.call('hello', { nonce: myNonce })
 			.then(async (reply) => {
-				const answer = reply as unknown as HelloAnswer & { info: Knowledge };
+				const answer = reply as unknown as HelloAnswer;
 				const check = await checkHello(answer, myNonce, link.fingerprints(), this.state.ops);
 				clearTimeout(timer);
 				if (epoch !== this.epoch) return fail();
 				if (!check.ok) {
 					this.log('signIn.rejected', { peer: answer.id ? this.nameOf(answer.id) : '?', reason: check.reason });
 					if (check.reason === 'version') {
-						this.outdated.add(answer.id);
+						// Say which side has to update: the older one
+						(answer.v > PROTOCOL ? this.newer : this.outdated).add(answer.id);
 						this.options.onOutdated?.(answer.v);
 						this.emit();
 					}
@@ -640,6 +654,7 @@ export class Device {
 				}
 				peerId = answer.id;
 				this.outdated.delete(peerId);
+				this.newer.delete(peerId);
 				this.unreachable.delete(peerId);
 				this.peers.get(peerId)?.rpc.close();
 				const peer: Peer = { id: peerId, rpc, link, syncing: null };
@@ -652,11 +667,15 @@ export class Device {
 				});
 				await this.mergeMembers(check.ops);
 				if (!this.group?.members.has(peerId)) return fail();
-				await this.takeKnowledge(peerId, answer.info, false);
 				verified(true);
-				// Entries the partner didn't have when it answered (e.g. a rename made during the sign-in) follow now
+				// Only now, and only once the partner has signed us in too (its handlers wait for that): the room secrets,
+				// entries it didn't have when it answered (e.g. a rename made during the sign-in), and what both know
 				const theirs = new Set((answer.ops ?? []).map((op) => op.id));
-				if (this.state.ops.some((op) => !theirs.has(op.id))) rpc.call('members', this.state.ops as unknown as Json).catch(() => {});
+				if (this.state.ops.some((op) => !theirs.has(op.id)) || Object.keys(this.state.rooms ?? {}).length) {
+					rpc.call('members', this.membersMessage()).catch(() => {});
+				}
+				await this.takeKnowledge(peerId, (await rpc.call('knowledge', this.knowledge() as unknown as Json)) as unknown as Knowledge, false);
+				if (this.peers.get(peerId) !== peer) return;
 				this.log('signIn.ok', { peer: this.nameOf(peerId), drives: this.drives(peerId) });
 				this.emit();
 				if (this.drives(peerId)) this.schedule(peer, 0);
@@ -763,17 +782,37 @@ export class Device {
 	private async addOp(body: Op['body']) {
 		const op = await createOp(this.identity, heads(this.state.ops), body, this.now());
 		this.log('members.add', { type: body.type, ...('device' in body ? { device: this.nameOf(body.device) } : {}), ...('name' in body ? { name: body.name } : {}) });
-		await this.setOps([...this.state.ops, op]);
-		for (const peer of this.peers.values()) peer.rpc.call('members', this.state.ops as unknown as Json).catch(() => {});
+		const ops = [...this.state.ops, op];
+		// Leaving: the others must hear it (and get the new room secret) before the connections go
+		if (body.type === 'remove' && body.device === this.identity.id) {
+			await Promise.race([this.announce(ops), new Promise((r) => setTimeout(r, LEAVE_WAIT))]);
+		}
+		await this.setOps(ops);
+		void this.announce(this.state.ops);
 		await this.connect();
 	}
 
-	private async mergeMembers(ops: Op[]) {
+	/** The member log for a signed-in device; the room secrets only for one that is a member by `ops` */
+	private membersMessage(ops = this.state.ops, member = true): Json {
+		return { ops, rooms: member ? (this.state.rooms ?? {}) : {} } as unknown as Json;
+	}
+
+	/** Sends the log to every connected device – a device it removes gets the entry, but no room secret */
+	private announce(ops: Op[]) {
+		const members = resolve(ops, this.state.rooms)?.members;
+		return Promise.all([...this.peers.values()].map((peer) => peer.rpc.call('members', this.membersMessage(ops, !!members?.has(peer.id))).catch(() => {})));
+	}
+
+	private async mergeMembers(ops: Op[], rooms: Record<string, string> = {}) {
 		const merged = mergeOps(this.state.ops, ops);
-		if (merged.length === this.state.ops.length) return;
+		// Secrets count only for removals of the log, checked against their hash
+		const known = await knownRooms(merged, { ...rooms, ...this.state.rooms });
+		const learned = Object.keys(known).length !== Object.keys(this.state.rooms ?? {}).length;
+		if (merged.length === this.state.ops.length && !learned) return;
+		if (learned) this.state.rooms = known;
 		const roomBefore = this.group?.room;
-		const known = new Set(this.state.ops.map((op) => op.id));
-		this.log('members.merged', { new: ops.filter((op) => !known.has(op.id)).map((op) => `${op.body.type} by ${this.nameOf(op.author)}`) });
+		const had = new Set(this.state.ops.map((op) => op.id));
+		this.log('members.merged', { new: ops.filter((op) => !had.has(op.id)).map((op) => `${op.body.type} by ${this.nameOf(op.author)}`), learnedRoom: learned });
 		await this.setOps(merged);
 		for (const [id, peer] of this.peers) if (!this.group?.members.has(id)) peer.rpc.close();
 		if (this.group?.room !== roomBefore || !this.group?.members.has(this.identity.id)) await this.connect();
@@ -781,7 +820,7 @@ export class Device {
 
 	private async setOps(ops: Op[]) {
 		this.state.ops = ops;
-		this.group = resolve(ops);
+		this.group = resolve(ops, this.state.rooms);
 		if (this.group?.removed.has(this.identity.id)) {
 			this.log('members.selfRemoved');
 			this.state.removed = true;
@@ -962,6 +1001,7 @@ export class Device {
 				online: self || !!peer,
 				unreachable: !peer && this.unreachable.has(id),
 				outdated: this.outdated.has(id),
+				newer: this.newer.has(id),
 				syncing: peer?.syncing ?? null,
 				lastSync: info?.lastSync ?? 0,
 				lastSeen: info?.lastSeen ?? 0,

@@ -22,13 +22,13 @@ const help = {
 			},
 			ribbon: {
 				title: 'Ribbon display',
-				text: 'When the window gets narrower, the groups on the right get smaller first: their buttons lose the text below the icon, then their text altogether, and at last a whole group becomes one button that opens it. The button with the bar icon at the right end of the tabs chooses how the ribbon is shown; the arrow next to it switches to “Tabs only” and back.',
+				text: 'When the window gets narrower, the groups on the right get smaller first: their buttons lose the text below the icon, then their text altogether, and at last a whole group becomes one button that opens it. The button with the bar icon at the right end of the tabs chooses how the ribbon is shown – for every in-browser tool on this device. The arrow next to it collapses the ribbon: only the tabs stay, and a click on a tab opens its commands over the page until you pick one; a double click on a tab or Ctrl+F1 do the same, and the arrow brings the ribbon back as it was.',
 				options: {
-					classic: { label: 'Classic (default)', text: 'Large buttons in groups with their names. Easiest to find things, takes about 120 pixels of height.' },
+					classic: { label: 'Classic (default on a computer)', text: 'Large buttons in groups with their names. Easiest to find things, takes about 120 pixels of height.' },
 					simplified: { label: 'Simplified', text: 'One compact row of buttons, without group names. Leaves more room for the pages.' },
-					tabs: { label: 'Tabs only', text: 'Only the tabs; a click on a tab opens its commands over the page until you pick one. Most room for the pages.' }
+					minimal: { label: 'Minimal (default on phones and tablets)', text: 'One row of icons without text; hold the pointer over an icon – or press and hold it – to see its name. Least height with every command in reach.' }
 				},
-				tip: 'Start with Classic until you know where things are, then switch to Simplified or Tabs only to see more of the page.',
+				tip: 'Start with Classic until you know where things are, then switch to Simplified or Minimal – or collapse the ribbon – to see more of the page.',
 				keys: [['Ctrl', 'F1']]
 			},
 			accessKeys: {
@@ -38,7 +38,7 @@ const help = {
 			},
 			phone: {
 				title: 'On a phone',
-				text: 'On a phone the ribbon is a single bar below the top bar: the button on the left picks the tab, the commands next to it are icons and scroll sideways. Press and hold an icon to see its name. Selecting comments switches to their tab by itself; a tool’s format tab is in the tab picker. Side panels open over the whole screen from the “View” tab.'
+				text: 'On a phone or tablet the ribbon starts as “Minimal”: the tabs in one row, below it the tab’s commands as icons that scroll sideways. Press and hold an icon to see its name. The arrow at the right of the tabs collapses the ribbon when you need the height. Selecting comments switches to their tab by itself; a tool’s format tab is among the tabs. Side panels open over the whole screen from the “View” tab.'
 			},
 			connected: {
 				title: 'In a connected folder',

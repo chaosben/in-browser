@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLLAPSED, fitGroups, keyTips, LARGE, MEDIUM, shrinkOrder, SMALL } from './ribbon';
+import { COLLAPSED, defaultMode, fitGroups, keyTips, LARGE, MEDIUM, ribbonSettings, shrinkOrder, SMALL } from './ribbon';
 
 // widths per group: large, medium, small, collapsed
 const g = (large: number) => [large, large * 0.7, large * 0.4, 30];
@@ -41,5 +41,23 @@ describe('keyTips', () => {
 	});
 	it('leaves keys that are taken', () => {
 		expect(keyTips(['File'], ['F'])).toEqual(['I']);
+	});
+});
+
+describe('the kept display', () => {
+	// The display was each tool's once, and “tabs only” one of its kinds: taken over as the collapsed ribbon
+	it.each([
+		[null, null, { collapsed: false }],
+		[null, { mode: 'simplified', tab: 'home' }, { mode: 'simplified', collapsed: false }],
+		[null, { mode: 'tabs', tab: 'home' }, { collapsed: true }],
+		[{ mode: 'minimal', collapsed: true }, { mode: 'classic' }, { mode: 'minimal', collapsed: true }],
+		[{ collapsed: false }, { mode: 'tabs' }, { collapsed: false }],
+		[{ mode: 'unknown' }, null, { collapsed: false }]
+	])('of %j (suite) and %j (tool) is %j', (suite, tool, expected) => {
+		expect(ribbonSettings(suite, tool)).toEqual(expected);
+	});
+
+	it('follows the device until a display is chosen', () => {
+		expect([defaultMode(false), defaultMode(true)]).toEqual(['classic', 'minimal']);
 	});
 });

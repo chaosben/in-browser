@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createIdentity, type Identity } from './identity.js';
-import { createOp, heads, mergeOps, resolve, verifyOps, type Op } from './members.js';
+import { createOp, heads, knownRooms, mergeOps, resolve, roomHashOf, verifyOps, type Op } from './members.js';
 
 // Real Ed25519 signatures (WebCrypto in Node)
 
@@ -45,6 +45,18 @@ describe('members', () => {
 		expect([...g.removed.keys()]).toEqual([c.id]);
 		expect(g.room).toBe('r1');
 		expect(g.oldRooms).toEqual([{ room: 'r0', until: 10 }]);
+	});
+
+	it('keeps the new room secret out of the log: only who has it knows the room', async () => {
+		const log = await group();
+		const roomHash = await roomHashOf('r1');
+		const ops = [...log, await createOp(a, heads(log), { type: 'remove', device: c.id, roomHash }, 10)];
+		expect(JSON.stringify(ops)).not.toContain('"r1"');
+		// The removed device (and a member that hasn't been told yet) only has the old room
+		expect(resolve(ops)).toMatchObject({ room: null, oldRooms: [{ room: 'r0', until: 10 }] });
+		expect(resolve(ops, await knownRooms(ops, { [roomHash]: 'r1' }))!.room).toBe('r1');
+		// A secret that doesn't match the hash of a removal is not taken
+		expect(await knownRooms(ops, { [roomHash]: 'other', [await roomHashOf('x')]: 'x' })).toEqual({});
 	});
 
 	it('a removal beats what the removed device did concurrently', async () => {

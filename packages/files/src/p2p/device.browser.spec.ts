@@ -66,21 +66,40 @@ describe('P2P devices', { timeout: 30_000 }, () => {
 		await expect(c.device.join(code, 'C', 1500)).rejects.toThrow('timeout');
 	});
 
-	it('removes a device, also when it was offline at the time', async () => {
+	it('removes a device, also when it was offline at the time: it learns that and nothing else', async () => {
 		const network = hub();
 		const [a, b, c] = await pairedGroup(network, 'A', 'B', 'C');
 		await until(() => online(a, 'C') && online(b, 'C'), 15_000, 'C online');
-		// C goes offline, A removes it
+		await writeText(a.tree, '/before.txt', 'x');
+		await a.device.localChange(['/before.txt']);
+		// B and C go offline, A removes C
+		b.device.stop();
 		c.device.stop();
 		await a.device.remove(c.device.identity.id);
 		expect(a.view().devices.map((d) => d.name).sort()).toEqual(['A', 'B']);
-		await until(() => b.view().devices.length === 2, 15_000, 'B learns the removal');
-		// C comes back (same storage): it finds the others in the old room, learns about its removal, can't sync
-		const back = await device(network, 'C', c.store, c.tree);
-		await until(() => back.view().state === 'removed', 15_000, 'C learns it was removed');
+		const room = a.device.group!.room!;
+		// B comes back (same storage): it meets A in the old room and is given the new one as a member
+		const b2 = await device(network, 'B', b.store, b.tree);
+		await until(() => b2.device.group?.room === room && online(b2, 'A'), 15_000, 'B learns the removal and the new room');
+		// C comes back: it finds the others in the old room, learns about its removal – but not the new room, and
+		// nothing about files or devices since
 		await writeText(a.tree, '/secret.txt', 'not for C');
 		await a.device.localChange(['/secret.txt']);
+		const back = await device(network, 'C', c.store, c.tree);
+		await until(() => back.view().state === 'removed', 15_000, 'C learns it was removed');
 		await new Promise((r) => setTimeout(r, 1000));
 		expect(await back.tree.stat('/secret.txt')).toBeNull();
+		const known = JSON.stringify(back.device.state);
+		expect(known).not.toContain(room);
+		expect(known).not.toContain('/secret.txt');
+	});
+
+	it('tells the others when it leaves', async () => {
+		const network = hub();
+		const [a, b] = await pairedGroup(network, 'A', 'B');
+		await until(() => online(a, 'B') && online(b, 'A'), 15_000, 'both online');
+		await b.device.leave();
+		await until(() => a.view().devices.length === 1, 15_000, 'A learns that B left');
+		expect(a.device.group!.room).not.toBeNull();
 	});
 });

@@ -1,5 +1,5 @@
 import { runSync, type SyncOptions, type SyncResult } from '../sync/apply.js';
-import { GONE, treeSide, type Other, type Outcome } from '../sync/tree-ops.js';
+import { GONE, treeSide, type Other, type Outcome, type PackageCopies } from '../sync/tree-ops.js';
 import type { LogFn } from '../sync/log.js';
 import type { Base, FileState, HeldFolder, Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
@@ -73,7 +73,9 @@ const stateToJson = (s: FileState | null): Json => (s ? { kind: s.kind, size: s.
  * device for other sessions if the driver vanished in the middle of one.
  */
 export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, setup, allowFolders, free, limit, log }: ServeOptions): () => void {
-	const side = treeSide(tree, { onWrite, log });
+	// One session is one run: package copies (`PackageCopies`) are made once in it
+	let copies: PackageCopies = new Map();
+	const side = treeSide(tree, { onWrite, log, packages: () => copies });
 	let holding = false;
 	const release = () => {
 		if (holding) gate.leave();
@@ -81,6 +83,7 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, al
 	};
 	rpc.handle('begin', async () => {
 		holding = gate.enter();
+		copies = new Map();
 		const allow = holding && !!allowDeletes?.();
 		const settingUp = !!setup?.();
 		log?.('serve.begin', { accepted: holding, allowDeletes: allow, setup: settingUp });

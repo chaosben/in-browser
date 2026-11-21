@@ -11,8 +11,10 @@ export interface DeviceView {
 	online: boolean;
 	/** In the room, but no direct connection came about */
 	unreachable: boolean;
-	/** Has another protocol version */
+	/** Has an older protocol version: it needs the update */
 	outdated: boolean;
+	/** Has a newer protocol version: this device needs the update */
+	newer: boolean;
 	syncing: { done: number; total: number } | null;
 	lastSync: number;
 	lastSeen: number;

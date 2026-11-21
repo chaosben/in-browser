@@ -1,10 +1,10 @@
+import { showError } from '@in-browser/files/errors.js';
 import { resolve } from '$app/paths';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { openUrl, type Format } from '@in-browser/files/formats.js';
 import { copy, list, mkdir, move, remove, trashOf, write } from '@in-browser/files/fs.js';
 import { moveToTrash, deleteToTrash } from '@in-browser/files/trash-browser.js';
-import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
-import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
+import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 import { basename, isConnected, join, nameProblem, parent, uniqueName } from '@in-browser/files/path.js';
 import { m } from '#lib/i18n/index.js';
 import type { Item } from './items.js';
@@ -15,8 +15,7 @@ import { clipboard, lastUndo, type Manager } from './manager.svelte.js';
 // “Undo”, and so does deleting (the trash's message); the last of these is also the ribbon's “Undo” (`lastUndo`).
 
 export function fail(e: unknown, retry?: () => void) {
-	console.error(e);
-	toast(filesErrorText(e), 'error', 8000, accessAction(e, retry));
+	showError(e, { retry });
 }
 
 /** A message about a step with “Undo”, which is also the ribbon's “Undo” until the next step */

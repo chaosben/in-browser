@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { untrack } from 'svelte';
 	import { parseInviteCode } from '@in-browser/files/p2p/auth.js';
 	import { groupBase32 } from '@in-browser/files/p2p/base32.js';
@@ -35,19 +36,9 @@
 		}
 	}
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		if (phase !== 'connecting') onclose();
-	}}
->
+<Modal onclose={onclose} busy={phase === 'connecting'}>
 	<form
 		class="modal-box flex flex-col gap-4"
 		onsubmit={(e) => {
@@ -83,4 +74,4 @@
 			<button class="btn btn-primary" disabled={!code || !name.trim() || phase === 'connecting'}>{m.devices.start}</button>
 		</div>
 	</form>
-</dialog>
+</Modal>

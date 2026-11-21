@@ -2,9 +2,11 @@
 	// The ribbon of a tool, modeled on Microsoft Office and LibreOffice (see `ribbon.ts`): tabs with labeled groups of
 	// commands below the BrandBar; quick commands (undo/redo) fixed left of the tabs; contextual tabs for the current
 	// object after the others. Room runs out → groups shrink (large → medium → small → collapsed), always the same way
-	// for the same width. Displays: classic, simplified (one row), tabs only (Ctrl+F1 or a double click on a tab).
-	// Alt or F10 show access keys. On phones (coarse pointer or narrow) it is one bar in the same place: a tab picker and
-	// a row of icon buttons that scrolls sideways (a long press names a command; on a split button it opens its menu).
+	// for the same width. Displays: classic, simplified (one row), minimal (one row of icons) – the same in every tool
+	// of this device, minimal by default where fingers point or the window is narrow. Apart from the display the
+	// ribbon can be collapsed (the arrow, Ctrl+F1, a double click on a tab): only the tabs stay, a tab opens its
+	// commands over the page. Alt or F10 show access keys. With a finger: the minimal row has 44 px buttons and scrolls
+	// sideways instead of collapsing groups, and a long press names a command (on a split button it opens its menu).
 	// The page places it as the first child of a flex column.
 	import { MediaQuery } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
@@ -17,7 +19,10 @@
 		keyTips,
 		LARGE,
 		MEDIUM,
+		defaultMode,
+		RIBBON_KEY,
 		RIBBON_MODES,
+		ribbonSettings,
 		shrinkOrder,
 		SMALL,
 		type GroupSize,
@@ -35,7 +40,7 @@
 		tabs: RibbonTab[];
 		/** Always visible left of the tabs (undo, redo) */
 		quick?: Command[];
-		/** The tool's storage prefix: display and tab are kept as `<storage>:ribbon` */
+		/** The tool's storage prefix: its tab is kept as `<storage>:ribbon` (the display is the suite's, `RIBBON_KEY`) */
 		storage: string;
 		/** The tab shown until the user picks one (default: the first; “File” comes first but isn't where work starts) */
 		initial?: string;
@@ -45,13 +50,23 @@
 
 	const t = $derived(brandMessages());
 	const narrow = new MediaQuery('max-width: 639px', false);
-	const phone = $derived(coarsePointer.current || narrow.current);
+	/** A finger points: larger targets, sideways scrolling, a long press names a command */
+	const touch = $derived(coarsePointer.current);
+	/** Fingers or little room: icons only unless the user chose a display, contextual tabs open by themselves */
+	const compact = $derived(touch || narrow.current);
 
-	const stored = untrack(() => loadJson<{ mode?: RibbonMode; tab?: string }>(`${storage}:ribbon`, {}));
-	let mode = $state<RibbonMode>(stored.mode && RIBBON_MODES.includes(stored.mode) ? stored.mode : 'classic');
-	let tabId = $state(stored.tab ?? untrack(() => initial) ?? '');
-	/** Tabs only: the open tab's panel lies over the page */
+	const stored = untrack(() => loadJson<{ tab?: string } | null>(`${storage}:ribbon`, null));
+	const kept = untrack(() => ribbonSettings(loadJson<unknown>(RIBBON_KEY, null), stored));
+	/** The display the user chose (none: the device's default) */
+	let chosen = $state(kept.mode);
+	const mode = $derived<RibbonMode>(chosen ?? defaultMode(compact));
+	/** Only the tabs show; a tab opens its commands over the page */
+	let collapsed = $state(!!kept.collapsed);
+	let tabId = $state(stored?.tab ?? untrack(() => initial) ?? '');
+	/** Collapsed: the open tab's panel lies over the page */
 	let open = $state(false);
+	/** The minimal row under a finger: 44 px buttons, never collapsed groups */
+	const bar = $derived(touch && mode === 'minimal');
 	/** The tab before a contextual one opened by itself (back to it when the object is gone) */
 	let before: string | null = null;
 
@@ -59,11 +74,15 @@
 	const current = $derived(shown.find((tab) => tab.id === tabId) ?? shown[0]);
 
 	function store() {
-		storeJson(`${storage}:ribbon`, { mode, tab: current?.contextual ? (before ?? shown[0]?.id) : current?.id });
+		storeJson(`${storage}:ribbon`, { tab: current?.contextual ? (before ?? shown[0]?.id) : current?.id });
+	}
+
+	function storeDisplay() {
+		storeJson(RIBBON_KEY, { mode: chosen, collapsed });
 	}
 
 	function select(id: string) {
-		if (id === current?.id && mode === 'tabs') {
+		if (id === current?.id && collapsed) {
 			open = !open;
 			return;
 		}
@@ -72,14 +91,20 @@
 		if (to?.contextual) before = current?.contextual ? before : (current?.id ?? null);
 		else before = null;
 		tabId = id;
-		if (mode === 'tabs') open = true;
+		if (collapsed) open = true;
 		store();
 	}
 
 	function setMode(next: RibbonMode) {
-		mode = next;
+		chosen = next;
 		open = false;
-		store();
+		storeDisplay();
+	}
+
+	function toggleCollapsed() {
+		collapsed = !collapsed;
+		open = false;
+		storeDisplay();
 	}
 
 	// A contextual tab: phones switch to it when it appears (Office mobile does; unless it says not to), every ribbon
@@ -93,7 +118,7 @@
 			const gone = !shown.some((tab) => tab.id === tabId);
 			const wasContextual = !!tabs.find((tab) => tab.id === tabId)?.contextual;
 			if (gone && wasContextual && appeared) tabId = appeared.id;
-			else if (appeared && phone && appeared.follow?.() !== false) {
+			else if (appeared && compact && appeared.follow?.() !== false) {
 				before = current?.contextual ? before : (current?.id ?? null);
 				tabId = appeared.id;
 			} else if (gone && before) {
@@ -114,8 +139,12 @@
 
 	const sizes = $derived.by((): GroupSize[] => {
 		const groups = current?.groups ?? [];
-		if (widths.length !== groups.length || !available) return groups.map(() => LARGE);
-		return fitGroups(widths, available, shrinkOrder(groups.length), GAP);
+		// Minimal: icons only – under a finger the row scrolls, else groups that don't fit collapse
+		if (bar) return groups.map(() => SMALL);
+		if (widths.length !== groups.length || !available) return groups.map(() => (mode === 'minimal' ? SMALL : LARGE));
+		if (mode !== 'minimal') return fitGroups(widths, available, shrinkOrder(groups.length), GAP);
+		const icons = widths.map((row) => [row[SMALL], row[SMALL], row[SMALL], row[COLLAPSED]]);
+		return fitGroups(icons, available, shrinkOrder(groups.length), GAP).map((size) => (size === COLLAPSED ? COLLAPSED : SMALL));
 	});
 
 	$effect(() => {
@@ -129,7 +158,7 @@
 	$effect(() => {
 		void current;
 		void mode;
-		void phone;
+		void touch;
 		if (!measure) return;
 		const el = measure;
 		const run = () => {
@@ -167,7 +196,7 @@
 	function run(c: Command) {
 		if (!enabled(c)) return;
 		popover = null;
-		if (mode === 'tabs') open = false;
+		if (collapsed) open = false;
 		c.run?.();
 	}
 
@@ -200,12 +229,11 @@
 	}
 
 	$effect(() => {
-		if (phone) return;
 		let alone = false;
 		const down = (e: KeyboardEvent) => {
 			if (e.key === 'F1' && (e.ctrlKey || e.metaKey)) {
 				e.preventDefault();
-				setMode(mode === 'tabs' ? 'classic' : 'tabs');
+				toggleCollapsed();
 				return;
 			}
 			if (e.key === 'Alt') {
@@ -239,7 +267,7 @@
 					const i = tabTips.findIndex((tip) => tip === typed);
 					if (i >= 0) {
 						select(shown[i].id);
-						if (mode === 'tabs') open = true;
+						if (collapsed) open = true;
 						tips = 'commands';
 					} else if (!tabTips.some((tip) => tip.startsWith(typed))) tips = null;
 				}
@@ -285,7 +313,7 @@
 		};
 	});
 
-	// Tabs only, or a collapsed group open: a press elsewhere or Esc closes it
+	// Collapsed with a tab open, or a collapsed group open: a press elsewhere or Esc closes it
 	let root = $state<HTMLElement>();
 	$effect(() => {
 		if (!open && !popover) return;
@@ -312,29 +340,22 @@
 		buttons[(i + (e.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length].focus();
 	}
 
+	const collapseKeys = $derived(shortcutLabel({ key: 'F1', ctrl: true }, t.keys));
+	const collapseLabel = $derived(collapsed ? t.ribbon.expand : t.ribbon.collapse);
+
+	// Only the displays: collapsing has its own button next to this menu (decided by the user: not twice)
 	function displayMenu(e: MouseEvent) {
 		openMenuBelow(
 			e,
-			RIBBON_MODES.map((m) => ({
-				label: t.ribbon.modes[m],
-				icon: m === mode ? 'icon-[material-symbols-light--check]' : undefined,
-				run: () => setMode(m)
-			}))
+			RIBBON_MODES.map((m) => ({ label: t.ribbon.modes[m], checked: m === mode, run: () => setMode(m) }))
 		);
 	}
 
-	/** Phones: a long press on a command names it (buttons show icons only); a split button opens its menu too */
+	/** With a finger: a long press on a command names it (icons carry no text); a split button opens its menu too */
 	function explain(e: MouseEvent, c: Command) {
 		e.preventDefault();
 		if (c.run && c.menu) openMenu(e, c);
 		else toast(c.label, 'info', 2000);
-	}
-
-	function tabMenu(e: MouseEvent) {
-		openMenuBelow(
-			e,
-			shown.map((tab) => ({ label: tab.label, icon: tab.id === current?.id ? 'icon-[material-symbols-light--check]' : undefined, run: () => select(tab.id) }))
-		);
 	}
 </script>
 
@@ -354,7 +375,22 @@
 		: iconOnly
 			? 'btn btn-ghost btn-sm btn-square'
 			: 'btn btn-ghost btn-sm justify-start gap-1.5 px-2 font-normal'}
-	{#if c.run && c.menu}
+	{#if bar && !inMenu}
+		<!-- Under a finger: one 44 px button; a split button runs on a tap and opens its menu on a long press -->
+		<button
+			class={['btn btn-ghost btn-square relative h-auto min-h-11 w-11 shrink-0 rounded-none', on && 'btn-active']}
+			disabled={off}
+			aria-label={c.label}
+			aria-pressed={c.active ? on : undefined}
+			aria-haspopup={c.menu && !c.run ? 'menu' : undefined}
+			data-command={c.id}
+			onclick={(e) => (c.run ? run(c) : openMenu(e, c))}
+			oncontextmenu={(e) => explain(e, c)}
+		>
+			<span class={[c.icon, 'size-6']} aria-hidden="true"></span>
+			{#if c.menu}<span class="icon-[material-symbols-light--arrow-drop-down] absolute right-0 bottom-0 size-3.5 opacity-60" aria-hidden="true"></span>{/if}
+		</button>
+	{:else if c.run && c.menu}
 		<div class={['join relative', big && 'flex-col']}>
 			<button
 				class={[look, 'join-item', on && 'btn-active', big && 'rounded-b-none']}
@@ -364,6 +400,7 @@
 				aria-label={iconOnly ? c.label : undefined}
 				data-command={c.id}
 				onclick={() => run(c)}
+				oncontextmenu={touch ? (e) => explain(e, c) : undefined}
 			>
 				<span class={[c.icon, big ? 'size-7' : 'size-5', 'shrink-0']} aria-hidden="true"></span>
 				{#if !iconOnly}<span class={big ? 'line-clamp-2 text-center' : 'truncate'}>{c.label}</span>{/if}
@@ -389,6 +426,7 @@
 			aria-label={iconOnly ? c.label : undefined}
 			data-command={c.id}
 			onclick={(e) => (c.run ? run(c) : openMenu(e, c))}
+			oncontextmenu={touch ? (e) => explain(e, c) : undefined}
 		>
 			<span class={[c.icon, big ? 'size-7' : 'size-5', 'shrink-0']} aria-hidden="true"></span>
 			{#if !iconOnly}<span class={big ? 'line-clamp-2 text-center' : 'truncate'}>{c.label}</span>{/if}
@@ -472,147 +510,104 @@
 				{@render group(g, size as GroupSize, i, true)}
 			{/each}
 		{:else}
-			{#if i > 0}<div class={['bg-base-content/15 w-px shrink-0', mode === 'classic' ? 'my-1 self-stretch' : 'h-6']} aria-hidden="true"></div>{/if}
+			{#if i > 0}<div class={['bg-base-content/15 w-px shrink-0', mode === 'classic' ? 'my-1 self-stretch' : bar ? 'my-2 self-stretch' : 'h-6 self-center']} aria-hidden="true"></div>{/if}
 			{@render group(g, sizes[i] ?? LARGE, i)}
 		{/if}
 	{/each}
 {/snippet}
 
-{#if phone}
-	<!-- Phones: one bar – the tab picker, quick commands, then the tab's commands as icons (scrolls sideways) -->
-	<div class="border-base-300 bg-base-100 flex shrink-0 items-stretch border-b" role="toolbar" aria-label={t.ribbon.label} data-testid="ribbon">
-		<button
-			class={['btn btn-ghost h-auto min-h-11 max-w-20 shrink-0 gap-0 rounded-none px-1.5 text-xs font-normal', current?.contextual && 'text-selection bg-selection/15']}
-			onclick={tabMenu}
-			aria-haspopup="menu"
-			aria-label={t.ribbon.tabs}
-		>
-			<span class="truncate">{current?.label}</span><span class="icon-[material-symbols-light--arrow-drop-down] size-5 shrink-0" aria-hidden="true"></span>
-		</button>
-		{#each quick as c (c.id)}
-			<button
-				class="btn btn-ghost btn-square h-auto min-h-11 w-11 shrink-0 rounded-none"
-				disabled={!enabled(c)}
-				aria-label={c.label}
-				onclick={() => run(c)}
-				oncontextmenu={(e) => explain(e, c)}
-			>
-				<span class={[c.icon, 'size-6']} aria-hidden="true"></span>
+<div bind:this={root} class="border-base-300 bg-base-100 relative z-20 shrink-0 border-b" data-testid="ribbon">
+	<!-- Tabs, with the quick commands before them -->
+	<div class={['flex items-end gap-0.5 px-2', touch ? 'h-10' : 'h-8']}>
+		{#each quick as c, i (c.id)}
+			<button class="btn btn-ghost btn-xs btn-square relative mb-0.5" disabled={!enabled(c)} title={title(c)} aria-label={c.label} onclick={() => run(c)}>
+				<span class={[c.icon, 'size-5']} aria-hidden="true"></span>
+				{@render tip(tips === 'tabs' ? String(i + 1) : null)}
 			</button>
 		{/each}
-		<div class="bg-base-content/15 my-2 w-px shrink-0" aria-hidden="true"></div>
-		<div class="flex min-w-0 flex-1 items-stretch overflow-x-auto">
-			{#each current?.groups ?? [] as g (g.id)}
-				{#each g.items as it (it.id)}
-					{#if isCustom(it)}
-						<div class="flex shrink-0 items-center px-1">{@render it.custom(SMALL)}</div>
-					{:else}
-						{@const c = it}
-						<button
-							class={['btn btn-ghost btn-square relative h-auto min-h-11 w-11 shrink-0 rounded-none', c.active?.() && 'btn-active']}
-							disabled={!enabled(c)}
-							aria-label={c.label}
-							aria-pressed={c.active ? (c.active() ?? false) : undefined}
-							data-command={c.id}
-							onclick={(e) => (c.run ? run(c) : openMenu(e, c))}
-							oncontextmenu={(e) => explain(e, c)}
-						>
-							<span class={[c.icon, 'size-6']} aria-hidden="true"></span>
-							{#if c.menu}<span class="icon-[material-symbols-light--arrow-drop-down] absolute right-0 bottom-0 size-3.5 opacity-60" aria-hidden="true"></span>{/if}
-						</button>
-					{/if}
-				{/each}
-			{/each}
-		</div>
-	</div>
-{:else}
-	<div bind:this={root} class="border-base-300 bg-base-100 relative z-20 shrink-0 border-b" data-testid="ribbon">
-		<!-- Tabs, with the quick commands before them -->
-		<div class="flex h-8 items-end gap-0.5 px-2">
-			{#each quick as c, i (c.id)}
-				<button class="btn btn-ghost btn-xs btn-square relative mb-0.5" disabled={!enabled(c)} title={title(c)} aria-label={c.label} onclick={() => run(c)}>
-					<span class={[c.icon, 'size-5']} aria-hidden="true"></span>
-					{@render tip(tips === 'tabs' ? String(i + 1) : null)}
+		{#if quick.length}<div class="bg-base-content/15 mx-1 mb-1.5 h-4 w-px" aria-hidden="true"></div>{/if}
+		<div class="flex min-w-0 items-end gap-0.5 overflow-x-auto" role="tablist" aria-label={t.ribbon.tabs}>
+			{#each shown as tab, i (tab.id)}
+				{@const selected = tab.id === current?.id && (!collapsed || open)}
+				<button
+					class={[
+						'relative shrink-0 rounded-t px-3 text-sm whitespace-nowrap',
+						touch ? 'py-2' : 'py-1',
+						tab.contextual
+							? ['text-selection border-selection border-t-2', selected ? 'bg-selection/25 font-medium' : 'bg-selection/10 hover:bg-selection/20']
+							: selected
+								? 'bg-base-200 font-medium'
+								: 'hover:bg-base-200/60'
+					]}
+					role="tab"
+					aria-selected={tab.id === current?.id}
+					data-tab={tab.id}
+					onclick={() => select(tab.id)}
+					ondblclick={toggleCollapsed}
+				>
+					{tab.label}
+					{@render tip(tips === 'tabs' ? tabTips[i] : null)}
 				</button>
 			{/each}
-			{#if quick.length}<div class="bg-base-content/15 mx-1 mb-1.5 h-4 w-px" aria-hidden="true"></div>{/if}
-			<div class="flex min-w-0 items-end gap-0.5 overflow-x-auto" role="tablist" aria-label={t.ribbon.tabs}>
-				{#each shown as tab, i (tab.id)}
-					{@const selected = tab.id === current?.id && (mode !== 'tabs' || open)}
-					<button
-						class={[
-							'relative shrink-0 rounded-t px-3 py-1 text-sm whitespace-nowrap',
-							tab.contextual
-								? ['text-selection border-selection border-t-2', selected ? 'bg-selection/25 font-medium' : 'bg-selection/10 hover:bg-selection/20']
-								: selected
-									? 'bg-base-200 font-medium'
-									: 'hover:bg-base-200/60'
-						]}
-						role="tab"
-						aria-selected={tab.id === current?.id}
-						data-tab={tab.id}
-						onclick={() => select(tab.id)}
-						ondblclick={() => setMode(mode === 'tabs' ? 'classic' : 'tabs')}
-					>
-						{tab.label}
-						{@render tip(tips === 'tabs' ? tabTips[i] : null)}
-					</button>
-				{/each}
-			</div>
-			<div class="flex-1"></div>
-			<button class="btn btn-ghost btn-xs mb-0.5 gap-0.5 font-normal" onclick={displayMenu} title={t.ribbon.display} aria-label={t.ribbon.display} aria-haspopup="menu">
-				<span class="icon-[material-symbols-light--toolbar-outline] size-5" aria-hidden="true"></span>
-				<span class="icon-[material-symbols-light--arrow-drop-down] size-4" aria-hidden="true"></span>
-			</button>
-			<button
-				class="btn btn-ghost btn-xs btn-square mb-0.5"
-				onclick={() => setMode(mode === 'tabs' ? 'classic' : 'tabs')}
-				title={mode === 'tabs' ? t.ribbon.expand : t.ribbon.collapse}
-				aria-label={mode === 'tabs' ? t.ribbon.expand : t.ribbon.collapse}
-			>
-				<span class={[mode === 'tabs' ? 'icon-[material-symbols-light--keyboard-arrow-down]' : 'icon-[material-symbols-light--keyboard-arrow-up]', 'size-5']} aria-hidden="true"></span>
-			</button>
 		</div>
-		<!-- The current tab's groups; tabs only: over the page while open -->
-		{#if mode !== 'tabs' || open}
-			<div
-				bind:this={panel}
-				class={[
-					'bg-base-200 flex items-stretch overflow-x-auto overflow-y-hidden px-1',
-					mode === 'simplified' ? 'h-10 gap-1' : 'h-[5.75rem] gap-1 py-1',
-					mode === 'tabs' && 'border-base-300 absolute inset-x-0 top-full border-b shadow-lg'
-				]}
-				role="toolbar"
-				tabindex="-1"
-				aria-label={current?.label}
-				onkeydown={arrows}
-			>
-				{@render groups()}
-			</div>
-		{/if}
-		<!-- Each group at every size, invisible, to know their widths (clipped: it is wider than the window) -->
+		<div class="flex-1"></div>
+		<button class="btn btn-ghost btn-xs mb-0.5 gap-0.5 font-normal" onclick={displayMenu} title={t.ribbon.display} aria-label={t.ribbon.display} aria-haspopup="menu">
+			<span class="icon-[material-symbols-light--toolbar-outline] size-5" aria-hidden="true"></span>
+			<span class="icon-[material-symbols-light--arrow-drop-down] size-4" aria-hidden="true"></span>
+		</button>
+		<button
+			class="btn btn-ghost btn-xs btn-square mb-0.5"
+			onclick={toggleCollapsed}
+			title={`${collapseLabel} (${collapseKeys})`}
+			aria-label={collapseLabel}
+			aria-expanded={!collapsed}
+			data-ribbon-collapse
+		>
+			<span class={[collapsed ? 'icon-[material-symbols-light--keyboard-arrow-down]' : 'icon-[material-symbols-light--keyboard-arrow-up]', 'size-5']} aria-hidden="true"></span>
+		</button>
+	</div>
+	<!-- The current tab's groups; collapsed: over the page while open -->
+	{#if !collapsed || open}
+		<div
+			bind:this={panel}
+			class={[
+				'bg-base-200 flex items-stretch overflow-x-auto overflow-y-hidden',
+				mode === 'classic' ? 'h-[5.75rem] gap-1 px-1 py-1' : bar ? 'h-11' : 'h-10 gap-1 px-1',
+				collapsed && 'border-base-300 absolute inset-x-0 top-full border-b shadow-lg'
+			]}
+			role="toolbar"
+			tabindex="-1"
+			aria-label={current?.label}
+			onkeydown={arrows}
+		>
+			{@render groups()}
+		</div>
+	{/if}
+	<!-- Each group at every size, invisible, to know their widths (clipped: it is wider than the window); not for
+	     the row under a finger, which scrolls instead of fitting -->
+	{#if !bar}
 		<div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" inert>
-			<div bind:this={measure} class={['invisible absolute top-0 left-0 flex w-max items-stretch', mode === 'simplified' ? 'h-10' : 'h-[5.75rem] py-1']}>
+			<div bind:this={measure} class={['invisible absolute top-0 left-0 flex w-max items-stretch', mode === 'classic' ? 'h-[5.75rem] py-1' : 'h-10']}>
 				{@render groups(true)}
 			</div>
 		</div>
-		{#if popover && openGroupOf}
-			{@const g = openGroupOf}
-			<div
-				class="bg-base-100 border-base-300 fixed z-40 flex h-[5.75rem] items-stretch rounded border p-1 shadow-lg"
-				style="left: {Math.min(popover.x, innerWidth - 320)}px; top: {popover.y}px"
-				role="group"
-				aria-label={g.label}
-			>
-				<div class="flex flex-col">
-					<div class="grid flex-1 grid-flow-col grid-rows-3 content-center items-center gap-x-0.5">
-						{#each g.items as it (it.id)}
-							{@render item(it, MEDIUM, true)}
-						{/each}
-					</div>
-					<div class="h-4 text-center text-[11px] leading-none opacity-60">{g.label}</div>
+	{/if}
+	{#if popover && openGroupOf}
+		{@const g = openGroupOf}
+		<div
+			class="bg-base-100 border-base-300 fixed z-40 flex h-[5.75rem] items-stretch rounded border p-1 shadow-lg"
+			style="left: {Math.min(popover.x, innerWidth - 320)}px; top: {popover.y}px"
+			role="group"
+			aria-label={g.label}
+		>
+			<div class="flex flex-col">
+				<div class="grid flex-1 grid-flow-col grid-rows-3 content-center items-center gap-x-0.5">
+					{#each g.items as it (it.id)}
+						{@render item(it, MEDIUM, true)}
+					{/each}
 				</div>
+				<div class="h-4 text-center text-[11px] leading-none opacity-60">{g.label}</div>
 			</div>
-		{/if}
-	</div>
-{/if}
+		</div>
+	{/if}
+</div>

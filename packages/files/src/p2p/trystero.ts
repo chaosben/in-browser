@@ -6,16 +6,34 @@ import type { Network } from './network.js';
 // them (password = room secret); the data then flows directly between the devices (WebRTC, DTLS).
 
 const APP_ID = 'in-browser/files';
+
+/**
+ * Where devices find each other. Two devices meet only on a relay both use, so the list is ours, not the library's
+ * (its default is picked from a list that changes with its versions – devices on different versions of the site
+ * would then wait in different places, online and without an error). The first five are what every version before
+ * used; the rest is reserve for failures and rate limits of single relays.
+ * Changing it: keep the relays of the versions still in use (open tabs, installed apps, p2p-nodes before their
+ * update) for a while, and only ever drop a few at a time.
+ */
+export const RELAYS: readonly string[] = [
+	'wss://relay.mostro.network',
+	'wss://relay.nostr.com',
+	'wss://nostr.sathoarder.com',
+	'wss://relay.nostr.net',
+	'wss://relay.ditto.pub',
+	'wss://relay.primal.net',
+	'wss://relay.snort.social'
+];
 export const STUN = 'stun:stun.cloudflare.com:3478';
 
 export interface TrysteroOptions {
 	/** WebRTC outside the browser (the p2p-node in Node) */
 	rtcPolyfill?: typeof RTCPeerConnection;
-	/** Other relays than Trystero's public ones (tests) */
-	relays?: string[];
+	/** Other relays than `RELAYS` (tests; the p2p-node's `IN_BROWSER_RELAYS`) */
+	relays?: readonly string[];
 }
 
-export const createTrysteroNetwork = ({ rtcPolyfill, relays }: TrysteroOptions = {}): Network => ({
+export const createTrysteroNetwork = ({ rtcPolyfill, relays = RELAYS }: TrysteroOptions = {}): Network => ({
 	join(roomId, password) {
 		const room = joinRoom(
 			{
@@ -24,7 +42,7 @@ export const createTrysteroNetwork = ({ rtcPolyfill, relays }: TrysteroOptions =
 				identity: 'none',
 				rtcConfig: { iceServers: [{ urls: STUN }] },
 				...(rtcPolyfill ? { rtcPolyfill } : {}),
-				...(relays ? { relayConfig: { urls: relays } } : {})
+				relayConfig: { urls: [...relays] }
 			},
 			roomId
 		);

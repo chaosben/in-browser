@@ -1,6 +1,7 @@
 import { toHex } from '../p2p/bytes.js';
 import { basename, join, nameKey, nameProblem, parent, segments, stem, uniqueName } from '../path.js';
-import type { FileState } from './plan.js';
+import { PACKAGE_MANIFEST, packageOf } from '../formats.js';
+import { ignored, type FileState } from './plan.js';
 import type { LogFn } from './log.js';
 import { stateOf } from './scan.js';
 import { unchanged, type Tree } from './tree.js';
@@ -51,6 +52,44 @@ export async function conflictPath(tree: Tree, path: string, label: string): Pro
 	return join(parent(path), uniqueName(candidate, await tree.names(parent(path))));
 }
 
+/**
+ * Conflict copies of whole packages made in one run (package → its copy). A package is one document: a losing
+ * version kept as a file inside it would be invisible (Files shows the package as one file) and no tool would read
+ * it. So at the first conflict inside a package the package as it is here is kept as `Name (conflict Laptop).ext`
+ * – once per run, before any of its files is replaced; further conflicts inside it need nothing more.
+ */
+export type PackageCopies = Map<string, string>;
+
+async function keepPackage(tree: Tree, pkg: string, label: string, copies: PackageCopies): Promise<string> {
+	const known = copies.get(pkg);
+	if (known) return known;
+	const copy = await conflictPath(tree, pkg, label);
+	try {
+		await copyFolder(tree, pkg, copy, true);
+	} catch (e) {
+		await tree.remove(copy).catch(() => {});
+		throw e;
+	}
+	copies.set(pkg, copy);
+	return copy;
+}
+
+/** Copies a folder; the control file of a package last, so a half-made copy is no document yet */
+async function copyFolder(tree: Tree, from: string, to: string, root = false): Promise<void> {
+	await tree.mkdir(to);
+	const copyFile = async (name: string) => (await tree.read(join(from, name))).stream().pipeTo(await tree.write(join(to, name)));
+	let manifest = false;
+	for (const name of await tree.names(from)) {
+		// Files still arriving and other temporary files are no part of it
+		if (ignored(name)) continue;
+		const state = await tree.stat(join(from, name));
+		if (state?.kind === 'directory') await copyFolder(tree, join(from, name), join(to, name));
+		else if (root && name === PACKAGE_MANIFEST) manifest = true;
+		else if (state) await copyFile(name);
+	}
+	if (manifest) await copyFile(PACKAGE_MANIFEST);
+}
+
 export const validName = (path: string) => segments(path).every((name) => !nameProblem(name));
 
 /** Deletes a file that may still be open for writing for a moment (aborted transfer) */
@@ -69,13 +108,14 @@ async function removeSoon(tree: Tree, path: string) {
 /**
  * Receives a file atomically: into a hidden temporary file next to it first (ignored by every scan), and only when
  * it is complete into place – a connection lost halfway leaves nothing behind. Then, only if the file there is still
- * as `expect`ed: the existing version becomes a conflict copy (`keep`: its label) or is replaced.
+ * as `expect`ed: the existing version becomes a conflict copy (`keep`: its label; inside a package the whole
+ * package, see `PackageCopies`) or is replaced.
  */
 export async function receive<T>(
 	tree: Tree,
 	path: string,
 	fill: (target: WritableStream<Uint8Array>) => Promise<T>,
-	{ keep, expect, onWrite = () => {} }: { keep?: string; expect: FileState | null; onWrite?: (path: string) => void }
+	{ keep, expect, onWrite = () => {}, packages }: { keep?: string; expect: FileState | null; onWrite?: (path: string) => void; packages?: PackageCopies }
 ): Promise<{ result: T; copy?: string } | { stale: true }> {
 	const temp = join(parent(path), `.p2p-${crypto.randomUUID()}.part`);
 	onWrite(temp);
@@ -100,7 +140,11 @@ export async function receive<T>(
 		let copy: string | undefined;
 		onWrite(path);
 		if (current) {
-			if (keep) {
+			const pkg = keep && packages ? packageOf(path) : null;
+			if (pkg) {
+				copy = await keepPackage(tree, pkg, keep!, packages!);
+				await tree.remove(path);
+			} else if (keep) {
 				copy = await conflictPath(tree, path, keep);
 				onWrite(copy);
 				await tree.move(path, copy);
@@ -149,7 +193,11 @@ export const GONE = 'sync:gone';
 export const isGone = (e: unknown) => e instanceof Error && e.message === GONE;
 
 /** A tree as the other side (the folder on disk of the folder sync; what a device answers in `serve`) */
-export function treeSide(tree: Tree, { onWrite = () => {}, log }: { onWrite?: (path: string) => void; log?: LogFn } = {}): Other {
+export function treeSide(
+	tree: Tree,
+	{ onWrite = () => {}, log, packages }: { onWrite?: (path: string) => void; log?: LogFn; /** The package copies of the current run (default: this side lives for one run) */ packages?: () => PackageCopies } = {}
+): Other {
+	const own: PackageCopies = new Map();
 	return {
 		async hash(paths) {
 			const out: Record<string, string | null> = {};
@@ -170,7 +218,7 @@ export function treeSide(tree: Tree, { onWrite = () => {}, log }: { onWrite?: (p
 				await upload.cancel().catch(() => {});
 				throw new Error(`Invalid name: ${path}`);
 			}
-			const received = await receive(tree, path, (target) => upload.pipeTo(target), { keep, expect, onWrite });
+			const received = await receive(tree, path, (target) => upload.pipeTo(target), { keep, expect, onWrite, packages: packages?.() ?? own });
 			if ('stale' in received) {
 				log?.('serve.stale', { path, expect });
 				return received;

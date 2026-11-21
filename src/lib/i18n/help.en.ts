@@ -46,7 +46,8 @@ const help = {
 						},
 						kept: {
 							title: 'Kept permanently',
-							text: 'in-browser asks the browser to keep its storage even when space runs low. Most browsers agree without asking. Safari may delete the data of sites you haven’t used for a few weeks; added to the home screen (iPhone, iPad) or the Dock (Mac), a site keeps its data.'
+							text: 'When you first save something, in-browser asks the browser to keep its storage even when space runs low. Chrome and Edge decide by themselves (sooner for a site you use often or have installed), Firefox asks you. Safari deletes the data of sites you haven’t opened for seven days; added to the home screen (iPhone, iPad) or the Dock (Mac), a site keeps its data. As long as the browser hasn’t agreed and nothing syncs, the footer of Files says “The browser may clear this storage”.',
+							tip: 'Don’t rely on the browser alone: sync with a folder on your computer or with another device. Then a cleared storage costs you nothing.'
 						},
 						tabs: {
 							title: 'Several tabs',
@@ -83,7 +84,7 @@ const help = {
 					items: {
 						quota: {
 							title: 'How much fits',
-							text: 'Browsers give a site a share of the free space on the device – usually a large part of it. The footer of Files shows how much in-browser uses and how much the browser allows. Recordings and imported videos take the most space, text and notebooks very little.'
+							text: 'Browsers give a site a share of the free space on the device – usually a large part of it. The footer of Files shows how much in-browser uses and how much the browser allows. Recordings and imported videos take the most space, text and notebooks very little. When the storage is full, saving says so (“… doesn’t fit: the storage of this browser is full”), and the sync leaves out files that don’t fit until there is room.'
 						},
 						free: {
 							title: 'Freeing space',
@@ -166,7 +167,7 @@ const help = {
 					items: {
 						newer: {
 							title: 'The newer version wins',
-							text: 'When a file changed on two devices since they last synced, the newer version keeps the name and the other one is kept as a conflict copy next to it. Nothing is lost; look at both and delete the one you don’t need.',
+							text: 'When a file changed on two devices since they last synced, the newer version keeps the name and the other one is kept as a conflict copy next to it. A notebook or a project is one document: there the whole document as it was on this device is kept as a copy, e.g. “Trip (conflict Laptop)” next to “Trip”. Nothing is lost; look at both and delete the one you don’t need.',
 							tip: 'Before you continue on a device that wasn’t open for a while, open in-browser on one of your other devices first and let it sync. Files warns you when this device is probably behind.'
 						},
 						open: {
@@ -252,8 +253,8 @@ const help = {
 							text: 'Both devices are online, but the network blocks direct connections – often mobile data, company or hotel networks. There is no relay server for files. Try the same Wi-Fi, or set up a p2p-node at home with forwarded ports: devices can reach it from almost anywhere.'
 						},
 						outdated: {
-							title: '“Needs an update”',
-							text: 'The other device runs an older version. Open in-browser there and reload the page.'
+							title: '“Needs an update” or “Runs a newer version”',
+							text: 'Devices only sync while they run the same version. “Needs an update”: the other device runs an older one – open in-browser there and reload the page. “Runs a newer version”: this device is the older one – reload this page. A p2p-node updates itself within the hour.'
 						},
 						diagnostics: {
 							title: 'Diagnostics',
@@ -368,7 +369,7 @@ const help = {
 						},
 						end: {
 							title: 'Ending a share',
-							text: 'Your active shares are in Files under “Shares”, with a dot that turns green while a guest is connected. A click shows the link and QR code again; right-click (or press and hold) for “End share”. Ending disconnects the guest at once and tells them so; nothing in the folder changes. Shares also end by themselves when their time is up.'
+							text: 'Your active shares are in Files under “Shares”, with a dot that turns green while a guest is connected. A click shows the link and QR code again; right-click (or press and hold) for “End share”. Ending disconnects the guest at once and tells them so; nothing in the folder changes. A share lasts until you end it.'
 						}
 					}
 				}

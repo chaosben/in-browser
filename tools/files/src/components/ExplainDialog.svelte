@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { readStored, writeStored } from '@in-browser/brand/storage.js';
@@ -55,19 +56,9 @@
 		toast(m.explain.copied, 'success');
 	}
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		onclose();
-	}}
->
+<Modal onclose={onclose}>
 	<div class="modal-box flex max-w-2xl flex-col gap-4">
 		<h3 class="text-lg font-bold">{m.explain.title}</h3>
 		<div role="tablist" class="tabs tabs-border">
@@ -158,4 +149,4 @@
 			{/if}
 		</div>
 	</div>
-</dialog>
+</Modal>

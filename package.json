@@ -8,11 +8,11 @@
 		"tools/*"
 	],
 	"engines": {
-		"node": ">=24"
+		"node": ">=26"
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build && node packages/p2p-node/scripts/build.ts",
+		"build": "vite build && node scripts/csp.ts && node packages/p2p-node/scripts/build.ts",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p src/service-worker/tsconfig.json --noEmit",

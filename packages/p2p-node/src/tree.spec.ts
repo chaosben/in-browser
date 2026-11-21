@@ -45,7 +45,13 @@ describe('fsTree', () => {
 		const tree = fsTree(root);
 		const old = entryName(Date.now() - 40 * 24 * 60 * 60 * 1000);
 		const recent = entryName(Date.now());
-		for (const entry of [old, recent]) await write(tree, `/.in-browser-trash/${entry}/docs/a.txt`, 'deleted');
+		for (const entry of [old, recent]) {
+			await write(tree, `/.in-browser-trash/${entry}/docs/a.txt`, 'deleted');
+			await write(tree, `/.in-browser-trash/${entry}/.trashinfo.json`, '{}');
+		}
+		// An entry counts from when this device got it (its info file's time), not from its name alone
+		const then = Date.now() / 1000 - 40 * 24 * 60 * 60;
+		await utimes(join(root, '.in-browser-trash', old, '.trashinfo.json'), then, then);
 		await cleanTrash(tree);
 		expect(await tree.names('/.in-browser-trash')).toEqual([recent]);
 		// The trash is synced like any other folder

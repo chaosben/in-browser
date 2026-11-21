@@ -7,7 +7,8 @@ import { mergeOps, resolve, verifyOps, type Group, type Op } from './members.js'
 //
 // Sign-in: each side asks the other `hello` with a random nonce; the answer is signed over the nonce together with
 // the DTLS fingerprints of this very connection, so a relay in the middle can't pass it on. It carries the member
-// log, which the asking side merges first (a device added a moment ago is known after that).
+// log, which the asking side merges first (a device added a moment ago is known after that) – and nothing else:
+// `hello` is answered before the asker is known, so whoever still knows a room (a removed device) gets it too.
 //
 // Pairing: the one-time key (100 bits) is known to both people's devices only. The new device proves it with an
 // HMAC over the fingerprints, the inviting device answers with its own, then signs the `add` entry.
@@ -15,7 +16,8 @@ import { mergeOps, resolve, verifyOps, type Group, type Op } from './members.js'
 /** Version of the P2P protocol; devices with another one show “please update” instead of syncing */
 /** 2: sessions check the expected state before overwriting or deleting, renames, deletions confirmed on either side */
 /** 3: a device being set up answers sessions with `setup`; large new folders held for confirmation on either side */
-export const PROTOCOL = 3;
+/** 4: removals carry only the hash of the new room secret; secrets and what devices know follow after the sign-in */
+export const PROTOCOL = 4;
 
 export interface HelloAnswer {
 	v: number;

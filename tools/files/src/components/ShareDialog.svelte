@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { resolve } from '$app/paths';
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
@@ -51,19 +52,9 @@
 		onclose();
 	}
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		onclose();
-	}}
->
+<Modal onclose={onclose}>
 	<div class="modal-box flex max-w-md flex-col gap-4">
 		<h3 class="text-lg font-bold">{m.share.title(basename(share?.folder ?? path))}</h3>
 		{#if !share}
@@ -115,4 +106,4 @@
 			</div>
 		{/if}
 	</div>
-</dialog>
+</Modal>

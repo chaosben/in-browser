@@ -152,7 +152,10 @@ const en = {
 	},
 
 	storage: {
-		used: (used: string, quota: string) => `${used} of ${quota} used`
+		used: (used: string, quota: string) => `${used} of ${quota} used`,
+		/** The browser hasn't promised to keep the storage (footer, links to the help) */
+		notKept: 'The browser may clear this storage',
+		notKeptHint: 'This browser hasn’t promised to keep the storage of in-browser. Keep a copy – sync with a folder or another device – or install in-browser. Opens the help.'
 	},
 
 	/** Folders on the computer opened live (sidebar section “Connected”) */
@@ -269,6 +272,7 @@ const en = {
 		never: 'not seen yet',
 		unreachable: 'Online, but can’t be reached. The network probably blocks direct connections (e.g. mobile data or a company network).',
 		outdated: 'Needs an update: open in-browser there and reload the page.',
+		newer: 'Runs a newer version: reload this page.',
 		lastSync: (ago: string) => `last synced ${ago}`,
 		upToDate: 'up to date',
 		probablyBehind: (changes: string, ago: string) => `Probably not up to date: ${changes} since the last sync ${ago}.`,

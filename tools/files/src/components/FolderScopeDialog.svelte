@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { list } from '@in-browser/files/fs.js';
 	import { formatSize } from '@in-browser/files/i18n/index.svelte.js';
@@ -59,21 +60,11 @@
 		return sizeText;
 	}
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
 
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		onclose();
-	}}
->
+<Modal onclose={onclose}>
 	<div class="modal-box flex max-w-2xl flex-col gap-3">
 		<h3 class="text-lg font-bold">{m.scope.title}</h3>
 		<p class="text-sm opacity-80">{m.scope.hint}</p>
@@ -83,4 +74,4 @@
 			<button class="btn" onclick={onclose}>{m.devices.close}</button>
 		</div>
 	</div>
-</dialog>
+</Modal>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { filesUrl } from '@in-browser/files/formats.js';
 	// Start page (`StartPage`, `ui.md`): all notebooks in the shared file system as cards – a click opens, the menu
 	// shows in Files and deletes into the trash; new notebook, open, import a PDF as a new notebook
 	// (also what opening a PDF in Files leads to: `?path=<pdf>`).
@@ -123,7 +124,7 @@
 	}
 
 	function showInFiles(path: string) {
-		location.assign(`${resolve('/files')}?path=${encodeURIComponent(parent(path))}`);
+		location.assign(filesUrl(path));
 	}
 
 	const keys = (shortcut: Shortcut) => shortcutLabel(shortcut, brandMessages().keys);
@@ -132,7 +133,7 @@
 	function menu(entry: StartEntry): MenuEntry[] {
 		return [
 			{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => void open(entry.path) },
-			{ label: m.home.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: `${resolve('/files')}?path=${encodeURIComponent(parent(entry.path))}`, run: () => showInFiles(entry.path) },
+			{ label: m.home.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => showInFiles(entry.path) },
 			{ separator: true },
 			{ label: m.common.delete, icon: 'icon-[material-symbols-light--delete-outline]', keys: keys({ key: 'Delete' }), run: () => void remove(entry.path) }
 		];

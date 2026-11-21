@@ -1,6 +1,6 @@
 import type { ToolSlug } from '@in-browser/brand/i18n/index.svelte.js';
 import { TEXT_EXTENSIONS } from './kinds.js';
-import { extname } from './path.js';
+import { extname, parent } from './path.js';
 
 // Which tool opens which files. A **package** is a folder `Name.<ext>/` with `project.json` (`{ format, version, … }`)
 // at its root; Files shows it as one file. Large files inside a package are only ever added (new name), never
@@ -105,6 +105,16 @@ export function formatsOf(name: string, kind: 'file' | 'directory', { fallback =
 export function isPackage(name: string, kind: 'file' | 'directory'): boolean {
 	return kind === 'directory' && formatsOf(name, kind).length > 0;
 }
+
+/** The package a path lies inside (the outermost one); `null` outside packages and for a package itself */
+export function packageOf(path: string): string | null {
+	const parts = path.split('/').filter(Boolean);
+	for (let i = 0; i < parts.length - 1; i++) if (isPackage(parts[i], 'directory')) return '/' + parts.slice(0, i + 1).join('/');
+	return null;
+}
+
+/** “Show in Files”: the address of Files with the folder `path` lies in – the same from every tool */
+export const filesUrl = (path: string) => `/files?path=${encodeURIComponent(parent(path))}`;
 
 /** Address that opens `path` in the tool of `format` */
 export function openUrl(format: Format, path: string): string {

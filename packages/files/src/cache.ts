@@ -8,10 +8,19 @@ export async function cacheDir(tool: string, ...path: string[]): Promise<FileSys
 	return handle;
 }
 
-/** Asks the browser not to evict the storage automatically. */
+/**
+ * Asks the browser not to evict the storage automatically. My files are the user's only copy until they sync, so
+ * the first write asks (`opfs.ts`); the answer is the browser's (Firefox asks the user, the others decide alone).
+ */
 export async function requestPersistence(): Promise<boolean> {
-	if (!navigator.storage.persist) return false;
+	if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false;
 	return (await navigator.storage.persisted()) || navigator.storage.persist();
+}
+
+/** Whether the browser promised to keep the storage (`false` also where it can't say) */
+export async function storagePersisted(): Promise<boolean> {
+	if (typeof navigator === 'undefined' || !navigator.storage?.persisted) return false;
+	return navigator.storage.persisted();
 }
 
 /** Used and available storage of the whole site */

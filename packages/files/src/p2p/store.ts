@@ -7,10 +7,40 @@ import type { Op } from './members.js';
 
 // What a device keeps about the P2P sync (IndexedDB in the app, memory in the specs)
 
+/**
+ * Version of what a device keeps (`P2pState` and the bases). Raise it with every change older code can't read, add
+ * the step to `MIGRATIONS` and a test. A newer state is never read (`StateError`): an older page or p2p-node that
+ * finds one leaves the sync to a newer one instead of writing over it.
+ */
+export const STATE_VERSION = 1;
+
+/** The stored state was written by a newer version */
+export class StateError extends Error {
+	constructor() {
+		super('The sync state was written by a newer version');
+		this.name = 'StateError';
+	}
+}
+
+/** `MIGRATIONS[n]` brings a state of version n to n + 1 */
+const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {};
+
+/** A stored state as this version reads it (`null`: none stored) */
+export function migrateState(stored: unknown): P2pState {
+	if (!stored || typeof stored !== 'object') return emptyState();
+	let state = stored as Record<string, unknown>;
+	let v = typeof state.v === 'number' ? state.v : 1;
+	if (v > STATE_VERSION) throw new StateError();
+	for (; v < STATE_VERSION; v++) state = { ...MIGRATIONS[v](state), v: v + 1 };
+	return state as unknown as P2pState;
+}
+
 export interface P2pState {
-	v: 1;
+	v: typeof STATE_VERSION;
 	/** Member log of the group (empty: not in a group) */
 	ops: Op[];
+	/** Room secrets the removals of the log brought, by their hash (`knownRooms`) – never part of the log */
+	rooms?: Record<string, string>;
 	/** Excluded folders of this device */
 	scope: string[];
 	log: Change[];
@@ -26,7 +56,7 @@ export interface P2pState {
 	setupPending?: true;
 }
 
-export const emptyState = (): P2pState => ({ v: 1, ops: [], scope: [], log: [], vector: {}, devices: {}, invites: [] });
+export const emptyState = (): P2pState => ({ v: STATE_VERSION, ops: [], scope: [], log: [], vector: {}, devices: {}, invites: [] });
 
 export interface Store {
 	identity(): Promise<Identity>;
@@ -56,7 +86,7 @@ export const idbStore: Store = {
 		await idbSet(IDENTITY, { publicKey, privateKey: pair.privateKey });
 		return identityOf({ publicKey, privateKey: pair.privateKey });
 	},
-	load: async () => (await idbGet<P2pState>(STATE)) ?? emptyState(),
+	load: async () => migrateState(await idbGet<unknown>(STATE)),
 	save: (state) => idbSet(STATE, state),
 	loadBase: async (peer) => new Map((await idbGet<[string, BaseEntry][]>(base(peer))) ?? []),
 	saveBase: (peer, entries) => idbSet(base(peer), [...entries]),

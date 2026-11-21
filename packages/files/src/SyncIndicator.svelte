@@ -75,7 +75,9 @@
 		const p = t.p2p;
 		const state = d.outdated
 			? p.outdated
-			: d.online
+			: d.newer
+				? p.newer
+				: d.online
 				? p.online
 				: d.unreachable
 					? p.unreachable

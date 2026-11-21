@@ -1,9 +1,13 @@
 // Service Worker of the whole suite: makes the launcher (the overview) and the tools installable and usable
 // offline. It is registered by every page via `initPwa()` from @in-browser/brand and covers the whole origin.
 // - Build files, prerendered pages and `static/` are precached on install (one cache per version).
-// - Navigations: network first, offline the cached page of that path (every page is prerendered).
+// - Navigations and the files of `static/` (same name, changing content): network first, offline the cached copy.
+//   Build files (hashed names): cache first.
 // - A new version waits until a page activates it via the `SKIP_WAITING` message (user clicks "Reload"), or
 //   silently when the page already runs that version (`VERSION` message).
+// - Pages of an older version stay open and are never reloaded unasked: the cache of a version is kept while a page
+//   still runs it (`dropUnused` asks the pages), so what they load later (PDF.js, languages) is still there after a
+//   deploy removed it from the server.
 // - `/_live/<token>/<name>`: media read in pieces from wherever they live (`mediaUrl` in @in-browser/files): range
 //   responses whose bytes the page that made the token reads for us.
 
@@ -25,6 +29,7 @@ const PRECACHE = [
 	...assets.filter((file) => !file.path.split('/').pop()!.startsWith('_')).map((file) => abs(file.path))
 ];
 const PRECACHED = new Set(PRECACHE);
+const IMMUTABLE = '/_app/immutable/';
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)));
@@ -33,12 +38,42 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
 		(async () => {
-			// Only our own old versions go; caches of the tools (e.g. downloaded icon sets) stay
-			for (const key of await caches.keys()) if (key.startsWith(PREFIX) && key !== CACHE) await caches.delete(key);
 			await self.clients.claim();
+			await dropUnused();
 		})()
 	);
 });
+
+/** A page's build version; `null` if it does not answer (frozen, or from before pages answered) */
+function pageVersion(client: Client): Promise<string | null> {
+	return new Promise((resolve) => {
+		const channel = new MessageChannel();
+		const timeout = setTimeout(() => resolve(null), 2000);
+		channel.port1.onmessage = (e) => {
+			clearTimeout(timeout);
+			resolve(typeof e.data === 'string' ? e.data : null);
+		};
+		client.postMessage('VERSION', [channel.port2]);
+	});
+}
+
+let dropping: Promise<void> | null = null;
+/**
+ * Removes the caches of versions no open page runs anymore. Only our own (`PREFIX`); caches of the tools (e.g.
+ * downloaded icon sets) stay.
+ */
+function dropUnused(): Promise<void> {
+	return (dropping ??= (async () => {
+		try {
+			const used = new Set([CACHE]);
+			const pages = await self.clients.matchAll({ type: 'window' });
+			for (const page of await Promise.all(pages.map(pageVersion))) if (page) used.add(PREFIX + page);
+			for (const key of await caches.keys()) if (key.startsWith(PREFIX) && !used.has(key)) await caches.delete(key);
+		} finally {
+			dropping = null;
+		}
+	})());
+}
 
 self.addEventListener('message', (event) => {
 	if (event.data === 'SKIP_WAITING') self.skipWaiting();
@@ -57,25 +92,47 @@ self.addEventListener('fetch', (event) => {
 	}
 	if (request.mode === 'navigate') {
 		event.respondWith(navigate(request, url));
-	} else if (PRECACHED.has(url.pathname)) {
+		// A page went or came: a good moment to let go of versions nobody runs
+		event.waitUntil(dropUnused());
+	} else if (url.pathname.startsWith(IMMUTABLE)) {
+		// Build files never change under their name (a hash): the cache first – of older versions too, so pages
+		// still running them find their files
 		event.respondWith(cacheFirst(url.pathname, request));
+	} else if (PRECACHED.has(url.pathname)) {
+		// Files of `static/` keep their name when they change (tool icons, manifests): like the pages, from the
+		// network first – a page of the new version must never show the icons an older worker cached
+		event.respondWith(networkFirst(url.pathname, request));
 	}
 });
+
+/** This version's copy first (pages and `static/` have the same path in every version), then any version's */
+async function cached(path: string): Promise<Response | undefined> {
+	return (await (await caches.open(CACHE)).match(path)) ?? (await caches.match(path));
+}
 
 async function navigate(request: Request, url: URL): Promise<Response> {
 	try {
 		return await fetch(request);
 	} catch (error) {
 		// Prerendered pages are cached under their path (query strings like `?id=` do not matter)
-		const page = await caches.match(url.pathname);
+		const page = await (await caches.open(CACHE)).match(url.pathname);
 		if (page) return page;
 		throw error;
 	}
 }
 
+async function networkFirst(path: string, request: Request): Promise<Response> {
+	try {
+		return await fetch(request);
+	} catch (error) {
+		const kept = await cached(path);
+		if (kept) return kept;
+		throw error;
+	}
+}
+
 async function cacheFirst(path: string, request: Request): Promise<Response> {
-	const cached = await caches.match(path);
-	return cached ?? fetch(request);
+	return (await cached(path)) ?? fetch(request);
 }
 
 // --- Media read in pieces (`/_live/`) ---

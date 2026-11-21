@@ -30,7 +30,9 @@ export type FilesErrorCode =
 	/** A guest share is already open in another browser */
 	| 'taken'
 	/** A server (WebDAV, S3) refused the sign-in data of a connection */
-	| 'credentials';
+	| 'credentials'
+	/** The storage this browser allows the site is used up */
+	| 'full';
 
 /** Error with a code the UI translates (`filesMessages().errors`) */
 export class FilesError extends Error {

@@ -39,14 +39,10 @@ const en = {
 		more: 'More',
 		options: 'Group options',
 		display: 'Ribbon display',
-		modes: { classic: 'Classic', simplified: 'Simplified', tabs: 'Tabs only' },
-		modeHints: {
-			classic: 'Groups with large buttons and their names',
-			simplified: 'One compact row',
-			tabs: 'Only the tabs; a tab opens over the page'
-		},
-		collapse: 'Show only the tabs (Ctrl+F1)',
-		expand: 'Show the ribbon (Ctrl+F1)'
+		modes: { classic: 'Classic', simplified: 'Simplified', minimal: 'Minimal' },
+		/** Only the tabs stay; a tab opens its commands over the page (the key is added by the ribbon) */
+		collapse: 'Collapse the ribbon',
+		expand: 'Expand the ribbon'
 	},
 
 	pick: {

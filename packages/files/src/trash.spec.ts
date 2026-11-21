@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RETENTION, entryName, expired, itemPath, originalPath, parseEntry, parseRetention, suiteRetention } from './trash';
+import { cleanTrash, DEFAULT_RETENTION, entryName, entryPath, expired, infoPath, itemPath, originalPath, parseEntry, parseRetention, suiteRetention, TRASH_ROOT } from './trash';
 
 const day = 24 * 60 * 60 * 1000;
 
@@ -27,6 +27,26 @@ describe('trash entries', () => {
 		['foreign folder', 1000 * day, 7, false]
 	])('%s expired at %i with retention %s: %s', (name, now, retention, expected) => {
 		expect(expired(name, now, retention)).toBe(expected);
+	});
+});
+
+describe('cleaning the trash with clocks that differ', () => {
+	const tree = (files: Record<string, number>, removed: string[]) => ({
+		stat: async (path: string) => (path in files ? { kind: 'file' as const, size: 2, modified: files[path] } : null),
+		read: async () => new File(['{}'], 'settings.json'),
+		names: async () => [...new Set(Object.keys(files).map((path) => path.split('/')[2]))],
+		remove: async (path: string) => void removed.push(path)
+	});
+
+	it('keeps what arrived on a device whose clock is ahead, and removes what is due by both times', async () => {
+		const real = Date.UTC(2026, 10, 1);
+		const [fresh, old, arriving] = [entryName(real), entryName(real - 40 * day), entryName(real - 50 * day)];
+		// This device's clock is a year ahead: everything arrived “now” by its own clock, `old` 40 of its days ago
+		const now = real + 365 * day;
+		const removed: string[] = [];
+		const files = { [infoPath(fresh)]: now, [infoPath(old)]: now - 40 * day, [`${TRASH_ROOT}/${arriving}/file.txt`]: 0 };
+		await cleanTrash(tree(files, removed), now);
+		expect(removed).toEqual([entryPath(old)]);
 	});
 });
 

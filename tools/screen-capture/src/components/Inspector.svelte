@@ -40,19 +40,15 @@
 	} from '#lib/timeline/ops.js';
 	import { m } from '#lib/i18n/index.js';
 	import { formatTime } from '#lib/util/format.js';
-	import { shortcutLabel, type Command } from '@in-browser/brand/commands.js';
-	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
 	import { placeClip, type EditorCommands } from '#lib/ui/commands.js';
 
 	interface Props {
 		editor: Editor;
 		/** The editor's commands (link, crop, delete … act like in the ribbon) */
 		commands: EditorCommands;
-		/** Commands listed with their keys in the project's properties */
-		shortcuts: Command[];
 	}
 
-	let { editor, commands, shortcuts }: Props = $props();
+	let { editor, commands }: Props = $props();
 
 	/** Filters the properties of the selected element; kept when the selection changes */
 	const search = getInspector().search;
@@ -171,7 +167,6 @@
 		canvasDraft = { width: editor.project.width, height: editor.project.height, clip: false };
 	}
 
-	const keyNames = brandMessages().keys;
 
 	const CROP_SIDES: { side: keyof CropInsets; label: string }[] = [
 		{ side: 'left', label: m.inspector.cropLeft },
@@ -836,31 +831,6 @@
 			<div class="flex flex-col gap-2 text-xs opacity-70">
 				<p>{m.inspector.nothing}</p>
 				<p>{m.inspector.nothingHint}</p>
-				<ul class="flex flex-col gap-1">
-					{#each shortcuts as cmd (cmd.id)}
-						{#if cmd.shortcut}
-							<li class="flex items-center justify-between gap-2">
-								<span>{cmd.label}</span>
-								<kbd class="kbd kbd-xs shrink-0">{shortcutLabel(cmd.shortcut, keyNames)}</kbd>
-							</li>
-						{/if}
-					{/each}
-					<li class="flex items-center justify-between gap-2">
-						<span>{m.inspector.shortcuts.deselect}</span><kbd class="kbd kbd-xs shrink-0">Esc</kbd>
-					</li>
-					<li class="flex items-center justify-between gap-2">
-						<span>{m.inspector.shortcuts.frames}</span><kbd class="kbd kbd-xs shrink-0">← →</kbd>
-					</li>
-					<li class="flex items-center justify-between gap-2">
-						<span>{m.inspector.shortcuts.nudge}</span><kbd class="kbd kbd-xs shrink-0">← ↑ → ↓</kbd>
-					</li>
-					<li class="flex items-center justify-between gap-2">
-						<span>{m.inspector.shortcuts.cycle}</span><kbd class="kbd kbd-xs shrink-0">Tab</kbd>
-					</li>
-					<li class="flex items-center justify-between gap-2">
-						<span>{m.inspector.shortcuts.help}</span><kbd class="kbd kbd-xs shrink-0">F1</kbd>
-					</li>
-				</ul>
 			</div>
 		{/if}
 	{/if}

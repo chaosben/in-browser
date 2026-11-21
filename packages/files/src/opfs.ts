@@ -1,3 +1,4 @@
+import { requestPersistence } from './cache.js';
 import { changed } from './changes.js';
 import { FilesError, type Entry } from './entry.js';
 import { basename, nameKey, nameProblem, normalize, parent, segments } from './path.js';
@@ -21,6 +22,20 @@ async function rootDir() {
 
 /** OPFS folder of the root `/` (for the sync, which walks it directly) */
 export const rootHandle = rootDir;
+
+let asked = false;
+/** Before the first write of a page: ask the browser to keep the storage (what is written may be the only copy) */
+function keepStorage() {
+	if (asked) return;
+	asked = true;
+	void requestPersistence().catch(() => false);
+}
+
+/** A write the browser refused for lack of space, as `full` */
+function full(e: unknown, path: string): never {
+	if (e instanceof DOMException && e.name === 'QuotaExceededError') throw new FilesError('full', path);
+	throw e;
+}
 
 function notFound(e: unknown, path: string): never {
 	if (isMissing(e)) throw new FilesError('notFound', path);
@@ -136,9 +151,15 @@ export async function write(path: string, data: Blob | BufferSource | string): P
 	await mkdir(parent(path));
 	await navigator.locks.request(`files:${path}`, async () => {
 		if (!(await exists(path))) await checkNew(await dirHandle(parent(path)), path);
+		keepStorage();
 		const writable = await (await fileHandle(path, true)).createWritable();
-		await writable.write(data);
-		await writable.close();
+		try {
+			await writable.write(data);
+			await writable.close();
+		} catch (e) {
+			await writable.abort().catch(() => {});
+			full(e, path);
+		}
 	});
 	changed(path);
 }
@@ -152,11 +173,12 @@ export async function writable(path: string): Promise<WritableStream<FileSystemW
 	path = normalize(path);
 	await mkdir(parent(path));
 	if (!(await exists(path))) await checkNew(await dirHandle(parent(path)), path);
+	keepStorage();
 	const inner = await (await fileHandle(path, true)).createWritable();
 	return new WritableStream<FileSystemWriteChunkType>({
-		write: (chunk) => inner.write(chunk),
+		write: (chunk) => inner.write(chunk).catch((e) => full(e, path)),
 		close: async () => {
-			await inner.close();
+			await inner.close().catch((e) => full(e, path));
 			changed(path);
 		},
 		abort: (reason) => inner.abort(reason)

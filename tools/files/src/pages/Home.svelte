@@ -17,7 +17,7 @@
 	import { inTextField } from '@in-browser/brand/ui/typing.js';
 	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
-	import { storageEstimate } from '@in-browser/files/cache.js';
+	import { storageEstimate, storagePersisted } from '@in-browser/files/cache.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { FilesError, supported, watch, watchSettled } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
@@ -87,6 +87,10 @@
 	let uploading = $state<string | null>(null);
 	let dropping = $state(false);
 	let usage = $state<string | null>(null);
+	/** The browser hasn't promised to keep the storage: My files may be the only copy and can be cleared */
+	let notKept = $state(false);
+	/** A copy exists elsewhere: other devices or a synced folder on disk */
+	const copied = $derived(p2pStatus.view.devices.length > 1 || !!syncStatus.folder);
 	let fileInput = $state<HTMLInputElement>();
 	let folderInput = $state<HTMLInputElement>();
 	/** The list and the free area around it: keys for the list act while the focus is here (`keys.ts`) */
@@ -645,6 +649,7 @@
 	async function updateUsage() {
 		const { usage: used = 0, quota = 0 } = await storageEstimate();
 		usage = m.storage.used(formatSize(used, intlLocale), formatSize(quota, intlLocale));
+		notKept = !(await storagePersisted());
 	}
 
 	// Links with a key in the fragment (kept out of requests): a guest share (`#share=KEY`, this tab only) and pairing
@@ -858,7 +863,14 @@
 			<span class="hidden items-center gap-1 lg:flex">
 				<span class="icon-[material-symbols-light--cloud-outline] size-4" aria-hidden="true"></span>{m.remote.live}
 			</span>
-		{:else if usage}<span class="hidden lg:inline">{usage}</span>{/if}
+		{:else if usage}
+			<span class="hidden lg:inline">{usage}</span>
+			{#if notKept && !copied}
+				<a class="link-hover hidden items-center gap-1 lg:flex" href={resolve('/help/storage')} target="_blank" rel="noopener" title={m.storage.notKeptHint}>
+					<span class="icon-[material-symbols-light--warning-outline] size-4 text-warning" aria-hidden="true"></span>{m.storage.notKept}
+				</a>
+			{/if}
+		{/if}
 		<span class="hidden truncate 2xl:inline">{m.list.hint}</span>
 		<!-- Last, so the other items never move when the selection changes -->
 		{#if manager.selected.length}<span>{m.list.selected(manager.selected.length)}</span>{/if}

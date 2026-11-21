@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { formatSize } from '@in-browser/files/i18n/index.svelte.js';
@@ -139,21 +140,9 @@
 			saving = false;
 		}
 	}
-
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal max-sm:modal-bottom"
-	aria-labelledby={titleId}
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		if (!saving) onclose();
-	}}
->
+<Modal {onclose} busy={saving} labelledby={titleId} class="max-sm:modal-bottom">
 	<div class="modal-box flex max-w-2xl flex-col gap-3 max-sm:h-full max-sm:max-h-none max-sm:rounded-none">
 		<h3 id={titleId} class="text-lg font-bold">{mode === 'folder' ? t.titleFolder(syncStatus.folder ?? '') : t.titleDevice}</h3>
 		<p class="text-sm opacity-80">{setup ? t.hintSetup : ''} {mode === 'folder' ? t.hintFolder : t.hintDevice}</p>
@@ -182,4 +171,4 @@
 			<button class="btn btn-primary" onclick={confirm} disabled={!ready || saving}>{setup ? t.start : t.apply}</button>
 		</div>
 	</div>
-</dialog>
+</Modal>

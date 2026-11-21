@@ -37,14 +37,9 @@ const de: BrandMessages = {
 		more: 'Mehr',
 		options: 'Gruppenoptionen',
 		display: 'Menüband-Anzeige',
-		modes: { classic: 'Klassisch', simplified: 'Vereinfacht', tabs: 'Nur Registerkarten' },
-		modeHints: {
-			classic: 'Gruppen mit großen Schaltflächen und ihren Namen',
-			simplified: 'Eine kompakte Zeile',
-			tabs: 'Nur die Registerkarten; eine Registerkarte öffnet sich über der Seite'
-		},
-		collapse: 'Nur Registerkarten zeigen (Strg+F1)',
-		expand: 'Menüband zeigen (Strg+F1)'
+		modes: { classic: 'Klassisch', simplified: 'Vereinfacht', minimal: 'Minimal' },
+		collapse: 'Menüband zusammenklappen',
+		expand: 'Menüband aufklappen'
 	},
 
 	pick: {

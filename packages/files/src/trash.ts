@@ -63,11 +63,17 @@ export function originalPath(path: string): string | null {
 	return '/' + rest.join('/');
 }
 
-/** Whether an entry is due for removal */
-export function expired(entry: string, now: number, retention: Retention): boolean {
+/**
+ * Whether an entry is due for removal. Clocks of devices differ, and removing an entry syncs to all of them: so an
+ * entry counts from the later of two times – the one in its name (the deleting device's clock) and `seen`, when this
+ * device got it (its info file's time here, this device's own clock). A device whose clock is ahead then keeps what
+ * arrives for the whole retention instead of emptying everybody's trash; an entry named by a clock that is behind
+ * lasts as long on the others.
+ */
+export function expired(entry: string, now: number, retention: Retention, seen = 0): boolean {
 	const time = parseEntry(entry);
 	if (time === null || retention === null) return false;
-	return now - time > retention * 24 * 60 * 60 * 1000;
+	return now - Math.max(time, seen) > retention * 24 * 60 * 60 * 1000;
 }
 
 /** The retention from the settings file's text (default when unset; a broken file keeps everything) */
@@ -107,7 +113,12 @@ export async function retentionOf(tree: Pick<Tree, 'stat' | 'read'>): Promise<Re
 export async function cleanTrash(tree: Pick<Tree, 'stat' | 'read' | 'names' | 'remove'>, now = Date.now()): Promise<void> {
 	try {
 		const retention = await retentionOf(tree);
-		for (const entry of await tree.names(TRASH_ROOT)) if (expired(entry, now, retention)) await tree.remove(entryPath(entry));
+		if (retention === null) return;
+		for (const entry of await tree.names(TRASH_ROOT)) {
+			// No info: still arriving (or not an entry) – never judged by its name alone
+			const info = await tree.stat(infoPath(entry));
+			if (info && expired(entry, now, retention, info.modified)) await tree.remove(entryPath(entry));
+		}
 	} catch (e) {
 		console.warn('[Trash] cleanup failed', e);
 	}

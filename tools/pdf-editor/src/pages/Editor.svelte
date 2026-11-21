@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { filesUrl } from '@in-browser/files/formats.js';
 	// Editor page of a PDF (`?path=`): ribbon on top, side panels on the left, the pages on the
 	// shared ink core; page navigation and zoom in the footer (like PDF-XChange's status bar). Changes save themselves
 	// (`PdfDocument`); the save state sits in the footer, conflicts and notices in a bar above the pages. One tab per PDF.
@@ -47,7 +48,7 @@
 	import { FILLABLE, PdfDocument } from '#lib/model/document.svelte.js';
 	import { formView, toggleHighlight } from '#lib/model/forms.svelte.js';
 	import { EditorState } from '#lib/model/editor.svelte.js';
-	import { rememberPdf } from '#lib/model/recent.js';
+	import { recent } from '#lib/model/recent.js';
 	import { kindOf, selectionCommands, toolKind, type FormatKind } from '#lib/model/selection-commands.js';
 	import { isNote } from '#lib/render/note.js';
 	import { choose, inkColor, setInkColor, tools, type EditorTool } from '#lib/model/tools.svelte.js';
@@ -107,7 +108,7 @@
 				opened = ed.doc = next;
 				// Messages of the form's scripts (`app.alert`) – never a browser dialog
 				next.onScriptMessage = (text) => toast(text, 'info', 8000);
-				rememberPdf(path);
+				recent.remember(path);
 				reload = reopen;
 				// A version saved elsewhere: asked first (once per version; the answer may be kept while it is open)
 				const external = new ExternalVersions();
@@ -734,7 +735,7 @@
 
 	function showInFiles() {
 		const doc = ed.doc;
-		if (doc) location.assign(`${resolve('/files')}?path=${encodeURIComponent(parent(doc.path))}`);
+		if (doc) location.assign(filesUrl(doc.path));
 	}
 
 	$effect(() => {

@@ -11,7 +11,7 @@
 	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
 	import { editorUrl } from '#lib/brand.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
-	import { forgetPdf, lastFolder, recentPdfs } from '#lib/model/recent.js';
+	import { recent } from '#lib/model/recent.js';
 
 	let entries = $state<StartEntry[] | null>(null);
 	let input = $state<HTMLInputElement>();
@@ -20,11 +20,11 @@
 
 	async function refresh() {
 		const found = await Promise.all(
-			recentPdfs().map(async (path): Promise<StartEntry | null> => {
+			recent.list().map(async (path): Promise<StartEntry | null> => {
 				try {
 					const entry = await stat(path);
 					if (!entry) {
-						forgetPdf(path);
+						recent.forget(path);
 						return null;
 					}
 					return { path, modified: entry.modified ?? null };
@@ -45,7 +45,7 @@
 	const open = (path: string) => goto(editorUrl(path));
 
 	async function openPdf() {
-		const path = await chooseFile({ mode: 'open', folder: lastFolder(), accept: ['.pdf'], title: m.home.openTitle });
+		const path = await chooseFile({ mode: 'open', folder: recent.lastFolder(), accept: ['.pdf'], title: m.home.openTitle });
 		if (path) await open(path);
 	}
 
@@ -54,7 +54,7 @@
 		const file = e.currentTarget.files?.[0];
 		e.currentTarget.value = '';
 		if (!file) return;
-		const path = await chooseFile({ mode: 'save', folder: lastFolder(), accept: ['.pdf'], name: file.name, title: m.home.saveTitle });
+		const path = await chooseFile({ mode: 'save', folder: recent.lastFolder(), accept: ['.pdf'], name: file.name, title: m.home.saveTitle });
 		if (!path) return;
 		copying = true;
 		try {
@@ -75,7 +75,7 @@
 				label: m.home.remove,
 				icon: 'icon-[material-symbols-light--playlist-remove]',
 				run: () => {
-					forgetPdf(entry.path);
+					recent.forget(entry.path);
 					entries = entries?.filter((e) => e.path !== entry.path) ?? null;
 				}
 			}

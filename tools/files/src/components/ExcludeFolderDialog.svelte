@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { remove } from '@in-browser/files/opfs.js';
 	import { basename } from '@in-browser/files/path.js';
@@ -26,19 +27,9 @@
 		}
 	}
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		onclose();
-	}}
->
+<Modal onclose={onclose}>
 	<div class="modal-box flex flex-col gap-4">
 		<h3 class="text-lg font-bold">{m.scope.excludeTitle(basename(path))}</h3>
 		<p class="text-sm">{m.scope.excludeMessage}</p>
@@ -47,4 +38,4 @@
 			<button class="btn btn-primary" onclick={exclude} disabled={busy}>{m.scope.exclude}</button>
 		</div>
 	</div>
-</dialog>
+</Modal>

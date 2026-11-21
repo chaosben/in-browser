@@ -1,5 +1,5 @@
-// Every action of the editor once as a `Command` (`@in-browser/brand/commands.js`): the ribbon, the context menus,
-// the shortcut list of the properties and the keyboard are built from here (listed in the help topic “Keyboard
+// Every action of the editor once as a `Command` (`@in-browser/brand/commands.js`): the ribbon, the context menus
+// and the keyboard are built from here (listed in the help topic “Keyboard
 // shortcuts”). The editing steps themselves (split, hold frame, delete, clipboard, order) live here too, so every
 // place that offers them does the same.
 

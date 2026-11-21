@@ -5,9 +5,8 @@
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { write } from '@in-browser/files/fs.js';
 	import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { formatsOf, openUrl } from '@in-browser/files/formats.js';
+	import { filesUrl, formatsOf, openUrl } from '@in-browser/files/formats.js';
 	import { basename, extname, parent, safeName } from '@in-browser/files/path.js';
-	import { resolve } from '$app/paths';
 	import { exportPdf } from '#lib/export/pdf.js';
 	import { exportPng } from '#lib/export/png.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
@@ -69,7 +68,7 @@
 			await write(path, result.blob);
 			// "Open": in the tool that opens it (a PDF in the PDF Editor), else its folder in Files
 			const [format] = formatsOf(basename(path), 'file');
-			const url = format ? openUrl(format, path) : `${resolve('/files')}?path=${encodeURIComponent(parent(path))}`;
+			const url = format ? openUrl(format, path) : filesUrl(path);
 			toast(m.export.savedToFiles(path), 'success', 8000, { label: m.export.open, run: () => location.assign(url) });
 		} catch (e) {
 			console.error('[notes] export save', e);

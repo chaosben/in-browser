@@ -44,6 +44,7 @@ const en = {
 		ended: (_name: string) => 'The share has ended.',
 		taken: (_name: string) => 'This share is open in another browser right now. Try again later.',
 		credentials: (name: string) => `The server of “${name}” didn’t accept the sign-in data. Change them in Files under “Connected”.`,
+		full: (name: string) => `“${name}” doesn’t fit: the storage of this browser is full. Free space in Files, e.g. with “Empty trash”.`,
 	},
 
 	/** Sync status in the footer of every tool (`SyncIndicator`) */
@@ -130,6 +131,7 @@ const en = {
 		never: 'not seen yet',
 		unreachable: 'online, but not reachable',
 		outdated: 'needs an update of in-browser',
+		newer: 'has a newer version – reload this page',
 		missing: (n: number, more: boolean) =>
 			more ? `more than ${n} changes missing` : n === 1 ? '1 change missing' : `${n} changes missing`,
 		pendingDeletes: (n: number) => `${n} deletions wait for your confirmation`,

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { untrack } from 'svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { groupBase32 } from '@in-browser/files/p2p/base32.js';
@@ -43,19 +44,9 @@
 		toast(m.pair.copied, 'success');
 	}
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		onclose();
-	}}
->
+<Modal onclose={onclose}>
 	<div class="modal-box flex flex-col items-center gap-4 text-center">
 		<h3 class="self-start text-lg font-bold">{m.pair.title}</h3>
 		{#if failed}
@@ -93,4 +84,4 @@
 			<button class="btn" onclick={onclose}>{m.devices.close}</button>
 		</div>
 	</div>
-</dialog>
+</Modal>

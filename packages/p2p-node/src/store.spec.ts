@@ -30,9 +30,11 @@ describe('fileStore', () => {
 		expect((await store.loadBase('ABC/1')).size).toBe(0);
 	});
 
-	it('keeps a state of another version before replacing it', async () => {
+	it('refuses a state of a newer version and keeps it before replacing it', async () => {
 		await writeFile(join(dir, 'state.json'), JSON.stringify({ v: 2, future: true }));
 		const store = await fileStore(dir);
+		// A state written by a newer version is never read as if it were ours
+		await expect(store.load()).rejects.toThrow('newer version');
 		await store.save(emptyState());
 		expect(JSON.parse(await readFile(join(dir, 'state.v2.json'), 'utf8'))).toEqual({ v: 2, future: true });
 		expect(JSON.parse(await readFile(join(dir, 'state.json'), 'utf8')).v).toBe(1);

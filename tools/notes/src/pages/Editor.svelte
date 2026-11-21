@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { showError } from '@in-browser/files/errors.js';
+	import { filesUrl } from '@in-browser/files/formats.js';
 	// A notebook (`?path=` of its package): the ribbon on top (also on phones, one icon bar there), the drawing
 	// surface below it, page and zoom in the footer. Every action is a `Command` (ribbon, menus, keys). One tab at a
 	// time edits a notebook (Web Lock); changes from elsewhere reload what is not edited here.
@@ -21,7 +23,7 @@
 	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { read, watch } from '@in-browser/files/fs.js';
 	import { flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
-	import { normalize, parent } from '@in-browser/files/path.js';
+	import { normalize } from '@in-browser/files/path.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import IconPicker from '@in-browser/graphics/IconPicker.svelte';
@@ -162,8 +164,7 @@
 	}
 
 	function failed(context: string, e: unknown, text: string) {
-		console.error(`[notes] ${context}`, e);
-		toast(text, 'error', 8000);
+		showError(e, { context: `[notes] ${context}`, text });
 	}
 
 	/** Into the trash (the message offers to undo it): saved first, then the notebook is left */
@@ -181,7 +182,7 @@
 	}
 
 	function showInFiles() {
-		if (doc) location.assign(`${resolve('/files')}?path=${encodeURIComponent(parent(doc.path))}`);
+		if (doc) location.assign(filesUrl(doc.path));
 	}
 
 	// --- Inserting pictures ---
@@ -588,7 +589,7 @@
 			id: 'draw',
 			label: m.ribbon.tabs.draw,
 			groups: [
-				{ id: 'tools', label: m.ribbon.groups.tools, items: [commands.pen, commands.highlighter, commands.shape, commands.eraser, commands.lasso, commands.laser] },
+				{ id: 'tools', label: m.ribbon.groups.tools, items: [commands.lasso, commands.pen, commands.highlighter, commands.shape, commands.eraser, commands.laser] },
 				formatGroup,
 				{ id: 'options', label: m.ribbon.groups.options, items: [commands.snap, commands.penOnly] }
 			]
@@ -687,7 +688,7 @@
 {#snippet iconButton(size: GroupSize)}
 	<RibbonPopover id="icon" label={m.insert.icon} icon="icon-[material-symbols-light--interests-outline]" {size} disabled={!stage}>
 		{#snippet children(close)}
-			<div class="max-h-[60vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto">
+			<div class="max-h-[60vh] w-80 max-w-[calc(100vw-2.5rem)] overflow-x-hidden overflow-y-auto">
 				<IconPicker
 					onpick={(icon) => {
 						close();

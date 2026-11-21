@@ -18,8 +18,7 @@ async function longPress(page: Page, target: Locator) {
 
 async function newFolder(page: Page, name: string) {
 	// (after the last one the ribbon shows the tab “Selection”)
-	await page.getByRole('button', { name: 'Tabs' }).tap();
-	await page.getByRole('menuitem', { name: 'Home' }).tap();
+	await page.getByTestId('ribbon').getByRole('tab', { name: 'Home', exact: true }).tap();
 	await page.locator('[data-command="newFolder"]:visible').tap();
 	const input = page.getByRole('textbox', { name: 'Rename' });
 	await input.fill(name);
@@ -74,8 +73,7 @@ test('Files: tap opens, long press and ⋯ show the actions, move, delete into t
 
 	// The trash, a special folder at the end of the panel "Folders": a tap picks an entry, the ribbon tab "Trash"
 	// (opened by itself) restores it where it was
-	await page.getByRole('button', { name: 'Tabs' }).tap();
-	await page.getByRole('menuitem', { name: 'View' }).tap();
+	await page.getByTestId('ribbon').getByRole('tab', { name: 'View', exact: true }).tap();
 	await page.locator('[data-command="panel:folders"]:visible').tap();
 	await page.getByTestId('panel').getByRole('button', { name: 'Trash', exact: true }).tap();
 	await expect(page).toHaveURL(/\?trash/);
@@ -115,8 +113,7 @@ test('Text Editor: wraps lines, switches to the Markdown preview, edits a CSV as
 	await expect(content).toHaveClass(/cm-lineWrapping/);
 
 	// The ribbon tab "View": "View only" shows the preview, "Text only" the text again
-	await page.getByTestId('ribbon').getByRole('button', { name: 'Tabs' }).tap();
-	await page.getByRole('menuitem', { name: 'View' }).tap();
+	await page.getByTestId('ribbon').getByRole('tab', { name: 'View', exact: true }).tap();
 	const layout = (id: 'view' | 'text') => page.locator(`[data-command="layout.${id}"]:visible`).tap();
 	await layout('view');
 	// (Not looked into: the frame is sandboxed without scripts, Playwright can't query inside it)
@@ -206,8 +203,7 @@ test('Notes: a finger draws, two fingers pinch, the ribbon works by tapping, pic
 	// An image goes into the assets (selected right away); a PDF becomes pages after the current one, rendered by
 	// PDF.js workers under the real CSP
 	const insertTab = async () => {
-		await page.getByRole('button', { name: 'Tabs' }).tap();
-		await page.getByRole('menuitem', { name: 'Insert' }).tap();
+		await page.getByTestId('ribbon').getByRole('tab', { name: 'Insert', exact: true }).tap();
 	};
 	await insertTab();
 	await page.locator('[data-command="image"]').tap();
@@ -225,8 +221,7 @@ test('Notes: a finger draws, two fingers pinch, the ribbon works by tapping, pic
 	await expect.poll(() => savedPages(page)).toEqual({ pages: 2, pdf: 1 });
 
 	// Export as PDF and download it (the ribbon's tab "File")
-	await page.getByRole('button', { name: 'Tabs' }).tap();
-	await page.getByRole('menuitem', { name: 'File' }).tap();
+	await page.getByTestId('ribbon').getByRole('tab', { name: 'File', exact: true }).tap();
 	await page.locator('[data-command="export"]:visible').tap();
 	await page.getByRole('dialog').getByRole('button', { name: 'Export', exact: true }).tap();
 	const download = page.waitForEvent('download');
@@ -261,8 +256,7 @@ test('PDF Editor: fill in a field, draw with a finger, pick pages in the selecti
 	await name.press('Enter');
 
 	// A finger draws with the pen
-	await page.getByRole('button', { name: 'Tabs' }).tap();
-	await page.getByRole('menuitem', { name: 'Comment' }).tap();
+	await page.getByTestId('ribbon').getByRole('tab', { name: 'Comment', exact: true }).tap();
 	await page.locator('[data-command="pen"]').tap();
 	const box = (await page.getByTestId('surface').boundingBox())!;
 	const cdp = await page.context().newCDPSession(page);
@@ -282,8 +276,7 @@ test('PDF Editor: fill in a field, draw with a finger, pick pages in the selecti
 	await expect.poll(saved, { timeout: 10_000 }).toEqual({ name: 'Zoë', ink: 1 });
 
 	// Pages: a long press opens the page's menu and starts the selection mode; taps then pick
-	await page.getByRole('button', { name: 'Tabs' }).tap();
-	await page.getByRole('menuitem', { name: 'View' }).tap();
+	await page.getByTestId('ribbon').getByRole('tab', { name: 'View', exact: true }).tap();
 	await page.locator('[data-command="panel:pages"]').tap();
 	const pages = page.getByRole('dialog');
 	await expect(pages.getByText('No pages picked')).toBeVisible();

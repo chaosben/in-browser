@@ -9,12 +9,15 @@ import { deviceIdOf, sign, verify, type Identity } from './identity.js';
 // - An entry counts only if its author was a member as far as the author could see (its causal past).
 // - A removal beats everything the removed device did concurrently (not seen by the removal).
 // - Two devices removing each other concurrently are both out – the safe choice; one of them pairs again.
-// - Every removal brings a new room secret, so removed devices can't even find the others any more.
+// - Every removal brings a new room secret, so removed devices can't even find the others any more. The log – which
+//   anyone in a room gets, also the removed device, as the proof of its removal – only carries the secret's hash
+//   (`roomHash`); the secret itself travels between signed-in members (`Device`, `knownRooms`).
 
 export type Body =
 	| { type: 'create'; key: string; name: string; room: string }
 	| { type: 'add'; device: string; key: string; name: string }
-	| { type: 'remove'; device: string; room: string }
+	/** `room`: entries of before protocol 4 carried the new secret itself */
+	| { type: 'remove'; device: string; roomHash?: string; room?: string }
 	| { type: 'rename'; name: string };
 
 export interface Op {
@@ -40,9 +43,9 @@ export interface Group {
 	members: Map<string, Member>;
 	/** Devices that were members once and are removed */
 	removed: Map<string, Member>;
-	/** Current room secret */
-	room: string;
-	/** Earlier room secrets with the time they were replaced (devices visit them a while for latecomers) */
+	/** Current room secret; `null` while this device hasn't learned it yet (it meets the others in the old rooms) */
+	room: string | null;
+	/** Earlier room secrets this device knows, with the time they were replaced (visited a while for latecomers) */
 	oldRooms: { room: string; until: number }[];
 }
 
@@ -115,8 +118,27 @@ function ordered(ops: Op[]): Op[] {
 	return out;
 }
 
-/** State of the group from a verified log; `null` without a `create` entry */
-export function resolve(ops: Op[]): Group | null {
+/** What a `remove` entry says about the room secret it brings */
+export async function roomHashOf(secret: string): Promise<string> {
+	return toBase64Url(await sha256(`in-browser-room\n${secret}`));
+}
+
+/** Of `secrets` (by hash) those a removal of the log brought – what a device keeps and passes on to members */
+export async function knownRooms(ops: Op[], secrets: Record<string, string>): Promise<Record<string, string>> {
+	const known: Record<string, string> = {};
+	for (const op of ops) {
+		const hash = op.body.type === 'remove' ? op.body.roomHash : undefined;
+		const secret = hash === undefined ? undefined : secrets[hash];
+		if (hash !== undefined && typeof secret === 'string' && (await roomHashOf(secret)) === hash) known[hash] = secret;
+	}
+	return known;
+}
+
+/**
+ * State of the group from a verified log; `null` without a `create` entry. `secrets`: the room secrets this device
+ * learned, by hash (`knownRooms`)
+ */
+export function resolve(ops: Op[], secrets: Record<string, string> = {}): Group | null {
 	const order = ordered(ops);
 	const create = order.find((op) => op.body.type === 'create' && op.parents.length === 0);
 	if (!create || create.body.type !== 'create') return null;
@@ -174,7 +196,7 @@ export function resolve(ops: Op[]): Group | null {
 	const members = new Map<string, Member>();
 	const removed = new Map<string, Member>();
 	members.set(create.author, { key: create.body.key, name: create.body.name });
-	let room = create.body.room;
+	let room: string | null = create.body.room;
 	const oldRooms: Group['oldRooms'] = [];
 	for (const op of order) {
 		if (!valid.has(op.id) && !effective.has(op.id)) continue;
@@ -190,8 +212,8 @@ export function resolve(ops: Op[]): Group | null {
 				members.delete(body.device);
 				removed.set(body.device, member);
 			}
-			oldRooms.push({ room, until: op.time });
-			room = body.room;
+			if (room !== null) oldRooms.push({ room, until: op.time });
+			room = body.room ?? secrets[body.roomHash ?? ''] ?? null;
 		}
 	}
 	return { id: create.id, members, removed, room, oldRooms };

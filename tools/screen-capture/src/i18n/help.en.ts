@@ -14,13 +14,13 @@ const help = {
 			},
 			ribbon: {
 				title: 'Ribbon',
-				text: 'Commands that can’t act right now stay in their place, grayed out. Buttons with a small arrow open choices (“Hold frame” its length, “Delete” deleting with a gap, “Shapes” the four shapes). The menu at the right end of the ribbon switches its display; Alt or F10 show a letter for every tab and command.',
+				text: 'Commands that can’t act right now stay in their place, grayed out. Buttons with a small arrow open choices (“Hold frame” its length, “Delete” deleting with a gap, “Shapes” the four shapes). The menu at the right end of the ribbon switches its display – for every in-browser tool on this device – and the arrow next to it collapses the ribbon to its tabs (a click on a tab then opens its commands over the editor; also a double click on a tab or Ctrl+F1); Alt or F10 show a letter for every tab and command.',
 				options: {
-					classic: { label: 'Classic (default)', text: 'Groups with large buttons and their names – everything at a glance.' },
+					classic: { label: 'Classic (default on a computer)', text: 'Groups with large buttons and their names – everything at a glance.' },
 					simplified: { label: 'Simplified', text: 'One compact row – more room for preview and timeline.' },
-					tabs: { label: 'Tabs only', text: 'Only the tab names; a click on one opens its commands over the editor.' }
+					minimal: { label: 'Minimal (default on phones and tablets)', text: 'One row of icons without text; hold the pointer over an icon – or press and hold it – to see its name. Least height with every command in reach.' }
 				},
-				tip: 'On a small screen “Simplified” or “Tabs only” leave the preview more height; most actions also have a key or are in the context menu.',
+				tip: 'On a small screen “Simplified” or “Minimal” leave the preview more height, the collapsed ribbon the most; most actions also have a key or are in the context menu.',
 				keys: [['Ctrl', 'F1'], ['Alt'], ['F10']]
 			},
 			panels: {
@@ -41,7 +41,7 @@ const help = {
 			},
 			storage: {
 				title: 'Storage space',
-				text: 'The start page shows how much of the browser storage the in-browser tools use. Recordings and imported media are the largest part; deleting a project (on the start page or in Files) moves it to the trash; its space is freed when the trash is emptied.',
+				text: 'The start page lists your projects as cards: a click opens one; right-click, press and hold or the ⋯ button gives “Open”, “Show in Files” and “Delete” (also Del on a focused card). The footer of Files shows how much of the browser storage the in-browser tools use. Recordings and imported media are the largest part; deleting a project (on the start page or in Files) moves it to the trash, with “Undo” in the message; its space is freed when the trash is emptied.',
 				link: { href: '/help/storage', label: 'Storage space and the folder on your computer' }
 			},
 			browser: {
@@ -716,7 +716,7 @@ const help = {
 			scaleText: { title: 'Scale the font', text: 'While dragging a handle of a text box or speech bubble', keys: [['K']] },
 			zoom: { title: 'Timeline zoom', text: 'In the timeline', keys: [['Ctrl', 'Mouse wheel']] },
 			properties: { title: 'Properties', text: 'Show or hide them', keys: [['Alt', 'Enter']] },
-			ribbon: { title: 'Ribbon', text: 'Switch between the full ribbon and the tabs only; Alt or F10 show its access keys', keys: [['Ctrl', 'F1'], ['Alt'], ['F10']] },
+			ribbon: { title: 'Ribbon', text: 'Collapse or expand the ribbon; Alt or F10 show its access keys', keys: [['Ctrl', 'F1'], ['Alt'], ['F10']] },
 			entries: { title: 'Media bin and library', text: 'Insert the selected entries, rename an entry, delete or remove them', keys: [['Enter'], ['F2'], ['Del']] }
 		}
 	}

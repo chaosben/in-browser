@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { m } from '#lib/i18n/index.js';
 	import DevicesPanel from './DevicesPanel.svelte';
 	import LogSection from './LogSection.svelte';
@@ -9,19 +10,9 @@ import SyncPanel from './SyncPanel.svelte';
 
 	let { onclose }: { onclose: () => void } = $props();
 
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal"
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		onclose();
-	}}
->
+<Modal onclose={onclose}>
 	<div class="modal-box flex max-w-lg flex-col gap-5">
 		<h3 class="text-lg font-bold">{m.syncHub.title}</h3>
 		<DevicesPanel />
@@ -33,4 +24,4 @@ import SyncPanel from './SyncPanel.svelte';
 			<button class="btn" onclick={onclose}>{m.devices.close}</button>
 		</div>
 	</div>
-</dialog>
+</Modal>

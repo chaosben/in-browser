@@ -1,3 +1,4 @@
+import { showError } from '@in-browser/files/errors.js';
 // Inserting copied items (clipboard, library) into the open project and moving entries between the libraries
 
 import { m } from '#lib/i18n/index.js';
@@ -16,8 +17,7 @@ import { errorMessage } from '#lib/util/format.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 
 function failed(e: unknown) {
-	console.error(e);
-	toast(errorMessage(e), 'error', 8000);
+	showError(e, { text: errorMessage(e) });
 }
 
 /** After new sources: the preview loads their videos and redraws */

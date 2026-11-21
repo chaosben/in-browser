@@ -51,7 +51,7 @@
 		saveProject
 	} from '#lib/storage/store.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-	import { PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
+	import { filesUrl, PACKAGE_MANIFEST } from '@in-browser/files/formats.js';
 	import { copy, exists, FilesError, remove as removePath, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText} from '@in-browser/files/i18n/index.svelte.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
@@ -248,7 +248,7 @@
 	}
 
 	function showInFiles(ed: Editor) {
-		location.assign(`${resolve('/files')}?path=${encodeURIComponent(parent(ed.project.id))}`);
+		location.assign(filesUrl(ed.project.id));
 	}
 
 	// Pictures of image annotations are loaded from this project
@@ -483,8 +483,6 @@
 		}
 	];
 
-	/** The shortcut list of the project's properties: the commands with keys */
-	const shortcutList: Command[] = [c.play, c.split, c.holdFrame, c.delete, c.deleteGap, c.cut, c.copy, c.paste, c.selectAll, c.link, c.unlink, c.forward, c.toFront, propertiesCommand];
 
 	/** Ctrl+A selects all items only while the preview or the timeline has the focus (elsewhere: the browser's) */
 	const inEditArea = () => !!document.activeElement?.closest('[data-preview-area], [data-timeline]');
@@ -725,7 +723,7 @@
 			</section>
 
 			<InspectorPane state={inspector}>
-				<Inspector bind:this={properties} {editor} commands={c} shortcuts={shortcutList} />
+				<Inspector bind:this={properties} {editor} commands={c} />
 			</InspectorPane>
 		</div>
 

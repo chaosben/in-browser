@@ -34,45 +34,5 @@ export function movePages<T extends { id: string }>(pages: readonly T[], ids: Re
 	return [...before, ...moving, ...after];
 }
 
-/** One undo step (already done when pushed) */
-export interface Step {
-	undo(): void;
-	redo(): void;
-}
-
-/** Undo and redo of steps (redo is dropped when a new step comes) */
-export class History {
-	private undoSteps: Step[] = [];
-	private redoSteps: Step[] = [];
-
-	get canUndo() {
-		return this.undoSteps.length > 0;
-	}
-
-	get canRedo() {
-		return this.redoSteps.length > 0;
-	}
-
-	push(step: Step) {
-		this.undoSteps.push(step);
-		this.redoSteps = [];
-	}
-
-	/** Undoes the last step; false: nothing to undo */
-	undo(): boolean {
-		const step = this.undoSteps.pop();
-		if (!step) return false;
-		step.undo();
-		this.redoSteps.push(step);
-		return true;
-	}
-
-	/** Does the last undone step again; false: nothing to redo */
-	redo(): boolean {
-		const step = this.redoSteps.pop();
-		if (!step) return false;
-		step.redo();
-		this.undoSteps.push(step);
-		return true;
-	}
-}
+// Undo and redo are the suite's (`History` of `@in-browser/graphics`)
+export { History, type HistoryStep as Step } from '@in-browser/graphics/history.js';

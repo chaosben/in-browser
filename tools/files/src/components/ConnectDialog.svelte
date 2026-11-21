@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '@in-browser/brand/Modal.svelte';
 	import { untrack } from 'svelte';
 	import { FilesError } from '@in-browser/files/fs.js';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
@@ -127,21 +128,9 @@
 			busy = false;
 		}
 	}
-
-	function start(dialog: HTMLDialogElement) {
-		dialog.showModal();
-	}
 </script>
 
-<dialog
-	class="modal max-sm:modal-bottom"
-	aria-labelledby={titleId}
-	{@attach start}
-	oncancel={(e) => {
-		e.preventDefault();
-		if (!busy) onclose();
-	}}
->
+<Modal {onclose} {busy} labelledby={titleId} class="max-sm:modal-bottom">
 	<form
 		class="modal-box flex max-h-[calc(100dvh-2rem)] max-w-xl flex-col gap-3 overflow-y-auto max-sm:h-full max-sm:max-h-none max-sm:rounded-none"
 		onsubmit={(e) => {
@@ -232,4 +221,4 @@
 			</button>
 		</div>
 	</form>
-</dialog>
+</Modal>

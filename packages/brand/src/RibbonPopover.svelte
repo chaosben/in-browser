@@ -32,8 +32,10 @@
 		if (open) return panel.hidePopover();
 		const r = button.getBoundingClientRect();
 		panel.style.top = `${r.bottom + 4}px`;
-		panel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 300))}px`;
+		// Shown first: the panel is as wide as its content, and must stay inside the window
+		panel.style.left = '8px';
 		panel.showPopover();
+		panel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - panel.offsetWidth - 8))}px`;
 	}
 
 	const close = () => panel?.hidePopover();
@@ -67,7 +69,7 @@
 <div
 	bind:this={panel}
 	popover="auto"
-	class="bg-base-100 border-base-300 rounded-box fixed m-0 w-72 max-w-[calc(100vw-1rem)] border p-2 shadow-lg"
+	class="bg-base-100 border-base-300 rounded-box fixed m-0 w-max max-w-[calc(100vw-1rem)] min-w-72 border p-2 shadow-lg"
 	role="dialog"
 	aria-label={label}
 	ontoggle={(e) => (open = e.newState === 'open')}

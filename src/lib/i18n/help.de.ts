@@ -42,7 +42,8 @@ const help: typeof enHelp = {
 						},
 						kept: {
 							title: 'Dauerhaft aufbewahrt',
-							text: 'in-browser bittet den Browser, seinen Speicher auch dann zu behalten, wenn der Platz knapp wird. Die meisten Browser stimmen ohne Nachfrage zu. Safari kann die Daten von Seiten löschen, die du einige Wochen nicht benutzt hast; auf dem Home-Bildschirm (iPhone, iPad) oder im Dock (Mac) behält eine Seite ihre Daten.'
+							text: 'Wenn du zum ersten Mal etwas speicherst, bittet in-browser den Browser, seinen Speicher auch dann zu behalten, wenn der Platz knapp wird. Chrome und Edge entscheiden das selbst (eher bei einer Seite, die du oft benutzt oder installiert hast), Firefox fragt dich. Safari löscht die Daten von Seiten, die du sieben Tage nicht geöffnet hast; auf dem Home-Bildschirm (iPhone, iPad) oder im Dock (Mac) behält eine Seite ihre Daten. Solange der Browser nicht zugestimmt hat und nichts synchronisiert wird, steht in der Fußzeile von Dateien „Der Browser kann diesen Speicher leeren“.',
+							tip: 'Verlass dich nicht allein auf den Browser: Synchronisiere mit einem Ordner auf deinem Rechner oder mit einem anderen Gerät. Dann kostet dich ein geleerter Speicher nichts.'
 						},
 						tabs: {
 							title: 'Mehrere Tabs',
@@ -79,7 +80,7 @@ const help: typeof enHelp = {
 					items: {
 						quota: {
 							title: 'Wie viel passt',
-							text: 'Browser geben einer Seite einen Anteil am freien Platz des Geräts – meist einen großen. Die Fußzeile von Dateien zeigt, wie viel in-browser belegt und wie viel der Browser erlaubt. Aufnahmen und importierte Videos brauchen den meisten Platz, Texte und Notizbücher sehr wenig.'
+							text: 'Browser geben einer Seite einen Anteil am freien Platz des Geräts – meist einen großen. Die Fußzeile von Dateien zeigt, wie viel in-browser belegt und wie viel der Browser erlaubt. Aufnahmen und importierte Videos brauchen den meisten Platz, Texte und Notizbücher sehr wenig. Ist der Speicher voll, sagt das Speichern es („… passt nicht mehr: Der Speicher dieses Browsers ist voll“), und die Synchronisierung lässt Dateien aus, die nicht passen, bis wieder Platz ist.'
 						},
 						free: {
 							title: 'Platz freigeben',
@@ -162,7 +163,7 @@ const help: typeof enHelp = {
 					items: {
 						newer: {
 							title: 'Die neuere Version gewinnt',
-							text: 'Hat sich eine Datei seit dem letzten Sync auf zwei Geräten geändert, behält die neuere Version den Namen, die andere bleibt als Konfliktkopie daneben erhalten. Nichts geht verloren; sieh dir beide an und lösche die, die du nicht brauchst.',
+							text: 'Hat sich eine Datei seit dem letzten Sync auf zwei Geräten geändert, behält die neuere Version den Namen, die andere bleibt als Konfliktkopie daneben erhalten. Ein Notizbuch oder ein Projekt ist ein Dokument: Dort bleibt das ganze Dokument, wie es auf diesem Gerät war, als Kopie erhalten, z. B. „Reise (Konflikt Laptop)“ neben „Reise“. Nichts geht verloren; sieh dir beide an und lösche die, die du nicht brauchst.',
 							tip: 'Bevor du auf einem Gerät weitermachst, das länger nicht offen war, öffne zuerst in-browser auf einem deiner anderen Geräte und lass es synchronisieren. Dateien warnt dich, wenn dieses Gerät wahrscheinlich hinterher ist.'
 						},
 						open: {
@@ -248,8 +249,8 @@ const help: typeof enHelp = {
 							text: 'Beide Geräte sind online, aber das Netz blockiert direkte Verbindungen – oft Mobilfunk, Firmen- oder Hotel-WLAN. Einen Umweg-Server für Dateien gibt es nicht. Versuch es im selben WLAN, oder richte zu Hause einen p2p-node mit freigegebenen Ports ein: Den erreichen deine Geräte fast überall.'
 						},
 						outdated: {
-							title: '„Braucht ein Update“',
-							text: 'Auf dem anderen Gerät läuft eine ältere Version. Öffne dort in-browser und lade die Seite neu.'
+							title: '„Braucht ein Update“ oder „Hat eine neuere Version“',
+							text: 'Geräte synchronisieren nur, solange auf ihnen dieselbe Version läuft. „Braucht ein Update“: Auf dem anderen Gerät läuft eine ältere – öffne dort in-browser und lade die Seite neu. „Hat eine neuere Version“: Dieses Gerät ist das ältere – lade diese Seite neu. Ein p2p-node aktualisiert sich innerhalb einer Stunde selbst.'
 						},
 						diagnostics: {
 							title: 'Diagnose',
@@ -364,7 +365,7 @@ const help: typeof enHelp = {
 						},
 						end: {
 							title: 'Eine Freigabe beenden',
-							text: 'Deine aktiven Freigaben stehen in Dateien unter „Freigaben“, mit einem Punkt, der grün wird, solange ein Gast verbunden ist. Ein Klick zeigt Link und QR-Code wieder; Rechtsklick (oder gedrückt halten) für „Freigabe beenden“. Beenden trennt den Gast sofort und sagt es ihm; im Ordner ändert sich nichts. Freigaben enden auch von selbst, wenn ihre Zeit um ist.'
+							text: 'Deine aktiven Freigaben stehen in Dateien unter „Freigaben“, mit einem Punkt, der grün wird, solange ein Gast verbunden ist. Ein Klick zeigt Link und QR-Code wieder; Rechtsklick (oder gedrückt halten) für „Freigabe beenden“. Beenden trennt den Gast sofort und sagt es ihm; im Ordner ändert sich nichts. Eine Freigabe gilt, bis du sie beendest.'
 						}
 					}
 				}

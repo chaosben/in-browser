@@ -148,7 +148,9 @@ const de: Messages = {
 	},
 
 	storage: {
-		used: (used, quota) => `${used} von ${quota} belegt`
+		used: (used, quota) => `${used} von ${quota} belegt`,
+		notKept: 'Der Browser kann diesen Speicher leeren',
+		notKeptHint: 'Dieser Browser hat nicht zugesagt, den Speicher von in-browser zu behalten. Behalte eine Kopie – mit einem Ordner oder einem anderen Gerät synchronisieren – oder installiere in-browser. Öffnet die Hilfe.'
 	},
 
 	share: {
@@ -262,6 +264,7 @@ const de: Messages = {
 		never: 'noch nicht gesehen',
 		unreachable: 'Online, aber nicht erreichbar. Vermutlich blockiert das Netz direkte Verbindungen (z. B. Mobilfunk oder Firmen-WLAN).',
 		outdated: 'Braucht ein Update: Öffne dort in-browser und lade die Seite neu.',
+		newer: 'Hat eine neuere Version: Lade diese Seite neu.',
 		lastSync: (ago) => `zuletzt synchronisiert ${ago}`,
 		upToDate: 'aktuell',
 		probablyBehind: (changes, ago) => `Wahrscheinlich nicht aktuell: ${changes} seit dem letzten Sync ${ago}.`,

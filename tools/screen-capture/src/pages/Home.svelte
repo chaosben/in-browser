@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { showError } from '@in-browser/files/errors.js';
+	import { filesUrl } from '@in-browser/files/formats.js';
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import AccessNotice from '@in-browser/files/AccessNotice.svelte';
-	import { filesMessages, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { displayPath } from '@in-browser/files/sources/registry.js';
-	import { parent, stem } from '@in-browser/files/path.js';
+	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
+	import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { shortcutLabel } from '@in-browser/brand/commands.js';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
+	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { stem } from '@in-browser/files/path.js';
 	import { supported, watchSettled } from '@in-browser/files/fs.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { editorUrl } from '#lib/brand.js';
@@ -27,11 +30,9 @@
 		lastFolder,
 		PROJECT_EXT,
 		projectName,
-		requestPersistence,
-		storageEstimate
+		requestPersistence
 	} from '#lib/storage/store.js';
-	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
+	import { formatDateTime, m } from '#lib/i18n/index.js';
 	import { errorMessage, formatTime } from '#lib/util/format.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 
@@ -44,7 +45,6 @@
 	const desktopOnly = !navigator.mediaDevices?.getDisplayMedia && coarsePointer.current;
 
 	let projects = $state<Project[] | null>(null);
-	let usage = $state<string | null>(null);
 	/** Package the running recording goes into, with the name of the project */
 	let recordingFor = $state<{ path: string; name: string } | null>(null);
 	let creating = $state(false);
@@ -53,14 +53,11 @@
 
 	/** An error as a toast and in the console */
 	function failed(what: string, e: unknown) {
-		console.error(`[screen-capture] ${what}`, e);
-		toast(errorMessage(e), 'error', 8000);
+		showError(e, { context: `[screen-capture] ${what}`, text: errorMessage(e) });
 	}
 
 	async function refresh() {
 		projects = await listProjects();
-		const { usage: used = 0, quota = 0 } = await storageEstimate();
-		usage = m.home.storage(formatSize(used, intlLocale), formatSize(quota, intlLocale));
 	}
 
 	$effect(() => {
@@ -161,21 +158,49 @@
 		}
 	}
 
+	// --- The card's menu (right click, long press, ⋯); Del on a focused card. Renaming is Files' job. ---
+
 	/** Into the trash (the message offers to undo it) */
-	async function remove(project: Project) {
+	async function remove(path: string) {
 		try {
-			await deleteToTrash([project.id], () => void refresh().catch((err) => failed('list projects', err)));
+			await deleteToTrash([path], () => void refresh().catch((err) => failed('list projects', err)));
 		} catch (e) {
 			failed('delete project', e);
 		}
 	}
+
+	/** The complete menu of a project */
+	function menu(entry: StartEntry): MenuEntry[] {
+		return [
+			{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => void goto(editorUrl(entry.path)) },
+			{ label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => location.assign(filesUrl(entry.path)) },
+			{ separator: true },
+			{
+				label: m.common.delete,
+				icon: 'icon-[material-symbols-light--delete-outline]',
+				keys: shortcutLabel({ key: 'Delete' }, brandMessages().keys),
+				run: () => void remove(entry.path)
+			}
+		];
+	}
+
+	const entries = $derived<StartEntry[] | null>(
+		projects?.map((p: Project) => ({
+			path: p.id,
+			name: p.name,
+			modified: p.updatedAt,
+			kind: 'directory',
+			// Only the length: with the canvas size the date no longer fits a card
+			detail: formatTime(projectDuration(p), 0)
+		})) ?? null
+	);
 </script>
 
 <svelte:head><title>{toolName('screen-capture')} · {BRAND.suite}</title></svelte:head>
 
 <!-- The whole page is a drop zone for video files -->
 <div
-	class="flex min-h-full flex-col"
+	class="flex min-h-0 flex-1 flex-col"
 	role="region"
 	aria-label={m.home.projects}
 	ondragover={(e) => {
@@ -193,86 +218,48 @@
 		importFiles(e.dataTransfer.files);
 	}}
 >
-<main class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10">
-	<header class="flex flex-col gap-2">
-		<h1 class="text-4xl font-bold">{toolName('screen-capture')}</h1>
-		<p class="opacity-70">{m.home.tagline}</p>
-	</header>
-
-	{#if desktopOnly}
-		<div role="alert" class="alert alert-info alert-vertical sm:alert-horizontal">
-			<span class="icon-[material-symbols-light--computer-outline] size-6 shrink-0" aria-hidden="true"></span>
-			<span class="flex-1">{m.home.desktopOnly}</span>
-			<a class="btn btn-sm" href={resolve('/')} data-sveltekit-reload>{m.home.allTools}</a>
-		</div>
-	{:else if missing.length > 0}
-		<div role="alert" class="alert alert-error">
-			<span>{m.home.unsupported(missing.join(', '))}</span>
-		</div>
-	{:else}
-		<section class="flex flex-wrap gap-3">
-			<button class="btn btn-primary btn-lg" onclick={startRecording}><span class="icon-[material-symbols-light--screen-record-outline] size-6" aria-hidden="true"></span> {m.home.newRecording}</button>
-			<button class="btn btn-lg" onclick={() => fileInput?.click()} disabled={!!importing}><span class="icon-[material-symbols-light--upload-file] size-6" aria-hidden="true"></span> {m.home.importMedia}</button>
-			<button class="btn btn-lg" onclick={importFromFiles} disabled={!!importing}><span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span> {m.home.importFromFiles}</button>
-			<button class="btn btn-lg" onclick={() => (creating = true)}><span class="icon-[material-symbols-light--add-box-outline] size-6" aria-hidden="true"></span> {m.home.emptyProject}</button>
-			<button class="btn btn-lg btn-ghost" onclick={openProject}><span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span> {m.home.openProject}</button>
-			<input
-				bind:this={fileInput}
-				type="file"
-				accept={`${MEDIA_ACCEPT},${IMAGE_ACCEPT}`}
-				multiple
-				hidden
-				onchange={(e) => importFiles(e.currentTarget.files)}
-			/>
-		</section>
-
-		<!-- A fixed place for the progress of an import, so nothing below moves when it starts or ends -->
-		<div class="flex h-6 items-center gap-3" role="status">
-			{#if importing}
-				<span class="truncate text-sm">{m.common.importing(importing.name)}</span>
-				<progress class="progress progress-primary w-64 shrink-0" value={importing.progress} max="1"></progress>
-			{/if}
-		</div>
-
-		<section class="flex flex-col gap-3">
-			<div class="flex items-baseline justify-between">
-				<h2 class="text-xl font-semibold">{m.home.projects}</h2>
-				{#if usage}<span class="text-xs opacity-60">{usage}</span>{/if}
+	<StartPage
+		tagline={m.home.tagline}
+		available={!desktopOnly && missing.length === 0}
+		unsupported={desktopOnly ? m.home.desktopOnly : m.home.unsupported(missing.join(', '))}
+		heading={m.home.projects}
+		{entries}
+		href={(entry) => editorUrl(entry.path)}
+		{menu}
+		empty={m.home.empty}
+		tool="screen-capture"
+		onallowed={() => refresh().catch((e) => failed('list projects', e))}
+		formatDate={formatDateTime}
+		ondelete={(entry) => void remove(entry.path)}
+	>
+		{#snippet actions()}
+			<button class="btn btn-primary" onclick={startRecording}>
+				<span class="icon-[material-symbols-light--screen-record-outline] size-6" aria-hidden="true"></span>{m.home.newRecording}
+			</button>
+			<button class="btn" onclick={() => fileInput?.click()} disabled={!!importing}>
+				<span class="icon-[material-symbols-light--upload-file] size-6" aria-hidden="true"></span>{m.home.importMedia}
+			</button>
+			<button class="btn" onclick={importFromFiles} disabled={!!importing}>
+				<span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span>{m.home.importFromFiles}
+			</button>
+			<button class="btn" onclick={() => (creating = true)}>
+				<span class="icon-[material-symbols-light--add-box-outline] size-6" aria-hidden="true"></span>{m.home.emptyProject}
+			</button>
+			<button class="btn" onclick={openProject}>
+				<span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span>{m.home.openProject}
+			</button>
+			<input bind:this={fileInput} type="file" accept={`${MEDIA_ACCEPT},${IMAGE_ACCEPT}`} multiple hidden onchange={(e) => importFiles(e.currentTarget.files)} />
+		{/snippet}
+		{#snippet extra()}
+			<!-- A fixed place for the progress of an import, so nothing below moves when it starts or ends -->
+			<div class="flex h-6 items-center gap-3" role="status">
+				{#if importing}
+					<span class="truncate text-sm">{m.common.importing(importing.name)}</span>
+					<progress class="progress progress-primary w-64 shrink-0" value={importing.progress} max="1"></progress>
+				{/if}
 			</div>
-			<AccessNotice tool="screen-capture" onallowed={() => refresh().catch((e) => failed('list projects', e))} />
-			{#if projects === null}
-				<span class="loading loading-dots"></span>
-			{:else if projects.length === 0}
-				<p class="opacity-60">{m.home.empty}</p>
-			{:else}
-				<ul class="list bg-base-200 rounded-box">
-					{#each projects as project (project.id)}
-						<li class="list-row items-center">
-							<div class="list-col-grow">
-								<a class="link link-hover font-semibold" href={editorUrl(project.id)}>{project.name}</a>
-								<div class="text-xs opacity-60">
-									{formatTime(projectDuration(project), 0)} · {project.width}×{project.height} ·
-									{m.home.changed(formatDateTime(project.updatedAt))}
-									·
-									<a
-										class="link link-hover"
-										href="{resolve('/files')}?path={encodeURIComponent(parent(project.id))}"
-										data-sveltekit-reload>{m.home.inFolder(displayPath(parent(project.id), filesMessages().root))}</a
-									>
-								</div>
-							</div>
-							<a class="btn btn-sm" href={editorUrl(project.id)}>{m.common.open}</a>
-							<button class="btn btn-sm btn-ghost btn-square" onclick={() => remove(project)} title={m.common.delete} aria-label={m.common.delete}><span class="icon-[material-symbols-light--delete-outline] size-5" aria-hidden="true"></span></button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
-
-		<p class="text-xs opacity-50">{m.home.footer}</p>
-	{/if}
-</main>
-
+		{/snippet}
+	</StartPage>
 </div>
 
 {#if draggingFiles}

@@ -19,13 +19,13 @@ const help: typeof enHelp = {
 			},
 			ribbon: {
 				title: 'Menüband-Anzeige',
-				text: 'Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner: Ihre Schaltflächen verlieren den Text unter dem Symbol, dann den Text ganz, und zuletzt wird eine ganze Gruppe zu einer Schaltfläche, die sie öffnet. Die Schaltfläche mit dem Leisten-Symbol am rechten Ende der Registerkarten wählt, wie das Menüband aussieht; der Pfeil daneben schaltet auf „Nur Registerkarten“ und zurück.',
+				text: 'Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner: Ihre Schaltflächen verlieren den Text unter dem Symbol, dann den Text ganz, und zuletzt wird eine ganze Gruppe zu einer Schaltfläche, die sie öffnet. Die Schaltfläche mit dem Leisten-Symbol am rechten Ende der Registerkarten wählt, wie das Menüband aussieht – für alle Tools von in-browser auf diesem Gerät. Der Pfeil daneben klappt das Menüband zusammen: Nur die Registerkarten bleiben, und ein Klick auf eine öffnet ihre Befehle über der Seite, bis du einen wählst; ein Doppelklick auf eine Registerkarte oder Strg+F1 tun dasselbe, und der Pfeil holt das Menüband zurück, wie es war.',
 				options: {
-					classic: { label: 'Klassisch (Standard)', text: 'Große Schaltflächen in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
+					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Große Schaltflächen in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
 					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile Schaltflächen, ohne Gruppennamen. Lässt mehr Platz für die Seiten.' },
-					tabs: { label: 'Nur Registerkarten', text: 'Nur die Registerkarten; ein Klick auf eine öffnet ihre Befehle über der Seite, bis du einen wählst. Am meisten Platz zum Schreiben.' }
+					minimal: { label: 'Minimal (Standard auf Handy und Tablet)', text: 'Eine Zeile Symbole ohne Text; halte den Zeiger über ein Symbol – oder halte es gedrückt –, um seinen Namen zu sehen. Am wenigsten Höhe, und jeder Befehl bleibt erreichbar.' }
 				},
-				tip: 'Bleib bei „Klassisch“, bis du weißt, wo alles ist; dann schalte auf „Vereinfacht“ oder „Nur Registerkarten“, um mehr von der Seite zu sehen.',
+				tip: 'Bleib bei „Klassisch“, bis du weißt, wo alles ist; dann schalte auf „Vereinfacht“ oder „Minimal“ – oder klapp das Menüband zusammen –, um mehr von der Seite zu sehen.',
 				keys: [['Strg', 'F1']]
 			},
 			accessKeys: {
@@ -35,7 +35,7 @@ const help: typeof enHelp = {
 			},
 			phone: {
 				title: 'Auf dem Handy',
-				text: 'Auf dem Handy ist das Menüband eine einzelne Leiste oben: Die Schaltfläche links wählt die Registerkarte, die Befehle daneben sind Symbole und lassen sich seitwärts schieben. Halte ein Symbol gedrückt, um seinen Namen zu sehen. Wählst du etwas aus, springt es von selbst zur Registerkarte der Auswahl.'
+				text: 'Auf Handy und Tablet beginnt das Menüband als „Minimal“: die Registerkarten in einer Zeile, darunter die Befehle der Registerkarte als Symbole, die sich seitwärts schieben lassen. Halte ein Symbol gedrückt, um seinen Namen zu sehen. Der Pfeil rechts neben den Registerkarten klappt das Menüband zusammen, wenn du die Höhe brauchst. Wählst du etwas aus, springt es von selbst zur Registerkarte der Auswahl.'
 			},
 			saving: {
 				title: 'Speichern',
@@ -279,7 +279,7 @@ const help: typeof enHelp = {
 			snap: { title: 'Umgekehrt einrasten', text: 'Halte die Taste beim Ziehen einer Form, eines Punkts oder einer Auswahl gedrückt, um das Gegenteil des Schalters „Einrasten“ zu bewirken.', keys: [['Alt']] },
 			zoom: { title: 'Zoom', text: 'Vergrößern, verkleinern, zurück auf 100 %.', keys: [['Strg', '+'], ['Strg', '-'], ['Strg', '0']] },
 			wheel: { title: 'Mausrad', text: 'Strg und Mausrad zoomen am Mauszeiger, Umschalt und Mausrad scrollen seitwärts.', keys: [['Strg', 'Mausrad'], ['Umschalt', 'Mausrad']] },
-			ribbon: { title: 'Menüband', text: 'Die Befehle des Menübands zeigen oder ausblenden („Nur Registerkarten“); Alt oder F10 zeigen die Zugriffstasten.', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
+			ribbon: { title: 'Menüband', text: 'Menüband zusammen- oder aufklappen; Alt oder F10 zeigen die Zugriffstasten.', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
 			home: { title: 'Startseite', text: 'Das fokussierte Notizbuch öffnen oder löschen.', keys: [['Eingabe'], ['Entf']] }
 		}
 	}

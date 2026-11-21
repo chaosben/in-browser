@@ -42,9 +42,33 @@ export interface RibbonTab {
 	follow?: () => boolean;
 }
 
-/** How the ribbon is shown: groups with labels, one compact row, or only the tabs (a tab opens over the page) */
-export type RibbonMode = 'classic' | 'simplified' | 'tabs';
-export const RIBBON_MODES: readonly RibbonMode[] = ['classic', 'simplified', 'tabs'];
+/** How the ribbon shows its commands: groups with labels, one compact row, or one row of icons only */
+export type RibbonMode = 'classic' | 'simplified' | 'minimal';
+export const RIBBON_MODES: readonly RibbonMode[] = ['classic', 'simplified', 'minimal'];
+
+/**
+ * What is kept of the ribbon's display – for all tools of this device (`RIBBON_KEY`). `mode` only once the user
+ * chose one: until then it follows the device (`defaultMode`). `collapsed` is apart from it: everything but the
+ * tabs is hidden, a tab opens its commands over the page.
+ */
+export interface RibbonSettings {
+	mode?: RibbonMode;
+	collapsed?: boolean;
+}
+export const RIBBON_KEY = 'brand:ribbon';
+
+/** Without a choice: icons only where fingers point or room is short, the full ribbon elsewhere */
+export const defaultMode = (compact: boolean): RibbonMode => (compact ? 'minimal' : 'classic');
+
+/**
+ * The kept display: `suite` is what is stored under `RIBBON_KEY`; without it, once, what `tool` kept under its own
+ * key before the display became the suite's (its display “tabs only” was the collapsed ribbon).
+ */
+export function ribbonSettings(suite: unknown, tool: unknown): RibbonSettings {
+	const from = (suite && typeof suite === 'object' ? suite : tool && typeof tool === 'object' ? tool : {}) as { mode?: unknown; collapsed?: unknown };
+	const mode = RIBBON_MODES.find((m) => m === from.mode);
+	return { ...(mode ? { mode } : {}), collapsed: from.collapsed === true || from.mode === 'tabs' };
+}
 
 export const isCustom = (item: RibbonItem): item is RibbonCustom => 'custom' in item;
 

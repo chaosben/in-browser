@@ -1,7 +1,7 @@
 import { copyFile, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { identityOf, type Identity } from '@in-browser/files/p2p/identity.js';
-import { emptyState, type P2pState, type Store } from '@in-browser/files/p2p/store.js';
+import { migrateState, STATE_VERSION, type Store } from '@in-browser/files/p2p/store.js';
 import type { Base, BaseEntry } from '@in-browser/files/sync/plan.js';
 import { canFlush, syncDir } from './durable.js';
 import { readJson as readStrict } from './json.js';
@@ -10,8 +10,9 @@ import { readJson as readStrict } from './json.js';
 // `identity.json` (key pair), `state.json`, `bases/<device>.json`. Unlike the browser, the private key must be
 // stored exportable – the folder's permissions protect it.
 
-/** Version of `state.json`; a different one on disk is kept as `state.v<n>.json` before it is replaced */
-const STATE_VERSION: P2pState['v'] = 1;
+// `state.json` has the version of `P2pState` (`STATE_VERSION`): an older one is migrated on load and kept as
+// `state.v<n>.json` before it is replaced; a newer one is never read (after going back to an older sync process:
+// that one stops, the starter returns to the version that wrote it).
 
 /** Unreadable state must never look like none (that would start over) */
 const readJson = <T>(file: string) => readStrict<T>(file, true);
@@ -59,7 +60,7 @@ export async function fileStore(dir: string): Promise<Store> {
 			return stored ? loadIdentity(stored) : newIdentity(identityFile);
 		},
 		resetIdentity: () => newIdentity(identityFile),
-		load: async () => (await readJson<P2pState>(stateFile)) ?? emptyState(),
+		load: async () => migrateState(await readJson<unknown>(stateFile)),
 		async save(state) {
 			const old = await readJson<{ v?: number }>(stateFile);
 			if (old && old.v !== STATE_VERSION) await copyFile(stateFile, join(dir, `state.v${old.v}.json`));

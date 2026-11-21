@@ -43,6 +43,7 @@ const de: FilesMessages = {
 		ended: (_name) => 'Die Freigabe wurde beendet.',
 		taken: (_name) => 'Diese Freigabe ist gerade in einem anderen Browser geöffnet. Versuch es später noch einmal.',
 		credentials: (name) => `Der Server von „${name}“ hat die Anmeldedaten nicht angenommen. Ändere sie in Dateien unter „Verbunden“.`,
+		full: (name) => `„${name}“ passt nicht mehr: Der Speicher dieses Browsers ist voll. Schaffe Platz in Dateien, z. B. mit „Papierkorb leeren“.`,
 	},
 
 	indicator: {
@@ -118,6 +119,7 @@ const de: FilesMessages = {
 		never: 'noch nicht gesehen',
 		unreachable: 'online, aber nicht erreichbar',
 		outdated: 'braucht ein Update von in-browser',
+		newer: 'hat eine neuere Version – lade diese Seite neu',
 		missing: (n, more) => (more ? `mehr als ${n} Änderungen fehlen` : n === 1 ? '1 Änderung fehlt' : `${n} Änderungen fehlen`),
 		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
 		manage: 'Geräte verwalten',

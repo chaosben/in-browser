@@ -30,8 +30,10 @@ const tabs: RibbonTab[] = [
 let host: HTMLElement;
 let ribbon: ReturnType<typeof mount> | null = null;
 
-async function show(width: number) {
+async function show(width: number, display?: { mode?: string; collapsed?: boolean }) {
 	localStorage.removeItem('test:ribbon');
+	if (display) localStorage.setItem('brand:ribbon', JSON.stringify(display));
+	else localStorage.removeItem('brand:ribbon');
 	host = document.createElement('div');
 	host.style.width = `${width}px`;
 	document.body.append(host);
@@ -53,7 +55,7 @@ afterEach(() => {
 	runs.length = 0;
 });
 
-// A desktop window (narrow windows get the phone bar)
+// A desktop window (narrow windows start with the minimal display)
 beforeAll(async () => {
 	await page.viewport(1500, 800);
 });
@@ -83,6 +85,37 @@ describe('ribbon', () => {
 		host.remove();
 		await show(90);
 		expect(collapsed()).toBeGreaterThan(0);
+	});
+
+	it('minimal shows icons only, named for assistive technology, and collapses groups that do not fit', async () => {
+		await show(1400, { mode: 'minimal' });
+		expect(labels()).toEqual([]);
+		expect(host.querySelector('[role="toolbar"] [data-command="eraser"]')?.getAttribute('aria-label')).toBe('Eraser');
+		expect(collapsed()).toBe(0);
+		unmount(ribbon!);
+		host.remove();
+		await show(200, { mode: 'minimal' });
+		expect(collapsed()).toBeGreaterThan(0);
+	});
+
+	it('collapsing hides the commands and keeps the display: a tab opens them over the page', async () => {
+		await show(1400, { mode: 'simplified' });
+		const toolbar = () => host.querySelector('[role="toolbar"]');
+		host.querySelector<HTMLElement>('[data-ribbon-collapse]')!.click();
+		flushSync();
+		expect(toolbar()).toBeNull();
+		expect(JSON.parse(localStorage.getItem('brand:ribbon')!)).toEqual({ mode: 'simplified', collapsed: true });
+		host.querySelector<HTMLElement>('[data-tab="home"]')!.click();
+		flushSync();
+		expect(toolbar()?.className).toContain('absolute');
+		host.querySelector<HTMLElement>('[data-command="cut"]')!.click();
+		flushSync();
+		expect(runs).toEqual(['cut']);
+		expect(toolbar()).toBeNull();
+		host.querySelector<HTMLElement>('[data-ribbon-collapse]')!.click();
+		flushSync();
+		// One row again, as chosen before
+		expect(toolbar()?.className).toContain('h-10');
 	});
 
 	it('adds the contextual tab while there is something to show it for', async () => {
