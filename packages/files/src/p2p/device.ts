@@ -19,6 +19,8 @@ import { deviceIdOf, type Identity } from './identity.js';
 import { advance, mergeDevices, mergeLogs, record, type Change, type DeviceInfo, type Vector } from './knowledge.js';
 import type { Link } from './link.js';
 import type { LogFn } from '../sync/log.js';
+import type { HeldFolder } from '../sync/plan.js';
+import { askAboveOf } from '../settings.js';
 import { createOp, heads, mergeOps, resolve, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
@@ -65,6 +67,11 @@ export interface DeviceOptions {
 	log?: LogFn;
 	/** A device answered with another protocol version (the p2p-node then looks for an update) */
 	onOutdated?: (version: number) => void;
+	/** Free bytes for arriving files where storage is limited (a browser's quota); none: not limited */
+	freeSpace?: () => Promise<number | null>;
+	/** Large new folders arriving here wait for confirmation (suite setting `sync.askAbove`). Off where nobody could
+	 * confirm them (the p2p-node) */
+	holdLarge?: boolean;
 }
 
 interface Peer {
@@ -97,6 +104,10 @@ export class Device {
 	private allowDeletesUntil = 0;
 	/** Deletions held for confirmation, per device (from the last session with it, whoever drove) */
 	private pendingDeletes = new Map<string, number>();
+	/** New folders held for confirmation that would arrive here, per device (from the last session with it) */
+	private pendingFolders = new Map<string, HeldFolder[]>();
+	/** New folders the user let through on this device (until they are here) */
+	private allowedFolders = new Set<string>();
 	private failed = 0;
 	private interval?: ReturnType<typeof setInterval>;
 	private saving: Promise<void> = Promise.resolve();
@@ -279,8 +290,11 @@ export class Device {
 		this.emit();
 	}
 
-	/** Joins the group of another device with its one-time key (both online); resolves once paired */
-	async join(code: string, name: string, timeout = 120_000): Promise<void> {
+	/**
+	 * Joins the group of another device with its one-time key (both online); resolves once paired. With `setup`,
+	 * nothing is transferred until `finishSetup` (the user first chooses the folders).
+	 */
+	async join(code: string, name: string, timeout = 120_000, { setup = false, scope }: { setup?: boolean; scope?: string[] } = {}): Promise<void> {
 		if (this.group) throw new Error('Already in a group');
 		if (this.state.removed) {
 			this.identity = await this.options.store.resetIdentity();
@@ -304,6 +318,8 @@ export class Device {
 						const ops = await verifyOps(reply.ops);
 						if (!resolve(ops)?.members.has(this.identity.id)) throw new Error('Not added');
 						clearTimeout(timer);
+						if (setup) this.state.setupPending = true;
+						if (scope) this.state.scope = scope;
 						await this.setOps(ops);
 						resolveJoin();
 					} catch (e) {
@@ -379,6 +395,31 @@ export class Device {
 				.catch(() => {});
 		}
 		this.emit();
+	}
+
+	/** Ends the setup after joining: the chosen excluded folders apply and syncing starts */
+	async finishSetup(scope: string[]) {
+		this.log('setup.done', { scope });
+		this.state.setupPending = undefined;
+		await this.setScope(scope);
+		this.syncNow();
+	}
+
+	/** A new folder held for confirmation comes to this device after all */
+	allowFolder(folder: string) {
+		this.log('folders.allowed', { folder });
+		this.allowedFolders.add(folder);
+		this.syncNow();
+	}
+
+	/** What the last session with `peer` held back of new folders arriving here */
+	private setPendingFolders(peer: string, folders: HeldFolder[]) {
+		if (folders.length) this.pendingFolders.set(peer, folders);
+		else this.pendingFolders.delete(peer);
+		// Let-through folders that are here now are no longer new
+		for (const folder of this.allowedFolders) {
+			void this.options.tree.stat(folder).then((state) => state && this.allowedFolders.delete(folder)).catch(() => {});
+		}
 	}
 
 	async excludeFolder(folder: string) {
@@ -532,9 +573,14 @@ export class Device {
 				onWrite: (path) => this.ownWrite(path),
 				scope: () => this.state.scope,
 				allowDeletes: () => this.deletesAllowed(),
+				setup: () => !!this.state.setupPending,
+				allowFolders: () => [...this.allowedFolders],
+				free: () => this.free(),
+				limit: () => this.limit(),
 				onEnd: (summary) => {
 					if (!peerId) return;
 					this.setPending(peerId, summary.pendingDeletes);
+					this.setPendingFolders(peerId, summary.heldFolders ?? []);
 					this.emit();
 				},
 				log: (event, data) => this.log(event, { ...data, from: peerId ? this.nameOf(peerId) : '?' })
@@ -635,8 +681,18 @@ export class Device {
 		}, delay);
 	}
 
+	private async limit() {
+		return this.options.holdLarge ? askAboveOf(this.options.tree) : null;
+	}
+
+	private async free() {
+		return (await this.options.freeSpace?.().catch(() => null)) ?? null;
+	}
+
 	private async syncWith(peer: Peer) {
 		if (this.peers.get(peer.id) !== peer) return;
+		// Nothing moves before the user chose the folders (after joining)
+		if (this.state.setupPending) return;
 		peer.running = true;
 		let result: DriveResult | null = null;
 		try {
@@ -657,6 +713,7 @@ export class Device {
 					if (known) known.scope = scope;
 				},
 				allowDeletes: allow,
+				holdLarge: { limit: await this.limit(), free: await this.free(), allowed: [...this.allowedFolders] },
 				onWrite: (path) => this.ownWrite(path),
 				onProgress: (done, total) => {
 					peer.syncing = { done, total };
@@ -669,10 +726,15 @@ export class Device {
 				this.schedule(peer, 2000 + Math.random() * 2000);
 				return;
 			}
+			if (result.setup) {
+				this.log('session.setup', { peer: this.nameOf(peer.id) });
+				return;
+			}
 			this.setPending(peer.id, result.pendingDeletes);
+			this.setPendingFolders(peer.id, result.heldFolders);
 			this.failed = result.failed;
 			if (result.conflicts.length) this.options.onEvent?.({ type: 'conflicts', paths: result.conflicts });
-			if (!result.failed && !result.pendingDeletes && !result.skipped) {
+			if (!result.failed && !result.pendingDeletes && !result.skipped && !result.heldFolders.length && !result.theirHeldFolders?.length) {
 				const theirs = (await peer.rpc.call('knowledge', { ...this.knowledge(), syncedWith: peer.id } as unknown as Json)) as unknown as Knowledge;
 				await this.takeKnowledge(peer.id, theirs, true);
 			}
@@ -898,6 +960,8 @@ export class Device {
 			invite,
 			scope: this.state.scope,
 			pendingDeletes: [...this.pendingDeletes.values()].reduce((sum, n) => sum + n, 0),
+			pendingFolders: mergeHeld([...this.pendingFolders.values()].flat()),
+			setup: !!this.state.setupPending,
 			failed: this.failed,
 			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0,
 			shares: this.shares().map((share) => ({
@@ -914,6 +978,16 @@ export class Device {
 	private emit() {
 		this.options.onChange?.(this.view());
 	}
+}
+
+/** One entry per folder (the largest amount any device would send) */
+function mergeHeld(folders: HeldFolder[]): HeldFolder[] {
+	const byPath = new Map<string, HeldFolder>();
+	for (const f of folders) {
+		const known = byPath.get(f.path);
+		if (!known || f.bytes > known.bytes) byPath.set(f.path, { ...f, full: f.full || !!known?.full });
+	}
+	return [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export interface Knowledge {

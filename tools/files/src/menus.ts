@@ -10,6 +10,7 @@ import { endShare, includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.sv
 import type { ShareView } from '@in-browser/files/p2p/view.js';
 import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
 import { duplicate, folderUrl, newFolder, newTextFile, paste, removeItems, toClipboard, toolUrl } from '#lib/actions.js';
+import { editConnection } from '#lib/connections.svelte.js';
 import { devicesUi } from '#lib/devices.svelte.js';
 import { m } from '#lib/i18n/index.js';
 import type { Item, SortKey } from '#lib/items.js';
@@ -122,12 +123,17 @@ export function shareEntries(ctx: MenuContext, share: ShareView): MenuEntry[] {
 	];
 }
 
-/** Actions of a connection: allow access again, disconnect (it is named after its folder) */
+/** Actions of a connection: allow access again, change a server's address and sign-in, disconnect (a folder is named
+ * after itself, a server by the name given in its dialog) */
 export function connectionEntries(ctx: MenuContext, c: ConnectionView): MenuEntry[] {
+	const kind = c.kind;
 	return [
 		...(c.access === 'granted'
 			? []
 			: [{ label: m.connected.allow, icon: 'icon-[material-symbols-light--key-outline]', run: () => void allowAccess(c.id) }]),
+		...(kind === 'webdav' || kind === 's3'
+			? [{ label: m.connected.edit, icon: 'icon-[material-symbols-light--edit-outline]', run: () => editConnection(c.id, kind) }]
+			: []),
 		{ label: m.connected.disconnect, icon: 'icon-[material-symbols-light--link-off]', run: () => void disconnectConnection(ctx, c) }
 	];
 }

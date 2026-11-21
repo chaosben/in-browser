@@ -1,6 +1,9 @@
 import { BRAND } from '@in-browser/brand/brand.js';
 import type enHelp from './help.en.js';
 
+/** CORS rule a bucket needs for the site (help page “Connected folders”) */
+const s3Cors = JSON.stringify([{ AllowedOrigins: [BRAND.suiteUrl], AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE'], AllowedHeaders: ['*'], ExposeHeaders: ['ETag'], MaxAgeSeconds: 3600 }]);
+
 const install = {
 	unix: `curl -fsSL ${BRAND.suiteUrl}/p2p-node/install.sh | sh`,
 	windows: `irm ${BRAND.suiteUrl}/p2p-node/install.ps1 | iex`
@@ -57,7 +60,7 @@ const help: typeof enHelp = {
 					items: {
 						folder: {
 							title: 'Ordner auf deinem Rechner',
-							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
+							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
 							tip: 'Wähle einen Ordner, den dein Sync-Programm (Syncthing, Nextcloud, Dropbox …) oder deine Datensicherung schon erfasst – dann kommen deine Dateien von selbst auf deine anderen Rechner und in die Sicherung. Fragt der Browser erneut nach Zugriff, wähle „Bei jedem Besuch zulassen“, dann läuft das Synchronisieren ohne Nachfrage weiter.'
 						},
 						devices: {
@@ -136,6 +139,12 @@ const help: typeof enHelp = {
 							text: 'Ein Schlüssel gilt einmal, 24 Stunden lang und nur, solange das Gerät online ist, das ihn zeigt.',
 							tip: 'Wer den Schlüssel hat, kann ein Gerät verbinden und alle synchronisierten Dateien lesen und ändern. Gib ihn nur auf deinen eigenen Geräten ein und schick ihn nie jemandem.'
 						},
+						setup: {
+							title: 'Erst ansehen, dann synchronisieren',
+							text: 'Gleich nach dem Verbinden zeigt das neue Gerät „Wähle, was dieses Gerät synchronisiert“: jeden Ordner mit dem, was hierher käme („… kommt hierher“), was nur dieses Gerät hat („… geht an deine Geräte“), und den freien Platz im Browser. Nichts wird übertragen, bis du „Synchronisieren starten“ wählst. Ordner, die die Größe aus den Einstellungen erreichen („groß“) oder nicht in den freien Platz passen („passt nicht“), sind zuerst abgewählt – hak sie an, wenn du sie hier haben willst. „Später“ lässt das Gerät warten; „Deine Geräte“ → „Ordner auswählen …“ holt die Auswahl zurück.',
+							tip: 'Wähle auf einem Telefon ab, was du dort nicht brauchst (Aufnahmen, Archive) – öffnen kannst du es trotzdem live. Ordner, die nur auf dem neuen Gerät liegen, kannst du nicht abwählen: Sie gehen immer an deine anderen Geräte.',
+							link: { href: '/help/settings#sync', label: 'Größe, ab der gefragt wird' }
+						},
 						folders: {
 							title: 'Ordner auswählen',
 							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und synchronisieren sich dort weiter – nur dieses Gerät bekommt sie nicht, und seine Kopie wird hier gelöscht. Einen Ordner auszulassen löscht ihn nirgendwo sonst.',
@@ -173,6 +182,16 @@ const help: typeof enHelp = {
 						deletions: {
 							title: 'Löschen',
 							text: 'Was du auf einem Gerät löschst, wird auch auf den anderen gelöscht und landet im Papierkorb. Wurden auf einem anderen Gerät viele Dateien auf einmal gelöscht, fragt Dateien vorher: „Hier auch löschen“.'
+						},
+						large: {
+							title: 'Große neue Ordner warten',
+							text: 'Käme ein neuer Ordner auf ein Gerät und ist er größer als die Größe in den Einstellungen oder passt nicht in den freien Speicher des Browsers, wartet er: Der Sync-Dialog in Dateien sagt „Neuer Ordner … wartet auf deine Bestätigung“, die Fußzeile jedes Tools „Neuer Ordner … wartet“. Alles andere synchronisiert weiter. Für den Ordner auf deinem Rechner gilt dasselbe: Dort zählt, was in den Browser kommt. Ein p2p-node wartet nie, er hat die Platte für sich.',
+							options: {
+								sync: { label: 'Synchronisieren', text: 'Der Ordner kommt doch auf dieses Gerät.' },
+								exclude: { label: 'Ausschließen', text: 'Dieses Gerät lässt den Ordner aus (er bleibt auf den anderen Geräten, hier öffnet er sich live). Beim Ordner auf deinem Rechner: Er bleibt an beiden Orten und wird nur nicht abgeglichen.' }
+							},
+							tip: 'Wähle „Synchronisieren“, wenn das Gerät den Platz hat und du den Ordner offline brauchst, sonst „Ausschließen“. Fragt es dir zu oft, erhöhe die Größe mit „Grenze ändern“.',
+							link: { href: '/help/settings#sync', label: 'Vor dem Synchronisieren neuer Ordner fragen ab' }
 						}
 					}
 				},
@@ -243,7 +262,7 @@ const help: typeof enHelp = {
 
 		connected: {
 			title: 'Verbundene Ordner',
-			summary: 'Öffne einen Ordner auf deinem Rechner live in jedem Tool – nichts wird in den Browser kopiert',
+			summary: 'Öffne einen Ordner auf deinem Rechner, einen WebDAV-Server oder S3-Speicher live in jedem Tool – nichts wird in den Browser kopiert',
 			topics: {
 				basics: {
 					title: 'Meine Dateien und Verbunden',
@@ -269,7 +288,7 @@ const help: typeof enHelp = {
 					items: {
 						connect: {
 							title: 'Verbinden',
-							text: 'Klick in Dateien auf „Ordner verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) und wähle einen Ordner; der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf. Der Ordner erscheint dann mit seinem Namen in der Seitenleiste „Ordner“ unter Meine Dateien. Das können nur Chrome und Edge am Computer.'
+							text: 'Klick in Dateien auf „Verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) und wähle, was du verbinden willst: „Ordner auf diesem Rechner …“, „WebDAV-Server …“ oder „S3-Speicher …“. Bei einem Ordner fragt der Browser, ob in-browser ihn ansehen und bearbeiten darf; das können nur Chrome und Edge am Computer. Server gehen in jedem Browser, auch auf Telefonen. Die Verbindung erscheint dann mit ihrem Namen in der Seitenleiste „Ordner“ unter Meine Dateien.'
 						},
 						access: {
 							title: 'Zugriff nach einem Neustart',
@@ -278,11 +297,48 @@ const help: typeof enHelp = {
 						},
 						manage: {
 							title: 'Name und trennen',
-							text: 'Ein verbundener Ordner trägt immer den Namen des Ordners auf deinem Rechner. „Trennen“ – im Menü des verbundenen Ordners (Rechtsklick in der Seitenleiste „Ordner“) oder in der Registerkarte „Verbinden“, solange er offen ist – entfernt ihn aus in-browser, ohne darin etwas zu löschen.'
+							text: 'Ein verbundener Ordner trägt immer den Namen des Ordners auf deinem Rechner, ein Server den Namen, den du ihm gegeben hast („Bearbeiten …“ in seinem Menü ändert ihn, zusammen mit Adresse und Anmeldedaten). „Trennen“ – im Menü des verbundenen Ordners (Rechtsklick in der Seitenleiste „Ordner“) oder in der Registerkarte „Verbinden“, solange er offen ist – entfernt ihn aus in-browser, ohne darin etwas zu löschen.'
 						},
 						deleting: {
 							title: 'Löschen',
-							text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser. Löschen fragt dort vorher und löscht dann endgültig; auch im Papierkorb deines Systems landet es nicht.'
+							text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser. Löschen fragt dort vorher und löscht dann endgültig; auch im Papierkorb deines Systems landet es nicht. Auf einem Server ist es ebenso weg – Nextcloud und ownCloud behalten Gelöschtes in ihrem eigenen Papierkorb auf dem Server.'
+						}
+					}
+				},
+				servers: {
+					title: 'WebDAV und S3',
+					items: {
+						webdav: {
+							title: 'WebDAV-Server',
+							text: '„Verbinden …“ → „WebDAV-Server …“ fragt nach der Adresse eines Ordners auf dem Server, deinem Benutzernamen und Passwort. Bei Nextcloud steht die Adresse unter „Dateien-Einstellungen“ → „WebDAV“, z. B. https://cloud.example.com/remote.php/dav/files/anna/. „Verbinden“ probiert sie zuerst aus und behält die Verbindung nur, wenn sich der Ordner auflisten lässt.',
+							tip: 'Nimm ein App-Passwort (Nextcloud, ownCloud: Einstellungen → Sicherheit) statt deines echten Passworts – du kannst es jederzeit widerrufen, ohne sonst etwas zu ändern.'
+						},
+						s3: {
+							title: 'S3-Speicher',
+							text: '„Verbinden …“ → „S3-Speicher …“ nimmt einen Bucket von Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO oder anderem S3-kompatiblem Speicher. „Anbieter“ füllt Endpunkt, Region und Adressierung aus; bei R2 trägst du deine Account-ID in den Endpunkt ein. „Ordner im Bucket“ öffnet nur diesen Ordner; leer den ganzen Bucket.',
+							options: {
+								bucket: { label: 'Bucket und Region', text: 'So, wie dein Anbieter sie zeigt. R2 nimmt „auto“ als Region.' },
+								pathStyle: { label: 'Bucket im Pfad (Path-Style-Adressen)', text: 'An für MinIO und die meisten selbst betriebenen Speicher; aus für AWS (der Standard jedes Anbieters ist voreingestellt).' },
+								keys: { label: 'Zugriffsschlüssel-ID und geheimer Zugriffsschlüssel', text: 'Leg einen Schlüssel an, der nur diesen Bucket lesen und schreiben darf.' }
+							},
+							tip: 'Gib in-browser einen eigenen Schlüssel nur für diesen einen Bucket – geht das Gerät verloren, löschst du nur diesen Schlüssel.'
+						},
+						cors: {
+							title: 'Der Server muss den Browser zulassen (CORS)',
+							text: 'Ein Browser darf nur mit einem Server sprechen, der in-browser zulässt. Ohne das sagt „Verbinden“: „Der Server ist nicht erreichbar oder erlaubt keinen Zugriff aus dem Browser (CORS)“. Für S3 gib dem Bucket eine CORS-Regel, die den Ursprung von in-browser (siehe unten), die Methoden GET, HEAD, PUT, POST und DELETE und alle Header erlaubt und den Header ETag freigibt. Für WebDAV muss der Server die Methoden OPTIONS, PROPFIND, GET, PUT, MKCOL, DELETE und MOVE von diesem Ursprung beantworten und die Header Authorization, Depth, Destination, Overwrite, Range, If-Match und Content-Type erlauben.',
+							code: s3Cors
+						},
+						https: {
+							title: 'Nur HTTPS',
+							text: 'Browser lassen eine HTTPS-Seite keinen reinen HTTP-Server nutzen, ein NAS unter http://192.168.… lässt sich also nicht verbinden. Nimm seine HTTPS-Adresse mit gültigem Zertifikat. Ein Server auf diesem Rechner (http://localhost) geht.'
+						},
+						secrets: {
+							title: 'Passwort und Schlüssel',
+							text: 'Das Passwort oder der geheime Schlüssel bleibt auf diesem Gerät, verschlüsselt mit einem Schlüssel, den der Browser verwahrt und nie herausgibt. Es wird nie synchronisiert – verbinde den Server auf jedem Gerät, auf dem du ihn willst. Lehnt der Server sie später ab, bieten Meldungen „Anmeldedaten ändern“ an.'
+						},
+						changes: {
+							title: 'Änderungen auf dem Server',
+							text: 'Ein Server sagt dem Browser nicht, wenn sich dort etwas ändert. Dateien schaut wieder nach, wenn du zum Tab zurückkommst, und alle 30 Sekunden, solange er offen ist.'
 						}
 					}
 				},
@@ -372,7 +428,7 @@ const help: typeof enHelp = {
 							title: 'Befehle',
 							text: 'Alle Befehle bekommen den Namen der Instanz.',
 							options: {
-								pair: { label: 'pair <name> <link>', text: 'Fügt eine neue Instanz als Gerät hinzu. „--folder <dir>“ wählt den synchronisierten Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen.' },
+								pair: { label: 'pair <name> <link>', text: 'Fügt eine neue Instanz als Gerät hinzu. „--folder <dir>“ wählt den synchronisierten Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen, „--exclude <ordner>“ lässt einen Ordner von Meine Dateien aus (für mehrere wiederholen, z. B. „--exclude Videos --exclude Fotos/2019“). Ohne „--exclude“ bekommt der Rechner alles.' },
 								run: { label: 'run <name>', text: 'Startet eine Instanz im Vordergrund, z. B. um zuzusehen.' },
 								install: { label: 'install <name>', text: 'Lässt sie im Hintergrund und bei jedem Start laufen. „uninstall <name>“ beendet das und behält die Daten.' },
 								status: { label: 'status [<name>]', text: 'Zeigt Geräte, Ordner und Papierkorb einer oder aller Instanzen.' },
@@ -502,6 +558,23 @@ const help: typeof enHelp = {
 								never: { label: 'Nie', text: 'Nichts wird von selbst entfernt – du leerst den Papierkorb selbst (Dateien → „Papierkorb“).' }
 							},
 							tip: 'Bleib bei 30 Tagen. Nimm 7 Tage, wenn der Speicher knapp wird (große Aufnahmen), 90 Tage oder „Nie“, wenn du mit Dokumenten arbeitest, die du nur ab und zu ansiehst.'
+						}
+					}
+				},
+				sync: {
+					title: 'Synchronisieren',
+					items: {
+						askAbove: {
+							title: 'Vor dem Synchronisieren neuer Ordner fragen ab',
+							text: 'Ein neuer Ordner, der auf ein Gerät käme und mindestens so groß ist, wartet auf deine Bestätigung – wenn ein Gerät zu synchronisieren beginnt und später, sobald so ein Ordner auftaucht. Ein Ordner, der nicht in den freien Speicher des Browsers passt, wartet immer, egal was du hier wählst.',
+							options: {
+								mb100: { label: '100 MB', text: 'Fragt oft – für Telefone mit wenig Platz.' },
+								gb1: { label: '1 GB (Standard)', text: 'Dokumente und Fotos fließen frei; Aufnahmen und Archive warten.' },
+								gb10: { label: '10 GB', text: 'Nur sehr große Ordner warten.' },
+								never: { label: 'Nie fragen', text: 'Jeder neue Ordner kommt sofort, solange er passt.' }
+							},
+							tip: 'Bleib bei 1 GB. Nimm 100 MB, wenn eines deiner Geräte ein oft volles Telefon ist, „Nie fragen“, wenn alle deine Geräte viel Platz haben.',
+							link: { href: '/help/sync', label: 'Synchronisieren zwischen deinen Geräten' }
 						}
 					}
 				}

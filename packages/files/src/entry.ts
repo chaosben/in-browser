@@ -28,7 +28,9 @@ export type FilesErrorCode =
 	/** A guest share was ended or ran out */
 	| 'ended'
 	/** A guest share is already open in another browser */
-	| 'taken';
+	| 'taken'
+	/** A server (WebDAV, S3) refused the sign-in data of a connection */
+	| 'credentials';
 
 /** Error with a code the UI translates (`filesMessages().errors`) */
 export class FilesError extends Error {

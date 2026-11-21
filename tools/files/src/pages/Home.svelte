@@ -26,17 +26,19 @@
 		allowAccess,
 		connectionLabel,
 		connections,
+		connectionEditor,
 		connectionsSupported,
 		openShare,
 		disconnect,
 	} from '@in-browser/files/sources/connections.svelte.js';
-	import { displayName } from '@in-browser/files/sources/registry.js';
+	import { displayName, listConnections } from '@in-browser/files/sources/registry.js';
 	import { parseInviteCode, parseShareCode } from '@in-browser/files/p2p/auth.js';
 	import { excludedNow, holdersOf, includeFolder, p2pStatus, syncDevicesNow } from '@in-browser/files/p2p/p2p.svelte.js';
 	import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
 	import { syncNow, syncStatus } from '@in-browser/files/sync/sync.svelte.js';
 	import { fail, newFolder, newTextFile, paste, removeItems, rename, toClipboard, toolUrl, transfer, duplicate, openInNewTab } from '#lib/actions.js';
-	import { connect } from '#lib/connections.js';
+	import { connectEntries, connectUi, editConnection } from '#lib/connections.svelte.js';
+	import ConnectDialog from '#lib/components/ConnectDialog.svelte';
 	import ShareDialog from '#lib/components/ShareDialog.svelte';
 	import FileList from '#lib/components/FileList.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
@@ -46,6 +48,7 @@
 	import ExcludeFolderDialog from '#lib/components/ExcludeFolderDialog.svelte';
 	import ExplainDialog from '#lib/components/ExplainDialog.svelte';
 	import FolderScopeDialog from '#lib/components/FolderScopeDialog.svelte';
+	import ScopeSetupDialog from '#lib/components/ScopeSetupDialog.svelte';
 	import JoinDialog from '#lib/components/JoinDialog.svelte';
 	import PairDialog from '#lib/components/PairDialog.svelte';
 	import SetupDialog from '#lib/components/SetupDialog.svelte';
@@ -331,7 +334,8 @@
 			icon: 'icon-[material-symbols-light--add-link]',
 			tip: m.connected.connectHint,
 			enabled: () => connectionsSupported(),
-			run: () => void connect(navigate)
+			// Asks what to connect: a folder on this computer, a WebDAV server, S3 storage
+			menu: () => connectEntries(navigate)
 		},
 		allowAccess: {
 			id: 'allowAccess',
@@ -375,7 +379,7 @@
 			label: m.devices.chooseFolders,
 			icon: 'icon-[material-symbols-light--folder-open-outline]',
 			enabled: () => online,
-			run: () => openDevicesDialog('scope')
+			run: () => openDevicesDialog(p2pStatus.view.setup ? 'scopeSetup' : 'scope')
 		},
 		syncHere: {
 			id: 'syncHere',
@@ -668,6 +672,21 @@
 	// Changes from anywhere (this tab, other tools, the sync): reload what is affected
 	onMount(() => {
 		updateUsage();
+		// Tools without the dialog send a refused sign-in here (`accessAction`); Files opens it in place
+		connectionEditor.open = (id) => {
+			const kind = connections.list.find((c) => c.id === id)?.kind;
+			if (kind === 'webdav' || kind === 's3') editConnection(id, kind);
+		};
+		const edit = page.url.searchParams.get('edit');
+		if (edit) {
+			const url = new URL(location.href);
+			url.searchParams.delete('edit');
+			void goto(url, { state: page.state, shallow: true, replace: true });
+			void listConnections().then((list) => {
+				const found = list.find((c) => c.id === edit);
+				if (found && (found.kind === 'webdav' || found.kind === 's3')) editConnection(found.id, found.kind);
+			});
+		}
 		// “Manage devices” from the footer of any tool
 		if (page.url.searchParams.get('panel') === 'sync') {
 			const url = new URL(location.href);
@@ -687,6 +706,7 @@
 		return () => {
 			stopTree();
 			stopList();
+			connectionEditor.open = null;
 		};
 	});
 
@@ -830,7 +850,9 @@
 			<span class="hidden items-center gap-1 lg:flex">
 				<span class="icon-[material-symbols-light--link] size-4" aria-hidden="true"></span>{connection.kind === 'share'
 					? m.connected.liveShared(connection.host ?? '')
-					: m.connected.live(connection.name)}
+					: connection.kind === 'folder'
+						? m.connected.live(connection.name)
+						: m.connected.liveServer(connection.name)}
 			</span>
 		{:else if remoteFolder}
 			<span class="hidden items-center gap-1 lg:flex">
@@ -967,6 +989,13 @@
 	<JoinDialog code={devicesUi.joinCode} onclose={() => ((devicesUi.joinCode = ''), closeDevicesDialog())} />
 {:else if devicesUi.dialog === 'scope'}
 	<FolderScopeDialog onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'scopeSetup'}
+	<ScopeSetupDialog mode="device" onclose={closeDevicesDialog} />
+{:else if devicesUi.dialog === 'folderScope'}
+	<ScopeSetupDialog mode="folder" onclose={closeDevicesDialog} />
+{/if}
+{#if connectUi.kind}
+	<ConnectDialog kind={connectUi.kind} edit={connectUi.edit} onclose={() => Object.assign(connectUi, { kind: null, edit: null })} onconnected={navigate} />
 {/if}
 {#if devicesUi.exclude}
 	<ExcludeFolderDialog path={devicesUi.exclude} onclose={() => (devicesUi.exclude = null)} />

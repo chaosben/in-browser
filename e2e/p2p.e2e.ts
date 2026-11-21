@@ -58,8 +58,18 @@ test('two devices pair, sync and can be removed; a guest opens a shared folder l
 	const b = await contextB.newPage();
 	const problems = [...[a, b].map(watchProblems)];
 
-	// A: connect devices → how it works → name → key (closing returns to the sync dialog)
+	// A has a folder with a file before B joins (B will leave it out while setting up)
 	await a.goto('/files');
+	await a.locator('[data-tab="home"]').click();
+	await a.locator('[data-command="newFolder"]:visible').click();
+	await a.getByRole('textbox', { name: /name/i }).fill('Archive');
+	await a.getByRole('textbox', { name: /name/i }).press('Enter');
+	await a.getByRole('option', { name: 'Archive' }).dblclick();
+	await a.locator('[data-command="newTextFile"]:visible').click();
+	await a.getByRole('textbox', { name: 'Rename' }).press('Enter');
+	await a.goto('/files');
+
+	// A: connect devices → how it works → name → key (closing returns to the sync dialog)
 	// The ribbon tab "Sync" opens the sync dialog, which holds the rest
 	await syncSettings(a);
 	await a.getByRole('button', { name: 'Connect devices' }).click();
@@ -79,9 +89,13 @@ test('two devices pair, sync and can be removed; a guest opens a shared folder l
 	await expect(b.getByRole('textbox', { name: 'Key' })).toHaveValue(key);
 	await b.getByLabel('Name of this device').fill('Phone');
 	await b.getByRole('button', { name: 'Connect', exact: true }).click();
-	await expect(b.getByText('Connected.')).toBeVisible({ timeout: 30_000 });
 	await expect(a.getByText('Phone was added.')).toBeVisible({ timeout: 30_000 });
-	await b.getByRole('button', { name: 'Close', exact: true }).click();
+	// B looks first, then syncs: it leaves “Archive” out and starts
+	const choose = b.getByRole('dialog', { name: 'Choose what this device syncs' });
+	await expect(choose).toBeVisible({ timeout: 30_000 });
+	await choose.getByRole('checkbox', { name: 'Archive' }).uncheck();
+	await choose.getByRole('button', { name: 'Start syncing' }).click();
+	await expect(choose).toBeHidden();
 	await a.getByRole('button', { name: 'Close', exact: true }).click();
 	// Back in the sync dialog, which now lists the phone
 	await expect(a.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible();
@@ -106,6 +120,9 @@ test('two devices pair, sync and can be removed; a guest opens a shared folder l
 	await input.fill('Projects');
 	await input.press('Enter');
 	await expect(b.getByRole('main').getByText('Projects', { exact: true })).toBeVisible({ timeout: 30_000 });
+	// What B left out while setting up never came: it stays on A and opens live from there
+	expect(await b.evaluate(async () => (await navigator.storage.getDirectory()).getDirectoryHandle('files').then((d) => d.getDirectoryHandle('Archive')).then(() => true, () => false))).toBe(false);
+	await expect(b.getByRole('option', { name: 'Archive' })).toBeVisible();
 
 	// B stops syncing it: the copy on B goes, the folder stays as a cloud and opens live from A
 	await b.getByRole('option', { name: 'Projects' }).click({ button: 'right' });

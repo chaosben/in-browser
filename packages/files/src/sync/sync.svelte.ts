@@ -7,12 +7,14 @@ import { runSync } from './apply.js';
 import { treeSide } from './tree-ops.js';
 import { handleTree } from './handle-tree.js';
 import { opfsTree } from './opfs-tree.js';
-import type { Base, BaseEntry, Op } from './plan.js';
+import type { Base, BaseEntry, HeldFolder, Op } from './plan.js';
+import { askAboveOf } from '../settings.js';
+import { storageEstimate } from '../cache.js';
 import { cleanTrash } from '../trash.js';
 import { journal } from './journal.svelte.js';
 import type { LogFn } from './log.js';
 import { excludedNow, startP2p } from '../p2p/p2p.svelte.js';
-import { intersect } from '../p2p/scope.js';
+import { exclude, intersect } from '../p2p/scope.js';
 
 // Sync of the shared file system with a folder on disk (File System Access API, Chromium only).
 // `startSync()` also starts the P2P sync with other devices (`p2p/p2p.svelte.ts`), in every browser.
@@ -29,17 +31,26 @@ import { intersect } from '../p2p/scope.js';
 //   (`applyDeletes`/`restoreDeleted`) – it could also be a sync tool or drive acting up. No check is needed for the
 //   browser side: when the browser clears its site data, the base in IndexedDB goes too, and the next run is a
 //   first run that restores everything from the folder.
+// - The folder has its own excluded folders (`folderScope`): excluding deletes nothing on either side, the folder
+//   just isn't compared anymore (it falls out of the base too, so taking it in again merges like a first run).
+// - A newly chosen folder starts in `setup`: nothing is transferred until the user picked the folders.
+// - New folders arriving in the browser that reach the suite setting `sync.askAbove` or don't fit into the browser's
+//   free space wait for confirmation (`pendingFolders`: `allowFolder` / `excludeFromFolderSync`).
 
 export interface SyncStatus {
 	/** Name of the synced folder, `null` without one */
 	folder: string | null;
-	/** `paused`: no access (permission needed); `idle`: waiting for the next run */
-	state: 'off' | 'paused' | 'idle' | 'syncing';
+	/** `paused`: no access (permission needed); `setup`: waits for the folder choice; `idle`: waiting for the next run */
+	state: 'off' | 'paused' | 'setup' | 'idle' | 'syncing';
 	lastSync: number | null;
 	/** Files that could not be synced in the last run */
 	failed: number;
 	/** Files deleted in the folder, waiting for confirmation to be deleted in the browser too */
 	pendingDeletes: number;
+	/** New folders from the folder on disk waiting for confirmation before they come into the browser */
+	pendingFolders: HeldFolder[];
+	/** The folder's own excluded folders */
+	scope: string[];
 }
 
 export const syncStatus = $state<SyncStatus>({
@@ -47,7 +58,9 @@ export const syncStatus = $state<SyncStatus>({
 	state: 'off',
 	lastSync: null,
 	failed: 0,
-	pendingDeletes: 0
+	pendingDeletes: 0,
+	pendingFolders: [],
+	scope: []
 });
 
 /** This tab runs the sync (otherwise another tab does) */
@@ -58,6 +71,12 @@ export const syncSupported = diskFoldersSupported;
 
 const HANDLE = 'handle';
 const BASE = 'base';
+/** Excluded folders of the synced folder */
+const SCOPE = 'folder-scope';
+/** The folder was chosen, the folder choice is still open */
+const SETUP = 'folder-setup';
+/** New folders the user let through */
+const ALLOWED = 'folder-allowed';
 const INTERVAL = 30_000;
 /** Expired trash entries are removed this often */
 const TRASH_INTERVAL = 60 * 60 * 1000;
@@ -120,10 +139,39 @@ export async function chooseSyncFolder(): Promise<void> {
 	const folder = await window.showDirectoryPicker({ id: 'in-browser-files', mode: 'readwrite' });
 	const previous = await idbGet<FileSystemDirectoryHandle>(HANDLE);
 	// Another folder: start from scratch (first run merges both sides, the newer version wins)
-	if (!previous || !(await previous.isSameEntry(folder))) await idbDelete(BASE);
+	if (!previous || !(await previous.isSameEntry(folder))) {
+		await idbDelete(BASE);
+		await idbDelete(SCOPE);
+		await idbDelete(ALLOWED);
+		// Nothing moves until the user has seen what would
+		await idbSet(SETUP, true);
+	}
 	await idbSet(HANDLE, folder);
-	Object.assign(syncStatus, { folder: folder.name, state: 'idle', failed: 0, pendingDeletes: 0 });
+	Object.assign(syncStatus, { folder: folder.name, state: (await idbGet<boolean>(SETUP)) ? 'setup' : 'idle', failed: 0, pendingDeletes: 0, pendingFolders: [] });
 	send('run');
+}
+
+/** The synced folder's excluded folders */
+export const folderScope = async () => (await idbGet<string[]>(SCOPE)) ?? [];
+
+/** Sets the folders the synced folder leaves out and ends the setup: syncing starts */
+export async function setFolderScope(scope: string[]): Promise<void> {
+	await idbSet(SCOPE, [...scope].sort());
+	await idbDelete(SETUP);
+	Object.assign(syncStatus, { scope, state: syncStatus.state === 'setup' ? 'idle' : syncStatus.state });
+	send('run');
+}
+
+/** A new folder waiting for confirmation comes into the browser after all */
+export async function allowFolder(path: string): Promise<void> {
+	const allowed = (await idbGet<string[]>(ALLOWED)) ?? [];
+	await idbSet(ALLOWED, [...new Set([...allowed, path])]);
+	send('run');
+}
+
+/** A folder isn't compared with the synced folder anymore (deletes nothing on either side) */
+export async function excludeFromFolderSync(path: string): Promise<void> {
+	await setFolderScope(exclude(await folderScope(), path));
 }
 
 /** Asks for access again (needs a click), then syncs. */
@@ -151,9 +199,8 @@ export const syncedFolder = () => idbGet<FileSystemDirectoryHandle>(HANDLE);
 
 /** Stops syncing; deletes nothing. */
 export async function stopFolderSync(): Promise<void> {
-	await idbDelete(HANDLE);
-	await idbDelete(BASE);
-	Object.assign(syncStatus, { folder: null, state: 'off', lastSync: null, failed: 0, pendingDeletes: 0 });
+	for (const key of [HANDLE, BASE, SCOPE, SETUP, ALLOWED]) await idbDelete(key);
+	Object.assign(syncStatus, { folder: null, state: 'off', lastSync: null, failed: 0, pendingDeletes: 0, pendingFolders: [], scope: [] });
 	send('status?');
 }
 
@@ -221,15 +268,25 @@ async function run(): Promise<void> {
 			log('folder.paused', { folder: folder.name, reason: 'no permission' });
 			return publish({ folder: folder.name, state: 'paused' });
 		}
-		publish({ folder: folder.name, state: 'syncing' });
+		const scope = await folderScope();
+		if (await idbGet<boolean>(SETUP)) {
+			log('folder.paused', { folder: folder.name, reason: 'waiting for the folder choice' });
+			return publish({ folder: folder.name, state: 'setup', scope });
+		}
+		publish({ folder: folder.name, state: 'syncing', scope });
 		observe(folder);
 		const disk = handleTree(folder);
-		// Folders this device doesn't sync with the other devices aren't here: the folder on disk keeps them as they are
+		// Folders this device doesn't sync with the other devices aren't here: the folder on disk keeps them as they are.
+		// Neither are the folder's own excluded ones (both sides keep them, they're just not compared)
 		const excluded = excludedNow();
-		const base: Base = intersect(new Map((await idbGet<[string, BaseEntry][]>(BASE)) ?? []), excluded, []);
-		const local = intersect(await opfsTree.scan(), excluded, []);
-		const remote = intersect(await disk.scan(), excluded, []);
-		log('folder.start', { folder: folder.name, local: local.size, disk: remote.size, base: base.size });
+		const base: Base = intersect(new Map((await idbGet<[string, BaseEntry][]>(BASE)) ?? []), excluded, scope);
+		const local = intersect(await opfsTree.scan(), excluded, scope);
+		const remote = intersect(await disk.scan(), excluded, scope);
+		const allowed = (await idbGet<string[]>(ALLOWED)) ?? [];
+		const limit = await askAboveOf(opfsTree);
+		const estimate = await storageEstimate().catch(() => null);
+		const free = estimate?.quota !== undefined ? estimate.quota - (estimate.usage ?? 0) : null;
+		log('folder.start', { folder: folder.name, local: local.size, disk: remote.size, base: base.size, scope });
 
 		const m = filesMessages();
 		const allowDeletes = deletesAllowed;
@@ -243,6 +300,8 @@ async function run(): Promise<void> {
 				conflictLabel: (side) => m.p2p.conflictLabel(side === 'mine' ? m.folderSync.browser : m.folderSync.folder),
 				hold: ['deleteLocal'],
 				allowDeletes,
+				// Only what comes into the browser counts (its storage is limited; the disk's isn't ours to judge)
+				holdLarge: { limit: { in: limit, out: null }, free: { in: free }, allowed, directions: ['in'] },
 				// The log of the folder sync names its events `folder.…`
 				log: (event, data) => log(event.replace(/^sync\./, 'folder.'), data)
 			});
@@ -250,7 +309,11 @@ async function run(): Promise<void> {
 			applying = false;
 		}
 		pending = result.held;
-		publish({ state: 'idle', lastSync: Date.now(), failed: result.failed, pendingDeletes: result.pendingDeletes });
+		// A let-through folder that exists here now is no longer new: its entry can go
+		const stillAllowed = [];
+		for (const path of allowed) if (!(await opfsTree.stat(path).catch(() => null))) stillAllowed.push(path);
+		if (stillAllowed.length !== allowed.length) await idbSet(ALLOWED, stillAllowed);
+		publish({ state: 'idle', lastSync: Date.now(), failed: result.failed, pendingDeletes: result.pendingDeletes, pendingFolders: result.heldFolders });
 		// Something changed while the run went on: plan again soon instead of waiting for the interval
 		if (result.skipped) schedule(2000);
 	} finally {

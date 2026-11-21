@@ -6,6 +6,10 @@
 
 export const SUITE_SETTINGS = '/.apps/suite/settings.json';
 
+/** Sizes as shown (`formatSize` counts in steps of 1000) */
+const MB = 1000 * 1000;
+const GB = 1000 * MB;
+
 interface TextSetting {
 	kind: 'text';
 	default: string;
@@ -43,6 +47,13 @@ export const SCHEMA = {
 		settings: {
 			/** Days entries stay in the trash; `null`: until it is emptied */
 			days: { kind: 'choice', default: 30, options: [7, 30, 90, null] }
+		}
+	},
+	sync: {
+		icon: 'icon-[material-symbols-light--sync]',
+		settings: {
+			/** Bytes from which a new folder arriving on a device waits for confirmation; `null`: never because of its size */
+			askAbove: { kind: 'choice', default: GB, options: [100 * MB, GB, 10 * GB, null] }
 		}
 	}
 } as const satisfies Record<string, CategorySpec>;
@@ -114,4 +125,14 @@ export function withValue(text: string | null, category: CategoryId, key: string
 	const raw = parseRaw(text) ?? {};
 	const section = raw[category] && typeof raw[category] === 'object' ? raw[category] : {};
 	return JSON.stringify({ ...raw, [category]: { ...section, [key]: value } }, null, '\t');
+}
+
+/** The size from which a new folder waits for confirmation (`sync.askAbove`), read from a tree (browser or p2p-node) */
+export async function askAboveOf(tree: { stat(path: string): Promise<unknown>; read(path: string): Promise<Blob> }): Promise<number | null> {
+	try {
+		const text = (await tree.stat(SUITE_SETTINGS)) ? await (await tree.read(SUITE_SETTINGS)).text() : null;
+		return parseSettings(text).sync.askAbove;
+	} catch {
+		return SCHEMA.sync.settings.askAbove.default;
+	}
 }

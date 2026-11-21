@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { caseRenames, deletedLocalFiles, holdDeletes, ignored, plan, type Base, type FileState, type Snapshot } from './plan';
+import { intersect } from '../p2p/scope';
+import { caseRenames, deletedLocalFiles, holdDeletes, holdLarge, ignored, plan, type Base, type FileState, type Snapshot } from './plan';
 
 const file = (modified: number, size = 10): FileState => ({ kind: 'file', size, modified });
 const dir: FileState = { kind: 'directory', size: 0, modified: 0 };
@@ -86,6 +87,44 @@ describe('holdDeletes', () => {
 		const local = snap({ ...trash, '/keep.txt': file(1) });
 		const cleaned = snap({ '/keep.txt': file(1) });
 		expect(holdDeletes(plan(local, cleaned, b), cleaned, b)).toBe(false);
+	});
+});
+
+describe('excluded folders of the synced folder', () => {
+	it('excluding deletes nothing on either side, and taking the folder in again only merges', () => {
+		const synced = base({ '/A': [dir, dir], '/A/x': [file(1), file(1)], '/b': [file(1), file(1)] });
+		const local = snap({ '/A': dir, '/A/x': file(1), '/b': file(1) });
+		// While excluded, the folder is deleted on disk: not compared, so nothing happens here
+		const disk = snap({ '/b': file(1) });
+		const scope = ['/A'];
+		expect(ops(intersect(local, [], scope), intersect(disk, [], scope), intersect(synced, [], scope))).toEqual([]);
+		// The base kept by that run has no entries of the folder anymore: taken in again, the file goes back to disk
+		expect(ops(local, disk, intersect(synced, [], scope))).toEqual(['mkdirDisk /A', 'toDisk /A/x']);
+	});
+});
+
+describe('holdLarge', () => {
+	const big = 600;
+	const disk = snap({ '/Videos': dir, '/Videos/a': dir, '/Videos/a/1.mp4': file(1, big), '/Videos/2.mp4': file(1, big), '/Docs': dir, '/Docs/x.txt': file(1), '/.apps': dir, '/.apps/n': file(1, 5000) });
+	const kept = (o: ReturnType<typeof holdLarge>) => o.ops.map((op) => `${op.type} ${op.path}`).sort();
+	const limits = { limit: { in: 1000, out: 1000 }, free: {}, allowed: [] };
+
+	it('holds everything inside a new folder that reaches the limit, lets the rest through', () => {
+		const out = holdLarge(plan(none, disk, new Map()), none, disk, limits);
+		expect(out.held).toEqual([{ path: '/Videos', bytes: 2 * big, direction: 'in', full: false }]);
+		expect(kept(out)).toEqual(['mkdirLocal /.apps', 'mkdirLocal /Docs', 'toLocal /.apps/n', 'toLocal /Docs/x.txt']);
+	});
+
+	it('holds what does not fit even without a limit; confirmed folders go through', () => {
+		const ops = plan(none, disk, new Map());
+		expect(holdLarge(ops, none, disk, { limit: { in: null, out: null }, free: { in: 1000 }, allowed: [] }).held.map((h) => [h.path, h.full])).toEqual([['/Videos', true]]);
+		expect(holdLarge(ops, none, disk, { ...limits, allowed: ['/Videos'] }).held).toEqual([]);
+	});
+
+	it('only new folders: files added to a folder both sides have are never held', () => {
+		const b = base({ '/Videos': [dir, dir], '/Videos/a': [dir, dir] });
+		const local = snap({ '/Videos': dir, '/Videos/a': dir });
+		expect(holdLarge(plan(local, disk, b), local, disk, limits).held).toEqual([]);
 	});
 });
 

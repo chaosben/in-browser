@@ -1,4 +1,4 @@
-import { caseRenames, holdDeletes, pathKey, plan, renameKeys, type Base, type FileState, type Op, type Snapshot } from './plan.js';
+import { caseRenames, holdDeletes, holdLarge, pathKey, plan, renameKeys, type Base, type FileState, type HeldFolder, type HoldLimits, type Op, type Snapshot } from './plan.js';
 import type { LogFn } from './log.js';
 import { DIR, stateOf } from './scan.js';
 import { discard, hashFile, isGone, receive, renameIn, validName, type Other, type PutResult } from './tree-ops.js';
@@ -23,6 +23,8 @@ export interface SyncOptions {
 	hold: ('deleteLocal' | 'deleteDisk')[];
 	/** Held deletions go through (after the user confirmed) */
 	allowDeletes?: boolean;
+	/** New folders that are large or don't fit wait for confirmation (`holdLarge`) */
+	holdLarge?: HoldLimits;
 	onWrite?: (path: string) => void;
 	onProgress?: (done: number, total: number) => void;
 	log?: LogFn;
@@ -39,11 +41,13 @@ export interface SyncResult {
 	pendingDeletes: number;
 	/** The deletions waiting for confirmation */
 	held: Op[];
+	/** New folders waiting for confirmation */
+	heldFolders: HeldFolder[];
 }
 
 /** Plans and carries out one sync between `mine` (snapshot `local`) and `other` (snapshot `remote`) */
 export async function runSync(mine: Tree, other: Other, local: Snapshot, remote: Snapshot, options: SyncOptions): Promise<SyncResult> {
-	const result: SyncResult = { applied: 0, failed: 0, skipped: 0, conflicts: [], pendingDeletes: 0, held: [] };
+	const result: SyncResult = { applied: 0, failed: 0, skipped: 0, conflicts: [], pendingDeletes: 0, held: [], heldFolders: [] };
 	const log = options.log;
 	const write = (path: string) => options.onWrite?.(path);
 
@@ -89,6 +93,14 @@ export async function runSync(mine: Tree, other: Other, local: Snapshot, remote:
 		}
 	}
 
+	// Large new folders, or those that don't fit, wait for confirmation; the rest goes on
+	if (options.holdLarge) {
+		const outcome = holdLarge(ops, local, remote, options.holdLarge);
+		ops = outcome.ops;
+		result.heldFolders = outcome.held;
+		if (outcome.held.length) log?.('sync.foldersHeld', { folders: outcome.held });
+	}
+
 	// Many deletions at once, or the deleting side empty, wait for confirmation
 	if (!options.allowDeletes) {
 		for (const type of options.hold) {
@@ -129,7 +141,7 @@ export async function runSync(mine: Tree, other: Other, local: Snapshot, remote:
 		if (i % 50 === 49) await options.saveBase(base);
 	}
 	await options.saveBase(base);
-	log?.('sync.done', { applied: result.applied, failed: result.failed, skipped: result.skipped, conflicts: result.conflicts, pendingDeletes: result.pendingDeletes });
+	log?.('sync.done', { applied: result.applied, failed: result.failed, skipped: result.skipped, conflicts: result.conflicts, pendingDeletes: result.pendingDeletes, heldFolders: result.heldFolders.length });
 	return result;
 }
 

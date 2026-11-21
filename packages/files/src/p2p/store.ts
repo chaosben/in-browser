@@ -22,6 +22,8 @@ export interface P2pState {
 	shares?: Share[];
 	/** This device was removed from its group */
 	removed?: true;
+	/** Just joined: waits for the user's folder choice before anything is transferred */
+	setupPending?: true;
 }
 
 export const emptyState = (): P2pState => ({ v: 1, ops: [], scope: [], log: [], vector: {}, devices: {}, invites: [] });

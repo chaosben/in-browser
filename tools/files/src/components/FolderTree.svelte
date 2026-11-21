@@ -34,10 +34,12 @@
 		remote?: boolean;
 		/** Roots only: a folder another device shares with this browser (guest), possibly only for viewing */
 		shared?: boolean;
+		/** Roots only: a folder on a server (WebDAV, S3) */
+		server?: boolean;
 		readOnly?: boolean;
 	}
 
-	let { path, current, onnavigate, ondropitems, ondropfiles, label: rootLabel, connected = false, menu, foldermenu, item, remote = false, shared = false, readOnly = false }: Props = $props();
+	let { path, current, onnavigate, ondropitems, ondropfiles, label: rootLabel, connected = false, menu, foldermenu, item, remote = false, shared = false, server = false, readOnly = false }: Props = $props();
 	/** Roots have their own menu; a folder below them gets the folder's actions */
 	const rowMenu = $derived(menu ?? (foldermenu && item ? () => foldermenu(item) : undefined));
 
@@ -120,6 +122,8 @@
 				<span class="icon-[material-symbols-light--hard-drive-outline] size-5 shrink-0" aria-hidden="true"></span>
 			{:else if shared}
 				<span class="icon-[material-symbols-light--share-outline] size-5 shrink-0" aria-hidden="true"></span>
+			{:else if server}
+				<span class="icon-[material-symbols-light--dns-outline] size-5 shrink-0" aria-hidden="true"></span>
 			{:else if connected}
 				<span class="icon-[material-symbols-light--link] size-5 shrink-0" aria-hidden="true"></span>
 			{:else}

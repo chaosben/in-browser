@@ -3,7 +3,8 @@ import { m } from '#lib/i18n/index.js';
 
 // Which of the sync dialogs of Files is open (placed once in Home.svelte)
 
-export type DevicesDialog = 'sync' | 'explain' | 'setup' | 'pair' | 'join' | 'scope';
+/** `scopeSetup`: this device's folder choice after joining; `folderScope`: the synced folder's */
+export type DevicesDialog = 'sync' | 'explain' | 'setup' | 'pair' | 'join' | 'scope' | 'scopeSetup' | 'folderScope';
 
 export const devicesUi = $state<{
 	dialog: DevicesDialog | null;

@@ -43,6 +43,7 @@ const en = {
 		readOnly: (name: string) => `“${name}” can only be read.`,
 		ended: (_name: string) => 'The share has ended.',
 		taken: (_name: string) => 'This share is open in another browser right now. Try again later.',
+		credentials: (name: string) => `The server of “${name}” didn’t accept the sign-in data. Change them in Files under “Connected”.`,
 	},
 
 	/** Sync status in the footer of every tool (`SyncIndicator`) */
@@ -55,6 +56,8 @@ const en = {
 		pausedHint: 'Allow access again in Files.',
 		failed: (n: number) => (n === 1 ? '1 file not synced' : `${n} files not synced`),
 		pendingDeletes: (n: number) => `${n} deletions wait for your confirmation`,
+		setup: 'Waiting for your choice',
+		heldFolders: (n: number, name: string) => (n === 1 ? `New folder “${name}” waits` : `${n} new folders wait`),
 		lastSync: (ago: string) => `Last synced ${ago}`,
 		syncNow: 'Sync now',
 		manage: 'Manage in Files',
@@ -85,7 +88,8 @@ const en = {
 
 	connected: {
 		allow: 'Allow access',
-		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`
+		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`,
+		editCredentials: 'Change sign-in data'
 	},
 
 	/** Start pages of the tools (`StartPage`) */
@@ -150,7 +154,7 @@ const en = {
 		categoriesLabel: 'Categories',
 		synced: 'Applies on all your devices.',
 		saveFailed: (error: string) => `The setting couldn’t be saved: ${error}`,
-		categories: { profile: 'Profile', trash: 'Trash' },
+		categories: { profile: 'Profile', trash: 'Trash', sync: 'Sync' },
 		profile: {
 			name: { label: 'Your name' }
 		},
@@ -158,6 +162,12 @@ const en = {
 			days: {
 				label: 'Remove deleted items for good after',
 				option: (days: number | null) => (days === null ? 'Never' : `${days} days`)
+			}
+		},
+		sync: {
+			askAbove: {
+				label: 'Ask before syncing new folders larger than',
+				option: (bytes: number | null) => (bytes === null ? 'Never ask' : bytes >= 1e9 ? `${bytes / 1e9} GB` : `${bytes / 1e6} MB`)
 			}
 		}
 	},

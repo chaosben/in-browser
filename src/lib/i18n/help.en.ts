@@ -5,6 +5,9 @@
 import { BRAND } from '@in-browser/brand/brand.js';
 import type { HelpContent } from '@in-browser/brand/help.js';
 
+/** CORS rule a bucket needs for the site (help page “Connected folders”) */
+const s3Cors = JSON.stringify([{ AllowedOrigins: [BRAND.suiteUrl], AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE'], AllowedHeaders: ['*'], ExposeHeaders: ['ETag'], MaxAgeSeconds: 3600 }]);
+
 const install = {
 	unix: `curl -fsSL ${BRAND.suiteUrl}/p2p-node/install.sh | sh`,
 	windows: `irm ${BRAND.suiteUrl}/p2p-node/install.ps1 | iex`
@@ -61,7 +64,7 @@ const help = {
 					items: {
 						folder: {
 							title: 'Folder on your computer',
-							text: 'In Files, choose “Folder on your computer” → “Choose folder”. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while any in-browser tool is open in this browser. Only Chrome and Edge on a computer can access folders.',
+							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while any in-browser tool is open in this browser. Only Chrome and Edge on a computer can access folders.',
 							tip: 'Choose a folder your sync program (Syncthing, Nextcloud, Dropbox …) or your backup already covers – then your files reach your other computers and your backup by themselves. When the browser asks again for access, choose “Allow on every visit”, so the sync continues without asking.'
 						},
 						devices: {
@@ -140,6 +143,12 @@ const help = {
 							text: 'A key works once, for 24 hours, and only while the device that shows it is online.',
 							tip: 'Whoever has the key can connect a device and read and change all your synced files. Only enter it on your own devices and never send it to anyone.'
 						},
+						setup: {
+							title: 'Look first, then sync',
+							text: 'Right after connecting, the new device shows “Choose what this device syncs”: every folder with what would come here (“… comes here”), what only this device has (“… goes to your devices”) and the free space in the browser. Nothing is transferred until you choose “Start syncing”. Folders that reach the size from the settings (“large”) or don’t fit into the free space (“doesn’t fit”) are deselected at first – tick them if you want them here. “Later” keeps the device waiting; “Your devices” → “Choose folders …” brings the choice back.',
+							tip: 'On a phone, deselect what you don’t need there (recordings, archives) – you can still open it live. Folders that exist only on the new device can’t be deselected: they always go to your other devices.',
+							link: { href: '/help/settings#sync', label: 'Size from which to ask' }
+						},
 						folders: {
 							title: 'Choosing folders',
 							text: 'Under “Choose folders” you decide per device which folders it gets. Folders you deselect stay on the other devices and keep syncing there – only this device doesn’t get them, and its copy is deleted here. Leaving out a folder never deletes it anywhere else.',
@@ -177,6 +186,16 @@ const help = {
 						deletions: {
 							title: 'Deleting',
 							text: 'What you delete on one device is deleted on the others too and goes into the trash. When many files were deleted at once on another device, Files asks first: “Delete here too”.'
+						},
+						large: {
+							title: 'Large new folders wait',
+							text: 'When a new folder would come to a device and it is larger than the size in the settings, or doesn’t fit into the browser’s free space, it waits: the sync dialog in Files says “New folder … waits for your confirmation”, the footer of every tool “New folder … waits”. Everything else keeps syncing. The same applies to the folder on your computer: there, what comes into the browser counts. A p2p-node never waits, it has the disk to itself.',
+							options: {
+								sync: { label: 'Sync', text: 'The folder comes to this device after all.' },
+								exclude: { label: 'Exclude', text: 'This device leaves the folder out (it stays on the other devices, and here it opens live). For the folder on your computer: it stays in both places and just isn’t synced.' }
+							},
+							tip: 'Choose “Sync” if the device has the space and you want the folder offline; otherwise “Exclude”. If it asks too often, raise the size with “Change the limit”.',
+							link: { href: '/help/settings#sync', label: 'Ask before syncing new folders larger than' }
 						}
 					}
 				},
@@ -247,7 +266,7 @@ const help = {
 
 		connected: {
 			title: 'Connected folders',
-			summary: 'Open a folder on your computer live in every tool – nothing is copied into the browser',
+			summary: 'Open a folder on your computer, a WebDAV server or S3 storage live in every tool – nothing is copied into the browser',
 			topics: {
 				basics: {
 					title: 'My files and Connected',
@@ -273,7 +292,7 @@ const help = {
 					items: {
 						connect: {
 							title: 'Connect',
-							text: 'In Files, click “Connect folder …” (tab “Connect”, or in the panel “Folders” below My files) and choose a folder; the browser asks whether in-browser may view and edit it. The folder then appears in the panel “Folders” below My files with its name. Only Chrome and Edge on a computer can do this.'
+							text: 'In Files, click “Connect …” (tab “Connect”, or in the panel “Folders” below My files) and choose what to connect: “Folder on this computer …”, “WebDAV server …” or “S3 storage …”. For a folder, the browser asks whether in-browser may view and edit it; only Chrome and Edge on a computer can do this. Servers work in every browser, also on phones. The connection then appears in the panel “Folders” below My files with its name.'
 						},
 						access: {
 							title: 'Access after a restart',
@@ -282,11 +301,48 @@ const help = {
 						},
 						manage: {
 							title: 'Name and disconnecting',
-							text: 'A connected folder is always shown with the name of the folder on your computer. “Disconnect” – in the menu of the connected folder (right-click in the panel “Folders”) or in the tab “Connect” while it is open – removes it from in-browser without deleting anything in it.'
+							text: 'A connected folder is always shown with the name of the folder on your computer; a server with the name you gave it (“Edit …” in its menu changes it, together with address and sign-in data). “Disconnect” – in the menu of the connected folder (right-click in the panel “Folders”) or in the tab “Connect” while it is open – removes it from in-browser without deleting anything in it.'
 						},
 						deleting: {
 							title: 'Deleting',
-							text: 'A connected folder has no trash of in-browser. Deleting there asks first and then deletes for good; the trash of your system doesn’t get it either.'
+							text: 'A connected folder has no trash of in-browser. Deleting there asks first and then deletes for good; the trash of your system doesn’t get it either. On a server it is gone as well – Nextcloud and ownCloud keep deleted files in their own trash on the server.'
+						}
+					}
+				},
+				servers: {
+					title: 'WebDAV and S3',
+					items: {
+						webdav: {
+							title: 'WebDAV server',
+							text: '“Connect …” → “WebDAV server …” asks for the address of a folder on the server, your user name and password. For Nextcloud the address is shown under “Files settings” → “WebDAV”, e.g. https://cloud.example.com/remote.php/dav/files/anna/. “Connect” tries it first and keeps the connection only when the folder can be listed.',
+							tip: 'Use an app password (Nextcloud, ownCloud: Settings → Security) instead of your real password – you can revoke it any time without changing anything else.'
+						},
+						s3: {
+							title: 'S3 storage',
+							text: '“Connect …” → “S3 storage …” takes a bucket of Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO or other S3-compatible storage. “Provider” fills in endpoint, region and addressing; for R2 put your account ID into the endpoint. “Folder in the bucket” opens only that folder; empty, the whole bucket.',
+							options: {
+								bucket: { label: 'Bucket and region', text: 'As shown by your provider. R2 takes “auto” as region.' },
+								pathStyle: { label: 'Bucket in the path (path-style addresses)', text: 'On for MinIO and most self-hosted storage; off for AWS (the default of each provider is preset).' },
+								keys: { label: 'Access key ID and secret access key', text: 'Create a key that may only read and write this bucket.' }
+							},
+							tip: 'Give in-browser its own key with access to this one bucket only – if the device is lost, you delete just that key.'
+						},
+						cors: {
+							title: 'The server must allow the browser (CORS)',
+							text: 'A browser may only talk to a server that allows in-browser. Without that, “Connect” says “The server can’t be reached, or it doesn’t allow access from the browser (CORS)”. For S3, add a CORS rule to the bucket that allows the origin of in-browser (shown below), the methods GET, HEAD, PUT, POST and DELETE, all headers and exposes the header ETag. For WebDAV, the server must answer the methods OPTIONS, PROPFIND, GET, PUT, MKCOL, DELETE and MOVE from that origin and allow the headers Authorization, Depth, Destination, Overwrite, Range, If-Match and Content-Type.',
+							code: s3Cors
+						},
+						https: {
+							title: 'HTTPS only',
+							text: 'Browsers don’t let an HTTPS site use a plain HTTP server, so a NAS at http://192.168.… can’t be connected. Use its HTTPS address with a valid certificate. A server on this computer (http://localhost) works.'
+						},
+						secrets: {
+							title: 'Password and keys',
+							text: 'The password or secret key stays on this device, encrypted with a key the browser keeps and never hands out. It is never synced – connect the server on each device you want it on. If the server refuses them later, messages offer “Change sign-in data”.'
+						},
+						changes: {
+							title: 'Changes on the server',
+							text: 'A server doesn’t tell the browser when something changes there. Files looks again when you come back to the tab and every 30 seconds while it is open.'
 						}
 					}
 				},
@@ -376,7 +432,7 @@ const help = {
 							title: 'Commands',
 							text: 'All commands take the name of the instance.',
 							options: {
-								pair: { label: 'pair <name> <link>', text: 'Adds a new instance as a device. “--folder <dir>” picks the synced folder (default: inside the data folder), “--name <device name>” the name your devices see.' },
+								pair: { label: 'pair <name> <link>', text: 'Adds a new instance as a device. “--folder <dir>” picks the synced folder (default: inside the data folder), “--name <device name>” the name your devices see, “--exclude <folder>” leaves a folder of My files out (repeat it for more, e.g. “--exclude Videos --exclude Photos/2019”). Without “--exclude” the computer gets everything.' },
 								run: { label: 'run <name>', text: 'Runs an instance in the foreground, e.g. to watch it.' },
 								install: { label: 'install <name>', text: 'Runs it in the background and at every start. “uninstall <name>” stops that and keeps the data.' },
 								status: { label: 'status [<name>]', text: 'Shows devices, folder and trash of one or all instances.' },
@@ -506,6 +562,23 @@ const help = {
 								never: { label: 'Never', text: 'Nothing is removed by itself – you empty the trash yourself (Files → “Trash”).' }
 							},
 							tip: 'Keep 30 days. Take 7 days if storage gets tight (large recordings), 90 days or “Never” if you work with documents you only check now and then.'
+						}
+					}
+				},
+				sync: {
+					title: 'Sync',
+					items: {
+						askAbove: {
+							title: 'Ask before syncing new folders larger than',
+							text: 'A new folder that would come to a device and is at least this large waits for your confirmation – when a device starts syncing and later whenever such a folder appears. A folder that doesn’t fit into the browser’s free space always waits, whatever you choose here.',
+							options: {
+								mb100: { label: '100 MB', text: 'Asks often – for phones with little space.' },
+								gb1: { label: '1 GB (default)', text: 'Documents and photos flow freely; recordings and archives wait.' },
+								gb10: { label: '10 GB', text: 'Only very large folders wait.' },
+								never: { label: 'Never ask', text: 'Every new folder comes at once, as long as it fits.' }
+							},
+							tip: 'Keep 1 GB. Take 100 MB if one of your devices is a phone that is often full, “Never ask” if all your devices have plenty of space.',
+							link: { href: '/help/sync', label: 'Sync between your devices' }
 						}
 					}
 				}

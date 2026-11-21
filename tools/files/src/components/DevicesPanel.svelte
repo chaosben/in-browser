@@ -5,7 +5,9 @@
 	import { list, remove } from '@in-browser/files/fs.js';
 	import type { DeviceView } from '@in-browser/files/p2p/view.js';
 	import {
+		allowDeviceFolder,
 		applyDeviceDeletes,
+		excludeFolder,
 		forgetGroup,
 		leaveGroup,
 		p2pStatus,
@@ -17,6 +19,7 @@
 	import { openDevicesDialog } from '#lib/devices.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { resolve } from '$app/paths';
+	import HeldFolders from './HeldFolders.svelte';
 
 	// The devices this one syncs with: status, hints on devices that are probably not up to date, actions.
 	// Part of the sync dialog of Files.
@@ -190,6 +193,13 @@
 		{#if view.scope.length}
 			<button class="link link-hover text-left text-xs opacity-70" onclick={() => openDevicesDialog('scope')}>{m.devices.excludedCount(view.scope.length)}</button>
 		{/if}
+		{#if view.setup}
+			<div class="alert alert-warning flex-col items-start gap-2 p-2 text-xs">
+				<span>{m.sync.setup}</span>
+				<button class="btn btn-xs btn-primary" onclick={() => openDevicesDialog('scopeSetup')}>{m.sync.chooseFolders}</button>
+			</div>
+		{/if}
+		<HeldFolders folders={view.pendingFolders} onsync={allowDeviceFolder} onexclude={excludeFolder} />
 		{#if view.pendingDeletes}
 			<div class="alert alert-warning flex-col items-start gap-2 p-2 text-xs">
 				<span>{m.devices.pendingDeletes(view.pendingDeletes)}</span>
@@ -201,7 +211,7 @@
 				<span class="icon-[material-symbols-light--qr-code-2] size-4" aria-hidden="true"></span>
 				{m.devices.addDevice}
 			</button>
-			<button class="btn btn-xs" onclick={() => openDevicesDialog('scope')}>
+			<button class="btn btn-xs" onclick={() => openDevicesDialog(view.setup ? 'scopeSetup' : 'scope')}>
 				<span class="icon-[material-symbols-light--folder-open-outline] size-4" aria-hidden="true"></span>
 				{m.devices.chooseFolders}
 			</button>

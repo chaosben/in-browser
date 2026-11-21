@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { hostname } from 'node:os';
 import { createPolyfillRTCPeerConnection } from 'werift/polyfill';
 import { parseInviteCode } from '@in-browser/files/p2p/auth.js';
+import { normalize } from '@in-browser/files/path.js';
 import { Device } from '@in-browser/files/p2p/device.js';
 import type { P2pView } from '@in-browser/files/p2p/view.js';
 import { resolve } from '@in-browser/files/p2p/members.js';
@@ -18,7 +19,7 @@ import { watchTree } from './watch.js';
 
 // The sync process of one p2p-node instance (the bundle the site serves as `/p2p-node/peer-<commit>.js`). The
 // starter runs it with Node's permission model: it may read and write only its instance folder and the synced
-// folder. Usage: `peer.js run|pair|status <instance folder> <synced folder> [link] [device name]`.
+// folder. Usage: `peer.js run|pair|status <instance folder> <synced folder> [link] [device name] [excluded folder …]`.
 
 const [command, instanceDir, folder, ...rest] = process.argv.slice(2);
 const send = (message: FromPeer) => process.send?.(message);
@@ -111,8 +112,10 @@ async function pair() {
 	const d = await device();
 	await d.start();
 	if (d.group) throw new Error('This instance is already paired. Use another name for a second one.');
-	log(`Pairing as "${name}" – keep the browser with the link open …`);
-	await d.join(code, name, 10 * 60_000);
+	// Folders of My files this device leaves out from the start (`--exclude`, e.g. `Videos` or `/Photos/2019`)
+	const scope = rest.slice(2).filter(Boolean).map((folder) => normalize('/' + folder.replace(/\\/g, '/')));
+	log(`Pairing as "${name}"${scope.length ? ` without ${scope.join(', ')}` : ''} – keep the browser with the link open …`);
+	await d.join(code, name, 10 * 60_000, { scope });
 	log(`Paired with: ${[...d.group!.members.values()].map((m) => m.name).join(', ')}`);
 	d.stop();
 	process.exit(0);

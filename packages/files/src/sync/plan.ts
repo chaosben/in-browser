@@ -1,5 +1,5 @@
 import { nameKey, segments } from '../path.js';
-import { inTrash } from '../trash.js';
+import { inTrash, TRASH_ROOT } from '../trash.js';
 
 // Planning of a sync run between this side (“local”) and the other one (“disk”: a folder on disk or another
 // device): pure logic. Rule: the newer version wins. What changed is decided against the state after the last run
@@ -182,3 +182,60 @@ export function holdDeletes(ops: Op[], other: Snapshot, base: Base): boolean {
 	const baseFiles = [...base].filter(([path, b]) => b.local.kind === 'file' && !inTrash(path)).length;
 	return otherFiles === 0 || (deletes >= MANY_DELETES && deletes * 4 > baseFiles);
 }
+
+/** A new folder whose transfer waits for confirmation (large, or more than fits on the receiving side) */
+export interface HeldFolder {
+	path: string;
+	/** Bytes of the files that would arrive */
+	bytes: number;
+	/** `in`: would arrive on this side (“local”); `out`: on the other side (“disk”) */
+	direction: 'in' | 'out';
+	/** It doesn't fit into the free space there (else: it reached the limit) */
+	full: boolean;
+}
+
+export interface HoldLimits {
+	/** Bytes from which a new folder waits, per receiving side (suite setting `sync.askAbove`); `null`: never because
+	 * of its size (also a side where nobody could confirm, like a p2p-node) */
+	limit: { in: number | null; out: number | null };
+	/** Free bytes on each side, where known (a browser's quota; disks don't count) */
+	free: { in?: number | null; out?: number | null };
+	/** Folders the user let through: never held */
+	allowed: readonly string[];
+	/** Sides to look at (default both) */
+	directions?: readonly ('in' | 'out')[];
+}
+
+/**
+ * Holds back the transfers into folders that are new on the receiving side when they reach the limit or don't fit
+ * there. A new folder is the topmost folder the plan creates on that side; everything below it waits with it
+ * (including its own creation, so it stays new until confirmed). The rest of the run goes on.
+ */
+export function holdLarge(ops: Op[], local: Snapshot, disk: Snapshot, limits: HoldLimits): { ops: Op[]; held: HeldFolder[] } {
+	const held: HeldFolder[] = [];
+	const holding = new Set<string>();
+	for (const direction of limits.directions ?? (['in', 'out'] as const)) {
+		const mkdir = direction === 'in' ? 'mkdirLocal' : 'mkdirDisk';
+		const transfer = direction === 'in' ? 'toLocal' : 'toDisk';
+		const source = direction === 'in' ? disk : local;
+		const created = new Set(ops.filter((op) => op.type === mkdir).map((op) => op.path));
+		const roots = [...created].filter((path) => !created.has(parentOf(path)));
+		const free = limits.free[direction];
+		const limit = limits.limit[direction];
+		for (const root of roots) {
+			// Tool data and the trash always travel (like `holdDeletes`, which ignores the trash)
+			if (inTrash(root) || root === TRASH_ROOT || root === '/.apps' || root.startsWith('/.apps/')) continue;
+			if (limits.allowed.some((folder) => folder === root || root.startsWith(folder + '/'))) continue;
+			const inside = (path: string) => path === root || path.startsWith(root + '/');
+			let bytes = 0;
+			for (const op of ops) if (op.type === transfer && inside(op.path)) bytes += source.get(op.path)?.size ?? 0;
+			const full = free != null && bytes > free;
+			if (!full && (limit === null || bytes < limit)) continue;
+			held.push({ path: root, bytes, direction, full });
+			for (const op of ops) if ((op.type === transfer || op.type === mkdir) && inside(op.path)) holding.add(`${op.type} ${op.path}`);
+		}
+	}
+	return { ops: ops.filter((op) => !holding.has(`${op.type} ${op.path}`)), held };
+}
+
+const parentOf = (path: string) => path.slice(0, path.lastIndexOf('/')) || '/';

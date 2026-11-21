@@ -1,7 +1,7 @@
-import { runSync, type SyncResult } from '../sync/apply.js';
+import { runSync, type SyncOptions, type SyncResult } from '../sync/apply.js';
 import { GONE, treeSide, type Other, type Outcome } from '../sync/tree-ops.js';
 import type { LogFn } from '../sync/log.js';
-import type { Base, FileState, Snapshot } from '../sync/plan.js';
+import type { Base, FileState, HeldFolder, Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
 import type { Tree } from '../sync/tree.js';
 import type { Json, Rpc } from './rpc.js';
@@ -39,6 +39,14 @@ export interface ServeOptions {
 	allowDeletes?: () => boolean;
 	/** A session driven by the other device ended (what it held back for confirmation) */
 	onEnd?: (summary: SessionSummary) => void;
+	/** This device waits for its folder choice: sessions transfer nothing yet */
+	setup?: () => boolean;
+	/** New folders the user let through on this device (passed on to the driver) */
+	allowFolders?: () => string[];
+	/** Free bytes for files arriving here, where limited (a browser's quota) */
+	free?: () => Promise<number | null>;
+	/** Bytes from which a new folder arriving here waits for confirmation (`null`: never) */
+	limit?: () => Promise<number | null>;
 	log?: LogFn;
 }
 
@@ -47,6 +55,8 @@ export interface SessionSummary {
 	complete: boolean;
 	pendingDeletes: number;
 	usedAllowDeletes: boolean;
+	/** New folders held back that would have arrived on the answering device */
+	heldFolders?: HeldFolder[];
 }
 
 type WireState = [string, 'f' | 'd', number, number];
@@ -62,7 +72,7 @@ const stateToJson = (s: FileState | null): Json => (s ? { kind: s.kind, size: s.
  * Answers the requests of the driving device. Returns a function to call when the connection ends: it frees this
  * device for other sessions if the driver vanished in the middle of one.
  */
-export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, log }: ServeOptions): () => void {
+export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, setup, allowFolders, free, limit, log }: ServeOptions): () => void {
 	const side = treeSide(tree, { onWrite, log });
 	let holding = false;
 	const release = () => {
@@ -72,8 +82,10 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, al
 	rpc.handle('begin', async () => {
 		holding = gate.enter();
 		const allow = holding && !!allowDeletes?.();
-		log?.('serve.begin', { accepted: holding, allowDeletes: allow });
-		return { value: { accepted: holding, allowDeletes: allow } };
+		const settingUp = !!setup?.();
+		log?.('serve.begin', { accepted: holding, allowDeletes: allow, setup: settingUp });
+		const value = { accepted: holding, allowDeletes: allow, setup: settingUp, allowFolders: allowFolders?.() ?? [], free: (await free?.()) ?? null, limit: (await limit?.()) ?? null };
+		return { value };
 	});
 	rpc.handle('end', async (params) => {
 		release();
@@ -137,6 +149,8 @@ export interface DriveOptions {
 	conflictLabel: (side: 'mine' | 'theirs') => string;
 	/** Deletions that would wait for confirmation go through (after the user confirmed) */
 	allowDeletes?: boolean;
+	/** Large new folders wait for confirmation: the limit (suite setting), free bytes here, folders let through here */
+	holdLarge?: { limit: number | null; free: number | null; allowed: string[] };
 	onWrite?: (path: string) => void;
 	onProgress?: (done: number, total: number) => void;
 	log?: LogFn;
@@ -147,23 +161,48 @@ export interface DriveResult extends Omit<SyncResult, 'held'> {
 	busy?: true;
 	/** Held deletions were let through because one of the two devices confirmed them */
 	usedAllowDeletes?: boolean;
+	/** The other device waits for its folder choice: nothing was synced */
+	setup?: true;
+	/** New folders held back that would have arrived on the other device */
+	theirHeldFolders?: HeldFolder[];
 }
 
 /** Runs one sync with the other device (this one drives) */
 export async function drive(rpc: Rpc, options: DriveOptions): Promise<DriveResult> {
 	const { gate } = options;
-	const empty: DriveResult = { applied: 0, failed: 0, skipped: 0, conflicts: [], pendingDeletes: 0 };
+	const empty: DriveResult = { applied: 0, failed: 0, skipped: 0, conflicts: [], pendingDeletes: 0, heldFolders: [] };
 	if (!gate.enter()) return { ...empty, busy: true };
 	try {
-		const begun = (await rpc.call('begin')) as unknown as { accepted: boolean; allowDeletes: boolean };
+		const begun = (await rpc.call('begin')) as unknown as Begun;
 		if (!begun.accepted) return { ...empty, busy: true };
+		if (begun.setup) {
+			await rpc.call('end').catch(() => {});
+			return { ...empty, setup: true };
+		}
 		let result: DriveResult = empty;
 		const allowDeletes = !!options.allowDeletes || begun.allowDeletes;
+		const hold = options.holdLarge && {
+			limit: { in: options.holdLarge.limit, out: begun.limit ?? null },
+			free: { in: options.holdLarge.free, out: begun.free ?? null },
+			allowed: [...options.holdLarge.allowed, ...(begun.allowFolders ?? [])]
+		};
 		try {
-			const { held: _, ...rest } = await run(rpc, { ...options, allowDeletes });
-			result = { ...rest, usedAllowDeletes: allowDeletes };
+			const { held: _, heldFolders, ...rest } = await run(rpc, { ...options, allowDeletes }, hold);
+			// Folders held on their way to the other device are its to confirm
+			const flip = (f: HeldFolder): HeldFolder => ({ ...f, direction: 'in' });
+			result = {
+				...rest,
+				heldFolders: heldFolders.filter((f) => f.direction === 'in'),
+				theirHeldFolders: heldFolders.filter((f) => f.direction === 'out').map(flip),
+				usedAllowDeletes: allowDeletes
+			};
 		} finally {
-			const summary: SessionSummary = { complete: result !== empty && !result.failed, pendingDeletes: result.pendingDeletes, usedAllowDeletes: allowDeletes };
+			const summary: SessionSummary = {
+				complete: result !== empty && !result.failed,
+				pendingDeletes: result.pendingDeletes,
+				usedAllowDeletes: allowDeletes,
+				heldFolders: result.theirHeldFolders ?? []
+			};
 			await rpc.call('end', summary as unknown as Json).catch(() => {});
 		}
 		return result;
@@ -172,7 +211,17 @@ export async function drive(rpc: Rpc, options: DriveOptions): Promise<DriveResul
 	}
 }
 
-async function run(rpc: Rpc, options: DriveOptions): Promise<SyncResult> {
+interface Begun {
+	accepted: boolean;
+	allowDeletes: boolean;
+	/** Missing from devices before protocol 3 */
+	setup?: boolean;
+	allowFolders?: string[];
+	free?: number | null;
+	limit?: number | null;
+}
+
+async function run(rpc: Rpc, options: DriveOptions, holdLarge?: SyncOptions['holdLarge']): Promise<SyncResult> {
 	const { tree } = options;
 	const snapshot = (await rpc.call('snapshot')) as unknown as { scope: string[]; entries: WireState[] };
 	const scope = { mine: options.scope.mine, theirs: snapshot.scope ?? options.scope.theirs };
@@ -189,6 +238,7 @@ async function run(rpc: Rpc, options: DriveOptions): Promise<SyncResult> {
 		conflictLabel: options.conflictLabel,
 		hold: ['deleteLocal', 'deleteDisk'],
 		allowDeletes: options.allowDeletes,
+		holdLarge,
 		onWrite: options.onWrite,
 		onProgress: options.onProgress,
 		log: options.log

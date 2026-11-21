@@ -42,6 +42,7 @@ const de: FilesMessages = {
 		readOnly: (name) => `„${name}“ lässt sich nur lesen.`,
 		ended: (_name) => 'Die Freigabe wurde beendet.',
 		taken: (_name) => 'Diese Freigabe ist gerade in einem anderen Browser geöffnet. Versuch es später noch einmal.',
+		credentials: (name) => `Der Server von „${name}“ hat die Anmeldedaten nicht angenommen. Ändere sie in Dateien unter „Verbunden“.`,
 	},
 
 	indicator: {
@@ -53,6 +54,8 @@ const de: FilesMessages = {
 		pausedHint: 'Erlaube den Zugriff in Dateien erneut.',
 		failed: (n) => (n === 1 ? '1 Datei nicht synchronisiert' : `${n} Dateien nicht synchronisiert`),
 		pendingDeletes: (n) => `${n} Löschungen warten auf deine Bestätigung`,
+		setup: 'Wartet auf deine Auswahl',
+		heldFolders: (n, name) => (n === 1 ? `Neuer Ordner „${name}“ wartet` : `${n} neue Ordner warten`),
 		lastSync: (ago) => `Zuletzt synchronisiert ${ago}`,
 		syncNow: 'Jetzt synchronisieren',
 		manage: 'In Dateien verwalten',
@@ -80,7 +83,8 @@ const de: FilesMessages = {
 
 	connected: {
 		allow: 'Zugriff erlauben',
-		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`
+		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`,
+		editCredentials: 'Anmeldedaten ändern'
 	},
 
 	start: {
@@ -136,7 +140,7 @@ const de: FilesMessages = {
 		categoriesLabel: 'Kategorien',
 		synced: 'Gilt auf allen deinen Geräten.',
 		saveFailed: (error) => `Die Einstellung konnte nicht gespeichert werden: ${error}`,
-		categories: { profile: 'Profil', trash: 'Papierkorb' },
+		categories: { profile: 'Profil', trash: 'Papierkorb', sync: 'Synchronisieren' },
 		profile: {
 			name: { label: 'Dein Name' }
 		},
@@ -144,6 +148,12 @@ const de: FilesMessages = {
 			days: {
 				label: 'Gelöschtes endgültig entfernen nach',
 				option: (days) => (days === null ? 'Nie' : `${days} Tagen`)
+			}
+		},
+		sync: {
+			askAbove: {
+				label: 'Vor dem Synchronisieren neuer Ordner fragen ab',
+				option: (bytes) => (bytes === null ? 'Nie fragen' : bytes >= 1e9 ? `${bytes / 1e9} GB` : `${bytes / 1e6} MB`)
 			}
 		}
 	},

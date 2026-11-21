@@ -102,7 +102,7 @@ function startPeer(bundle: string, command: string, sync: string, folder: string
 const exited = (child: ChildProcess) =>
 	new Promise<number>((done) => child.on('exit', (code, signal) => done(code ?? (signal ? 1 : 0))));
 
-async function pair(name: string, link: string, options: Record<string, string>) {
+async function pair(name: string, link: string, options: Record<string, string>, excluded: string[]) {
 	const dir = instanceDir(checkName(name));
 	const configFile = join(dir, 'config.json');
 	const existing = await readJson<InstanceConfig>(configFile);
@@ -111,7 +111,7 @@ async function pair(name: string, link: string, options: Record<string, string>)
 	await mkdir(folder, { recursive: true });
 	await writeAtomic(configFile, JSON.stringify({ folder } satisfies InstanceConfig));
 	const now = await updates.ensure();
-	const code = await exited(startPeer(join(bundles, now.file), 'pair', join(dir, 'sync'), folder, [link, options.name ?? '']));
+	const code = await exited(startPeer(join(bundles, now.file), 'pair', join(dir, 'sync'), folder, [link, options.name ?? '', ...excluded]));
 	if (code === 0) {
 		console.log(`\nSynced folder: ${folder}`);
 		console.log(`Run it in the background: in-browser-p2p-node install ${name}`);
@@ -208,8 +208,9 @@ async function status(name?: string) {
 
 const HELP = `in-browser p2p-node: keeps your files syncing with your devices while no browser is open.
 
-  pair <name> <link> [--folder <dir>] [--name <device name>]
-                        add this computer as a device (link from "Add device" in Files)
+  pair <name> <link> [--folder <dir>] [--name <device name>] [--exclude <folder>]…
+                        add this computer as a device (link from "Add device" in Files);
+                        --exclude leaves a folder of My files out (repeat it for more)
   run <name>            run an instance in the foreground
   install <name>        run it in the background (systemd user service / Windows task)
   uninstall <name>      stop running it in the background (keeps its data)
@@ -223,11 +224,12 @@ async function main() {
 	const positional = rest.filter((arg, i) => !arg.startsWith('--') && !rest[i - 1]?.startsWith('--'));
 	const options: Record<string, string> = {};
 	rest.forEach((arg, i) => arg.startsWith('--') && (options[arg.slice(2)] = rest[i + 1] ?? ''));
+	const excluded = rest.filter((arg, i) => rest[i - 1] === '--exclude');
 	if (Number(process.versions.node.split('.')[0]) < NODE_MIN) throw new Error(`Needs Node ${NODE_MIN} or newer (this is ${process.versions.node}).`);
 	switch (command) {
 		case 'pair':
 			if (!positional[1]) throw new Error('Usage: pair <name> <link>');
-			return pair(positional[0], positional[1], options);
+			return pair(positional[0], positional[1], options, excluded);
 		case 'run':
 			return run(positional[0]);
 		case 'install':

@@ -1,4 +1,4 @@
-import { requestPersistence } from '../cache.js';
+import { requestPersistence, storageEstimate } from '../cache.js';
 import { FilesError, noticed, watch, type FilesErrorCode } from '../fs.js';
 import { expectDevices, setDevicesSource } from '../sources/registry.js';
 import type { Source } from '../sources/source.js';
@@ -41,6 +41,8 @@ type Action =
 	| ['include', string]
 	| ['syncNow']
 	| ['applyDeletes']
+	| ['finishSetup', string[]]
+	| ['allowFolder', string]
 	| ['sizes', string]
 	| ['diagnostics']
 	| ['live', string, string, Json, Uint8Array | undefined]
@@ -123,6 +125,11 @@ async function lead() {
 		network: trysteroNetwork,
 		conflictLabel: (name) => filesMessages().p2p.conflictLabel(name),
 		log: log.add,
+		holdLarge: true,
+		freeSpace: async () => {
+			const { quota, usage } = await storageEstimate();
+			return quota === undefined ? null : quota - (usage ?? 0);
+		},
 		onChange: (view) => {
 			showView(view);
 			channel?.postMessage({ status: view } satisfies Message);
@@ -149,7 +156,12 @@ async function run(action: Action): Promise<unknown> {
 		case 'cancelInvites':
 			return d.cancelInvites();
 		case 'join':
-			return d.join(action[1], action[2]);
+			// A browser that joins first shows what would come and lets the user choose (`finishSetup`)
+			return d.join(action[1], action[2], undefined, { setup: true });
+		case 'finishSetup':
+			return d.finishSetup(action[1]);
+		case 'allowFolder':
+			return d.allowFolder(action[1]);
 		case 'rename':
 			return d.rename(action[1]);
 		case 'remove':
@@ -270,6 +282,10 @@ export const excludeFolder = (folder: string) => request<void>('exclude', folder
 export const includeFolder = (folder: string) => request<void>('include', folder);
 export const syncDevicesNow = () => request<void>('syncNow');
 export const applyDeviceDeletes = () => request<void>('applyDeletes');
+/** After joining: the folders this device leaves out; then syncing starts */
+export const finishSetup = (scope: string[]) => request<void>('finishSetup', scope);
+/** A new folder held for confirmation comes to this device after all */
+export const allowDeviceFolder = (folder: string) => request<void>('allowFolder', folder);
 /** Sizes of the subfolders of `folder` per device (connected ones and this one) */
 export const folderSizes = (folder: string) => request<Record<string, Record<string, number>>>('sizes', folder);
 export const diagnostics = () => request<Diagnostics>('diagnostics');

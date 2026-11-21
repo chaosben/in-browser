@@ -211,9 +211,15 @@ const en = {
 
 	connected: {
 		title: 'Connected',
-		connect: 'Connect folder …',
-		connectHint: 'Opens a folder on your computer live – nothing is copied into the browser.',
-		unsupported: 'Connecting folders on your computer needs Chrome or Edge on a computer.',
+		connect: 'Connect …',
+		connectHint: 'Opens a folder on your computer, a WebDAV server or S3 storage live – nothing is copied into the browser.',
+		kinds: {
+			folder: 'Folder on this computer …',
+			folderUnsupported: 'Folder on this computer (needs Chrome or Edge on a computer)',
+			webdav: 'WebDAV server …',
+			s3: 'S3 storage …'
+		},
+		edit: 'Edit …',
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`,
 		allow: 'Allow access',
 		allowHint: 'Tip: choose “Allow on every visit”, then it stays connected.',
@@ -223,6 +229,7 @@ const en = {
 			`Nothing in “${name}” is deleted. It just no longer shows up here; you can connect it again at any time.`,
 		alsoSynced: (name: string) => `My files already sync with “${name}” – its content now shows up twice.`,
 		live: (name: string) => `Live from “${name}” on your computer`,
+		liveServer: (name: string) => `Live from “${name}”`,
 		liveShared: (host: string) => (host ? `Live from ${host} (shared)` : 'Live (shared)'),
 		help: 'How connected folders work'
 	},
@@ -321,7 +328,6 @@ const en = {
 		confirm: 'Connect this device with your devices? All files will be synced with the other devices.',
 		connecting: 'Connecting … keep in-browser open on the device that shows the key.',
 		timeout: 'No answer. Is in-browser open on the other device, and is the key still valid?',
-		done: 'Connected.'
 	},
 
 	explain: {
@@ -361,6 +367,75 @@ const en = {
 		copied: 'Diagnostics copied.'
 	},
 
+	/** Connecting a server (`ConnectDialog`) */
+	connect: {
+		webdav: 'Connect a WebDAV server',
+		editWebdav: 'Edit WebDAV server',
+		s3: 'Connect S3 storage',
+		editS3: 'Edit S3 storage',
+		webdavIntro: 'A folder on Nextcloud, ownCloud, a NAS or any WebDAV server opens live here – nothing is copied into the browser.',
+		s3Intro: 'A bucket of AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO or other S3-compatible storage opens live here.',
+		url: 'Address of the folder',
+		username: 'User name',
+		password: 'Password or app password',
+		provider: 'Provider',
+		providers: { aws: 'Amazon S3', r2: 'Cloudflare R2', b2: 'Backblaze B2', wasabi: 'Wasabi', other: 'Other (MinIO …)' },
+		region: 'Region',
+		bucket: 'Bucket',
+		endpoint: 'Endpoint',
+		prefix: 'Folder in the bucket',
+		prefixPlaceholder: 'empty: the whole bucket',
+		pathStyle: 'Bucket in the path (path-style addresses)',
+		accessKeyId: 'Access key ID',
+		secretKey: 'Secret access key',
+		keepSecret: 'unchanged',
+		name: 'Name',
+		namePlaceholder: 'optional',
+		httpsOnly: 'Only HTTPS addresses work (or a server on this computer).',
+		secretStays: 'The password stays on this device, encrypted. It is never synced.',
+		unreachable: 'The server can’t be reached, or it doesn’t allow access from the browser (CORS).',
+		wrongCredentials: 'The server didn’t accept the user name or password.',
+		corsHelp: 'How to set it up',
+		notFound: 'The server answered, but this folder or bucket doesn’t exist.',
+		cancel: 'Cancel',
+		connect: 'Connect',
+		save: 'Save'
+	},
+
+	/** Choosing folders before a sync target starts (`ScopeSetupDialog`) */
+	scopeSetup: {
+		titleFolder: (folder: string) => `Choose folders for “${folder}”`,
+		titleDevice: 'Choose what this device syncs',
+		hintSetup: 'Nothing is transferred until you start. Large folders and those that don’t fit are deselected – you can change that.',
+		hintFolder: 'Deselected folders stay where they are – in My files and in the folder on your computer. They just aren’t synced.',
+		hintDevice: 'Deselected folders stay on your other devices; here you open them live from there.',
+		comesHere: (size: string) => `Comes here: ${size}`,
+		goesThere: (size: string) => `Goes there: ${size}`,
+		free: (size: string) => `Free in the browser: ${size}`,
+		incoming: (size: string) => `${size} comes here`,
+		outgoing: (size: string) => `${size} goes there`,
+		toDevices: (size: string) => `${size} goes to your devices`,
+		both: (size: string) => `${size} on both sides`,
+		large: 'large',
+		full: 'doesn’t fit',
+		start: 'Start syncing',
+		apply: 'Apply',
+		later: 'Later',
+		cancel: 'Cancel',
+		waitingForDevices: 'Waiting for your other devices – keep in-browser open on one of them …',
+		unreadable: 'The folder on your computer can’t be read right now. Allow access again first.'
+	},
+
+	/** New folders held back before they arrive (large or not fitting) */
+	held: {
+		waiting: (name: string, size: string) => `New folder “${name}” (${size}) waits for your confirmation.`,
+		why: (limit: string) => `It is larger than ${limit}.`,
+		full: 'It doesn’t fit into the browser’s free storage.',
+		sync: 'Sync',
+		exclude: 'Exclude',
+		limit: 'Change the limit'
+	},
+
 	scope: {
 		empty: 'No folders yet.',
 		title: 'Choose folders',
@@ -394,6 +469,8 @@ const en = {
 		confirmDeletes: (n: number) => `${n} files were deleted in the folder on your computer. Delete them here as well?`,
 		applyDeletes: 'Delete here too',
 		restoreInstead: 'Restore them instead',
+		chooseFolders: 'Choose folders …',
+		setup: 'Waiting for your choice: nothing is synced until you have chosen the folders.',
 		runsWhileOpen: 'Syncing runs while any in-browser tool is open in this browser.'
 	},
 

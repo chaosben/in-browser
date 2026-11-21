@@ -42,6 +42,8 @@
 	const selfBehind = $derived(view.state === 'online' && selfStale(view.lastSync, online.length, now));
 	const devices = $derived(view.state === 'online' && others.length > 0);
 	const folderProblem = $derived(!!syncStatus.folder && (syncStatus.state === 'paused' || syncStatus.failed > 0 || syncStatus.pendingDeletes > 0));
+	/** New folders waiting for confirmation (from the folder on disk and the other devices) */
+	const heldFolders = $derived([...syncStatus.pendingFolders, ...view.pendingFolders]);
 	const visible = $derived(!!syncStatus.folder || view.state === 'removed' || devices);
 
 	type Tone = 'ok' | 'busy' | 'warn' | 'idle';
@@ -50,7 +52,9 @@
 		if (view.state === 'removed') return { label: p.removed, tone: 'warn' };
 		if (syncing?.syncing) return { label: p.syncingWith(syncing.name, syncing.syncing.done, syncing.syncing.total), tone: 'busy' };
 		if (syncStatus.state === 'syncing') return { label: t.indicator.syncing, tone: 'busy' };
+		if (view.setup || syncStatus.state === 'setup') return { label: t.indicator.setup, tone: 'warn' };
 		if (view.pendingDeletes) return { label: p.pendingDeletes(view.pendingDeletes), tone: 'warn' };
+		if (heldFolders.length) return { label: t.indicator.heldFolders(heldFolders.length, basename(heldFolders[0].path)), tone: 'warn' };
 		if (folderProblem) {
 			const label =
 				syncStatus.state === 'paused'

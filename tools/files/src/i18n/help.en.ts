@@ -163,8 +163,8 @@ const help = {
 		title: 'Connected folders',
 		items: {
 			connect: {
-				title: 'Connecting a folder',
-				text: '“Connect folder …” (“Connect” tab, or in the panel “Folders” below My files) lets you choose a folder on your computer; the browser asks whether in-browser may view and edit it. The folder appears in the panel “Folders” below My files with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced. Only Chrome and Edge on a computer can do this.',
+				title: 'Connecting a folder or server',
+				text: '“Connect …” (“Connect” tab, or in the panel “Folders” below My files) asks what to connect: “Folder on this computer …” lets you choose a folder, and the browser asks whether in-browser may view and edit it (only Chrome and Edge on a computer); “WebDAV server …” and “S3 storage …” ask for the address and sign-in data and work in every browser. The connection appears in the panel “Folders” below My files with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced.',
 				tip: 'Connect a folder to work on files where they are (e.g. a project folder of another program). Want a copy of My files on your computer instead? Use “Folder on your computer” in the sync settings.',
 				link: { href: '/help/connected', label: 'Connected folders' }
 			},
@@ -178,12 +178,12 @@ const help = {
 				tip: 'Choose “Allow on every visit” – then it stays connected.'
 			},
 			manage: {
-				title: 'Disconnecting',
-				text: 'A connected folder is shown with the name of the folder on your computer. “Disconnect” – in the “Connect” tab while the folder is open, or in its menu in the panel “Folders” (right-click, on touch screens its ⋮ button) – removes it from in-browser. Nothing in the folder is deleted.'
+				title: 'Editing and disconnecting',
+				text: 'A connected folder is shown with the name of the folder on your computer, a server with the name you gave it. “Edit …” in the menu of a server changes its name, address and sign-in data (the password field stays empty to keep the stored one); when a server refuses the sign-in data, messages offer “Change sign-in data”. “Disconnect” – in the “Connect” tab while the folder is open, or in its menu in the panel “Folders” (right-click, on touch screens its ⋮ button) – removes it from in-browser. Nothing in the folder is deleted.'
 			},
 			delete: {
 				title: 'Deleting in a connected folder',
-				text: 'A connected folder has no trash of in-browser: “Delete” asks “Delete for good?” first and then deletes right away.'
+				text: 'A connected folder or server has no trash of in-browser: “Delete” asks “Delete for good?” first and then deletes right away.'
 			},
 			share: {
 				title: 'Sharing a folder with a guest',
@@ -202,7 +202,7 @@ const help = {
 		items: {
 			connect: {
 				title: 'Syncing with a folder',
-				text: '“Sync settings” in the “Sync” tab opens the sync settings; under “Folder on your computer” click “Choose folder” and pick a folder. From then on Files keeps the browser storage and that folder in sync in both directions; when a file was changed on both sides, the newer version wins. Syncing runs while any in-browser tool is open in this browser. Only Chrome and Edge on a desktop computer can do this.',
+				text: '“Sync settings” in the “Sync” tab opens the sync settings; under “Folder on your computer” click “Choose folder” and pick a folder. “Choose folders for …” opens first: each folder with what would come into the browser and what would go into the folder; nothing is copied until “Start syncing” (“Later” keeps it waiting). Later, “Choose folders …” there changes the choice – a deselected folder stays in My files and in the folder on your computer, it just isn’t synced anymore. From then on Files keeps the browser storage and that folder in sync in both directions; when a file was changed on both sides, the newer version wins. Syncing runs while any in-browser tool is open in this browser. Only Chrome and Edge on a desktop computer can do this.',
 				tip: 'Choose an empty folder or one meant only for in-browser – everything in it becomes part of Files. A folder your sync tool (Syncthing, Nextcloud, Dropbox …) carries along gets your documents to other computers as well.',
 				link: { href: '/help/storage', label: 'The folder on your computer' }
 			},
@@ -232,8 +232,13 @@ const help = {
 			},
 			first: {
 				title: 'Connecting the first devices',
-				text: 'On the first device click “Connect devices”: a short explanation, then a name for this device (so you can tell them apart), then “Add device” shows a key as QR code. On the second device either scan the code with the camera, open the link from “Copy link”, or open Files there and type the key under “Enter key”. Keep Files open on the first device until the second one is added.',
-				link: { href: '/help/sync', label: 'Pairing devices' }
+				text: 'On the first device click “Connect devices”: a short explanation, then a name for this device (so you can tell them apart), then “Add device” shows a key as QR code. On the second device either scan the code with the camera, open the link from “Copy link”, or open Files there and type the key under “Enter key”. Keep Files open on the first device until the second one is added. The second device then shows “Choose what this device syncs”: untick what it shouldn’t get and choose “Start syncing” – nothing is transferred before.',
+				link: { href: '/help/sync#connect', label: 'Pairing devices' }
+			},
+			held: {
+				title: 'New folders waiting',
+				text: 'A new folder that is larger than the size in the settings, or doesn’t fit into the browser’s free storage, waits instead of arriving: the sync settings show it with its size, under “Your devices” or “Folder on your computer”. “Sync” brings it here after all, “Exclude” leaves it out; “Change the limit” opens the settings.',
+				link: { href: '/help/sync#changes', label: 'Large new folders wait' }
 			},
 			add: {
 				title: 'Adding more devices',

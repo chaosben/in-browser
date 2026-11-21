@@ -1,20 +1,15 @@
 <script lang="ts">
-	import {
-		allowAccess,
-		connectionLabel,
-		connections,
-		connectionsSupported,
-		type ConnectionView
-	} from '@in-browser/files/sources/connections.svelte.js';
+	import { allowAccess, connectionLabel, connections, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
 	import MoreButton from '@in-browser/brand/MoreButton.svelte';
-	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
-	import { connect } from '#lib/connections.js';
+	import { connectEntries } from '#lib/connections.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import type { Item } from '#lib/items.js';
 	import FolderTree from './FolderTree.svelte';
 
-	// Below My files in the panel “Folders”: folders on the computer and guest shares opened live (not part of My files)
+	// Below My files in the panel “Folders”: folders on the computer, servers and guest shares opened live (not part of
+	// My files); “Connect …” asks what to connect
 
 	interface Props {
 		current: string;
@@ -55,6 +50,7 @@
 						label={connectionLabel(connection)}
 						connected
 						shared={connection.kind === 'share'}
+						server={connection.kind === 'webdav' || connection.kind === 's3'}
 						readOnly={connection.mode === 'view'}
 						{current}
 						{onnavigate}
@@ -77,12 +73,8 @@
 			{/each}
 		</ul>
 	{/if}
-	{#if connectionsSupported()}
-		<button class="btn btn-ghost justify-start gap-2 px-2 font-normal" onclick={() => connect(onnavigate)} title={m.connected.connectHint}>
-			<span class="icon-[material-symbols-light--add-link] size-5 shrink-0" aria-hidden="true"></span>
-			<span class="text-sm">{m.connected.connect}</span>
-		</button>
-	{:else}
-		<p class="px-2 text-xs opacity-60">{m.connected.unsupported}</p>
-	{/if}
+	<button class="btn btn-ghost justify-start gap-2 px-2 font-normal" onclick={(e) => openMenuBelow(e, connectEntries(onnavigate))} title={m.connected.connectHint}>
+		<span class="icon-[material-symbols-light--add-link] size-5 shrink-0" aria-hidden="true"></span>
+		<span class="text-sm">{m.connected.connect}</span>
+	</button>
 </section>

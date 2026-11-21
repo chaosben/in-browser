@@ -14,7 +14,8 @@ import { mergeOps, resolve, verifyOps, type Group, type Op } from './members.js'
 
 /** Version of the P2P protocol; devices with another one show “please update” instead of syncing */
 /** 2: sessions check the expected state before overwriting or deleting, renames, deletions confirmed on either side */
-export const PROTOCOL = 2;
+/** 3: a device being set up answers sessions with `setup`; large new folders held for confirmation on either side */
+export const PROTOCOL = 3;
 
 export interface HelloAnswer {
 	v: number;

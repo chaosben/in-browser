@@ -7,60 +7,36 @@
 	import { inScope } from '@in-browser/files/p2p/scope.js';
 	import { devicesUi } from '#lib/devices.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import ScopeTree, { type ScopeFolder } from './ScopeTree.svelte';
 
-	// Which folders this device takes part in: a tree with checkboxes, sizes and where the folders are (also folders
-	// that exist only on other devices); subfolders load when opened
+	// Which folders this device takes part in: sizes and where the folders are (also folders that exist only on
+	// other devices). Taking a folder in again syncs right away; leaving one out asks first (`ExcludeFolderDialog`).
 
 	let { onclose }: { onclose: () => void } = $props();
 
-	interface Folder {
-		path: string;
-		name: string;
-		/** Bytes per device ID */
-		sizes: Record<string, number>;
-	}
-
-	const children = new SvelteMap<string, Folder[]>();
-	const expanded = new SvelteSet<string>();
 	const scope = $derived(p2pStatus.view.scope);
 	const self = $derived(p2pStatus.view.self?.id ?? '');
 	const names = $derived(new Map(p2pStatus.view.devices.map((d) => [d.id, d.name])));
 
-	async function load(folder: string) {
-		try {
-			const [local, sizes] = await Promise.all([list(folder).catch(() => []), folderSizes(folder).catch(() => ({}))]);
-			const byPath = new Map<string, Folder>();
-			for (const entry of local) {
-				if (entry.kind === 'directory' && !isHidden(entry.path)) byPath.set(entry.path, { path: entry.path, name: entry.name, sizes: {} });
-			}
-			for (const [device, perFolder] of Object.entries(sizes)) {
-				for (const [path, bytes] of Object.entries(perFolder)) {
-					if (isHidden(path)) continue;
-					const folder = byPath.get(path) ?? { path, name: path.split('/').at(-1) ?? path, sizes: {} };
-					folder.sizes[device] = bytes;
-					byPath.set(path, folder);
-				}
-			}
-			children.set(folder, [...byPath.values()].sort((a, b) => a.name.localeCompare(b.name, intlLocale)));
-		} catch (e) {
-			console.error(e);
+	/** The subfolders of `folder` here and on the connected devices, with their size on each device */
+	async function load(folder: string): Promise<ScopeFolder[]> {
+		const [local, sizes] = await Promise.all([list(folder).catch(() => []), folderSizes(folder).catch(() => ({}))]);
+		const byPath = new Map<string, ScopeFolder>();
+		for (const entry of local) {
+			if (entry.kind === 'directory' && !isHidden(entry.path)) byPath.set(entry.path, { path: entry.path, name: entry.name, sizes: {} });
 		}
+		for (const [device, perFolder] of Object.entries(sizes)) {
+			for (const [path, bytes] of Object.entries(perFolder)) {
+				if (isHidden(path)) continue;
+				const entry = byPath.get(path) ?? { path, name: path.split('/').at(-1) ?? path, sizes: {} };
+				entry.sizes[device] = bytes;
+				byPath.set(path, entry);
+			}
+		}
+		return [...byPath.values()];
 	}
 
-	$effect(() => {
-		void load('/');
-	});
-
-	function toggleOpen(path: string) {
-		if (expanded.has(path)) expanded.delete(path);
-		else {
-			expanded.add(path);
-			if (!children.has(path)) void load(path);
-		}
-	}
-
-	async function toggle(folder: Folder, on: boolean) {
+	async function toggle(folder: ScopeFolder, on: boolean) {
 		if (on) {
 			try {
 				await includeFolder(folder.path);
@@ -72,7 +48,7 @@
 		}
 	}
 
-	function where(folder: Folder): string {
+	function where(folder: ScopeFolder): string {
 		const devices = Object.keys(folder.sizes).filter((id) => folder.sizes[id] > 0);
 		const size = Math.max(0, ...Object.values(folder.sizes));
 		const sizeText = size ? formatSize(size, intlLocale) : '';
@@ -88,46 +64,7 @@
 	}
 </script>
 
-{#snippet tree(folder: string, depth: number)}
-	{#each children.get(folder) ?? [] as child (child.path)}
-		{@const parentExcluded = !inScope(folder, scope) && folder !== '/'}
-		{@const on = inScope(child.path, scope)}
-		<li>
-			<div class="hover:bg-base-200 rounded-box flex items-center gap-2 py-1 pr-2" style:padding-left="{depth * 1.25}rem">
-				<button
-					class="btn btn-ghost btn-xs btn-square"
-					onclick={() => toggleOpen(child.path)}
-					aria-label={child.name}
-					aria-expanded={expanded.has(child.path)}
-				>
-					<span
-						class={['icon-[material-symbols-light--chevron-right] size-4 transition-transform', expanded.has(child.path) && 'rotate-90']}
-						aria-hidden="true"
-					></span>
-				</button>
-				<label class="flex min-w-0 flex-1 items-center gap-2">
-					<input
-						type="checkbox"
-						class="checkbox checkbox-sm"
-						checked={on}
-						disabled={parentExcluded}
-						onchange={(e) => {
-							const checked = e.currentTarget.checked;
-							e.currentTarget.checked = on;
-							toggle(child, checked);
-						}}
-					/>
-					<span class="icon-[material-symbols-light--folder-outline] text-folder size-5 shrink-0" aria-hidden="true"></span>
-					<span class="min-w-0 truncate">{child.name}</span>
-				</label>
-				<span class="shrink-0 text-xs opacity-60">{where(child)}</span>
-			</div>
-			{#if expanded.has(child.path)}
-				<ul>{@render tree(child.path, depth + 1)}</ul>
-			{/if}
-		</li>
-	{/each}
-{/snippet}
+
 
 <dialog
 	class="modal"
@@ -140,15 +77,7 @@
 	<div class="modal-box flex max-w-2xl flex-col gap-3">
 		<h3 class="text-lg font-bold">{m.scope.title}</h3>
 		<p class="text-sm opacity-80">{m.scope.hint}</p>
-		<ul class="max-h-[60vh] overflow-y-auto text-sm">
-			{#if children.get('/')?.length === 0}
-				<li class="opacity-60">{m.scope.empty}</li>
-			{:else if children.has('/')}
-				{@render tree('/', 0)}
-			{:else}
-				<li><span class="loading loading-spinner loading-sm"></span></li>
-			{/if}
-		</ul>
+		<ScopeTree {load} isOn={(path) => inScope(path, scope)} ontoggle={toggle} detail={where} empty={m.scope.empty} />
 		<p class="text-xs opacity-60">{m.scope.always}: <code>.apps</code></p>
 		<div class="modal-action">
 			<button class="btn" onclick={onclose}>{m.devices.close}</button>

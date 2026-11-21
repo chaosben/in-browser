@@ -5,7 +5,8 @@
 // private key never enters the repository (see `scripts/build.ts`).
 
 /** Version of the starter (`starter.ts`); a manifest can require a newer one for its sync process */
-export const STARTER_VERSION = 1;
+/** 2: `pair --exclude` */
+export const STARTER_VERSION = 2;
 
 /** Public release key (Ed25519, raw, base64url) */
 export const RELEASE_KEY = '2KGRb82KM5mWDO9mmhTx4fnyjUtBW7Cj0pP8SRLArbg';

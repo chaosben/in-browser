@@ -1,4 +1,5 @@
 import type { Share } from './shares.js';
+import type { HeldFolder } from '../sync/plan.js';
 
 // What the UI shows of the device sync (`Device.view()`, mirrored to every tab as `p2pStatus.view`). Its own module,
 // so the app can show the status before the sync code (`device.ts`) is loaded.
@@ -27,6 +28,10 @@ export interface P2pView {
 	invite: { code: string; expires: number } | null;
 	scope: string[];
 	pendingDeletes: number;
+	/** New folders waiting for confirmation before they come to this device */
+	pendingFolders: HeldFolder[];
+	/** Just joined: waits for the folder choice */
+	setup: boolean;
 	failed: number;
 	/** Last sync of this device with any other */
 	lastSync: number;
@@ -35,7 +40,7 @@ export interface P2pView {
 }
 
 /** No group (yet), or not started */
-export const OFF_VIEW: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, failed: 0, lastSync: 0, shares: [] };
+export const OFF_VIEW: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, pendingFolders: [], setup: false, failed: 0, lastSync: 0, shares: [] };
 
 export interface ShareView {
 	id: string;

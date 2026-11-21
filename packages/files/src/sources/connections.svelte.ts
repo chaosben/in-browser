@@ -1,14 +1,26 @@
 import { FilesError, noticed } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import { connectionOf, connectionRoot, join } from '../path.js';
-import { listConnections, onConnectionsChanged, saveConnections, type Connection, type FolderConnection } from './registry.js';
+import {
+	listConnections,
+	onConnectionsChanged,
+	remoteSource,
+	saveConnections,
+	type Connection,
+	type FolderConnection,
+	type RemoteConnection,
+	type S3Connection,
+	type WebDavConnection
+} from './registry.js';
+import { seal } from './secrets.js';
 import { beginShare, endShareSession } from './share.js';
 import { syncedFolder } from '../sync/sync.svelte.js';
 import { diskFoldersSupported } from '../handles.js';
 
 // Connections for the UI (“Connected” in Files, the file dialog): list with access state, connect, rename,
-// disconnect, allow access again. Each tab watches its connected folders itself and announces outside changes
-// locally (`noticed`).
+// disconnect, allow access again, connect and edit servers (WebDAV, S3). Each tab watches its connected folders itself
+// and announces outside changes locally (`noticed`); servers can't tell, so their roots are announced when the tab
+// comes to the front and every 30 s while it is visible (views reload calmly, showing the old list until the new one).
 
 export interface ConnectionView {
 	id: string;
@@ -36,8 +48,14 @@ export function connectionLabel(c: ConnectionView): string {
 	return c.name ? t.connection(c.name, c.host ?? '') : t.pending;
 }
 
-/** Folders on disk can be connected */
-export const connectionsSupported = diskFoldersSupported;
+/** Something can be connected: servers in every browser */
+export const connectionsSupported = () => true;
+
+/** Folders on disk can be connected (Chromium on a computer) */
+export const diskConnectionsSupported = diskFoldersSupported;
+
+/** How often the roots of server connections are announced as changed while the tab is visible */
+const REMOTE_INTERVAL = 30_000;
 
 type Observer = { observe(handle: FileSystemHandle, options: { recursive: boolean }): Promise<void>; disconnect(): void };
 type ObserverRecord = { type: string; relativePathComponents: string[] };
@@ -52,8 +70,19 @@ export function startConnections() {
 	started = true;
 	onConnectionsChanged(() => void refresh());
 	// Access may have been allowed meanwhile (another tab, the browser's site settings)
-	window.addEventListener('focus', () => void refresh());
+	window.addEventListener('focus', () => {
+		void refresh();
+		noticeRemote();
+	});
+	document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && noticeRemote());
+	setInterval(() => document.visibilityState === 'visible' && noticeRemote(), REMOTE_INTERVAL);
 	void refresh();
+}
+
+/** Servers don't report changes: views of their folders load again */
+function noticeRemote() {
+	const remote = connections.list.filter((c) => c.kind === 'webdav' || c.kind === 's3');
+	if (remote.length) noticed(...remote.map((c) => c.path));
 }
 
 async function accessOf(handle: FileSystemDirectoryHandle): Promise<PermissionState> {
@@ -75,7 +104,9 @@ export async function refresh(): Promise<void> {
 			async (c): Promise<ConnectionView> =>
 				c.kind === 'share'
 					? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted', host: c.host, mode: c.mode, ended: c.ended }
-					: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.handle) }
+					: c.kind === 'folder'
+						? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.handle) }
+						: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted' }
 		)
 	);
 	const changedAccess = views.some((v) => connections.list.find((o) => o.id === v.id)?.access !== v.access);
@@ -132,6 +163,48 @@ export async function connectFolder(): Promise<{ path: string; alsoSynced: boole
 	return { path: connectionRoot(id), alsoSynced };
 }
 
+/** What the user types to connect a server (the secret is the password or secret access key) */
+export type RemoteInput =
+	| { kind: 'webdav'; name: string; url: string; username: string; secret: string }
+	| { kind: 's3'; name: string; endpoint: string; region: string; bucket: string; prefix: string; pathStyle: boolean; accessKeyId: string; secret: string };
+
+/** A stored server connection without its secret (to fill the edit dialog) */
+export type RemoteDetails = Omit<WebDavConnection, 'secret'> | Omit<S3Connection, 'secret'>;
+
+export async function remoteDetails(id: string): Promise<RemoteDetails | null> {
+	const found = (await listConnections()).find((c): c is RemoteConnection => c.id === id && (c.kind === 'webdav' || c.kind === 's3'));
+	if (!found) return null;
+	const { secret: _, ...details } = found;
+	return details;
+}
+
+/**
+ * Connects a server, or changes the connection `id` (an empty secret keeps the stored one). It is tried first – the
+ * top folder must list – and stored only when that works. Returns its root path.
+ */
+export async function connectRemote(input: RemoteInput, id?: string): Promise<string> {
+	const list = await listConnections();
+	const previous = id ? list.find((c): c is RemoteConnection => c.id === id && c.kind === input.kind) : undefined;
+	const secret = input.secret ? await seal(input.secret) : previous?.secret;
+	if (!secret) throw new FilesError('credentials', '/');
+	const connectionId = previous?.id ?? crypto.randomUUID().slice(0, 8);
+	const { secret: _, ...fields } = input;
+	const connection = { ...fields, id: connectionId, secret } as RemoteConnection;
+	// Errors name the root of the new connection
+	try {
+		await remoteSource(connection).list('/');
+	} catch (e) {
+		if (e instanceof FilesError) throw new FilesError(e.code, connectionRoot(connectionId));
+		throw e;
+	}
+	await saveConnections(previous ? list.map((c) => (c.id === connectionId ? connection : c)) : [...list, connection]);
+	noticed(connectionRoot(connectionId));
+	return connectionRoot(connectionId);
+}
+
+/** Opens the dialog that changes a server connection (set by Files; elsewhere Files opens in a new tab) */
+export const connectionEditor = { open: null as ((id: string) => void) | null };
+
 /** Asks the browser for access again (needs a click) */
 export async function allowAccess(id: string): Promise<boolean> {
 	const connection = folders(await listConnections()).find((c) => c.id === id);
@@ -145,9 +218,19 @@ export async function allowAccess(id: string): Promise<boolean> {
  * again (a click on it is the user activation the browser needs) – `onAllowed` runs once access is back.
  */
 export function accessAction(e: unknown, onAllowed?: () => void): { label: string; run: () => Promise<void> } | undefined {
-	if (!(e instanceof FilesError) || e.code !== 'denied') return undefined;
+	if (!(e instanceof FilesError) || (e.code !== 'denied' && e.code !== 'credentials')) return undefined;
 	const at = connectionOf(e.path);
 	if (!at) return undefined;
+	// A server refused the sign-in data: change them (Files' dialog; in another tool, Files opens next to it)
+	if (e.code === 'credentials') {
+		return {
+			label: filesMessages().connected.editCredentials,
+			run: async () => {
+				if (connectionEditor.open) connectionEditor.open(at.id);
+				else window.open(`/files?edit=${encodeURIComponent(at.id)}`, '_blank', 'noopener');
+			}
+		};
+	}
 	return {
 		label: filesMessages().connected.allow,
 		run: async () => {

@@ -3,6 +3,9 @@ import { basename, connectionOf, isInside } from '../path.js';
 import { inTrash } from '../trash.js';
 import { idbGet, idbSet } from '../sync/idb.js';
 import { folderSource } from './folder.js';
+import { s3Source } from './s3.js';
+import { unseal, type Sealed } from './secrets.js';
+import { webdavSource } from './webdav.js';
 import { shareSession, shareSource } from './share.js';
 import type { Source } from './source.js';
 
@@ -30,8 +33,36 @@ export interface ShareConnection {
 	ended: boolean;
 }
 
-/** Foreseen: `'webdav'` */
-export type Connection = FolderConnection | ShareConnection;
+/** A folder on a WebDAV server */
+export interface WebDavConnection {
+	id: string;
+	kind: 'webdav';
+	name: string;
+	url: string;
+	username: string;
+	/** The password, encrypted with this device's key (`secrets.ts`) */
+	secret: Sealed;
+}
+
+/** A bucket (or a folder in it) of S3-compatible storage */
+export interface S3Connection {
+	id: string;
+	kind: 's3';
+	name: string;
+	endpoint: string;
+	region: string;
+	bucket: string;
+	prefix: string;
+	pathStyle: boolean;
+	accessKeyId: string;
+	/** The secret access key, encrypted with this device's key (`secrets.ts`) */
+	secret: Sealed;
+}
+
+/** A connection to a server: storage reached over the network, in every browser */
+export type RemoteConnection = WebDavConnection | S3Connection;
+
+export type Connection = FolderConnection | ShareConnection | RemoteConnection;
 
 const KEY = 'connections';
 
@@ -59,8 +90,13 @@ function sourceOf(connection: Connection): Source {
 			listeners.forEach((l) => l());
 		});
 	}
+	if (connection.kind === 'webdav') return webdavSource({ url: connection.url, username: connection.username, password: () => unseal(connection.secret) });
+	if (connection.kind === 's3') return s3Source({ ...connection, secretAccessKey: () => unseal(connection.secret) });
 	return folderSource(connection.handle);
 }
+
+/** The source of a remote connection that isn't stored yet (to test it before saving) */
+export const remoteSource = (connection: RemoteConnection) => sourceOf(connection);
 
 /** The guest share of this tab as a connection */
 function shareConnection(): ShareConnection | null {

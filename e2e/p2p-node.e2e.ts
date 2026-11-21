@@ -58,8 +58,8 @@ test('a p2p-node passes changes on while the other devices are offline', async (
 		await b.goto(`/files#pair=${key.replace(/-/g, '')}`);
 		await b.getByLabel('Name of this device').fill('Phone');
 		await b.getByRole('button', { name: 'Connect', exact: true }).click();
-		await expect(b.getByText('Connected.')).toBeVisible({ timeout: 30_000 });
-		await b.getByRole('button', { name: 'Close', exact: true }).click();
+		// The phone looks first, then syncs everything
+		await b.getByRole('dialog', { name: 'Choose what this device syncs' }).getByRole('button', { name: 'Start syncing' }).click();
 
 		// …and the node, with a new key
 		await a.getByRole('button', { name: 'Add another device' }).click();

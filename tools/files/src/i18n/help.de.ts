@@ -161,8 +161,8 @@ const help: typeof enHelp = {
 		title: 'Verbundene Ordner',
 		items: {
 			connect: {
-				title: 'Einen Ordner verbinden',
-				text: '„Ordner verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) lässt dich einen Ordner auf deinem Rechner wählen; der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf. Der Ordner erscheint in der Seitenleiste „Ordner“ unter Meine Dateien mit seinem Namen und öffnet sich live: Du siehst und änderst die Dateien direkt dort, nichts wird in den Browserspeicher kopiert und nichts synchronisiert. Das können nur Chrome und Edge am Computer.',
+				title: 'Einen Ordner oder Server verbinden',
+				text: '„Verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) fragt, was du verbinden willst: Bei „Ordner auf diesem Rechner …“ wählst du einen Ordner, und der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf (nur Chrome und Edge am Computer); „WebDAV-Server …“ und „S3-Speicher …“ fragen nach Adresse und Anmeldedaten und gehen in jedem Browser. Die Verbindung erscheint in der Seitenleiste „Ordner“ unter Meine Dateien mit ihrem Namen und öffnet sich live: Du siehst und änderst die Dateien direkt dort, nichts wird in den Browserspeicher kopiert und nichts synchronisiert.',
 				tip: 'Verbinde einen Ordner, um Dateien dort zu bearbeiten, wo sie liegen (z. B. den Projektordner eines anderen Programms). Willst du stattdessen eine Kopie von Meine Dateien auf deinem Rechner? Nimm „Ordner auf deinem Rechner“ in den Sync-Einstellungen.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
@@ -176,12 +176,12 @@ const help: typeof enHelp = {
 				tip: 'Wähle „Bei jedem Besuch erlauben“ – dann bleibt er verbunden.'
 			},
 			manage: {
-				title: 'Trennen',
-				text: 'Ein verbundener Ordner trägt den Namen des Ordners auf deinem Rechner. „Trennen“ – in der Registerkarte „Verbinden“, solange der Ordner offen ist, oder in seinem Menü in der Seitenleiste „Ordner“ (Rechtsklick, auf Touchscreens sein ⋮-Knopf) – entfernt ihn aus in-browser. Im Ordner wird nichts gelöscht.'
+				title: 'Bearbeiten und trennen',
+				text: 'Ein verbundener Ordner trägt den Namen des Ordners auf deinem Rechner, ein Server den Namen, den du ihm gegeben hast. „Bearbeiten …“ im Menü eines Servers ändert Namen, Adresse und Anmeldedaten (bleibt das Passwortfeld leer, gilt das gespeicherte); lehnt ein Server die Anmeldedaten ab, bieten Meldungen „Anmeldedaten ändern“ an. „Trennen“ – in der Registerkarte „Verbinden“, solange der Ordner offen ist, oder in seinem Menü in der Seitenleiste „Ordner“ (Rechtsklick, auf Touchscreens sein ⋮-Knopf) – entfernt ihn aus in-browser. Im Ordner wird nichts gelöscht.'
 			},
 			delete: {
 				title: 'Löschen in einem verbundenen Ordner',
-				text: 'Ein verbundener Ordner hat keinen Papierkorb von in-browser: „Löschen“ fragt erst „Endgültig löschen?“ und löscht dann sofort.'
+				text: 'Ein verbundener Ordner oder Server hat keinen Papierkorb von in-browser: „Löschen“ fragt erst „Endgültig löschen?“ und löscht dann sofort.'
 			},
 			share: {
 				title: 'Einen Ordner für einen Gast freigeben',
@@ -200,7 +200,7 @@ const help: typeof enHelp = {
 		items: {
 			connect: {
 				title: 'Mit einem Ordner synchronisieren',
-				text: '„Sync-Einstellungen“ in der Registerkarte „Sync“ öffnet die Sync-Einstellungen; klick unter „Ordner auf deinem Rechner“ auf „Ordner wählen“ und wähle einen Ordner. Ab dann hält Dateien den Browserspeicher und diesen Ordner in beide Richtungen gleich; wurde eine Datei auf beiden Seiten geändert, gewinnt die neuere Fassung. Das Synchronisieren läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Das können nur Chrome und Edge am Computer.',
+				text: '„Sync-Einstellungen“ in der Registerkarte „Sync“ öffnet die Sync-Einstellungen; klick unter „Ordner auf deinem Rechner“ auf „Ordner wählen“ und wähle einen Ordner. Zuerst öffnet sich „Ordner für … auswählen“: jeder Ordner mit dem, was in den Browser käme und was in den Ordner ginge; nichts wird kopiert, bis du „Synchronisieren starten“ wählst („Später“ lässt ihn warten). Später ändert „Ordner auswählen …“ dort die Auswahl – ein abgewählter Ordner bleibt in Meine Dateien und im Ordner auf deinem Rechner, er wird nur nicht mehr abgeglichen. Ab dann hält Dateien den Browserspeicher und diesen Ordner in beide Richtungen gleich; wurde eine Datei auf beiden Seiten geändert, gewinnt die neuere Fassung. Das Synchronisieren läuft, solange irgendein Tool von in-browser in diesem Browser offen ist. Das können nur Chrome und Edge am Computer.',
 				tip: 'Wähle einen leeren Ordner oder einen nur für in-browser – alles darin wird Teil von „Meine Dateien“. Ein Ordner, den dein Sync-Tool (Syncthing, Nextcloud, Dropbox …) mitnimmt, bringt deine Dokumente auch auf andere Rechner.',
 				link: { href: '/help/storage', label: 'Der Ordner auf deinem Rechner' }
 			},
@@ -230,8 +230,13 @@ const help: typeof enHelp = {
 			},
 			first: {
 				title: 'Die ersten Geräte verbinden',
-				text: 'Klicke auf dem ersten Gerät auf „Geräte verbinden“: eine kurze Erklärung, dann ein Name für dieses Gerät (damit du sie auseinanderhältst), dann zeigt „Gerät hinzufügen“ einen Schlüssel als QR-Code. Auf dem zweiten Gerät scannst du den Code mit der Kamera, öffnest den Link aus „Link kopieren“ oder öffnest dort Dateien und tippst den Schlüssel unter „Schlüssel eingeben“ ein. Lass Dateien auf dem ersten Gerät geöffnet, bis das zweite hinzugefügt ist.',
-				link: { href: '/help/sync', label: 'Geräte verbinden' }
+				text: 'Klicke auf dem ersten Gerät auf „Geräte verbinden“: eine kurze Erklärung, dann ein Name für dieses Gerät (damit du sie auseinanderhältst), dann zeigt „Gerät hinzufügen“ einen Schlüssel als QR-Code. Auf dem zweiten Gerät scannst du den Code mit der Kamera, öffnest den Link aus „Link kopieren“ oder öffnest dort Dateien und tippst den Schlüssel unter „Schlüssel eingeben“ ein. Lass Dateien auf dem ersten Gerät geöffnet, bis das zweite hinzugefügt ist. Das zweite Gerät zeigt dann „Wähle, was dieses Gerät synchronisiert“: Hak ab, was es nicht bekommen soll, und wähle „Synchronisieren starten“ – vorher wird nichts übertragen.',
+				link: { href: '/help/sync#connect', label: 'Geräte verbinden' }
+			},
+			held: {
+				title: 'Wartende neue Ordner',
+				text: 'Ein neuer Ordner, der größer ist als die Größe in den Einstellungen oder nicht in den freien Speicher des Browsers passt, wartet, statt anzukommen: Die Sync-Einstellungen zeigen ihn mit seiner Größe, unter „Deine Geräte“ oder „Ordner auf deinem Rechner“. „Synchronisieren“ holt ihn doch hierher, „Ausschließen“ lässt ihn aus; „Grenze ändern“ öffnet die Einstellungen.',
+				link: { href: '/help/sync#changes', label: 'Große neue Ordner warten' }
 			},
 			add: {
 				title: 'Weitere Geräte hinzufügen',

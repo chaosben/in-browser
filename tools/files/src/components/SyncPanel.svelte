@@ -2,8 +2,10 @@
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import {
+		allowFolder,
 		applyDeletes,
 		chooseSyncFolder,
+		excludeFromFolderSync,
 		stopFolderSync,
 		renewAccess,
 		restoreDeleted,
@@ -11,7 +13,9 @@
 		syncStatus,
 		syncSupported
 	} from '@in-browser/files/sync/sync.svelte.js';
+	import { openDevicesDialog } from '#lib/devices.svelte.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
+	import HeldFolders from './HeldFolders.svelte';
 
 	// Connect the shared file system with a folder on disk; status of the sync (which may run in another tab).
 
@@ -45,7 +49,7 @@
 		<p class="opacity-70">{m.sync.unsupported}</p>
 	{:else if !syncStatus.folder}
 		<p class="opacity-70">{m.sync.intro}</p>
-		<button class="btn btn-sm btn-primary" onclick={() => run(chooseSyncFolder)}>
+		<button class="btn btn-sm btn-primary" onclick={() => run(async () => (await chooseSyncFolder(), openDevicesDialog('folderScope')))}>
 			<span class="icon-[material-symbols-light--folder-open-outline] size-5" aria-hidden="true"></span>
 			{m.sync.connect}
 		</button>
@@ -53,6 +57,12 @@
 		<p class="text-warning">{m.sync.paused(syncStatus.folder)}</p>
 		<button class="btn btn-sm btn-primary" onclick={() => run(renewAccess)}>{m.sync.renew}</button>
 		<p class="text-xs opacity-60">{m.sync.renewHint}</p>
+	{:else if syncStatus.state === 'setup'}
+		<p class="text-warning">{m.sync.setup}</p>
+		<button class="btn btn-sm btn-primary" onclick={() => openDevicesDialog('folderScope')}>
+			<span class="icon-[material-symbols-light--folder-open-outline] size-5" aria-hidden="true"></span>
+			{m.sync.chooseFolders}
+		</button>
 	{:else}
 		<p class="flex items-start gap-1.5">
 			<span class="icon-[material-symbols-light--cloud-done-outline] text-success size-5 shrink-0" aria-hidden="true"></span>
@@ -83,8 +93,12 @@
 				</div>
 			</div>
 		{/if}
+		<HeldFolders folders={syncStatus.pendingFolders} onsync={allowFolder} onexclude={excludeFromFolderSync} />
 		<div class="flex flex-wrap gap-1">
-			{#if syncStatus.state !== 'paused'}
+			{#if syncStatus.state !== 'paused' && syncStatus.state !== 'setup'}
+				<button class="btn btn-xs" onclick={() => openDevicesDialog('folderScope')}>{m.sync.chooseFolders}</button>
+			{/if}
+			{#if syncStatus.state !== 'paused' && syncStatus.state !== 'setup'}
 				<button class="btn btn-xs" onclick={syncNow} disabled={syncStatus.state === 'syncing'}>{m.sync.syncNow}</button>
 			{/if}
 			<button class="btn btn-xs btn-ghost" onclick={confirmDisconnect}>

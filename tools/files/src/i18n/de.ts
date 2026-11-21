@@ -204,9 +204,15 @@ const de: Messages = {
 
 	connected: {
 		title: 'Verbunden',
-		connect: 'Ordner verbinden …',
-		connectHint: 'Öffnet einen Ordner auf deinem Rechner live – nichts wird in den Browser kopiert.',
-		unsupported: 'Ordner auf deinem Rechner verbinden geht nur mit Chrome oder Edge am Computer.',
+		connect: 'Verbinden …',
+		connectHint: 'Öffnet einen Ordner auf deinem Rechner, einen WebDAV-Server oder S3-Speicher live – nichts wird in den Browser kopiert.',
+		kinds: {
+			folder: 'Ordner auf diesem Rechner …',
+			folderUnsupported: 'Ordner auf diesem Rechner (braucht Chrome oder Edge am Computer)',
+			webdav: 'WebDAV-Server …',
+			s3: 'S3-Speicher …'
+		},
+		edit: 'Bearbeiten …',
 		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`,
 		allow: 'Zugriff erlauben',
 		allowHint: 'Tipp: Wähle „Bei jedem Besuch erlauben“, dann bleibt er verbunden.',
@@ -216,6 +222,7 @@ const de: Messages = {
 			`In „${name}“ wird nichts gelöscht. Er taucht hier nur nicht mehr auf; du kannst ihn jederzeit wieder verbinden.`,
 		alsoSynced: (name) => `Meine Dateien werden schon mit „${name}“ synchronisiert – sein Inhalt erscheint jetzt doppelt.`,
 		live: (name) => `Live aus „${name}“ auf deinem Rechner`,
+		liveServer: (name) => `Live aus „${name}“`,
 		liveShared: (host) => (host ? `Live von ${host} (freigegeben)` : 'Live (freigegeben)'),
 		help: 'So funktionieren verbundene Ordner'
 	},
@@ -314,7 +321,6 @@ const de: Messages = {
 		confirm: 'Dieses Gerät mit deinen Geräten verbinden? Alle Dateien werden mit den anderen Geräten synchronisiert.',
 		connecting: 'Verbinde … Lass in-browser auf dem Gerät geöffnet, das den Schlüssel zeigt.',
 		timeout: 'Keine Antwort. Ist in-browser auf dem anderen Gerät geöffnet, und gilt der Schlüssel noch?',
-		done: 'Verbunden.'
 	},
 
 	explain: {
@@ -354,6 +360,72 @@ const de: Messages = {
 		copied: 'Diagnose kopiert.'
 	},
 
+	connect: {
+		webdav: 'WebDAV-Server verbinden',
+		editWebdav: 'WebDAV-Server bearbeiten',
+		s3: 'S3-Speicher verbinden',
+		editS3: 'S3-Speicher bearbeiten',
+		webdavIntro: 'Ein Ordner auf Nextcloud, ownCloud, einem NAS oder einem anderen WebDAV-Server öffnet sich hier live – nichts wird in den Browser kopiert.',
+		s3Intro: 'Ein Bucket von AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO oder anderem S3-kompatiblem Speicher öffnet sich hier live.',
+		url: 'Adresse des Ordners',
+		username: 'Benutzername',
+		password: 'Passwort oder App-Passwort',
+		provider: 'Anbieter',
+		providers: { aws: 'Amazon S3', r2: 'Cloudflare R2', b2: 'Backblaze B2', wasabi: 'Wasabi', other: 'Anderer (MinIO …)' },
+		region: 'Region',
+		bucket: 'Bucket',
+		endpoint: 'Endpunkt',
+		prefix: 'Ordner im Bucket',
+		prefixPlaceholder: 'leer: der ganze Bucket',
+		pathStyle: 'Bucket im Pfad (Path-Style-Adressen)',
+		accessKeyId: 'Zugriffsschlüssel-ID',
+		secretKey: 'Geheimer Zugriffsschlüssel',
+		keepSecret: 'unverändert',
+		name: 'Name',
+		namePlaceholder: 'optional',
+		httpsOnly: 'Nur HTTPS-Adressen funktionieren (oder ein Server auf diesem Rechner).',
+		secretStays: 'Das Passwort bleibt verschlüsselt auf diesem Gerät. Es wird nie synchronisiert.',
+		unreachable: 'Der Server ist nicht erreichbar oder erlaubt keinen Zugriff aus dem Browser (CORS).',
+		wrongCredentials: 'Der Server hat Benutzername oder Passwort nicht angenommen.',
+		corsHelp: 'So richtest du es ein',
+		notFound: 'Der Server hat geantwortet, aber diesen Ordner oder Bucket gibt es nicht.',
+		cancel: 'Abbrechen',
+		connect: 'Verbinden',
+		save: 'Speichern'
+	},
+
+	scopeSetup: {
+		titleFolder: (folder) => `Ordner für „${folder}“ auswählen`,
+		titleDevice: 'Wähle, was dieses Gerät synchronisiert',
+		hintSetup: 'Nichts wird übertragen, bis du startest. Große Ordner und solche, die nicht passen, sind abgewählt – das kannst du ändern.',
+		hintFolder: 'Abgewählte Ordner bleiben, wo sie sind – in Meine Dateien und im Ordner auf deinem Rechner. Sie werden nur nicht abgeglichen.',
+		hintDevice: 'Abgewählte Ordner bleiben auf deinen anderen Geräten; hier öffnest du sie live von dort.',
+		comesHere: (size) => `Kommt hierher: ${size}`,
+		goesThere: (size) => `Geht dorthin: ${size}`,
+		free: (size) => `Frei im Browser: ${size}`,
+		incoming: (size) => `${size} kommt hierher`,
+		outgoing: (size) => `${size} geht dorthin`,
+		toDevices: (size) => `${size} geht an deine Geräte`,
+		both: (size) => `${size} auf beiden Seiten`,
+		large: 'groß',
+		full: 'passt nicht',
+		start: 'Synchronisieren starten',
+		apply: 'Übernehmen',
+		later: 'Später',
+		cancel: 'Abbrechen',
+		waitingForDevices: 'Wartet auf deine anderen Geräte – lass in-browser auf einem davon geöffnet …',
+		unreadable: 'Der Ordner auf deinem Rechner kann gerade nicht gelesen werden. Erlaube zuerst wieder den Zugriff.'
+	},
+
+	held: {
+		waiting: (name, size) => `Neuer Ordner „${name}“ (${size}) wartet auf deine Bestätigung.`,
+		why: (limit) => `Er ist größer als ${limit}.`,
+		full: 'Er passt nicht in den freien Speicher des Browsers.',
+		sync: 'Synchronisieren',
+		exclude: 'Ausschließen',
+		limit: 'Grenze ändern'
+	},
+
 	scope: {
 		empty: 'Noch keine Ordner.',
 		title: 'Ordner auswählen',
@@ -387,6 +459,8 @@ const de: Messages = {
 		confirmDeletes: (n) => `Im Ordner auf deinem Rechner wurden ${n} Dateien gelöscht. Sollen sie auch hier gelöscht werden?`,
 		applyDeletes: 'Auch hier löschen',
 		restoreInstead: 'Stattdessen wiederherstellen',
+		chooseFolders: 'Ordner auswählen …',
+		setup: 'Wartet auf deine Auswahl: Nichts wird synchronisiert, bis du die Ordner ausgewählt hast.',
 		runsWhileOpen: 'Das Synchronisieren läuft, solange ein Tool von in-browser in diesem Browser offen ist.'
 	},
 
