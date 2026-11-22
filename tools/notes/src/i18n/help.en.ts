@@ -18,7 +18,7 @@ const help = {
 			},
 			layout: {
 				title: 'Layout',
-				text: 'The pages lie one below the other below the ribbon: on its left “Undo” and “Redo”, then the tabs “File” (export, show in Files, delete), “Draw” (tools, format, options), “Insert” (images, icons, PDFs, pages), “Pages” (paper, size, order, delete) and “View” (zoom). Each tab shows its commands in groups with their names below. Tabs set off in color come and go with a selection: “Drawing” (only strokes and shapes) or “Selection” (with images or icons), and “Arrange”. The notebook opens on “Draw”. The tab “File”, the first one, holds in its group “Notebook” what you do to the notebook itself: “Export …”, “Show in Files” and “Delete”. The top bar above only shows the notebook’s name. At the bottom edge: the save state, “Page 3 of 12” and the zoom.'
+				text: 'The pages lie one below the other below the ribbon: on its left “Undo” and “Redo”, then the tabs “File” (export, show in Files, delete), “Draw” (tools, format, options), “Insert” (images, icons, PDFs, pages), “Pages” (paper, size, order, delete) and “View” (zoom). Each tab shows its commands in groups with their names below. Tabs set off in color come and go with a selection: “Drawing” (only strokes and shapes) or “Selection” (with images or icons), and “Arrange”. The ribbon switches to the selection’s tab by itself – to “Arrange” if that is the one you used last – and back when the selection ends. The notebook opens on “Draw”. The tab “File”, the first one, holds in its group “Notebook” what you do to the notebook itself: “Export …”, “Show in Files” and “Delete”. The top bar above only shows the notebook’s name. At the bottom edge: the save state, “Page 3 of 12” and the zoom.'
 			},
 			ribbon: {
 				title: 'Ribbon display',
@@ -154,7 +154,7 @@ const help = {
 			},
 			menu: {
 				title: 'Formatting a selection',
-				text: 'With a selection the tab “Drawing” (only strokes and shapes) or “Selection” (with images or icons) appears – on a phone it opens by itself. Its groups “Format” and “Object” work on the selected items; each change is one undo step. The small menu at the selection holds “Duplicate” and “Delete” as icons.',
+				text: 'With a selection the tab “Drawing” (only strokes and shapes) or “Selection” (with images or icons) appears and opens by itself. Its groups “Format” and “Object” work on the selected items; each change is one undo step. The small menu at the selection holds “Duplicate” and “Delete” as icons.',
 				options: {
 					color: { label: 'Color', text: 'Recolors strokes, shapes and icons. Images keep their colors.' },
 					size: { label: 'Thickness', text: 'The line thickness of selected strokes and shapes, in the five pen sizes.' },

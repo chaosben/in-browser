@@ -250,7 +250,8 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		const style = getComputedStyle(this.el.root);
 		this.desk = style.backgroundColor || this.desk;
 		this.readColors(style);
-		if (first) this.view.fitWidth(this.docWidth);
+		// A new document opens at a readable size: not blown up on a wide window
+		if (first) this.view.fitWidth(this.docWidth, 1.5);
 		this.view.clamp(this.docWidth, this.docHeight);
 		this.scale = this.targetScale();
 		if (!sized) return this.request();
@@ -309,10 +310,16 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		this.viewChanged();
 	}
 
+	/** The current page as wide as the view – whatever zoom that takes; the middle of the view stays where it is */
 	fitWidth() {
-		const page = this.view.centerPage(this.rects);
-		this.view.fitWidth(this.docWidth);
-		this.scrollToPage(page);
+		const view = this.view;
+		const rect = this.rects[view.centerPage(this.rects)];
+		if (!rect) return;
+		const mid = view.toDocY(view.height / 2);
+		view.fitWidth(rect.w);
+		view.x = rect.x + (rect.w - view.width / view.zoom) / 2;
+		view.y = mid - view.height / view.zoom / 2;
+		this.viewChanged();
 	}
 
 	private viewChanged() {

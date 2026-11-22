@@ -40,9 +40,9 @@ export class Viewport {
 	toDocX = (sx: number) => sx / this.zoom + this.x;
 	toDocY = (sy: number) => sy / this.zoom + this.y;
 
-	/** Zoom so the document width fills the view (with a small margin), at most 1.5 × */
-	fitWidth(docWidth: number) {
-		this.zoom = clampZoom(Math.min(1.5, (this.width - 16) / docWidth));
+	/** Zoom so `width` (of the document or a page) fills the view with a small margin, at most `max` × */
+	fitWidth(width: number, max = MAX_ZOOM) {
+		this.zoom = clampZoom(Math.min(max, (this.width - 16) / width));
 		this.x = 0;
 	}
 

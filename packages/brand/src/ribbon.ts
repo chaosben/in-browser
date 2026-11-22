@@ -38,7 +38,8 @@ export interface RibbonTab {
 	contextual?: boolean;
 	/** Contextual tabs: is there something to show it for? (read reactively) */
 	visible?: () => boolean;
-	/** Contextual tabs: phones switch to it when it appears (default); false e.g. while it shows a tool's settings */
+	/** Contextual tabs: the ribbon switches to it when it comes (default); false while it isn't there for an object
+	 * (it shows a tool's settings, nothing is picked) – it switches once this turns true */
 	follow?: () => boolean;
 }
 

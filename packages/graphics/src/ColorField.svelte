@@ -158,17 +158,19 @@
 			{@render swatch(color, i)}
 		{/each}
 
-		{#if parsed && !opaque}
+		<!-- Always in its place: with "None" it is disabled, not gone -->
+		{#if !opaque}
 			<button
 				bind:this={opacityButton}
 				popovertarget={popoverId}
+				disabled={!parsed}
 				class="btn btn-xs ml-auto w-14 gap-0.5 px-1 font-normal tabular-nums"
 				title={m.color.opacity}
 				aria-label={m.color.opacity}
 			>
 				<!-- The color with its opacity over a checkerboard -->
 				<span class="relative size-3.5 shrink-0 overflow-hidden rounded-sm border border-base-content/30" style={checker} aria-hidden="true">
-					<span class="absolute inset-0" style="background: {value}"></span>
+					<span class="absolute inset-0" style="background: {value ?? 'transparent'}"></span>
 				</span>{percent}%
 			</button>
 			<!-- Opens only via the button; closes on a click outside or Esc -->

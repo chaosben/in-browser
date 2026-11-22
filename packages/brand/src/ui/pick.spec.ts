@@ -17,6 +17,15 @@ describe('Picker', () => {
 		expect(p.ordered(ORDER)).toEqual(picked);
 	});
 
+	it('with nothing picked the current entry counts: Ctrl+click adds to it, Shift+click picks from it', () => {
+		const p = new Picker();
+		p.click(click({ ctrlKey: true }), 'd', ORDER, 'b');
+		expect(p.ordered(ORDER)).toEqual(['b', 'd']);
+		p.clear();
+		p.click(click({ shiftKey: true }), 'c', ORDER, 'a');
+		expect(p.ordered(ORDER)).toEqual(['a', 'b', 'c']);
+	});
+
 	it('touch: a tap opens; a long press starts the selection mode, taps then pick until none is left', () => {
 		const p = new Picker();
 		p.pointerdown({ pointerType: 'touch' } as PointerEvent);

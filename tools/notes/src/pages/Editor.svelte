@@ -617,7 +617,7 @@
 		},
 		selectionTab('drawing', m.ribbon.tabs.drawing),
 		selectionTab('selection', m.ribbon.tabs.selection),
-		{ id: 'arrange', label: m.ribbon.tabs.arrange, contextual: true, visible: () => kind !== null, follow: () => false, groups: arrangeGroups(sc) }
+		{ id: 'arrange', label: m.ribbon.tabs.arrange, contextual: true, visible: () => kind !== null, groups: arrangeGroups(sc) }
 	];
 
 	// --- Keys ---

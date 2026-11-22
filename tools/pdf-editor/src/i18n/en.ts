@@ -199,7 +199,7 @@ const en = {
 		pageActions: (label: string) => `Actions for page ${label}`,
 		selectAll: 'Select all',
 		selectAllTip: 'Selects everything drawn or written on the current page (in the panel “Pages”: all pages)',
-		picked: (n: number) => (n === 0 ? 'No pages picked' : n === 1 ? '1 page picked' : `${n} pages picked`),
+		picked: (n: number, current: number) => (n === 0 ? `Current page: ${current}` : n === 1 ? '1 page picked' : `${n} pages picked`),
 		clearPick: 'Clear selection',
 		pickAll: 'Select all',
 		insertPdf: 'From PDF …',

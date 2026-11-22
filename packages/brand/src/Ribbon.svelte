@@ -52,10 +52,10 @@
 	const narrow = new MediaQuery('max-width: 639px', false);
 	/** A finger points: larger targets, sideways scrolling, a long press names a command */
 	const touch = $derived(coarsePointer.current);
-	/** Fingers or little room: icons only unless the user chose a display, contextual tabs open by themselves */
+	/** Fingers or little room: icons only unless the user chose a display */
 	const compact = $derived(touch || narrow.current);
 
-	const stored = untrack(() => loadJson<{ tab?: string } | null>(`${storage}:ribbon`, null));
+	const stored = untrack(() => loadJson<{ tab?: string; recent?: string[] } | null>(`${storage}:ribbon`, null));
 	const kept = untrack(() => ribbonSettings(loadJson<unknown>(RIBBON_KEY, null), stored));
 	/** The display the user chose (none: the device's default) */
 	let chosen = $state(kept.mode);
@@ -69,12 +69,21 @@
 	const bar = $derived(touch && mode === 'minimal');
 	/** The tab before a contextual one opened by itself (back to it when the object is gone) */
 	let before: string | null = null;
+	/** Contextual tabs the user worked in, the last one first: of several that open for an object, it is shown */
+	let recent: string[] = Array.isArray(stored?.recent) ? stored.recent.filter((id) => typeof id === 'string') : [];
 
 	const shown = $derived(tabs.filter((tab) => !tab.contextual || tab.visible?.()));
 	const current = $derived(shown.find((tab) => tab.id === tabId) ?? shown[0]);
 
 	function store() {
-		storeJson(`${storage}:ribbon`, { tab: current?.contextual ? (before ?? shown[0]?.id) : current?.id });
+		storeJson(`${storage}:ribbon`, { tab: current?.contextual ? (before ?? shown[0]?.id) : current?.id, recent });
+	}
+
+	/** The user picked a contextual tab or ran a command in it */
+	function used(tab: RibbonTab | undefined) {
+		if (!tab?.contextual || recent[0] === tab.id) return;
+		recent = [tab.id, ...recent.filter((id) => id !== tab.id)];
+		store();
 	}
 
 	function storeDisplay() {
@@ -93,6 +102,7 @@
 		tabId = id;
 		if (collapsed) open = true;
 		store();
+		used(to);
 	}
 
 	function setMode(next: RibbonMode) {
@@ -107,20 +117,20 @@
 		storeDisplay();
 	}
 
-	// A contextual tab: phones switch to it when it appears (Office mobile does; unless it says not to), every ribbon
-	// leaves it when it goes – for the one that came instead (the object changed its kind) or the tab before
+	// Contextual tabs for an object (shown, and `follow` doesn't say no): the ribbon switches to one when it comes –
+	// of several the one the user worked in last, else the first – unless the user is in a contextual tab that stays.
+	// It leaves a tab that goes for the tab before.
 	let seen = new Set<string>();
 	$effect(() => {
-		const contextual = shown.filter((tab) => tab.contextual);
+		const objects = shown.filter((tab) => tab.contextual && tab.follow?.() !== false);
 		untrack(() => {
-			const appeared = contextual.find((tab) => !seen.has(tab.id));
-			seen = new Set(contextual.map((tab) => tab.id));
+			const appeared = objects.filter((tab) => !seen.has(tab.id));
+			seen = new Set(objects.map((tab) => tab.id));
 			const gone = !shown.some((tab) => tab.id === tabId);
-			const wasContextual = !!tabs.find((tab) => tab.id === tabId)?.contextual;
-			if (gone && wasContextual && appeared) tabId = appeared.id;
-			else if (appeared && compact && appeared.follow?.() !== false) {
-				before = current?.contextual ? before : (current?.id ?? null);
-				tabId = appeared.id;
+			if (appeared.length && (gone || !current?.contextual)) {
+				const rank = (tab: RibbonTab) => (recent.includes(tab.id) ? recent.indexOf(tab.id) : recent.length);
+				before = gone || current?.contextual ? before : (current?.id ?? null);
+				tabId = appeared.reduce((best, tab) => (rank(tab) < rank(best) ? tab : best)).id;
 			} else if (gone && before) {
 				tabId = before;
 				before = null;
@@ -197,6 +207,7 @@
 		if (!enabled(c)) return;
 		popover = null;
 		if (collapsed) open = false;
+		used(current);
 		c.run?.();
 	}
 
@@ -387,7 +398,7 @@
 			onclick={(e) => (c.run ? run(c) : openMenu(e, c))}
 			oncontextmenu={(e) => explain(e, c)}
 		>
-			<span class={[c.icon, 'size-6']} aria-hidden="true"></span>
+			<span class={[c.icon, 'size-5']} aria-hidden="true"></span>
 			{#if c.menu}<span class="icon-[material-symbols-light--arrow-drop-down] absolute right-0 bottom-0 size-3.5 opacity-60" aria-hidden="true"></span>{/if}
 		</button>
 	{:else if c.run && c.menu}

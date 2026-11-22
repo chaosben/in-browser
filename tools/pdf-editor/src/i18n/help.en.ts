@@ -18,7 +18,7 @@ const help = {
 			},
 			layout: {
 				title: 'Layout',
-				text: 'The top bar only shows the name of the open PDF – it is named after its file; rename it in Files. Below it lies the ribbon: “Undo” and “Redo” on the left, then the tabs “File” (group “PDF”: “Download” saves a copy on this device, “Show in Files” opens its folder in Files), “Home” (tools, find; the PDF opens on this tab), “Comment” (draw), “Pages” (rotate, move, delete, insert, extract, merge), “Form” (fields) and “View” (side panels). Each tab shows its commands in groups with their names below. Tabs set off in color come and go with what you work on: while a tool that draws comments is chosen or comments are selected, a tab for their format appears (“Text box”, “Note”, “Marked text”, “Drawing”, or “Selection” for several kinds), with a selection also “Arrange”. On the left edge a narrow bar holds the side panels: “Pages”, “Search”, “Comments” and – when the PDF has them – “Fields”, “Bookmarks”, “Attachments” and “Layers”; click one to open it next to the pages, click it again to close it, and drag its right edge to make it wider. At the bottom edge: the arrows to the first, previous, next and last page around the page number (type another one and press Enter to go there) and the number of pages, then “Zoom out”, the zoom and “Zoom in”.'
+				text: 'The top bar only shows the name of the open PDF – it is named after its file; rename it in Files. Below it lies the ribbon: “Undo” and “Redo” on the left, then the tabs “File” (group “PDF”: “Download” saves a copy on this device, “Show in Files” opens its folder in Files; group “New PDF”: extract, merge), “Home” (tools, find; the PDF opens on this tab), “Comment” (draw), “Pages” (rotate, move, delete, insert), “Form” (fields) and “View” (side panels). Each tab shows its commands in groups with their names below. Tabs set off in color come and go with what you work on: while a tool that draws comments is chosen or comments are selected, a tab for their format appears (“Text box”, “Note”, “Marked text”, “Drawing”, or “Selection” for several kinds), with a selection also “Arrange”. Selecting comments switches to their tab by itself – to “Arrange” if that is the one you used last – and back when the selection ends; a tab that only shows a tool’s format never opens by itself. On the left edge a narrow bar holds the side panels: “Pages”, “Search”, “Comments” and – when the PDF has them – “Fields”, “Bookmarks”, “Attachments” and “Layers”; click one to open it next to the pages, click it again to close it, and drag its right edge to make it wider. At the bottom edge: the arrows to the first, previous, next and last page around the page number (type another one and press Enter to go there) and the number of pages, then “Zoom out”, the zoom and “Zoom in”.'
 			},
 			ribbon: {
 				title: 'Ribbon display',
@@ -72,7 +72,7 @@ const help = {
 			},
 			pages: {
 				title: 'Pages panel',
-				text: 'Small pictures of all pages; the current one is marked. Click a page to go there. Drag the panel wider to see the pages side by side. To change several pages at once, pick them: Ctrl+click adds or removes a page, Shift+click picks all from the last one clicked, Ctrl+A picks all (while the panel has the focus), Esc clears the pick. Right-click a page for its menu, and drag picked pages to another place. On a touch screen, press and hold a page: its menu opens and the selection mode starts – check boxes appear, a tap picks or unpicks a page, “Select all” in the menu picks every page, and “Clear selection” at the top of the panel ends it. The ⋯ button on a page opens its menu too. The line at the top always says how many pages are picked.',
+				text: 'Small pictures of all pages; the current one is marked. Click a page to go there. Drag the panel wider to see the pages side by side. To change several pages at once, pick them: Ctrl+click adds or removes a page, Shift+click picks all from the last one clicked – with nothing picked both start from the current page, which is tinted and counts: Ctrl+click another page and both are picked –, Ctrl+A picks all (while the panel has the focus), Esc clears the pick. Right-click a page for its menu, and drag picked pages to another place. On a touch screen, press and hold a page: its menu opens and the selection mode starts – check boxes appear, a tap picks or unpicks a page, “Select all” in the menu picks every page, and “Clear selection” at the top of the panel ends it. The ⋯ button on a page opens its menu too. The line at the top says which page is the current one or, once you picked some, how many are picked.',
 				keys: [['Ctrl', 'A'], ['Esc']],
 				link: { href: '/help/pdf-editor#changes', label: 'Organizing pages' }
 			},
@@ -110,7 +110,7 @@ const help = {
 			},
 			note: {
 				title: 'Sticky notes',
-				text: 'With “Note” (group “Comment”) click where the note should point: its icon appears there and a field below it takes your comment right away. The comment is saved when you leave the field – click elsewhere or press Esc. To read or change it later, double-click the note with “Select”, click it with “Note”, or select it and choose “Edit comment” (in the small bar at the note or on the tab “Note”, which also sets its icon and color). Other programs show it as a comment with your text.',
+				text: 'With “Note” (group “Comment”) click where the note should point: its icon appears there and a field below it takes your comment right away. The comment is saved when you leave the field – click elsewhere or press Esc. To read or change it later, double-click the note with “Select”, click it with “Note”, or select it and choose “Edit comment” (in the small bar at the note or on the tab “Note”, which also sets its icon and color). Resting the mouse on a note shows its comment as a tooltip. Other programs show it as a comment with your text.',
 				options: {
 					comment: { label: '“Comment” (default)', text: 'A speech bubble – a remark or question.' },
 					note: { label: '“Note”', text: 'A sheet of paper – a longer note.' },
@@ -230,7 +230,7 @@ const help = {
 			},
 			newFile: {
 				title: 'New PDFs from pages',
-				text: '“Extract …” on the “Pages” tab saves the picked pages (else the current one) as a new PDF, with what is drawn on them; “Merge …” saves this PDF followed by other PDFs you choose as a new one. You pick where to save it; the PDF open here stays as it is. A message offers to open the new PDF.',
+				text: 'On the “File” tab, group “New PDF”: “Extract …” (also in the page menu) saves the pages picked in the panel “Pages” (else the current one) as a new PDF, with what is drawn on them; “Merge …” saves this PDF followed by other PDFs you choose as a new one. You pick where to save it; the PDF open here stays as it is. A message offers to open the new PDF.',
 				tip: 'To move pages into another PDF, extract them, open the other PDF and insert them there with “From PDF …”. Pages of a PDF that needs a password to open can’t be inserted.'
 			},
 			conflict: {

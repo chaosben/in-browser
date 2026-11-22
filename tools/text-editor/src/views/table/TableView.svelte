@@ -206,7 +206,7 @@
 
 	/** A click or tap on a cell: picks its row (Ctrl/Shift, touch selection mode) or makes it the current cell */
 	function cellClick(e: MouseEvent, row: number, column: number) {
-		const result = picker.click(e, row, shown);
+		const result = picker.click(e, row, shown, cur && cur.row >= 0 ? cur.row : null);
 		if (result === 'picked') {
 			cur = { row, column };
 			return;
@@ -218,7 +218,7 @@
 
 	/** The row number: picks the row; a tap (touch) opens its menu */
 	function numberClick(e: MouseEvent, row: number) {
-		const result = picker.click(e, row, shown);
+		const result = picker.click(e, row, shown, cur && cur.row >= 0 ? cur.row : null);
 		if (result === 'open') {
 			cur = { row, column: cur?.column ?? 0 };
 			return openMenuBelow(e, rowEntries());

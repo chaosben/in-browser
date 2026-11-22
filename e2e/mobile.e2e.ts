@@ -279,7 +279,7 @@ test('PDF Editor: fill in a field, draw with a finger, pick pages in the selecti
 	await page.getByTestId('ribbon').getByRole('tab', { name: 'View', exact: true }).tap();
 	await page.locator('[data-command="panel:pages"]').tap();
 	const pages = page.getByRole('dialog');
-	await expect(pages.getByText('No pages picked')).toBeVisible();
+	await expect(pages.getByText('Current page: 1')).toBeVisible();
 	await longPress(page, pages.getByRole('button', { name: 'Page 1', exact: true }));
 	await expect(page.getByRole('menuitem', { name: 'Select all' })).toBeVisible();
 	await page.keyboard.press('Escape');
@@ -290,7 +290,7 @@ test('PDF Editor: fill in a field, draw with a finger, pick pages in the selecti
 	await expect(pages.getByRole('button', { name: 'Page 3', exact: true })).toHaveAttribute('aria-pressed', 'true');
 	await shot(page, 'pdf-editor-pages-phone');
 	await pages.getByRole('button', { name: 'Clear selection' }).tap();
-	await expect(pages.getByText('No pages picked')).toBeVisible();
+	await expect(pages.getByText('Current page: 1')).toBeVisible();
 	// Out of the selection mode a tap goes to the page (and closes the sheet)
 	await pages.getByRole('button', { name: 'Page 2', exact: true }).tap();
 	await expect(page.getByRole('dialog')).toBeHidden();

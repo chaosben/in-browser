@@ -37,7 +37,8 @@
 	}
 
 	function click(e: MouseEvent, index: number, id: string) {
-		const result = picked.click(e, id, order);
+		// The current page is tinted: with nothing picked, Ctrl and Shift start from it
+		const result = picked.click(e, id, order, order[context.current] ?? null);
 		// A plain click (a tap outside the selection mode) goes there; nothing picked – commands act on that page
 		if (result === 'open' || result === 'plain') {
 			if (result === 'plain') picked.clear();
@@ -110,7 +111,7 @@
 	<div class="flex h-full flex-col" onkeydown={keydown} onpointerdown={(e) => picked.pointerdown(e)}>
 		<!-- Always there, so picking never moves the pages -->
 		<div class="border-base-300 flex items-center gap-2 border-b px-3 py-1 text-xs">
-			<span class="flex-1">{m.commands.picked(picked.selected.size)}</span>
+			<span class="flex-1">{m.commands.picked(picked.selected.size, context.current + 1)}</span>
 			<button class="btn btn-ghost btn-xs" disabled={!picked.selected.size} onclick={() => context.clearPagePick()}>{m.commands.clearPick}</button>
 		</div>
 		<ul

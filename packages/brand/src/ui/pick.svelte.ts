@@ -34,20 +34,25 @@ export class Picker<K = string> {
 	/**
 	 * A click on an entry (`order`: the entries as shown). `open`: a tap outside the selection mode – open it;
 	 * `plain`: a plain click picked only it (a caller may do more, e.g. go there); `picked`: the pick changed.
+	 * `current`: the list's current entry (the page in view, the row of the cursor) – it looks selected, so with
+	 * nothing picked Ctrl/⌘+click adds to it and Shift+click picks from it.
 	 */
-	click(e: MouseEvent, id: K, order: readonly K[]): PickResult {
+	click(e: MouseEvent, id: K, order: readonly K[], current: K | null = null): PickResult {
 		const mod = e.ctrlKey || e.metaKey;
 		if (this.touch && !mod && !e.shiftKey) {
 			if (!this.marking) return 'open';
 			this.toggle(id);
 			return 'picked';
 		}
+		const implied = !this.selected.size && current !== null && order.includes(current) ? current : null;
 		if (mod) {
+			if (implied !== null && implied !== id) this.selected.add(implied);
 			this.toggle(id);
 			return 'picked';
 		}
-		if (e.shiftKey && this.anchor !== null && order.includes(this.anchor)) {
-			this.range(this.anchor, id, order);
+		const from = implied ?? this.anchor;
+		if (e.shiftKey && from !== null && order.includes(from)) {
+			this.range(from, id, order);
 			return 'picked';
 		}
 		this.only(id);

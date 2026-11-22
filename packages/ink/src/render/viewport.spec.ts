@@ -44,6 +44,12 @@ describe('Viewport', () => {
 		const v = view(616, 600);
 		v.fitWidth(600);
 		expect(v.zoom).toBe(1);
+		// Regression: the command "Fit width" stopped at 150 % on wide windows; only a document's first view is capped
+		const wide = view(1816, 600);
+		wide.fitWidth(600);
+		expect(wide.zoom).toBe(3);
+		wide.fitWidth(600, 1.5);
+		expect(wide.zoom).toBe(1.5);
 	});
 	it('centers a narrow document and limits scrolling', () => {
 		const v = view(1000, 600);

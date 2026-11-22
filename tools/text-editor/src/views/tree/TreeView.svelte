@@ -521,7 +521,7 @@
 	 */
 	function rowClick(e: MouseEvent, line: Line, field?: 'key' | 'value') {
 		const id = line.node.id;
-		const result = picker.click(e, id, order);
+		const result = picker.click(e, id, order, selected);
 		if (result === 'picked') {
 			selected = id;
 			return;

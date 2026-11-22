@@ -15,7 +15,7 @@ const help: typeof enHelp = {
 			},
 			layout: {
 				title: 'Aufbau',
-				text: 'Die Seiten liegen untereinander unter dem Menüband: links darin „Rückgängig“ und „Wiederholen“, dann die Registerkarten „Datei“ (Exportieren, in Dateien zeigen, Löschen), „Zeichnen“ (Werkzeuge, Format, Optionen), „Einfügen“ (Bilder, Icons, PDFs, Seiten), „Seiten“ (Papier, Größe, Reihenfolge, Löschen) und „Ansicht“ (Zoom). Jede Registerkarte zeigt ihre Befehle in Gruppen mit ihrem Namen darunter. Farbig abgesetzte Registerkarten kommen und gehen mit einer Auswahl: „Zeichnung“ (nur Striche und Formen) oder „Auswahl“ (mit Bildern oder Icons) und „Anordnen“. Das Notizbuch öffnet mit „Zeichnen“. Die Registerkarte „Datei“, die erste, enthält in ihrer Gruppe „Notizbuch“, was du mit dem Notizbuch selbst tust: „Exportieren …“, „In Dateien zeigen“ und „Löschen“. Die obere Leiste darüber zeigt nur den Namen des Notizbuchs. Am unteren Rand: der Speicherstand, „Seite 3 von 12“ und der Zoom.'
+				text: 'Die Seiten liegen untereinander unter dem Menüband: links darin „Rückgängig“ und „Wiederholen“, dann die Registerkarten „Datei“ (Exportieren, in Dateien zeigen, Löschen), „Zeichnen“ (Werkzeuge, Format, Optionen), „Einfügen“ (Bilder, Icons, PDFs, Seiten), „Seiten“ (Papier, Größe, Reihenfolge, Löschen) und „Ansicht“ (Zoom). Jede Registerkarte zeigt ihre Befehle in Gruppen mit ihrem Namen darunter. Farbig abgesetzte Registerkarten kommen und gehen mit einer Auswahl: „Zeichnung“ (nur Striche und Formen) oder „Auswahl“ (mit Bildern oder Icons) und „Anordnen“. Das Menüband wechselt von selbst zur Registerkarte der Auswahl – zu „Anordnen“, wenn du diese zuletzt benutzt hast – und zurück, wenn die Auswahl endet. Das Notizbuch öffnet mit „Zeichnen“. Die Registerkarte „Datei“, die erste, enthält in ihrer Gruppe „Notizbuch“, was du mit dem Notizbuch selbst tust: „Exportieren …“, „In Dateien zeigen“ und „Löschen“. Die obere Leiste darüber zeigt nur den Namen des Notizbuchs. Am unteren Rand: der Speicherstand, „Seite 3 von 12“ und der Zoom.'
 			},
 			ribbon: {
 				title: 'Menüband-Anzeige',
@@ -151,7 +151,7 @@ const help: typeof enHelp = {
 			},
 			menu: {
 				title: 'Eine Auswahl formatieren',
-				text: 'Mit einer Auswahl erscheint die Registerkarte „Zeichnung“ (nur Striche und Formen) oder „Auswahl“ (mit Bildern oder Icons) – am Handy öffnet sie sich von selbst. Ihre Gruppen „Format“ und „Objekt“ wirken auf die ausgewählten Elemente; jede Änderung ist ein Rückgängig-Schritt. Das kleine Menü an der Auswahl enthält „Duplizieren“ und „Löschen“ als Symbole.',
+				text: 'Mit einer Auswahl erscheint die Registerkarte „Zeichnung“ (nur Striche und Formen) oder „Auswahl“ (mit Bildern oder Icons) und öffnet sich von selbst. Ihre Gruppen „Format“ und „Objekt“ wirken auf die ausgewählten Elemente; jede Änderung ist ein Rückgängig-Schritt. Das kleine Menü an der Auswahl enthält „Duplizieren“ und „Löschen“ als Symbole.',
 				options: {
 					color: { label: 'Farbe', text: 'Färbt Striche, Formen und Icons um. Bilder behalten ihre Farben.' },
 					size: { label: 'Stärke', text: 'Die Linienstärke ausgewählter Striche und Formen, in den fünf Stiftgrößen.' },

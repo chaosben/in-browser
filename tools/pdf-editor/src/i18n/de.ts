@@ -198,7 +198,7 @@ const de: Messages = {
 		pageActions: (label) => `Aktionen für Seite ${label}`,
 		selectAll: 'Alles auswählen',
 		selectAllTip: 'Wählt alles aus, was auf der aktuellen Seite gezeichnet oder geschrieben ist (im Bereich „Seiten“: alle Seiten)',
-		picked: (n) => (n === 0 ? 'Keine Seiten gewählt' : n === 1 ? '1 Seite gewählt' : `${n} Seiten gewählt`),
+		picked: (n, current) => (n === 0 ? `Aktuelle Seite: ${current}` : n === 1 ? '1 Seite gewählt' : `${n} Seiten gewählt`),
 		clearPick: 'Auswahl aufheben',
 		pickAll: 'Alle auswählen',
 		insertPdf: 'Aus PDF …',

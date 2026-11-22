@@ -122,14 +122,13 @@ describe('ribbon', () => {
 		await show(1400);
 		selection.on = true;
 		flushSync();
-		const tab = host.querySelector<HTMLElement>('[data-tab="shape"]');
-		expect(tab).not.toBeNull();
-		tab!.click();
-		flushSync();
+		// It opens by itself, and the tab before comes back when the object is gone
+		expect(host.querySelector('[data-tab="shape"]')).not.toBeNull();
 		expect(labels()).toEqual(['Fill']);
 		selection.on = false;
 		flushSync();
 		expect(host.querySelector('[data-tab="shape"]')).toBeNull();
+		expect(labels()).toContain('Paste');
 	});
 
 	it('runs a command by its access keys (Alt, tab letter, command letter)', async () => {

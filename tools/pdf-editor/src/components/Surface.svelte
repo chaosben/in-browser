@@ -256,6 +256,15 @@
 			});
 			const selection: PdfSelection = new Selection(s, pdf.items);
 			const suggestion: PdfSuggestion = new ShapeSuggestion(s, pdf.items);
+			// A note under the resting mouse shows its comment as a tooltip
+			const hover = (e: PointerEvent) => {
+				if (e.pointerType !== 'mouse' || e.buttons) return;
+				const [x, y] = s.local(e.clientX, e.clientY);
+				const on = itemAt(s, pdf, x, y)?.item;
+				const text = on && isNote(on) ? on.text : '';
+				if (el.root.title !== text) el.root.title = text;
+			};
+			el.root.addEventListener('pointermove', hover);
 			pdf.listener = {
 				stroke: (id, scene, item) => s.committed(id, scene, item),
 				region: (id, box) => s.regionChanged(id, box),
@@ -397,6 +406,8 @@
 				forms = null;
 				detach();
 				detachSurface();
+				el.root.removeEventListener('pointermove', hover);
+				el.root.title = '';
 				cancelAnimationFrame(viewFrame);
 				selection.clear();
 				suggestion.clear();

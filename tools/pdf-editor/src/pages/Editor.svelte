@@ -603,7 +603,10 @@
 		{
 			id: 'file',
 			label: brandMessages().ribbon.file,
-			groups: [{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.download, commands.showInFiles] }]
+			groups: [
+				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.download, commands.showInFiles] },
+				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
+			]
 		},
 		{
 			id: 'home',
@@ -629,8 +632,7 @@
 			groups: [
 				{ id: 'rotate', label: m.ribbon.groups.rotate, items: [commands.rotateLeft, commands.rotateRight] },
 				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.deletePages, commands.moveUp, commands.moveDown] },
-				{ id: 'insert', label: m.ribbon.groups.insert, items: [commands.insertBlank, commands.insertPdf, commands.insertImage] },
-				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
+				{ id: 'insert', label: m.ribbon.groups.insert, items: [commands.insertBlank, commands.insertPdf, commands.insertImage] }
 			]
 		},
 		{
@@ -672,7 +674,6 @@
 			contextual: true,
 			// Only for a selection (its commands work on one), like Notes
 			visible: () => !!sc.sel(),
-			follow: () => false,
 			groups: arrangeGroups(sc)
 		}
 	];
