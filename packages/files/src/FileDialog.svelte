@@ -31,7 +31,9 @@
 	let access = $state<ReturnType<typeof accessAction>>(undefined);
 
 	const options = $derived(fileDialogState.current);
-	const accepts = (entry: Entry) => options?.accept.includes(extname(entry.name)) ?? false;
+	// No formats named: every file (attaching any file to a PDF, saving a file of no known kind) – but none when a
+	// folder is picked
+	const accepts = (entry: Entry) => (options ? (options.mode !== 'folder' && !options.accept.length) || options.accept.includes(extname(entry.name)) : false);
 	/** Plain folder (packages count as files) */
 	const isFolder = (entry: Entry) => entry.kind === 'directory' && formatsOf(entry.name, 'directory').length === 0;
 

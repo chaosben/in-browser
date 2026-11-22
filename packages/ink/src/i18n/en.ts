@@ -9,7 +9,6 @@ const en = {
 		eraser: 'Eraser',
 		lasso: 'Select',
 		lassoHint: 'Select – tap an item, or draw a loop around several',
-		laser: 'Laser pointer',
 		eraserMode: 'Erases',
 		eraserModes: { stroke: 'Whole strokes', pixel: 'Pixels' },
 		size: 'Thickness',
@@ -18,6 +17,9 @@ const en = {
 		smoothing: 'Smoothing',
 		smoothingLevels: ['Off', 'Light', 'Medium', 'Strong'] as string[],
 		smoothingHint: 'Smoother lines that follow the pen with a small delay',
+		penOnly: 'Only the pen draws',
+		penOnlyTip: 'Fingers only scroll and zoom, from the first touch on',
+		penOnlyOn: 'Only the pen draws – fingers move the page',
 		shapes: {
 			line: 'Line',
 			arrow: 'Arrow',
@@ -30,14 +32,14 @@ const en = {
 			parallelogram: 'Parallelogram',
 			pentagon: 'Pentagon',
 			hexagon: 'Hexagon',
-			star: 'Star'
+			star: 'Star',
+			polyline: 'Polyline',
+			freePolygon: 'Polygon'
 		},
-		shapeHint: 'Drag on the page. Nearly square shapes become a square or circle.',
+		shapeHint: 'Drag on the page. Nearly square shapes become a square or circle. “Polyline” and “Polygon” take a click or drag per point; a double click, Enter or Esc ends them.',
 		snap: 'Snap',
 		shapeName: 'Shape',
-		picture: 'Picture',
-		icon: 'Icon',
-		snapHint: 'Lines in 15° steps; edges and centers to the page, shapes and pictures; equal spacing. Hold Alt while dragging for the opposite.'
+		snapHint: 'Lines in 15° steps; edges and centers to the page, shapes; equal spacing. Hold Alt while dragging for the opposite.'
 	},
 
 	guides: {
@@ -80,8 +82,9 @@ const en = {
 		line: 'Line',
 		dashes: { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted' },
 		sketch: 'Hand-drawn',
-		heads: 'Arrowheads',
-		headOptions: { none: 'None', end: 'At the end', start: 'At the start', both: 'At both ends' }
+		cloud: 'Cloud',
+		ends: { start: 'Start', end: 'End' },
+		endOptions: { none: 'None', arrow: 'Arrow', closed: 'Closed arrow', circle: 'Circle', square: 'Square', diamond: 'Diamond', bar: 'Bar' }
 	},
 
 	suggest: {

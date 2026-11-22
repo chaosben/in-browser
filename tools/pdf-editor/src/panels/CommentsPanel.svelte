@@ -1,21 +1,19 @@
 <script lang="ts">
-	// All comments of the PDF by page (like PDF-XChange's comments pane): subject (else the kind), author, date, review
-	// status and the first line of the text; a search and a filter by kind. A click shows and selects a comment; the
+	// All comments of the PDF: subject (else the kind), author, date, review
+	// status and the first line of the text – in groups by page, day, author, kind or status ("Sort by"), with a
+	// search and a filter by kind, author and status. A click shows and selects a comment; the
 	// selected one shows its whole text and replies, takes a new subject, a status and – after "Reply" – a reply.
 	import type { PanelProps } from '@in-browser/brand/panels.js';
-	import { openMenuBelow } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { loadJson, storeJson } from '@in-browser/brand/storage.js';
+	import { openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { REVIEW_STATES, type ReviewState } from '@in-browser/pdf/write/annotations.js';
-	import { formatDateTime, m } from '#lib/i18n/index.js';
-	import { kindOf as describe } from '#lib/model/comments.js';
+	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
+	import { arrangeComments, COMMENT_SORTS, commentAuthors, commentList, type CommentKind as Kind, type CommentSort } from '#lib/model/comments.js';
 	import type { StateEntry } from '#lib/model/document.svelte.js';
 	import type { EditorState } from '#lib/model/editor.svelte.js';
-	import { isAnnotatable, isMarkup, type PdfItem } from '#lib/render/markup.js';
-	import { isNote } from '#lib/render/note.js';
-	import { isText } from '#lib/render/textbox.js';
 
 	let { context, close }: PanelProps<EditorState> = $props();
 
-	type Kind = 'notes' | 'texts' | 'marks' | 'drawings';
 	const KINDS: { value: Kind | 'all'; label: string }[] = [
 		{ value: 'all', label: m.comments.all },
 		{ value: 'notes', label: m.comments.notes },
@@ -46,50 +44,76 @@
 		Completed: 'text-review-completed'
 	};
 
+	/** How the list is sorted and which kind it shows are kept for the device; author and status belong to the PDF */
+	const STORE = 'pdf-editor:comments';
+	const stored = loadJson<{ sort?: unknown; kind?: unknown }>(STORE, {});
 	let query = $state('');
-	let kind = $state<Kind | 'all'>('all');
+	let sort = $state<CommentSort>(COMMENT_SORTS.includes(stored.sort as CommentSort) ? (stored.sort as CommentSort) : 'page');
+	let kind = $state<Kind | 'all'>(KINDS.some((k) => k.value === stored.kind) ? (stored.kind as Kind | 'all') : 'all');
+	/** The author picked; one who has no comment any more is no filter (`author`) */
+	let pickedAuthor = $state<string | null | 'all'>('all');
+	let status = $state<ReviewState | 'all'>('all');
+
+	const day = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'full' });
 	let draft = $state('');
 	/** The comment whose reply field is open (after "Reply"; another selection closes it) */
 	let replyingTo = $state<string | null>(null);
 	/** The subject being renamed (comment id) */
 	let renaming = $state<string | null>(null);
 
-	const kindOf = (item: PdfItem): Kind => (isNote(item) ? 'notes' : isText(item) ? 'texts' : isMarkup(item) ? 'marks' : 'drawings');
-	const textOf = (item: PdfItem) => (isNote(item) || isText(item) || isMarkup(item) ? item.text : '');
-
-	/** The comments by page, as filtered (follows every change of the pages, replies, subjects and states) */
-	const pages = $derived.by(() => {
+	/** All comments by page (follows every change of the pages, replies, subjects and states) */
+	const all = $derived.by(() => {
 		const doc = context.doc;
 		if (!doc) return [];
 		void doc.changes;
-		const { replies, subjects, states } = doc;
-		const words = query.trim().toLowerCase();
-		return doc.pages
-			.map((page, index) => {
-				const items = (doc.scene(page.id)?.items ?? []).filter((i) => isAnnotatable(i) && (kind === 'all' || kindOf(i) === kind));
-				const entries = items
-					.map((item) => {
-						const said = describe(item);
-						return {
-							item,
-							info: doc.infoOf(item.id),
-							icon: said.icon,
-							kindLabel: said.label,
-							title: subjects.get(item.id) || said.label,
-							text: textOf(item),
-							state: states.get(item.id)?.at(-1) ?? null,
-							replies: (replies.get(item.id) ?? []).map((r) => ({ ...r, subject: subjects.get(r.id) ?? '', state: states.get(r.id)?.at(-1) ?? null }))
-						};
-					})
-					.filter(
-						(e) =>
-							!words ||
-							[e.title, e.text, e.info.author, ...e.replies.flatMap((r) => [r.text, r.author, r.subject])].some((s) => s.toLowerCase().includes(words))
-					);
-				return { index, number: page.number, entries };
-			})
-			.filter((p) => p.entries.length);
+		return commentList(doc);
 	});
+	const authors = $derived(commentAuthors(all));
+	const author = $derived(pickedAuthor !== 'all' && !authors.includes(pickedAuthor) ? 'all' : pickedAuthor);
+	const filtered = $derived(kind !== 'all' || author !== 'all' || status !== 'all');
+	/** The comments as sorted and filtered, in groups */
+	const groups = $derived(arrangeComments(all, sort, { kind, author, status, words: query }, (date) => day.format(date)));
+
+	function keep() {
+		storeJson(STORE, { sort, kind });
+	}
+	const SORT_LABELS: Record<CommentSort, string> = { page: m.comments.byPage, date: m.comments.byDate, author: m.comments.byAuthor, kind: m.comments.byKind, status: m.comments.byStatus };
+	const sortMenu = (): MenuEntry[] =>
+		COMMENT_SORTS.map((value) => ({
+			label: SORT_LABELS[value],
+			checked: sort === value,
+			run: () => {
+				sort = value;
+				keep();
+			}
+		}));
+	const filterMenu = (): MenuEntry[] => [
+		{ heading: m.comments.kind },
+		...KINDS.map((k) => ({
+			label: k.label,
+			checked: kind === k.value,
+			run: () => {
+				kind = k.value;
+				keep();
+			}
+		})),
+		{ heading: m.comments.author },
+		{ label: m.comments.allAuthors, checked: author === 'all', run: () => (pickedAuthor = 'all') },
+		...authors.map((name) => ({ label: name ?? m.comments.unknownAuthor, checked: author === name, run: () => (pickedAuthor = name) })),
+		{ heading: m.comments.status },
+		{ label: m.comments.allStates, checked: status === 'all', run: () => (status = 'all') },
+		...REVIEW_STATES.map((state) => ({ label: state === 'None' ? m.comments.noStatus : m.comments.states[state], icon: `${STATE_ICONS[state]} ${STATE_TEXT[state]}`, checked: status === state, run: () => (status = state) })),
+		{ separator: true },
+		{
+			label: m.comments.showAll,
+			icon: 'icon-[material-symbols-light--filter-alt-off-outline]',
+			disabled: !filtered,
+			run: () => {
+				kind = pickedAuthor = status = 'all';
+				keep();
+			}
+		}
+	];
 	/** The comment selected on the page (it shows everything and takes a reply) */
 	const selected = $derived(context.selection?.count === 1 ? context.selection.items[0]?.id : null);
 	const editable = $derived(context.doc?.editable === 'yes');
@@ -151,17 +175,21 @@
 <div class="flex h-full flex-col gap-2 p-2">
 	<div class="flex gap-1">
 		<input class="input input-sm min-w-0 flex-1" type="search" placeholder={m.comments.find} aria-label={m.comments.find} bind:value={query} />
-		<select class="select select-sm w-auto" aria-label={m.comments.kind} bind:value={kind}>
-			{#each KINDS as k (k.value)}<option value={k.value}>{k.label}</option>{/each}
-		</select>
+		<button class="btn btn-sm btn-square" onclick={(e) => openMenuBelow(e, sortMenu())} title={m.comments.sortBy(SORT_LABELS[sort])} aria-label={m.comments.sortBy(SORT_LABELS[sort])}>
+			<span class="icon-[material-symbols-light--sort] size-5" aria-hidden="true"></span>
+		</button>
+		<!-- Tinted while it hides something -->
+		<button class={['btn btn-sm btn-square', filtered && 'text-primary']} onclick={(e) => openMenuBelow(e, filterMenu())} title={filtered ? m.comments.filterOn : m.comments.filter} aria-label={filtered ? m.comments.filterOn : m.comments.filter} aria-pressed={filtered}>
+			<span class="icon-[material-symbols-light--filter-alt-outline] size-5" aria-hidden="true"></span>
+		</button>
 	</div>
 
 	<div class="min-h-0 flex-1 overflow-y-auto">
-		{#if !pages.length}
-			<p class="p-2 text-sm opacity-70">{query || kind !== 'all' ? m.comments.noneFound : m.comments.none}</p>
+		{#if !groups.length}
+			<p class="p-2 text-sm opacity-70">{query || filtered ? m.comments.noneFound : m.comments.none}</p>
 		{/if}
-		{#each pages as page (page.index)}
-			<h3 class="px-1 pt-2 pb-1 text-xs font-semibold opacity-70">{m.comments.page(page.number)}</h3>
+		{#each groups as page (page.key)}
+			<h3 class="px-1 pt-2 pb-1 text-xs font-semibold opacity-70">{page.label}</h3>
 			<ul class="flex flex-col gap-1">
 				{#each page.entries as e (e.item.id)}
 					{@const active = selected === e.item.id}
@@ -278,7 +306,7 @@
 								</div>
 							{/if}
 						{:else}
-							<button class="hover:bg-base-200 flex w-full flex-col gap-0.5 rounded px-2 py-1.5 text-left" onclick={() => show(page.index, e.item.id)}>
+							<button class="hover:bg-base-200 flex w-full flex-col gap-0.5 rounded px-2 py-1.5 text-left" onclick={() => show(e.index, e.item.id)}>
 								<span class="flex w-full items-center gap-1.5 text-xs">
 									<span class="{e.icon} size-4 shrink-0" aria-hidden="true"></span>
 									<span class="min-w-0 truncate font-medium">{e.title}</span>

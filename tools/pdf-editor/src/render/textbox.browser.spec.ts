@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadTextFont, moveTextHandle, overflowOf, textBounds, textHandles, withText, type TextItem } from './textbox.js';
 
-// Text boxes size like Figma's: auto width, auto height, fixed size; handles change the box, the font only with K.
+// How text boxes size: auto width, auto height, fixed size; handles change the box, the font only with K.
 // Handles: corners nw, ne, se, sw, then sides n, e, s, w (`TEXT_HANDLES`).
 const NE = 1;
 const SE = 2;

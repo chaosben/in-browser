@@ -1,4 +1,4 @@
-// The items of the ink core (strokes, shapes, pictures) for the surface: drawing, hit tests, erasing, snapping.
+// The items of the ink core (strokes, shapes) for the surface: drawing, hit tests, erasing, snapping.
 
 import { pageTargets, snapBox } from '../align.js';
 import { hitsStroke, itemBounds } from '../geometry.js';
@@ -8,22 +8,19 @@ import { inkAlpha, inkColor, inkPath } from '../outline.js';
 import { inkMessages } from '../i18n/index.svelte.js';
 import { fillOutline, handlesOf, inkStrokes, moveHandle, shapePoints, type ShapeFit } from '../shapes.js';
 import type { Ctx, ItemKit } from './kit.js';
-import { drawPicture } from './pictures.js';
 
 export const inkKit: ItemKit<Item> = {
 	bounds: itemBounds,
 	draw(ctx, item, cx) {
-		if (isInk(item)) drawInk(ctx, item, cx.path(item, inkPath));
-		else drawPicture(ctx, item, cx.pictures);
+		drawInk(ctx, item, cx.path(item, inkPath));
 	},
 	hit(item, x, y, r) {
-		if (!isInk(item)) return x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h;
 		if (inkStrokes(item).some((piece) => hitsStroke(piece, x, y, r))) return true;
 		const fill = isShape(item) && fillOutline(item);
 		return !!fill && pointInPolygon(x, y, fill);
 	},
 	erases(item, x, y, r) {
-		return isInk(item) && inkStrokes(item).some((piece) => hitsStroke(piece, x, y, r));
+		return inkStrokes(item).some((piece) => hitsStroke(piece, x, y, r));
 	},
 	inLasso,
 	snapBox,
@@ -31,11 +28,9 @@ export const inkKit: ItemKit<Item> = {
 	mark(item) {
 		const t = inkMessages().tools;
 		if (isShape(item)) return { name: shapeName(item.fit), glyph: fitGlyph(item.fit) };
-		if (isStroke(item)) return { name: t.pen, icon: 'icon-[material-symbols-light--stylus-outline]' };
-		if (item.type === 'image') return { name: t.picture, icon: 'icon-[material-symbols-light--image-outline]' };
-		return { name: t.icon, icon: 'icon-[material-symbols-light--emoji-symbols-outline]' };
+		return { name: t.pen, icon: 'icon-[material-symbols-light--stylus-outline]' };
 	},
-	color: (item) => (isInk(item) ? inkColor(isStroke(item) ? item.tool : 'pen', item.color) : item.type === 'icon' ? item.color : null),
+	color: (item) => inkColor(isStroke(item) ? item.tool : 'pen', item.color),
 	transform: transformItem,
 	handles: (item) => (isShape(item) ? handlesOf(item.fit) : null),
 	moveHandle: (item, index, x, y, o) => (isShape(item) ? { ...item, fit: moveHandle(item.fit, index, x, y, o.snap, o.keepAspect) } : item)
@@ -86,7 +81,7 @@ export function drawInk(ctx: Ctx, s: Ink, path: Path2D) {
 function shapeName(fit: ShapeFit): string {
 	const t = inkMessages().tools;
 	if (fit.kind === 'line') return fit.start && fit.end ? t.shapes.doubleArrow : fit.start || fit.end ? t.shapes.arrow : t.shapes.line;
-	if (fit.kind === 'ellipse' || fit.kind === 'roundedRect') return t.shapes[fit.kind];
+	if (fit.kind === 'ellipse' || fit.kind === 'roundedRect' || fit.kind === 'polyline') return t.shapes[fit.kind];
 	const p = fit.points;
 	if (p.length === 6) return t.shapes.triangle;
 	// Four corners on two x and two y values: a rectangle

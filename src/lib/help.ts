@@ -5,8 +5,6 @@
 import type { HelpContent } from '@in-browser/brand/help.js';
 import filesDe from '@in-browser/files-app/i18n/help.de.js';
 import filesEn from '@in-browser/files-app/i18n/help.en.js';
-import notesDe from '@in-browser/notes/i18n/help.de.js';
-import notesEn from '@in-browser/notes/i18n/help.en.js';
 import pdfEditorDe from '@in-browser/pdf-editor/i18n/help.de.js';
 import pdfEditorEn from '@in-browser/pdf-editor/i18n/help.en.js';
 import screenCaptureDe from '@in-browser/screen-capture/i18n/help.de.js';
@@ -33,7 +31,6 @@ export const TOOL_HELP: Record<Tool['id'], Record<Locale, HelpContent>> = {
 	screenCapture: { en: screenCaptureEn, de: screenCaptureDe },
 	files: { en: filesEn, de: filesDe },
 	textEditor: { en: textEditorEn, de: textEditorDe },
-	notes: { en: notesEn, de: notesDe },
 	pdfEditor: { en: pdfEditorEn, de: pdfEditorDe }
 };
 

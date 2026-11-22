@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { filesUrl } from '@in-browser/files/formats.js';
 	// Editor page of a PDF (`?path=`): ribbon on top, side panels on the left, the pages on the
-	// shared ink core; page navigation and zoom in the footer (like PDF-XChange's status bar). Changes save themselves
+	// shared ink core; page navigation and zoom in the footer. Changes save themselves
 	// (`PdfDocument`); the save state sits in the footer, conflicts and notices in a bar above the pages. One tab per PDF.
 	import { installNudgeKeys } from '@in-browser/ink/input/keys.js';
 	import { untrack } from 'svelte';
@@ -35,13 +35,35 @@
 	import type { Tool } from '@in-browser/ink/input/controller.js';
 	import { SHAPE_KINDS, shapeGlyph } from '@in-browser/ink/shapes.js';
 	import { ERASER_SIZES } from '@in-browser/ink/sizes.js';
+	import { SMOOTHING_LEVELS } from '@in-browser/ink/smooth.js';
 	import SelectionMenu from '@in-browser/ink/ui/SelectionMenu.svelte';
 	import InkColorButton from '@in-browser/ink/ui/InkColorButton.svelte';
 	import InkStyleButton from '@in-browser/ink/ui/InkStyleButton.svelte';
 	import { arrangeGroups } from '@in-browser/ink/ui/selection-commands.js';
 	import ShapeSuggestionButton from '@in-browser/ink/ui/ShapeSuggestion.svelte';
 	import NoteEditor from '#lib/components/NoteEditor.svelte';
+	import NewPdfDialog from '#lib/components/NewPdfDialog.svelte';
+	import PrintDialog from '#lib/components/PrintDialog.svelte';
+	import PdfPageDialog from '#lib/components/PdfPageDialog.svelte';
+	import StampEditor from '#lib/components/StampEditor.svelte';
+	import LinkEditor from '#lib/components/LinkEditor.svelte';
+	import MeasureDialog from '#lib/components/MeasureDialog.svelte';
+	import CalibrateDialog from '#lib/components/CalibrateDialog.svelte';
+	import { contentEdit } from '#lib/model/content.svelte.js';
+	import type { MeasureKind } from '@in-browser/ink/items.js';
+	import { isLink, safeUrl } from '#lib/render/link.js';
+	import StampWordDialog from '#lib/components/StampWordDialog.svelte';
+	import { choosePdfPage, stampDialogs } from '#lib/model/stamp-dialogs.svelte.js';
+	import { chosenWord, wordText } from '#lib/model/stamp-words.js';
+	import { PAPERS, paperPdf, type Paper } from '@in-browser/pdf/write/paper-page.js';
+	import { customStamps, iconPicture, loadStamps, loadWords, pictureSource, STAMP_TYPES, stampPicture, stampTool, stampWords, type StampPicture } from '#lib/model/stamps.svelte.js';
+	import { isStamp, pictureStamp, type StampItem } from '#lib/render/stamp.js';
+	import IconPicker from '@in-browser/graphics/IconPicker.svelte';
+	import type { IconData } from '@in-browser/graphics/icons/types.js';
 	import TextEditor from '#lib/components/TextEditor.svelte';
+	import { stampFromArea, stampFromSelection } from '#lib/model/stamp-actions.js';
+	import { attachedFiles, isNote, NOTE_SIZE } from '#lib/render/note.js';
+	import { showError } from '@in-browser/files/errors.js';
 	import { PdfError } from '@in-browser/pdf/pdfjs.js';
 	import Surface from '#lib/components/Surface.svelte';
 	import { m } from '#lib/i18n/index.js';
@@ -50,8 +72,8 @@
 	import { EditorState } from '#lib/model/editor.svelte.js';
 	import { recent } from '#lib/model/recent.js';
 	import { kindOf, selectionCommands, toolKind, type FormatKind } from '#lib/model/selection-commands.js';
-	import { isNote } from '#lib/render/note.js';
-	import { choose, inkColor, setInkColor, tools, type EditorTool } from '#lib/model/tools.svelte.js';
+	import { isCommented } from '#lib/render/markup.js';
+	import { choose, endMeasuring, iconColor, inkColor, measureTool, measureWith, type MeasureTool, noteColor, setInkColor, setStamp, stampChoice, tools, type EditorTool } from '#lib/model/tools.svelte.js';
 	import type { PdfSelection, PdfStage, PdfSuggestion } from '#lib/render/surface.js';
 
 	const ed = new EditorState();
@@ -65,6 +87,10 @@
 	let signedSeen = $state(false);
 	/** Asked once whether pages of a signed PDF may change */
 	let signedPagesOk = false;
+	/** "New PDF …" is open */
+	let creating = $state(false);
+	/** The print dialog is open, starting with these pages */
+	let printing = $state<'all' | 'picked' | null>(null);
 
 	function loadError(e: unknown): string {
 		if (e instanceof PdfError) return e.reason === 'password' ? m.editor.password : m.editor.invalid;
@@ -213,6 +239,25 @@
 		}
 	}
 
+	/** Inserts a page with a paper after the current page, as big as it */
+	async function insertPaper(paper: Paper) {
+		const doc = ed.doc;
+		const like = doc?.pages[ed.current];
+		if (!doc || !like) return;
+		if (paper === 'blank') {
+			if (doc.insertBlank(ed.current + 1)) ed.goTo(ed.current + 1);
+			return;
+		}
+		try {
+			const at = ed.current + 1;
+			ed.selection?.clear();
+			await doc.insertPdf(at, await paperPdf({ width: like.w, height: like.h, paper }));
+			ed.goTo(at);
+		} catch (e) {
+			failed(e);
+		}
+	}
+
 	/** Saves a new PDF (pages of this one, or this one merged with others) and offers to open it */
 	async function saveNew(make: (doc: PdfDocument) => Promise<Uint8Array>, name: string, title: string) {
 		const doc = ed.doc;
@@ -248,12 +293,284 @@
 		return where === 'up' ? at.some((i, k) => i !== k) : at.some((i, k) => i !== doc.pages.length - at.length + k);
 	};
 
+	// --- Stamps: a word of the standard or a picture (of "My stamps" or picked once) ---
+
+	void loadStamps();
+	void loadWords();
+	// The chosen picture is read once it is needed – and again when another file, another page of it or another
+	// picture under the same name is chosen
+	$effect(() => {
+		const path = stampChoice.custom;
+		const page = stampChoice.page;
+		if (!path || tools.tool !== 'stamp') return;
+		const source = pictureSource(path, page);
+		if (untrack(() => stampTool.picture?.source) === source) return;
+		stampTool.picture = null;
+		stampPicture(path, page).then(
+			(picture) => {
+				if (stampChoice.custom === path && stampChoice.page === page) stampTool.picture = picture;
+			},
+			(e) => {
+				console.warn('[pdf-editor] stamp', e);
+				toast(m.stamps.loadFailed, 'error', 8000);
+				if (stampChoice.custom === path) setStamp({ custom: null });
+			}
+		);
+	});
+	function pickStamp(choice: Parameters<typeof setStamp>[0]) {
+		setStamp(choice);
+		choose('stamp');
+	}
+	async function stampFromImage() {
+		const doc = ed.doc;
+		const path = await chooseFile({ mode: 'open', folder: doc ? parent(doc.path) : '/', accept: STAMP_TYPES, title: m.stamps.imageTitle });
+		if (!path) return;
+		try {
+			const which = await choosePdfPage(path);
+			if (which) pickStamp({ custom: path, page: which.page });
+		} catch (e) {
+			console.warn('[pdf-editor] stamp', e);
+			toast(m.stamps.loadFailed, 'error', 8000);
+		}
+	}
+	// --- Page content: its objects are changed only while the switch "Edit content" is on ---
+
+	let signedContentOk = false;
+	// Every PDF opens with the switch off; a remembered tool never turns it on
+	$effect(() => {
+		void ed.doc;
+		untrack(() => contentEdit.stop());
+	});
+	$effect(() => {
+		if (tools.tool === 'content' && !contentEdit.on) untrack(() => choose('lasso'));
+	});
+	// Another tool: nothing of the content stays picked
+	$effect(() => {
+		if (tools.tool !== 'content') untrack(() => contentEdit.clear());
+	});
+	/** Changing a page's content writes the file anew: a signed PDF asks once before the first such change */
+	async function contentAllowed(): Promise<boolean> {
+		if (!ed.doc?.signed || signedContentOk) return true;
+		if (!(await ask(m.questions.signedContent))) return false;
+		signedContentOk = true;
+		return true;
+	}
+	async function toggleContent() {
+		const doc = ed.doc;
+		if (!doc || doc.editable !== 'yes') return;
+		if (contentEdit.on) {
+			contentEdit.stop();
+			if (tools.tool === 'content') choose('lasso');
+			return;
+		}
+		if (!(await contentAllowed())) return;
+		contentEdit.on = true;
+		ed.selection?.clear();
+		choose('content');
+	}
+	const contentPicked = () => contentEdit.on && contentEdit.page !== null && contentEdit.ids.size > 0;
+	/** The one image picked of the content ("Replace image …") */
+	const pickedImage = () => {
+		if (!contentPicked() || contentEdit.ids.size !== 1 || !ed.doc) return null;
+		void ed.doc.contentChanges;
+		const [id] = contentEdit.ids;
+		const item = ed.doc.contentItems(contentEdit.page!)?.find((i) => i.id === id);
+		return item?.kind === 'image' ? { page: contentEdit.page!, id } : null;
+	};
+	async function replaceImage() {
+		const doc = ed.doc;
+		const image = pickedImage();
+		if (!doc || !image) return;
+		const path = await chooseFile({ mode: 'open', folder: parent(doc.path), accept: STAMP_TYPES, title: m.content.replaceTitle });
+		if (!path) return;
+		try {
+			const which = await choosePdfPage(path);
+			if (!which) return;
+			const id = doc.replaceImage(image.page, image.id, await stampPicture(path, which.page));
+			if (id !== null) contentEdit.select(image.page, [id]);
+		} catch (e) {
+			console.warn('[pdf-editor] replace image', e);
+			toast(m.stamps.loadFailed, 'error', 8000);
+		}
+	}
+	/** The selected comments that can become part of the page */
+	const flattenable = () => (ed.doc && ed.selection?.active ? ed.selection.items.filter((item) => ed.doc!.flattens(item)) : []);
+	/** "Embed in the page": the selected comments become part of their page – also with the switch off (it guards
+	 * the page's own content; this is a deliberate step on one's own comment) */
+	async function flattenSelection() {
+		const doc = ed.doc;
+		const selection = ed.selection;
+		const items = flattenable();
+		if (!doc || !selection || selection.pageIndex < 0 || !items.length || !(await contentAllowed())) return;
+		const page = selection.pageIndex;
+		selection.clear();
+		doc.flatten(page, new Set(items.map((item) => item.id)));
+	}
+	/** What the footer says while content is edited */
+	function contentStatus(): string {
+		const doc = ed.doc;
+		if (!doc) return '';
+		// Read anew when a page's content was read or changed
+		void doc.contentChanges;
+		if (contentPicked()) return m.content.status(contentEdit.ids.size);
+		return doc.contentState(ed.current) === 'none' ? m.content.unreadable : m.content.on;
+	}
+
+	// --- Measuring: the shape tool drawing a line, a path or an outline that says its size ---
+
+	let scaling = $state(false);
+	/** The distance drawn with "Calibrate" (length in page points; `clear` takes it off the page), while its real length is asked for */
+	let calibrating = $state<{ points: number; clear: () => void } | null>(null);
+	// Another tool ends measuring (the shape tool draws what it drew before)
+	$effect(() => {
+		if (tools.tool !== 'shape' && measureTool.kind) untrack(endMeasuring);
+	});
+	const measureCommand = (kind: MeasureTool, icon: string, key?: string): Command => ({
+		id: `measure-${kind}`,
+		label: m.measure.kinds[kind],
+		tip: m.measure.tips[kind],
+		icon,
+		...(key && { shortcut: { key } }),
+		enabled: editable,
+		active: () => tools.tool === 'shape' && measureTool.kind === kind,
+		run: () => measureWith(kind)
+	});
+
+	// --- Links: followed with "Hand", their boxes shown while they are worked on ---
+
+	$effect(() => {
+		const shown = tools.tool === 'link' || tools.tool === 'lasso';
+		ed.doc?.showLinks(shown);
+	});
+	/** Goes where the link at a point of a page leads: to its page, or – asked first, it leaves the PDF – to its address */
+	async function followLink(page: number, x: number, y: number) {
+		const link = await ed.doc?.linkAt(page, x, y);
+		if (link?.place) return ed.goTo(link.place.index, link.place.y);
+		const url = link?.url ? safeUrl(link.url) : null;
+		if (link?.url && !url) return toast(m.link.refused, 'warning', 6000);
+		if (url && (await ask({ title: m.link.openTitle, message: m.link.openText(url), confirm: m.link.open }))) window.open(url, '_blank', 'noopener,noreferrer');
+	}
+
+	// --- Files attached as comments: a paper clip on the page, the file in the PDF ---
+
+	/** Above this size attaching asks first: the file goes into the PDF as it is, and every save writes it again */
+	const LARGE_ATTACHMENT = 25 * 1024 * 1024;
+	async function attachFile(page: number, x: number, y: number) {
+		const doc = ed.doc;
+		if (!doc || doc.editable !== 'yes') return;
+		const path = await chooseFile({ mode: 'open', folder: parent(doc.path), accept: [], title: m.attach.title });
+		if (!path) return;
+		try {
+			const bytes = new Uint8Array(await (await read(path)).arrayBuffer());
+			if (bytes.length > LARGE_ATTACHMENT && !(await ask({ title: m.attach.largeTitle, message: m.attach.large(basename(path)), confirm: m.attach.attach }))) return;
+			const key = crypto.randomUUID();
+			attachedFiles.set(key, bytes);
+			const at = doc.pages[page];
+			const id = doc.items.addItem(page, {
+				id: crypto.randomUUID(),
+				type: 'note',
+				x: Math.max(0, Math.min(at.w - NOTE_SIZE, x)),
+				y: Math.max(0, Math.min(at.h - NOTE_SIZE, y)),
+				color: noteColor.value,
+				text: '',
+				file: { key, name: basename(path), size: bytes.length }
+			});
+			if (!id) return;
+			choose('lasso');
+			ed.selection?.select(page, new Set([id]));
+		} catch (e) {
+			showError(e, { context: '[pdf-editor] attach' });
+		}
+	}
+	/** The file of the one selected attachment comment */
+	const selectedFile = () => {
+		const items = ed.selection?.items ?? [];
+		const item = items.length === 1 ? items[0] : null;
+		return item && isNote(item) && item.file ? item.file : null;
+	};
+	function downloadSelectedFile() {
+		const file = selectedFile();
+		const bytes = file && attachedFiles.get(file.key);
+		if (file && bytes) downloadBlob(new Blob([bytes as Uint8Array<ArrayBuffer>]), file.name);
+	}
+
+	// --- Pictures and icons as free items: placed in the middle of the view and selected, to be moved and sized ---
+
+	/** Longer side of a new icon (points) */
+	const ICON_SIZE = 48;
+	function placePicture(picture: StampPicture, side?: number, icon?: Pick<StampItem, 'icon' | 'color'>) {
+		const doc = ed.doc;
+		const at = ed.stage?.insertPoint();
+		if (!doc || !at || doc.editable !== 'yes') return;
+		const id = doc.items.addItem(at.page, { ...pictureStamp(picture, doc.pages[at.page], at.x, at.y, side), ...icon });
+		if (!id) return;
+		choose('lasso');
+		ed.selection?.select(at.page, new Set([id]));
+	}
+	async function insertPicture() {
+		const doc = ed.doc;
+		if (!doc) return;
+		const path = await chooseFile({ mode: 'open', folder: parent(doc.path), accept: STAMP_TYPES, title: m.commands.pictureTitle });
+		if (!path) return;
+		try {
+			const which = await choosePdfPage(path);
+			if (which) placePicture(await stampPicture(path, which.page));
+		} catch (e) {
+			console.warn('[pdf-editor] picture', e);
+			toast(m.stamps.loadFailed, 'error', 8000);
+		}
+	}
+	/** An icon in the pen's color */
+	async function insertIcon(icon: IconData) {
+		try {
+			// The color an icon was given last, else the pen's
+			const color = iconColor.value ?? tools.ink.color;
+			const picture = await iconPicture(icon, color);
+			placePicture(picture, ICON_SIZE, picture.icon && { icon: picture.icon, color });
+		} catch (e) {
+			console.warn('[pdf-editor] icon', e);
+			toast(m.stamps.loadFailed, 'error', 8000);
+		}
+	}
+	const asMenu = (c: Command): MenuEntry => ({ label: c.label, icon: c.icon, disabled: c.enabled ? !c.enabled() : false, checked: c.active?.(), run: c.run! });
+	function stampMenu(): MenuEntry[] {
+		return [
+			...stampWords.list.map((word) => ({
+				label: wordText(word, m.stamps.names),
+				checked: !stampChoice.custom && chosenWord(stampWords.list, stampChoice.word)?.id === word.id,
+				run: () => pickStamp({ word: word.id, custom: null })
+			})),
+			{ heading: m.stamps.lineBelow },
+			{ label: m.stamps.withName, icon: 'icon-[material-symbols-light--badge-outline]', checked: stampChoice.withName, run: () => setStamp({ withName: !stampChoice.withName }) },
+			{ label: m.stamps.withDate, icon: 'icon-[material-symbols-light--calendar-today-outline]', checked: stampChoice.withDate, run: () => setStamp({ withDate: !stampChoice.withDate }) },
+			{ label: m.stamps.withTime, icon: 'icon-[material-symbols-light--schedule-outline]', checked: stampChoice.withTime, run: () => setStamp({ withTime: !stampChoice.withTime }) },
+			{ separator: true },
+			...customStamps.list.map((s) => ({ label: s.name, icon: 'icon-[material-symbols-light--image-outline]', checked: stampChoice.custom === s.path, run: () => pickStamp({ custom: s.path }) })),
+			{ label: m.stamps.image, icon: 'icon-[material-symbols-light--upload-file-outline]', run: () => void stampFromImage() },
+			{ label: m.stamps.mine, icon: 'icon-[material-symbols-light--approval-outline]', run: () => (ed.panel = 'stamps') },
+			{ separator: true },
+			asMenu(commands.stampFromSelection),
+			asMenu(commands.stampFromArea)
+		];
+	}
+
 	// The selection's commands (the shared ones of the ink core plus the PDF's own kinds)
 	const sc = selectionCommands(ed, edit);
 
 	const commands = {
 		// The PDF itself (tab “File”); it is named after its file – renamed in Files
 		download: { id: 'download', label: m.editor.download, icon: 'icon-[material-symbols-light--download]', enabled: () => !!ed.doc, run: () => void download() },
+		newPdf: { id: 'newPdf', label: m.newPdf.command, tip: m.newPdf.tip, icon: 'icon-[material-symbols-light--note-add-outline]', run: () => (creating = true) },
+		// Ctrl+P everywhere (also while typing): ours instead of the browser's, which would print the editor itself
+		print: {
+			id: 'print',
+			label: m.print.command,
+			tip: m.print.tip,
+			icon: 'icon-[material-symbols-light--print-outline]',
+			shortcut: { key: 'p', ctrl: true, inText: true },
+			enabled: () => !!ed.doc,
+			run: () => (printing = 'all')
+		},
 		showInFiles: { id: 'showInFiles', label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', enabled: () => !!ed.doc, run: () => showInFiles() },
 		undo: { id: 'undo', label: m.commands.undo, icon: 'icon-[material-symbols-light--undo]', shortcut: { key: 'z', ctrl: true }, enabled: () => !!ed.doc?.canUndo, run: () => changed(() => ed.doc?.undo()) },
 		redo: {
@@ -315,7 +632,9 @@
 				void changePages((doc) => {
 					const at = ed.current + 1;
 					if (doc.insertBlank(at)) ed.goTo(at);
-				})
+				}),
+			// With a paper: a page of that paper, as big as the current one
+			menu: () => PAPERS.map((paper) => ({ label: m.newPdf.blankWith(m.newPdf.papers[paper]), run: () => void changePages(() => void insertPaper(paper)) }))
 		},
 		insertPdf: {
 			id: 'insertPdf',
@@ -365,23 +684,210 @@
 			run: () => choose('text')
 		},
 		pen: drawingTool('pen', tm.pen, 'icon-[material-symbols-light--ink-pen-outline]', 'p'),
+		// Paints freely (the marking tools follow the text); H is "Hand"
+		highlighter: drawingTool('highlighter', tm.highlighter, 'icon-[material-symbols-light--format-ink-highlighter-outline]', 'g'),
+		smoothing: {
+			id: 'smoothing',
+			label: tm.smoothing,
+			tip: tm.smoothingHint,
+			icon: 'icon-[material-symbols-light--gesture]',
+			enabled: () => !sc.sel() && (tools.tool === 'pen' || tools.tool === 'highlighter'),
+			menu: () =>
+				SMOOTHING_LEVELS.map((level, i) => ({
+					label: tm.smoothingLevels[i],
+					checked: level === tools.smoothing,
+					run: () => {
+						tools.smoothing = level;
+						tools.store();
+					}
+				}))
+		},
+		penOnly: {
+			id: 'penOnly',
+			label: tm.penOnly,
+			tip: tm.penOnlyTip,
+			icon: 'icon-[material-symbols-light--do-not-touch-outline]',
+			active: () => tools.penOnly,
+			run: () => {
+				tools.penOnly = !tools.penOnly;
+				tools.store();
+				if (tools.penOnly) toast(tm.penOnlyOn, 'info');
+			}
+		},
 		highlight: { ...drawingTool('highlight', m.commands.highlight, 'icon-[material-symbols-light--ink-highlighter]', 'm'), tip: m.commands.markTip },
 		underline: { ...drawingTool('underline', m.commands.underline, 'icon-[material-symbols-light--format-underlined]', 'u'), tip: m.commands.markTip },
+		squiggly: { ...drawingTool('squiggly', m.commands.squiggly, 'icon-[material-symbols-light--format-underlined-squiggle]', 'w'), tip: m.commands.markTip },
+		area: { ...drawingTool('area', m.commands.area, 'icon-[material-symbols-light--highlight-outline]', 'a'), tip: m.commands.areaTip },
+		insert: { ...drawingTool('insert', m.commands.insert, 'icon-[material-symbols-light--insert-text-outline]', 'i'), tip: m.commands.insertTip },
+		replace: { ...drawingTool('replace', m.commands.replace, 'icon-[material-symbols-light--find-replace]', 'r'), tip: m.commands.replaceTip },
 		strikeout: { ...drawingTool('strikeout', m.commands.strikeout, 'icon-[material-symbols-light--strikethrough-s]', 'x'), tip: m.commands.markTip },
 		textbox: { ...drawingTool('textbox', m.commands.textbox, 'icon-[material-symbols-light--text-fields]', 't'), tip: m.commands.textboxTip },
+		attach: { ...drawingTool('attach', m.attach.command, 'icon-[material-symbols-light--attach-file]', 'j'), tip: m.attach.tip },
+		downloadAttached: {
+			id: 'downloadAttached',
+			label: m.attach.download,
+			icon: 'icon-[material-symbols-light--download]',
+			enabled: () => !!selectedFile(),
+			run: downloadSelectedFile
+		},
+		callout: { ...drawingTool('callout', m.commands.callout, 'icon-[material-symbols-light--mode-comment-outline]', 'c'), tip: m.commands.calloutTip },
+		stamp: { ...drawingTool('stamp', m.commands.stamp, 'icon-[material-symbols-light--approval-outline]', 'k'), tip: m.commands.stampTip, menu: stampMenu },
+		link: { ...drawingTool('link', m.commands.link, 'icon-[material-symbols-light--link]', 'y'), tip: m.commands.linkTip },
+		editLink: {
+			id: 'editLink',
+			label: m.link.edit,
+			icon: 'icon-[material-symbols-light--edit-outline]',
+			enabled: () => {
+				const items = ed.selection?.items ?? [];
+				return editable() && items.length === 1 && isLink(items[0]);
+			},
+			run: () => {
+				const [item] = ed.selection?.items ?? [];
+				if (item && isLink(item)) ed.linkEdit = item.id;
+			}
+		},
+		editStamp: {
+			id: 'editStamp',
+			label: m.stamps.editText,
+			icon: 'icon-[material-symbols-light--edit-outline]',
+			enabled: () => {
+				const items = ed.selection?.items ?? [];
+				return editable() && items.length === 1 && isStamp(items[0]) && !items[0].image;
+			},
+			run: () => {
+				const [item] = ed.selection?.items ?? [];
+				if (item && isStamp(item) && !item.image) ed.stampEdit = item.id;
+			}
+		},
+		stampFromSelection: {
+			id: 'stampFromSelection',
+			label: m.stamps.fromSelection,
+			tip: m.stamps.fromSelectionTip,
+			icon: 'icon-[material-symbols-light--select-all]',
+			enabled: () => !!ed.selection?.count,
+			run: () => stampFromSelection(ed)
+		},
+		stampFromArea: {
+			id: 'stampFromArea',
+			label: m.stamps.fromArea,
+			tip: m.stamps.fromAreaTip,
+			icon: 'icon-[material-symbols-light--screenshot-region]',
+			enabled: has,
+			active: () => tools.tool === 'capture',
+			run: () => choose(tools.tool === 'capture' ? 'hand' : 'capture')
+		},
+		picture: {
+			id: 'picture',
+			label: m.commands.picture,
+			tip: m.commands.pictureTip,
+			icon: 'icon-[material-symbols-light--image-outline]',
+			enabled: editable,
+			run: () => void insertPicture()
+		},
 		note: { ...drawingTool('note', m.commands.note, 'icon-[material-symbols-light--sticky-note-2-outline]', 'n'), tip: m.commands.noteTip },
 		shape: {
 			...drawingTool('shape', tm.shape, 'icon-[material-symbols-light--shapes-outline]', 's'),
+			// Measuring draws with the shape tool too: then this one isn't the tool
+			active: () => tools.tool === 'shape' && !measureTool.kind,
+			run: () => {
+				endMeasuring();
+				choose('shape');
+			},
 			menu: () =>
 				SHAPE_KINDS.map((kind) => ({
 					label: tm.shapes[kind],
 					glyph: shapeGlyph(kind),
-					checked: kind === tools.shape,
+					checked: !measureTool.kind && kind === tools.shape,
 					run: () => {
+						endMeasuring();
 						tools.shape = kind;
 						choose('shape');
 					}
 				}))
+		},
+		measureDistance: measureCommand('distance', 'icon-[material-symbols-light--straighten-outline]', 'd'),
+		measurePerimeter: measureCommand('perimeter', 'icon-[material-symbols-light--polyline-outline]'),
+		measureArea: measureCommand('area', 'icon-[material-symbols-light--square-foot]'),
+		contentEdit: {
+			id: 'contentEdit',
+			label: m.content.edit,
+			tip: m.content.editTip,
+			icon: 'icon-[material-symbols-light--edit-document-outline]',
+			enabled: editable,
+			active: () => contentEdit.on,
+			run: () => void toggleContent()
+		},
+		contentSelect: {
+			id: 'contentSelect',
+			label: m.content.select,
+			tip: m.content.selectTip,
+			icon: 'icon-[material-symbols-light--arrow-selector-tool-outline]',
+			enabled: () => editable() && contentEdit.on,
+			active: () => contentEdit.on && tools.tool === 'content',
+			run: () => choose('content')
+		},
+		contentSelectAll: {
+			id: 'contentSelectAll',
+			label: m.content.selectAll,
+			tip: m.content.selectAllTip,
+			icon: 'icon-[material-symbols-light--select-all]',
+			enabled: () => editable() && contentEdit.on,
+			run: () => {
+				const doc = ed.doc;
+				if (!doc) return;
+				choose('content');
+				const page = ed.current;
+				void doc.loadContent(page).then(() => contentEdit.select(page, (doc.contentItems(page) ?? []).map((i) => i.id)));
+			}
+		},
+		contentDelete: {
+			id: 'contentDelete',
+			label: m.content.delete,
+			tip: m.content.deleteTip,
+			icon: 'icon-[material-symbols-light--delete-outline]',
+			enabled: () => editable() && contentPicked(),
+			run: () => {
+				if (!ed.doc || contentEdit.page === null) return;
+				ed.doc.removeContent(contentEdit.page, contentEdit.ids);
+				contentEdit.clear();
+			}
+		},
+		contentReplaceImage: {
+			id: 'contentReplaceImage',
+			label: m.content.replaceImage,
+			tip: m.content.replaceImageTip,
+			icon: 'icon-[material-symbols-light--imagesmode-outline]',
+			enabled: () => editable() && !!pickedImage(),
+			run: () => void replaceImage()
+		},
+		flattenSelection: {
+			id: 'flattenSelection',
+			label: m.content.flatten,
+			tip: m.content.flattenTip,
+			icon: 'icon-[material-symbols-light--layers-outline]',
+			enabled: () => editable() && flattenable().length > 0,
+			run: () => void flattenSelection()
+		},
+		flattenAll: {
+			id: 'flattenAll',
+			label: m.content.flattenAll,
+			tip: m.content.flattenAllTip,
+			icon: 'icon-[material-symbols-light--stacks-outline]',
+			enabled: () => editable() && (void ed.doc?.changes, !!ed.doc?.canFlatten()),
+			run: async () => {
+				if (!(await contentAllowed())) return;
+				ed.selection?.clear();
+				ed.doc?.flattenAll();
+			}
+		},
+		measureCalibrate: measureCommand('calibrate', 'icon-[material-symbols-light--architecture]'),
+		measureScale: {
+			id: 'measureScale',
+			label: m.measure.scaleCommand,
+			tip: m.measure.scaleTip,
+			icon: 'icon-[material-symbols-light--design-services-outline]',
+			enabled: editable,
+			run: () => (scaling = true)
 		},
 		eraser: {
 			...drawingTool('eraser', tm.eraser, 'icon-[material-symbols-light--ink-eraser-outline]', 'e'),
@@ -483,6 +989,8 @@
 		asEntry(commands.insertImage),
 		{ separator: true },
 		asEntry(commands.extract),
+		// The picked pages, else the current one – like every entry here
+		{ label: m.print.command, icon: commands.print.icon, run: () => (printing = 'picked') },
 		asEntry(commands.deletePages)
 	];
 
@@ -497,6 +1005,12 @@
 			icon: 'icon-[material-symbols-light--search]',
 			label: m.panels.search,
 			load: async () => (await import('#lib/panels/SearchPanel.svelte')).default
+		},
+		{
+			id: 'stamps',
+			icon: 'icon-[material-symbols-light--approval-outline]',
+			label: m.panels.stamps,
+			load: async () => (await import('#lib/panels/StampsPanel.svelte')).default
 		},
 		{
 			id: 'comments',
@@ -522,7 +1036,7 @@
 			id: 'attachments',
 			icon: 'icon-[material-symbols-light--attach-file]',
 			label: m.panels.attachments,
-			available: () => !!ed.doc?.attachments.length,
+			available: () => !!ed.doc?.attachments.length || !!ed.doc?.attachedCount,
 			load: async () => (await import('#lib/panels/AttachmentsPanel.svelte')).default
 		},
 		{
@@ -543,7 +1057,9 @@
 	/** Writing into a text box or a note's comment (it is selected) */
 	function edit(id: string) {
 		const item = ed.selection?.items.find((i) => i.id === id);
-		if (item && isNote(item)) ed.noteEdit = id;
+		if (item && isCommented(item)) ed.noteEdit = id;
+		else if (item && isStamp(item)) ed.stampEdit = item.image ? null : id;
+		else if (item && isLink(item)) ed.linkEdit = id;
 		else ed.textEdit = id;
 	}
 	const kind = $derived(ed.selection?.count ? kindOf(ed.selection.items) : editable() ? toolKind(tools.tool) : null);
@@ -604,7 +1120,7 @@
 			id: 'file',
 			label: brandMessages().ribbon.file,
 			groups: [
-				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.download, commands.showInFiles] },
+				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.print, commands.showInFiles] },
 				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
 			]
 		},
@@ -621,9 +1137,18 @@
 			label: m.ribbon.tabs.comment,
 			groups: [
 				{ id: 'select', label: m.ribbon.groups.select, items: [commands.lasso, commands.selectAll, commands.snap] },
-				{ id: 'markup', label: m.ribbon.groups.markup, items: [commands.highlight, commands.underline, commands.strikeout] },
-				{ id: 'notes', label: m.ribbon.groups.notes, items: [commands.note, commands.textbox] },
-				{ id: 'draw', label: m.ribbon.groups.draw, items: [commands.pen, commands.shape, commands.eraser] }
+				{ id: 'markup', label: m.ribbon.groups.markup, items: [commands.highlight, commands.underline, commands.squiggly, commands.strikeout, commands.insert, commands.replace, commands.area] },
+				{ id: 'notes', label: m.ribbon.groups.notes, items: [commands.note, commands.textbox, commands.callout, commands.attach, commands.link, commands.stamp, commands.picture, { id: 'icon', label: m.commands.icon, custom: iconButton }] },
+				{ id: 'draw', label: m.ribbon.groups.draw, items: [commands.pen, commands.highlighter, commands.shape, commands.eraser, commands.penOnly] },
+				{ id: 'measure', label: m.ribbon.groups.measure, items: [commands.measureDistance, commands.measurePerimeter, commands.measureArea, commands.measureCalibrate, commands.measureScale] }
+			]
+		},
+		{
+			id: 'content',
+			label: m.ribbon.tabs.content,
+			groups: [
+				{ id: 'content', label: m.ribbon.groups.content, items: [commands.contentEdit, commands.contentSelect, commands.contentSelectAll, commands.contentReplaceImage, commands.contentDelete] },
+				{ id: 'flatten', label: m.ribbon.groups.flatten, items: [commands.flattenSelection, commands.flattenAll] }
 			]
 		},
 		{
@@ -651,7 +1176,7 @@
 			label: m.ribbon.tabs.view,
 			groups: [{ id: 'panels', label: m.ribbon.groups.panels, items: panels.map(panelCommand) }]
 		},
-		// The format of what is selected or what the chosen tool draws, and how a selection is arranged (like PDF-XChange)
+		// The format of what is selected or what the chosen tool draws, and how a selection is arranged
 		formatTab('text', m.ribbon.tabs.textbox, [
 			{ id: 'text', label: m.ribbon.groups.text, items: [sc.editText, { id: 'textColor', label: m.textbox.textColor, custom: formatColor }, sc.fontSize] },
 			{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [sc.alignLeft, sc.alignCenter, sc.alignRight, sc.justify] },
@@ -662,25 +1187,27 @@
 			},
 			{ id: 'sizing', label: m.ribbon.groups.sizing, items: [sc.autoWidth, sc.autoHeight, sc.fixedSize] }
 		]),
-		formatTab('note', m.ribbon.tabs.note, [{ id: 'format', label: m.ribbon.groups.format, items: [sc.editComment, sc.noteIcon, color] }]),
-		formatTab('markup', m.ribbon.tabs.markup, [{ id: 'format', label: m.ribbon.groups.format, items: [color] }]),
+		formatTab('note', m.ribbon.tabs.note, [{ id: 'format', label: m.ribbon.groups.format, items: [sc.editComment, sc.noteIcon, color, commands.downloadAttached] }]),
+		formatTab('markup', m.ribbon.tabs.markup, [{ id: 'format', label: m.ribbon.groups.format, items: [sc.editComment, color] }]),
+		formatTab('link', m.ribbon.tabs.link, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editLink] }]),
+		formatTab('stamp', m.ribbon.tabs.stamp, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editStamp, color] }]),
 		formatTab('drawing', m.ribbon.tabs.drawing, [
-			{ id: 'format', label: m.ribbon.groups.format, items: [color, sc.thickness, { id: 'style', label: inkMessages().selection.style, custom: formatStyle }] }
+			{ id: 'format', label: m.ribbon.groups.format, items: [color, sc.thickness, commands.smoothing, { id: 'style', label: inkMessages().selection.style, custom: formatStyle }] }
 		]),
 		formatTab('mixed', m.ribbon.tabs.selection, [{ id: 'format', label: m.ribbon.groups.format, items: [color] }]),
 		{
 			id: 'arrange',
 			label: m.ribbon.tabs.arrange,
 			contextual: true,
-			// Only for a selection (its commands work on one), like Notes
+			// Only for a selection (its commands work on one)
 			visible: () => !!sc.sel(),
 			groups: arrangeGroups(sc)
 		}
 	];
 
-	// Ctrl+Y redoes too (like Notes and Office)
+	// Ctrl+Y redoes too
 	const redoAlt: Command = { ...commands.redo, id: 'redoAlt', shortcut: { key: 'y', ctrl: true } };
-	// Backspace deletes too (like Notes)
+	// Backspace deletes too
 	const deleteAlt: Command = { ...commands.deleteSelection, id: 'deleteAlt', shortcut: { key: 'Backspace' } };
 
 	$effect(() => installCommandKeys(() => [...Object.values(commands), zoomInAlt, redoAlt, deleteAlt, find]));
@@ -782,6 +1309,23 @@
 	/>
 {/snippet}
 
+<!-- An icon in the pen's color, in the middle of the view -->
+{#snippet iconButton(size: GroupSize)}
+	<RibbonPopover id="icon" label={m.commands.icon} icon="icon-[material-symbols-light--interests-outline]" {size} disabled={!editable()}>
+		{#snippet children(close)}
+			<div class="max-h-[60vh] w-80 max-w-[calc(100vw-2.5rem)] overflow-x-hidden overflow-y-auto">
+				<IconPicker
+					onpick={(icon) => {
+						close();
+						void insertIcon(icon);
+					}}
+					hint={m.commands.iconHint}
+				/>
+			</div>
+		{/snippet}
+	</RibbonPopover>
+{/snippet}
+
 <!-- Format tab "Text box": background and border (with their opacity; "None") -->
 {#snippet fillButton(size: GroupSize)}
 	{@const fill = draftOr('fill', sc.boxStyle().fill)}
@@ -845,6 +1389,10 @@
 			</button>
 			{@render footerButton(commands.zoomIn)}
 		</div>
+		<!-- Editing the pages' own content: said as long as the switch is on -->
+		{#if contentEdit.on}
+			<span class="truncate px-1 max-sm:hidden" data-testid="content-status">{contentStatus()}</span>
+		{/if}
 	{/if}
 {/snippet}
 
@@ -890,18 +1438,39 @@
 				{/if}
 				<div class="relative min-h-0 flex-1">
 					{#key doc}
-						<Surface {doc} onready={ready} onedit={edit} onview={() => ed.updateView()} hits={ed.hits} current={ed.currentHit} />
+						<Surface {doc} onready={ready} onedit={edit} onview={() => ed.updateView()} oncapture={(page, box) => stampFromArea(ed, page, box)} onattach={(page, x, y) => void attachFile(page, x, y)} onlink={(page, x, y) => void followLink(page, x, y)} oncalibrate={(points, clear) => (calibrating = { points, clear })} hits={ed.hits} current={ed.currentHit} />
 					{/key}
 					<!-- Next to the surface, not in it: presses on them must not reach the surface's input -->
 					{#if ed.selection}
 						{@const selection = ed.selection}
-						{#if !ed.textEdit && !ed.noteEdit}
+						{#if !ed.textEdit && !ed.noteEdit && !ed.stampEdit && !ed.linkEdit}
 							<!-- Only the object's actions here; formats are on the contextual tabs -->
 							<SelectionMenu {selection}>
 								{#snippet actions()}
+									{#if commands.downloadAttached.enabled?.()}
+										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.downloadAttached.run} title={commands.downloadAttached.label} aria-label={commands.downloadAttached.label}>
+											<span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span>
+										</button>
+									{/if}
+									<button class="btn btn-ghost btn-sm btn-square" onclick={commands.stampFromSelection.run} title={commands.stampFromSelection.label} aria-label={commands.stampFromSelection.label}>
+										<span class="icon-[material-symbols-light--approval-outline] size-5" aria-hidden="true"></span>
+									</button>
+									{#if commands.flattenSelection.enabled?.()}
+										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.flattenSelection.run} title={commands.flattenSelection.label} aria-label={commands.flattenSelection.label} data-command="flattenSelection">
+											<span class="icon-[material-symbols-light--layers-outline] size-5" aria-hidden="true"></span>
+										</button>
+									{/if}
 									<!-- Writing its text opens on the item (touch screens have no double click) -->
 									{#if sc.editText.enabled()}
 										<button class="btn btn-ghost btn-sm btn-square" onclick={sc.editText.run} title={sc.editText.label} aria-label={sc.editText.label}>
+											<span class="icon-[material-symbols-light--edit-outline] size-5" aria-hidden="true"></span>
+										</button>
+									{:else if commands.editLink.enabled?.()}
+										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.editLink.run} title={commands.editLink.label} aria-label={commands.editLink.label}>
+											<span class="icon-[material-symbols-light--edit-outline] size-5" aria-hidden="true"></span>
+										</button>
+									{:else if commands.editStamp.enabled?.()}
+										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.editStamp.run} title={commands.editStamp.label} aria-label={commands.editStamp.label}>
 											<span class="icon-[material-symbols-light--edit-outline] size-5" aria-hidden="true"></span>
 										</button>
 									{:else if sc.editComment.enabled()}
@@ -914,12 +1483,32 @@
 						{/if}
 						<TextEditor {selection} {doc} stage={ed.stage} editing={ed.textEdit} ondone={() => (ed.textEdit = null)} />
 						<NoteEditor {selection} {doc} editing={ed.noteEdit} ondone={() => (ed.noteEdit = null)} />
+						<StampEditor {selection} {doc} editing={ed.stampEdit} ondone={() => (ed.stampEdit = null)} />
+						<LinkEditor {selection} {doc} editing={ed.linkEdit} ondone={() => (ed.linkEdit = null)} />
 					{/if}
 					{#if ed.suggestion}<ShapeSuggestionButton suggestion={ed.suggestion} onaccept={shapeAccepted} />{/if}
 				</div>
 			</div>
 		</div>
 	</div>
+	{#if creating}<NewPdfDialog folder={parent(doc.path)} oncreated={(path) => location.assign(editorUrl(path))} onclose={() => (creating = false)} />{/if}
+	{#if printing}<PrintDialog {ed} which={printing} onclose={() => (printing = null)} />{/if}
+	{#if scaling}<MeasureDialog {ed} onclose={() => (scaling = false)} />{/if}
+	{#if calibrating}
+		<CalibrateDialog
+			{ed}
+			points={calibrating.points}
+			onclose={(done) => {
+				// The distance asked about goes, whatever the answer
+				calibrating?.clear();
+				calibrating = null;
+				// Calibrated: on to measuring, e.g. a second known distance as a check
+				if (done) measureWith('distance');
+			}}
+		/>
+	{/if}
+	{#if stampDialogs.page}<PdfPageDialog path={stampDialogs.page.path} pages={stampDialogs.page.pages} ondone={stampDialogs.page.done} />{/if}
+	{#if stampDialogs.word}<StampWordDialog word={stampDialogs.word.word} onclose={() => (stampDialogs.word = null)} />{/if}
 {:else}
 	<div class="flex h-full items-center justify-center">
 		<span class="loading loading-spinner opacity-60"></span>

@@ -37,6 +37,8 @@ export interface TextItem {
 	sizing?: TextSizing;
 	/** How its lines are aligned in the box; missing: left */
 	align?: 'center' | 'right' | 'justify';
+	/** A callout: the point on the page (as shown) its line points at with an arrow */
+	callout?: [number, number];
 }
 
 /** How the lines of a text box are aligned */
@@ -156,14 +158,54 @@ export const overflowOf = (t: TextItem) => Math.max(0, textHeight(t.lines.length
 /** The compass directions clockwise, to turn handles with the text */
 const COMPASS: TextHandle[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
 
-/** The handles of a text box on the page (corners, then sides – `TEXT_HANDLES`) */
-export const textHandles = (t: TextItem): [number, number][] => TEXT_HANDLES.map((h) => handlePoint(t, h));
+/** The handles of a text box on the page (corners, then sides – `TEXT_HANDLES`; a callout's tip last) */
+export const textHandles = (t: TextItem): [number, number][] => [...TEXT_HANDLES.map((h) => handlePoint(t, h)), ...(t.callout ? [t.callout] : [])];
+
+// --- Callouts: a line from the box to what it is about ---
+
+/** Length of the line's last piece, straight out of the box (points; less when the tip is near) */
+const CALLOUT_KNEE = 14;
+
+/** Color and width of a callout's line: the border's, else the text's color and 1 point */
+export const calloutColor = (t: Pick<TextItem, 'border' | 'color'>) => t.border ?? t.color;
+export const calloutWidth = (t: Pick<TextItem, 'border' | 'borderWidth'>) => borderOf(t) || 1;
+
+/** A callout's line as x/y pairs: its tip, its knee, and where it meets the box – the middle of the side facing
+ * the tip, which it leaves at a right angle */
+export function calloutLine(t: TextItem): number[] | null {
+	if (!t.callout) return null;
+	const [tx, ty] = t.callout;
+	const [cx, cy] = [t.x + t.w / 2, t.y + t.h / 2];
+	if (tx < t.x || tx > t.x + t.w) {
+		const left = tx < t.x;
+		const ax = left ? t.x : t.x + t.w;
+		const k = Math.min(CALLOUT_KNEE, Math.abs(tx - ax) / 2);
+		return [tx, ty, ax + (left ? -k : k), cy, ax, cy];
+	}
+	const up = ty < cy;
+	const ay = up ? t.y : t.y + t.h;
+	const k = Math.min(CALLOUT_KNEE, Math.abs(ty - ay) / 2);
+	return [tx, ty, cx, ay + (up ? -k : k), cx, ay];
+}
+
+/** The open arrow at a callout's tip as x/y pairs: one end, the tip, the other end */
+export function calloutHead(line: readonly number[], width: number): number[] {
+	const [tx, ty] = line;
+	// Along the first piece that has a length
+	const [fx, fy] = Math.hypot(line[2] - tx, line[3] - ty) > 0.01 ? [line[2], line[3]] : [line[4], line[5]];
+	const angle = Math.atan2(fy - ty, fx - tx);
+	const length = 4 + 3 * width;
+	const end = (turn: number) => [tx + Math.cos(angle + turn) * length, ty + Math.sin(angle + turn) * length];
+	return [...end(0.45), tx, ty, ...end(-0.45)];
+}
 
 /**
- * The text box with handle `index` (`textHandles`) dragged to (x, y): its box changes (Figma: sides set the width,
+ * The text box with handle `index` (`textHandles`) dragged to (x, y): its box changes (sides set the width,
  * the rest a fixed size), the font only with `scaleText`. Worked out along the text's own direction.
  */
 export function moveTextHandle(t: TextItem, index: number, x: number, y: number, o: { keepAspect: boolean; scaleText: boolean }, room = Infinity): TextItem {
+	// A callout's tip goes where it is dragged
+	if (index >= TEXT_HANDLES.length) return t.callout ? { ...t, callout: [x, y] } : t;
 	const onPage = TEXT_HANDLES[index];
 	const [hx, hy] = handlePoint(t, onPage);
 	const turn = (t.rot * Math.PI) / 180;
@@ -257,11 +299,66 @@ export function textBounds(t: TextItem): Box {
 	return box;
 }
 
-/** Draws a text box (page points): background, border, then its lines from its top left corner in its direction */
+/** The box, text running out of it and a callout's line with its arrow: everything the item draws */
+export function itemBounds(t: TextItem): Box {
+	const box = textBounds(t);
+	const line = calloutLine(t);
+	if (!line) return box;
+	const width = calloutWidth(t);
+	const points = [...line, ...calloutHead(line, width)];
+	for (let i = 0; i < points.length; i += 2) {
+		box.x0 = Math.min(box.x0, points[i] - width);
+		box.y0 = Math.min(box.y0, points[i + 1] - width);
+		box.x1 = Math.max(box.x1, points[i] + width);
+		box.y1 = Math.max(box.y1, points[i + 1] + width);
+	}
+	return box;
+}
+
+/** Is (x, y) within `r` of the box or of a callout's line? */
+export function hitsText(t: TextItem, x: number, y: number, r: number): boolean {
+	const b = textBounds(t);
+	if (x >= b.x0 - r && x <= b.x1 + r && y >= b.y0 - r && y <= b.y1 + r) return true;
+	const line = calloutLine(t);
+	if (!line) return false;
+	const reach = r + calloutWidth(t) / 2;
+	for (let i = 0; i + 3 < line.length; i += 2) {
+		const [ax, ay, bx, by] = [line[i], line[i + 1], line[i + 2], line[i + 3]];
+		const length = (bx - ax) ** 2 + (by - ay) ** 2;
+		const at = length ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / length)) : 0;
+		if (Math.hypot(x - ax - at * (bx - ax), y - ay - at * (by - ay)) <= reach) return true;
+	}
+	return false;
+}
+
+/** Draws a callout's line with its arrow (page points); nothing for other text boxes */
+export function drawCallout(ctx: Ctx, t: TextItem) {
+	const line = calloutLine(t);
+	if (!line) return;
+	const head = calloutHead(line, calloutWidth(t));
+	ctx.save();
+	ctx.strokeStyle = calloutColor(t);
+	ctx.lineWidth = calloutWidth(t);
+	ctx.lineJoin = 'miter';
+	ctx.lineCap = 'butt';
+	ctx.setLineDash([]);
+	ctx.beginPath();
+	ctx.moveTo(line[0], line[1]);
+	for (let i = 2; i < line.length; i += 2) ctx.lineTo(line[i], line[i + 1]);
+	ctx.moveTo(head[0], head[1]);
+	ctx.lineTo(head[2], head[3]);
+	ctx.lineTo(head[4], head[5]);
+	ctx.stroke();
+	ctx.restore();
+}
+
+/** Draws a text box (page points): a callout's line, background, border, then its lines from its top left corner
+ * in its direction */
 export function drawText(ctx: Ctx, t: TextItem) {
 	const { w, h } = textExtent(t);
 	const bw = borderOf(t);
 	const pad = TEXT_PAD + bw;
+	drawCallout(ctx, t);
 	ctx.save();
 	ctx.translate(t.x + t.w / 2, t.y + t.h / 2);
 	if (t.rot) ctx.rotate((t.rot * Math.PI) / 180);

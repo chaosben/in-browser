@@ -11,7 +11,7 @@ import { IDENTITY, type Transform } from '../lasso.js';
 import type { HandleOptions, SceneItem, SurfacePage } from '../render/kit.js';
 import type { PageScene } from '../render/scene.js';
 import type { SelectionHandle, Stage } from '../render/stage.js';
-import { closed, PLAIN, styleOf, withHeads, withStyle, type ShapeStyle } from '../shapes.js';
+import { closed, endOf, PLAIN, styleOf, withHeads, withStyle, type LineEnd, type ShapeStyle } from '../shapes.js';
 import type { AlignEdge, Order } from '../edit/items.js';
 
 /** Items taken out of a page while they are dragged, with their places in the draw order */
@@ -48,7 +48,7 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 	/** Some selected shapes can be filled / are lines (arrowheads); style and arrowheads of the first of them */
 	shapes = $state({ any: false, fillable: false, lines: false });
 	style = $state<ShapeStyle>({ ...PLAIN });
-	heads = $state({ start: false, end: false });
+	heads = $state<{ start: LineEnd | null; end: LineEnd | null }>({ start: null, end: null });
 	/** Some selected item can't move (`ItemKit.fixed`): no handles, no dragging; aligning and duplicating leave it */
 	fixed = $state(false);
 	/** Selected items that may move (aligned, distributed, duplicated – fixed ones stay where they are) */
@@ -195,10 +195,10 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		const ink = items.filter(isInk);
 		this.size = ink[0]?.size ?? 0;
 		const shapes = items.filter(isShape);
-		const lines = shapes.flatMap((s) => (s.fit.kind === 'line' ? [s.fit] : []));
+		const lines = shapes.flatMap((s) => (s.fit.kind === 'line' || s.fit.kind === 'polyline' ? [s.fit] : []));
 		this.shapes = { any: shapes.length > 0, fillable: shapes.some((s) => closed(s.fit)), lines: lines.length > 0 };
 		this.style = shapes.length ? styleOf(shapes.find((s) => closed(s.fit)) ?? shapes[0]) : { ...PLAIN };
-		this.heads = { start: !!lines[0]?.start, end: !!lines[0]?.end };
+		this.heads = { start: endOf(lines[0]?.start), end: endOf(lines[0]?.end) };
 		this.fixed = !!scene && items.some((i) => scene.kit.fixed?.(i));
 		this.movable = scene ? items.filter((i) => !scene.kit.fixed?.(i)).length : 0;
 		if (!scene || !items.length) {
@@ -405,9 +405,11 @@ export class Selection<P extends SurfacePage, I extends SceneItem> {
 		this.refresh();
 	}
 
-	/** Arrowheads of the selected lines (one undo step) */
-	setHeads(start: boolean, end: boolean) {
-		this.doc.change(this.page, this.ids, (item) => (isShape(item) && item.fit.kind === 'line' ? { ...item, fit: withHeads(item.fit, start, end) } : null));
+	/** What the selected lines and open lines carry at their ends (one undo step) */
+	setHeads(start: LineEnd | null, end: LineEnd | null) {
+		this.doc.change(this.page, this.ids, (item) =>
+			isShape(item) && (item.fit.kind === 'line' || item.fit.kind === 'polyline') ? { ...item, fit: withHeads(item.fit, start, end) } : null
+		);
 		this.refresh();
 	}
 }

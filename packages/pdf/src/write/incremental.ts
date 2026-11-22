@@ -8,14 +8,23 @@
 // New objects (annotations and their appearances) are written as PDF source text. Files whose end can't be trusted
 // (no `startxref`, or it points nowhere) are written completely once when opened – the base is then that repaired file.
 // Files protected without a password are read decrypted and the section is encrypted with their key (`load.ts`).
+//
+// The one exception: when a page's content changes (`PdfEdits.content`), the file is written anew as a whole with
+// only what can still be reached from its catalog – content taken out must not stay in the file (`whole`).
 
-import type { PDFArray, PDFDict, PDFDocument, PDFObject, PDFRef } from 'pdf-lib';
+import type { PDFArray, PDFDict, PDFDocument, PDFObject, PDFRawStream, PDFRef } from 'pdf-lib';
+import { contentObjects, type ContentFont, type ContentObject, type ContentResources } from '../content/objects.js';
+import { pdfNumber, rewriteContent, usedResources, type ContentChange } from '../content/rewrite.js';
+import { tokenize, type Op } from '../content/tokens.js';
 import type { PdfCrypt } from '../crypt.js';
+import type { Matrix } from '../geometry.js';
 import { encryptObject, loadPdf } from '../load.js';
 import { pdfLib } from '../pdf-lib.js';
 import { PdfError } from '../pdfjs.js';
-import type { ExistingAnnotation, ExistingReply, ExistingState, NewAnnotation, PaintOpacity, ReviewState, Rgb } from './annotations.js';
+import type { AttachedFile, ExistingAnnotation, ExistingReply, ExistingState, NewAnnotation, PaintOpacity, ReviewState, Rgb } from './annotations.js';
 import { annotationObjects, REPLACED_KEYS, REVIEW_STATES } from './annotations.js';
+import { embedForms, formOfStream, type PdfForm, type PdfPicture } from './form.js';
+import type { PdfImage } from './image.js';
 import { placeholdersOf, UNICODE_FONT, UNICODE_TEXT, unicodeFont, type UnicodeFont } from './unicode.js';
 
 /** What changes, relative to the original file */
@@ -49,6 +58,42 @@ export interface PdfEdits {
 	 * then written flat (its inherited entries copied into the pages that move to the root).
 	 */
 	pages?: readonly PageSlot[];
+	/**
+	 * Page index → changes to objects of its content (`contentObjects`: id → moved/scaled or taken out). Only pages of
+	 * the file. **With any of these the file is written anew as a whole** instead of appended to, holding only what
+	 * is still used – what was taken out is gone from the file, and so are earlier versions kept inside it.
+	 * Signatures don't survive that.
+	 */
+	content?: ReadonlyMap<number, ReadonlyMap<number, ContentChange>>;
+	/**
+	 * Page index → drawings made part of the page's content (comments flattened, a picture in an image's place), in
+	 * the order they are drawn. Like `content` this writes the file anew. Only pages of the file.
+	 */
+	flatten?: ReadonlyMap<number, readonly Flattened[]>;
+}
+
+/** A drawing put into a page's content: what an annotation would look like (only its appearance is used) */
+export interface Flattened {
+	annotation: NewAnnotation;
+	/** Moved or scaled afterwards (user space) */
+	matrix?: Matrix;
+	/** Drawn in the place of this object of the content, which is taken out (not text); else on top of everything */
+	at?: number;
+}
+
+/** A page's content read for editing */
+interface PageContent {
+	data: Uint8Array;
+	ops: Op[];
+	objects: ContentObject[];
+}
+
+/** A page's content written anew: the stream (deflated) and what it still uses of the resources */
+interface NewContent {
+	stream: Uint8Array;
+	used: { xobjects: Set<string>; fonts: Set<string> };
+	/** Drawings added to it: the XObject name each is drawn by, and the annotation whose appearance it is */
+	drawn: { name: string; annotation: NewAnnotation }[];
 }
 
 /** A page of the edited PDF: one of the file (its index there), a new blank one (size in points) or one copied from
@@ -56,7 +101,7 @@ export interface PdfEdits {
 export type PageSlot = { base: number } | { blank: { width: number; height: number } } | { copy: { pdf: Uint8Array; index: number } };
 
 /** Subtypes `annotations()` reads (the ones tools draw themselves; notes that answer another – `/IRT` – are left out) */
-const READ = new Set(['Text', 'FreeText', 'Ink', 'Line', 'Square', 'Circle', 'Polygon', 'PolyLine', 'Highlight', 'Underline', 'StrikeOut', 'Squiggly']);
+const READ = new Set(['Text', 'FreeText', 'Ink', 'Line', 'Square', 'Circle', 'Polygon', 'PolyLine', 'Highlight', 'Underline', 'StrikeOut', 'Squiggly', 'Stamp', 'Caret', 'FileAttachment', 'Link']);
 
 /** How the original ends: where its last cross-reference section is and how it looks */
 export interface PdfTail {
@@ -151,6 +196,9 @@ export class IncrementalPdf {
 		readonly locked = false
 	) {}
 
+	/** Pages' contents as read (page index → content; null: can't be read) */
+	private readonly contents = new Map<number, PageContent | null>();
+
 	/** Parses the original once (yielding now and then, so the page stays responsive) */
 	static async open(file: Uint8Array): Promise<IncrementalPdf> {
 		const lib = await pdfLib();
@@ -178,6 +226,154 @@ export class IncrementalPdf {
 
 	get pageCount(): number {
 		return this.doc.getPageCount();
+	}
+
+	/**
+	 * The objects of a page's own content (text pieces, images, paths, forms) with their boxes in the page's user
+	 * space; null when the content can't be read safely – such a page isn't edited.
+	 */
+	contentObjects(index: number): readonly ContentObject[] | null {
+		return this.pageContent(index)?.objects ?? null;
+	}
+
+	private pageContent(index: number): PageContent | null {
+		if (this.contents.has(index)) return this.contents.get(index)!;
+		let found: PageContent | null = null;
+		try {
+			const data = this.contentBytes(index);
+			const ops = tokenize(data);
+			found = { data, ops, objects: contentObjects(ops, this.contentResources(index)) };
+		} catch (e) {
+			console.warn('[pdf] page content', index, e);
+		}
+		this.contents.set(index, found);
+		return found;
+	}
+
+	/** A page's content streams, decoded and joined */
+	private contentBytes(index: number): Uint8Array {
+		const { PDFArray, PDFName, PDFRawStream, decodePDFRawStream } = this.lib;
+		const contents = this.doc.getPage(index).node.lookup(PDFName.of('Contents'));
+		const streams = contents instanceof PDFArray ? contents.asArray().map((ref) => this.doc.context.lookup(ref)) : contents ? [contents] : [];
+		const parts = streams.map((stream) => {
+			if (!(stream instanceof PDFRawStream)) throw new Error('content is no stream');
+			return decodePDFRawStream(stream).decode();
+		});
+		const out = new Uint8Array(parts.reduce((sum, p) => sum + p.length + 1, 0));
+		let at = 0;
+		for (const part of parts) {
+			out.set(part, at);
+			at += part.length;
+			out[at++] = 0x0a;
+		}
+		return out;
+	}
+
+	/** What the content's walk needs of a page's resources: its XObjects' kinds and boxes, its fonts' widths */
+	private contentResources(index: number): ContentResources {
+		const { PDFArray, PDFDict, PDFName, PDFNumber, PDFStream } = this.lib;
+		const context = this.doc.context;
+		const resources = this.doc.getPage(index).node.Resources();
+		const entry = (kind: string, name: string) => resources?.lookupMaybe(PDFName.of(kind), PDFDict)?.lookup(PDFName.of(name));
+		const numbers = (o: unknown): number[] => (o instanceof PDFArray ? o.asArray().map((v) => context.lookup(v)).map((v) => (v instanceof PDFNumber ? v.asNumber() : 0)) : []);
+		const fonts = new Map<string, ContentFont | null>();
+		const font = (name: string): ContentFont | null => {
+			const dict = entry('Font', name);
+			if (!(dict instanceof PDFDict)) return null;
+			const number = (d: PDFDict, key: string) => d.lookupMaybe(PDFName.of(key), PDFNumber)?.asNumber();
+			if (dict.get(PDFName.of('Subtype')) === PDFName.of('Type0')) {
+				const descendant = dict.lookupMaybe(PDFName.of('DescendantFonts'), PDFArray)?.lookupMaybe(0, PDFDict);
+				const dw = (descendant && number(descendant, 'DW')) ?? 1000;
+				// `/W`: `first [w …]` or `first last w`
+				const widths = new Map<number, number>();
+				const ranges: [number, number, number][] = [];
+				const w = descendant?.lookupMaybe(PDFName.of('W'), PDFArray);
+				for (let i = 0; w && i < w.size(); ) {
+					const first = w.lookupMaybe(i, PDFNumber)?.asNumber() ?? 0;
+					const next = w.lookup(i + 1);
+					if (next instanceof PDFArray) {
+						numbers(next).forEach((v, k) => widths.set(first + k, v));
+						i += 2;
+					} else {
+						ranges.push([first, next instanceof PDFNumber ? next.asNumber() : first, w.lookupMaybe(i + 2, PDFNumber)?.asNumber() ?? dw]);
+						i += 3;
+					}
+				}
+				return { bytes: 2, width: (code) => widths.get(code) ?? ranges.find((r) => code >= r[0] && code <= r[1])?.[2] ?? dw };
+			}
+			const first = number(dict, 'FirstChar') ?? 0;
+			const widths = numbers(dict.lookup(PDFName.of('Widths')));
+			const descriptor = dict.lookupMaybe(PDFName.of('FontDescriptor'), PDFDict);
+			// Without widths (the standard fonts): an average glyph; Courier is 600 wide
+			const base = String(dict.get(PDFName.of('BaseFont')) ?? '');
+			const missing = (descriptor && number(descriptor, 'MissingWidth')) || (/Courier/.test(base) ? 600 : 500);
+			return { bytes: 1, width: (code) => widths[code - first] || missing };
+		};
+		return {
+			xobject: (name) => {
+				const stream = entry('XObject', name);
+				if (!(stream instanceof PDFStream)) return null;
+				const subtype = stream.dict.get(PDFName.of('Subtype'));
+				if (subtype === PDFName.of('Image')) return { kind: 'image' };
+				if (subtype !== PDFName.of('Form')) return null;
+				const bbox = numbers(stream.dict.lookup(PDFName.of('BBox')));
+				const matrix = numbers(stream.dict.lookup(PDFName.of('Matrix')));
+				if (bbox.length !== 4) return null;
+				return { kind: 'form', bbox, matrix: (matrix.length === 6 ? matrix : [1, 0, 0, 1, 0, 0]) as Matrix };
+			},
+			font: (name) => {
+				if (!fonts.has(name)) fonts.set(name, font(name));
+				return fonts.get(name)!;
+			}
+		};
+	}
+
+	/** Changed pages' contents as they are written: only those that really differ from the file's */
+	private async newContents(edits: PdfEdits): Promise<Map<number, NewContent>> {
+		const { PDFDict, PDFName } = this.lib;
+		const out = new Map<number, NewContent>();
+		const slots = edits.pages;
+		const source = (m: Matrix) => m.map(pdfNumber).join(' ');
+		for (const index of new Set([...(edits.content?.keys() ?? []), ...(edits.flatten?.keys() ?? [])])) {
+			const slot = slots ? slots[index] : { base: index };
+			const flattened = edits.flatten?.get(index) ?? [];
+			if (!slot || !('base' in slot)) continue;
+			const content = this.pageContent(slot.base);
+			if (!content) continue;
+			// Names for the drawings that the page doesn't use yet
+			const taken = new Set((this.doc.getPage(slot.base).node.Resources()?.lookupMaybe(PDFName.of('XObject'), PDFDict)?.keys() ?? []).map((k) => k.asString().slice(1)));
+			let n = 0;
+			const drawn = flattened.map((f) => {
+				while (taken.has(`InB${n}`)) n++;
+				const name = `InB${n++}`;
+				return { name, annotation: f.annotation, draw: `${f.matrix ? `${source(f.matrix)} cm ` : ''}/${name} Do`, at: f.at };
+			});
+			const changes = new Map(edits.content?.get(index) ?? []);
+			const put = new Map<number, string>();
+			const known = new Map(content.objects.map((o) => [o.id, o]));
+			const onTop: string[] = [];
+			for (const d of drawn) {
+				const place = d.at !== undefined ? known.get(d.at) : undefined;
+				if (place && place.kind !== 'text') {
+					changes.set(place.id, { remove: true });
+					put.set(place.id, d.draw);
+				} else onTop.push(d.draw);
+			}
+			let data = rewriteContent(content.data, content.ops, content.objects, changes, put);
+			if (data === content.data && !onTop.length) continue;
+			if (onTop.length) {
+				// Drawn in the page's own space, whatever state the file's content leaves behind
+				const tail = ascii.encode(`\nQ\n${onTop.map((d) => `q ${d} Q\n`).join('')}`);
+				const joined = new Uint8Array(2 + data.length + tail.length);
+				joined.set(ascii.encode('q\n'));
+				joined.set(data, 2);
+				joined.set(tail, 2 + data.length);
+				data = joined;
+			}
+			const stream = new Uint8Array(await new Response(new Blob([data as Uint8Array<ArrayBuffer>]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
+			out.set(index, { stream, used: usedResources(tokenize(data)), drawn });
+		}
+		return out;
 	}
 
 	/** Rotation of a page in the original (inherited from the page tree when the page has none) */
@@ -222,7 +418,7 @@ export class IncrementalPdf {
 		return out;
 	}
 
-	/** A page's review states (`/State` in the `Review` model; other models – Acrobat's private “Marked” – are left out) */
+	/** A page's review states (`/State` in the `Review` model; other models, e.g. “Marked”, are left out) */
 	states(index: number): ExistingState[] {
 		const { PDFArray, PDFDict, PDFName, PDFRef, PDFString, PDFHexString } = this.lib;
 		const annots = this.doc.getPage(index).node.lookupMaybe(PDFName.of('Annots'), PDFArray);
@@ -271,6 +467,8 @@ export class IncrementalPdf {
 			}
 			return values;
 		};
+		/** Text marks that say they are a part of another annotation (`/RT /Group`): their ref → that one's */
+		const partOf = new Map<string, string>();
 		for (let i = 0; i < (annots?.size() ?? 0); i++) {
 			const ref = annots!.get(i);
 			if (!(ref instanceof PDFRef)) continue;
@@ -278,6 +476,8 @@ export class IncrementalPdf {
 				const dict = this.doc.context.lookup(ref);
 				if (!(dict instanceof PDFDict)) continue;
 				const subtype = dict.lookupMaybe(key('Subtype'), PDFName)?.asString().slice(1);
+				const whole = dict.get(key('IRT'));
+				if (subtype === 'StrikeOut' && whole instanceof PDFRef && dict.lookupMaybe(key('RT'), PDFName)?.asString() === '/Group') partOf.set(ref.toString(), whole.toString());
 				const flags = dict.lookupMaybe(key('F'), PDFNumber)?.asNumber() ?? 0;
 				// Hidden (2) or not viewed (32)
 				if (!subtype || !READ.has(subtype) || flags & 34) continue;
@@ -293,7 +493,9 @@ export class IncrementalPdf {
 				const inset = numbers(dict.get(key('RD')));
 				const inkList = dict.lookupMaybe(key('InkList'), PDFArray);
 				const line = numbers(dict.get(key('L')));
-				const endings = dict.lookupMaybe(key('LE'), PDFArray);
+				// A line's two endings; a callout has one, as a name
+				const ends = dict.lookup(key('LE'));
+				const endings = ends instanceof PDFArray ? ends : undefined;
 				const modified = dict.lookupMaybe(key('M'), PDFString, PDFHexString);
 				out.push({
 					ref: ref.toString(),
@@ -316,23 +518,91 @@ export class IncrementalPdf {
 					line: line?.length === 4 ? (line as [number, number, number, number]) : undefined,
 					lineEndings: endings?.asArray().map((_, k) => endings.lookupMaybe(k, PDFName)?.asString().slice(1) ?? 'None'),
 					vertices: numbers(dict.get(key('Vertices'))),
+					cloud: dict.lookupMaybe(key('BE'), PDFDict)?.lookupMaybe(key('S'), PDFName)?.asString() === '/C' || undefined,
+					callout: numbers(dict.get(key('CL'))),
+					file: subtype === 'FileAttachment' ? this.attachedFile(dict) : undefined,
+					...(subtype === 'Link' ? this.linkTarget(dict) : {}),
 					quadPoints: numbers(dict.get(key('QuadPoints'))),
 					defaultAppearance: text('DA'),
 					quadding: dict.lookupMaybe(key('Q'), PDFNumber)?.asNumber(),
 					paint: this.paintOpacity(dict),
+					image: subtype === 'Stamp' ? this.stampImage(dict) : undefined,
 					data: text('InBrowser')
 				});
 			} catch (e) {
 				console.warn('[pdf] annotation not read', e);
 			}
 		}
-		return out;
+		// The struck text of a replacement goes with its insertion mark; with any other partner it stays a mark of its own
+		const byRef = new Map(out.map((a) => [a.ref, a]));
+		return out.filter((a) => {
+			const whole = byRef.get(partOf.get(a.ref) ?? '');
+			if (whole?.subtype !== 'Caret' || !a.quadPoints) return true;
+			(whole.grouped ??= []).push({ ref: a.ref, quadPoints: a.quadPoints, contents: a.contents });
+			return false;
+		});
+	}
+
+	/** Where a `/Link` leads: a web address (`/A` with `/URI`), or a page (`/Dest` or `/A` with `/GoTo`; an explicit
+	 * destination – named ones are left to PDF.js) */
+	private linkTarget(dict: PDFDict): { uri?: string; destPage?: number } {
+		const { PDFArray, PDFDict, PDFName, PDFRef, PDFString, PDFHexString } = this.lib;
+		const action = dict.lookupMaybe(PDFName.of('A'), PDFDict);
+		const kind = action?.lookupMaybe(PDFName.of('S'), PDFName)?.asString();
+		if (kind === '/URI') return { uri: action!.lookupMaybe(PDFName.of('URI'), PDFString, PDFHexString)?.decodeText() };
+		const dest = kind === '/GoTo' ? action!.lookup(PDFName.of('D')) : dict.lookup(PDFName.of('Dest'));
+		const page = dest instanceof PDFArray ? dest.get(0) : undefined;
+		if (!(page instanceof PDFRef)) return {};
+		const index = this.doc.getPages().findIndex((p) => p.ref === page);
+		return index >= 0 ? { destPage: index } : {};
+	}
+
+	/** The file of a `/FileAttachment` (its stream decoded) with its name */
+	private attachedFile(dict: PDFDict): AttachedFile | undefined {
+		const { PDFDict, PDFName, PDFString, PDFHexString, PDFRawStream: RawStream, decodePDFRawStream } = this.lib;
+		const spec = dict.lookupMaybe(PDFName.of('FS'), PDFDict);
+		const embedded = spec?.lookupMaybe(PDFName.of('EF'), PDFDict);
+		const stream = embedded?.lookup(PDFName.of('UF')) ?? embedded?.lookup(PDFName.of('F'));
+		if (!spec || !(stream instanceof RawStream)) return undefined;
+		const name = (spec.lookupMaybe(PDFName.of('UF'), PDFString, PDFHexString) ?? spec.lookupMaybe(PDFName.of('F'), PDFString, PDFHexString))?.decodeText();
+		try {
+			return { name: name || 'file', bytes: decodePDFRawStream(stream).decode() };
+		} catch (e) {
+			console.warn('[pdf] attached file not read', e);
+			return undefined;
+		}
+	}
+
+	/** The one picture a stamp's appearance draws, when it is stored the way `imageObjects` writes pictures */
+	private stampImage(dict: PDFDict): PdfPicture | undefined {
+		const { PDFDict, PDFName, PDFNumber, PDFRawStream: RawStream } = this.lib;
+		const name = (d: PDFDict, k: string) => d.lookupMaybe(PDFName.of(k), PDFName)?.asString();
+		const plain = (s: unknown, space: string): s is PDFRawStream =>
+			s instanceof RawStream && name(s.dict, 'ColorSpace') === space && s.dict.lookupMaybe(PDFName.of('BitsPerComponent'), PDFNumber)?.asNumber() === 8 && !s.dict.has(PDFName.of('DecodeParms'));
+		const normal = dict.lookupMaybe(PDFName.of('AP'), PDFDict)?.lookup(PDFName.of('N'));
+		const xobjects = normal instanceof RawStream ? normal.dict.lookupMaybe(PDFName.of('Resources'), PDFDict)?.lookupMaybe(PDFName.of('XObject'), PDFDict) : undefined;
+		const images = (xobjects?.keys() ?? []).map((k) => xobjects!.lookup(k)).filter((x) => x instanceof RawStream && name(x.dict, 'Subtype') === '/Image');
+		const [image] = images;
+		// Vectors: the one form it draws
+		const all = (xobjects?.keys() ?? []).map((k) => xobjects!.lookup(k));
+		const [only] = all;
+		if (all.length === 1 && only instanceof RawStream && name(only.dict, 'Subtype') === '/Form') return formOfStream(this.lib, only);
+		if (images.length !== 1 || !plain(image, '/DeviceRGB')) return undefined;
+		const width = image.dict.lookupMaybe(PDFName.of('Width'), PDFNumber)?.asNumber();
+		const height = image.dict.lookupMaybe(PDFName.of('Height'), PDFNumber)?.asNumber();
+		if (!width || !height) return undefined;
+		const filter = name(image.dict, 'Filter');
+		if (filter === '/DCTDecode') return { width, height, jpeg: image.contents };
+		if (filter !== '/FlateDecode') return undefined;
+		const mask = image.dict.lookup(PDFName.of('SMask'));
+		if (!mask) return { width, height, rgb: image.contents };
+		return plain(mask, '/DeviceGray') && name(mask.dict, 'Filter') === '/FlateDecode' ? { width, height, rgb: image.contents, alpha: mask.contents } : undefined;
 	}
 
 	/**
 	 * Opacities an annotation's normal appearance paints with: of its first fill outside text (`fill`, by `ca`), its
 	 * first stroke (`stroke`, by `CA`) and its first text (`text`, by `ca`) – by the graphics states it sets (`gs`,
-	 * kept across `q`/`Q`), into forms it draws (`Do`, times the opacity they are drawn with). How PDF-XChange & co.
+	 * kept across `q`/`Q`), into forms it draws (`Do`, times the opacity they are drawn with). How PDF programs
 	 * keep a see-through background apart from text and border; undefined where there is none or it can't be read.
 	 */
 	private paintOpacity(dict: PDFDict): PaintOpacity | undefined {
@@ -384,14 +654,22 @@ export class IncrementalPdf {
 	async update(edits: PdfEdits): Promise<Uint8Array> {
 		if (this.locked) throw new PdfError('password');
 		// Text beyond WinAnsi: one subset font for all of this update's appearances
-		const written = [...(edits.annotations?.values() ?? [])].flat().concat([...(edits.replace?.values() ?? [])]);
+		const written = [...(edits.annotations?.values() ?? [])]
+			.flat()
+			.concat([...(edits.replace?.values() ?? [])])
+			.concat([...(edits.flatten?.values() ?? [])].flat().map((f) => f.annotation));
 		const placeholders = written
 			.flatMap((a) => [a.appearance.content, ...(a.appearance.groups ?? [])].flatMap(placeholdersOf));
 		const font = placeholders.length ? await unicodeFont(placeholders) : null;
 		const copies = await this.copied(edits.pages ?? []);
+		const drawn = written.flatMap((a) => a.appearance.forms ?? []);
+		const forms = drawn.length ? await embedForms(this.lib, drawn) : null;
 		const form = edits.form ? await this.formUpdate(edits.form) : null;
-		let objects = this.changes(edits, font, copies, form);
+		const contents = await this.newContents(edits);
+		let objects = this.changes(edits, font, copies, form, forms, contents);
 		if (!objects.length) return this.base;
+		// Content changed: nothing of the old file may stay that isn't used any more
+		if (contents.size) return this.whole(objects);
 		if (this.crypt) objects = await Promise.all(objects.map((o) => this.sealed(o, this.crypt!)));
 		const section = this.section(objects, this.tail);
 		const out = new Uint8Array(this.base.length + section.length);
@@ -432,7 +710,14 @@ export class IncrementalPdf {
 	}
 
 	/** Objects that differ from the original (clones, never the parsed objects themselves) and new ones */
-	private changes(edits: PdfEdits, font: UnicodeFont | null = null, copies: Copies | null = null, form: FormUpdate | null = null): SectionObject[] {
+	private changes(
+		edits: PdfEdits,
+		font: UnicodeFont | null = null,
+		copies: Copies | null = null,
+		form: FormUpdate | null = null,
+		forms: Awaited<ReturnType<typeof embedForms>> | null = null,
+		contents: ReadonlyMap<number, NewContent> = new Map()
+	): SectionObject[] {
 		const { PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef } = this.lib;
 		const context = this.doc.context;
 		const out: SectionObject[] = [];
@@ -490,8 +775,16 @@ export class IncrementalPdf {
 				copiedPages.set(slot, { ref: PDFRef.of(num, 0), dict, annots: array instanceof PDFArray ? array.asArray() : [] });
 			}
 		}
-		/** An annotation as written: the embedded font's glyphs in place of its placeholders */
+		// Vector pictures: each form once
+		const formRefs = new Map<PdfForm, string>();
+		if (forms) {
+			const { renumbered, objects } = adopt(forms.doc, forms.numbers);
+			for (const [num, object] of objects) out.push({ num, gen: 0, body: bytesOf(object) });
+			for (const [drawn, ref] of forms.refs) formRefs.set(drawn, `${renumbered.get(ref.objectNumber)} 0 R`);
+		}
+		/** An annotation as written: the embedded font's glyphs in place of its placeholders, its forms' objects */
 		const ready = (a: NewAnnotation): NewAnnotation => {
+			if (a.appearance.forms?.length) a = { ...a, appearance: { ...a.appearance, formRefs: a.appearance.forms.map((f) => formRefs.get(f) ?? '') } };
 			if (!font) return a;
 			const fill = (content: string) => content.replace(UNICODE_TEXT, (_, hex: string) => font.glyphs.get(hex) ?? '<>');
 			const fonts = Object.fromEntries(Object.entries(a.appearance.fonts ?? {}).map(([name, base]) => [name, base === UNICODE_FONT ? fontRef : base]));
@@ -502,7 +795,7 @@ export class IncrementalPdf {
 		const slots: readonly PageSlot[] = edits.pages ?? Array.from({ length: this.pageCount }, (_, i) => ({ base: i }));
 		/** The file's pages as they are (no tree to write) */
 		const same = slots.length === this.pageCount && slots.every((s, i) => 'base' in s && s.base === i);
-		const pages = new Set([...(edits.rotate?.keys() ?? []), ...(edits.annotations?.keys() ?? []), ...(edits.order?.keys() ?? [])]);
+		const pages = new Set([...(edits.rotate?.keys() ?? []), ...(edits.annotations?.keys() ?? []), ...(edits.order?.keys() ?? []), ...contents.keys()]);
 		if (!same) slots.forEach((_, i) => pages.add(i));
 		const slotRefs = slots.map((s, i) => ('base' in s ? this.doc.getPage(s.base).ref : (copiedPages.get(i)?.ref ?? PDFRef.of(next++))));
 		// Replies find what they answer by its ref, or by the name of one written in this update (replaced ones keep
@@ -512,8 +805,10 @@ export class IncrementalPdf {
 		const replyEntry = (a: NewAnnotation) => {
 			if (!a.replyTo) return '';
 			const parent = /^\d+ \d+ R$/.test(a.replyTo) ? a.replyTo : named.get(a.replyTo);
-			return parent ? `/IRT ${parent}${a.state ? '' : ' /RT /R'}` : '';
+			return parent ? `/IRT ${parent}${a.group ? ' /RT /Group' : a.state ? '' : ' /RT /R'}` : '';
 		};
+		// A link to a page names that page's object
+		const destEntry = (a: NewAnnotation) => (a.destPage !== undefined && slotRefs[a.destPage] ? ` /Dest [${slotRefs[a.destPage]} /XYZ null null null]` : '');
 		// Entries changed in annotations of the file that are otherwise kept
 		for (const [ref, change] of edits.patch ?? []) {
 			if (replace.has(ref) || remove.has(ref)) continue;
@@ -546,7 +841,7 @@ export class IncrementalPdf {
 					const ref = before.get(i);
 					const annotation = ref instanceof PDFRef && !gone.has(ref.toString()) ? replace.get(ref.toString()) : undefined;
 					if (!annotation) continue;
-					const [dict, ...rest] = annotationObjects(ready(annotation), next, pageRef, this.keptEntries(ref as PDFRef, annotation));
+					const [dict, ...rest] = annotationObjects(ready(annotation), next, pageRef, this.keptEntries(ref as PDFRef, annotation) + destEntry(annotation));
 					out.push({ num: (ref as PDFRef).objectNumber, gen: (ref as PDFRef).generationNumber, body: bytesOfSource(dict) });
 					for (const body of rest) out.push({ num: next++, gen: 0, body: bytesOfSource(body) });
 				}
@@ -554,7 +849,8 @@ export class IncrementalPdf {
 			const order = edits.order?.get(index);
 			// Moving to the root of a flat tree: what it inherited comes along
 			const moves = !same && !!page && page.node.get(PDFName.of('Parent'))?.toString() !== root?.toString();
-			if (page && !turn && !added.length && !gone.size && !order && !moves) continue;
+			const content = page ? contents.get(index) : undefined;
+			if (page && !turn && !added.length && !gone.size && !order && !moves && !content) continue;
 			let dict: PDFDict;
 			const copy = copiedPages.get(index);
 			if (copy) {
@@ -581,11 +877,43 @@ export class IncrementalPdf {
 				dict.set(PDFName.of('Rotate'), PDFNumber.of(0));
 			}
 			if (turn) dict.set(PDFName.of('Rotate'), PDFNumber.of(normalize(angle)));
+			if (content && page) {
+				// The content as one new stream; the old streams aren't named any more and so aren't written (`whole`)
+				const ref = PDFRef.of(next++);
+				dict.set(PDFName.of('Contents'), ref);
+				const head = ascii.encode(`<< /Length ${content.stream.length} /Filter /FlateDecode >>\nstream\n`);
+				const foot = ascii.encode('\nendstream');
+				const body = new Uint8Array(head.length + content.stream.length + foot.length);
+				body.set(head);
+				body.set(content.stream, head.length);
+				body.set(foot, head.length + content.stream.length);
+				out.push({ num: ref.objectNumber, gen: 0, body });
+				// Its own resources, without the images, forms and fonts the content no longer draws – so they
+				// leave the file when nothing else uses them
+				const resources = page.node.Resources();
+				const own = resources ? resources.clone(context) : PDFDict.withContext(context);
+				for (const [kind, used] of [['XObject', content.used.xobjects], ['Font', content.used.fonts]] as const) {
+					const entries = resources?.lookupMaybe(PDFName.of(kind), PDFDict);
+					const kept = PDFDict.withContext(context);
+					for (const [name, value] of entries?.entries() ?? []) if (used.has(name.asString().slice(1))) kept.set(name, value);
+					// Drawings made part of the content: each the appearance an annotation would have (its other
+					// objects follow it), without the annotation itself
+					if (kind === 'XObject') {
+						for (const d of content.drawn) {
+							const [, ...objects] = annotationObjects(ready(d.annotation), next, pageRef);
+							kept.set(PDFName.of(d.name), PDFRef.of(next));
+							for (const body of objects) out.push({ num: next++, gen: 0, body: bytesOfSource(body) });
+						}
+					}
+					if (entries || kept.entries().length) own.set(PDFName.of(kind), kept);
+				}
+				if (resources || content.drawn.length) dict.set(PDFName.of('Resources'), own);
+			}
 			if (added.length || gone.size || order) {
 				const refs = added.map((annotation) => {
 					const ref = PDFRef.of(next);
 					named.set(annotation.name, ref.toString());
-					for (const body of annotationObjects(ready(annotation), next + 1, pageRef, replyEntry(annotation))) out.push({ num: next++, gen: 0, body: bytesOfSource(body) });
+					for (const body of annotationObjects(ready(annotation), next + 1, pageRef, replyEntry(annotation) + destEntry(annotation))) out.push({ num: next++, gen: 0, body: bytesOfSource(body) });
 					return ref;
 				});
 				const kept: PDFObject[] = [...(copy?.annots ?? [])];
@@ -600,6 +928,8 @@ export class IncrementalPdf {
 					const queue = order.flatMap((e) => (typeof e === 'number' ? (refs[e] ? [refs[e]] : []) : listed.has(e) ? [listed.get(e)!] : []));
 					for (const entry of kept) annots.push(listed.has(entry.toString()) ? queue.shift()! : entry);
 					for (const entry of queue) annots.push(entry);
+					// What the order doesn't name (replies, parts of another annotation) comes last
+					refs.forEach((ref, i) => !order.includes(i) && annots.push(ref));
 				}
 				dict.set(PDFName.of('Annots'), annots);
 			}
@@ -688,6 +1018,83 @@ export class IncrementalPdf {
 	private async sealed(object: SectionObject, crypt: PdfCrypt): Promise<SectionObject> {
 		const parsed = this.lib.PDFObjectParser.forBytes(object.body, this.doc.context).parseObject();
 		return { ...object, body: bytesOf(await encryptObject(this.lib, crypt, parsed, object.num, object.gen)) };
+	}
+
+	/**
+	 * The whole file written anew: the changed and new objects and, of the file's own, only those still reached from
+	 * the trailer (catalog, info, encryption). What nothing names any more – a page's old content, an image only a
+	 * deleted object drew, earlier versions appended to the file – is not in it.
+	 */
+	private async whole(changed: SectionObject[]): Promise<Uint8Array> {
+		const { PDFArray, PDFDict, PDFObjectParser, PDFRef, PDFStream } = this.lib;
+		const context = this.doc.context;
+		const own = new Map<number, { gen: number; object: PDFObject }>();
+		for (const [ref, object] of context.enumerateIndirectObjects()) own.set(ref.objectNumber, { gen: ref.generationNumber, object });
+		const fresh = new Map(changed.map((o) => [o.num, o]));
+		const parsed = new Map<number, PDFObject>();
+		const objectOf = (num: number): PDFObject | undefined => {
+			const o = fresh.get(num);
+			if (!o) return own.get(num)?.object;
+			if (!parsed.has(num)) parsed.set(num, PDFObjectParser.forBytes(o.body, context).parseObject());
+			return parsed.get(num);
+		};
+		// Everything reached from the trailer (a stack, not recursion: lists of bookmarks run deep)
+		const reached = new Set<number>();
+		const { Root, Info } = context.trailerInfo;
+		const stack: (PDFObject | undefined)[] = [Root, Info, this.encrypt ?? undefined];
+		while (stack.length) {
+			const o = stack.pop();
+			if (o instanceof PDFRef) {
+				if (reached.has(o.objectNumber)) continue;
+				const target = objectOf(o.objectNumber);
+				if (!target) continue;
+				reached.add(o.objectNumber);
+				stack.push(target);
+			} else if (o instanceof PDFDict) {
+				for (const [, v] of o.entries()) stack.push(v);
+			} else if (o instanceof PDFArray) {
+				for (const v of o.asArray()) stack.push(v);
+			} else if (o instanceof PDFStream) {
+				stack.push(o.dict);
+			}
+		}
+		const encryptNum = this.encrypt instanceof PDFRef ? this.encrypt.objectNumber : -1;
+		const parts: Uint8Array[] = [];
+		let length = 0;
+		const push = (bytes: Uint8Array) => {
+			parts.push(bytes);
+			length += bytes.length;
+		};
+		const text = (s: string) => push(ascii.encode(s));
+		const version = /^%PDF-\d\.\d/.exec(latin1.decode(this.base.subarray(0, 8)))?.[0] ?? '%PDF-1.7';
+		text(`${version}\n`);
+		push(Uint8Array.of(0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a));
+		const entries: { num: number; gen: number; offset: number }[] = [];
+		for (const num of [...reached].sort((a, b) => a - b)) {
+			const written = fresh.get(num);
+			let object: SectionObject = written ?? { num, gen: own.get(num)!.gen, body: bytesOf(own.get(num)!.object) };
+			// The encryption dictionary itself is never encrypted
+			if (this.crypt && num !== encryptNum) object = await this.sealed(object, this.crypt);
+			entries.push({ num, gen: object.gen, offset: length });
+			text(`${num} ${object.gen} obj\n`);
+			push(object.body);
+			text('\nendobj\n');
+		}
+		const xref = length;
+		const size = Math.max(...entries.map((e) => e.num)) + 1;
+		text('xref\n0 1\n0000000000 65535 f\r\n');
+		for (const run of runs(entries)) {
+			text(`${run[0].num} ${run.length}\n`);
+			for (const e of run) text(`${String(e.offset).padStart(10, '0')} ${String(e.gen).padStart(5, '0')} n\r\n`);
+		}
+		text(`trailer\n<< /Size ${size} ${this.trailerEntries()} >>\nstartxref\n${xref}\n%%EOF\n`);
+		const out = new Uint8Array(length);
+		let at = 0;
+		for (const part of parts) {
+			out.set(part, at);
+			at += part.length;
+		}
+		return out;
 	}
 
 	/** The appended section: objects, cross-references, trailer */

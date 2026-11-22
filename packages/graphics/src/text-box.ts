@@ -1,4 +1,4 @@
-// Text boxes, the same in every tool (as in Figma): three sizings, handles that change only the box, the font scaled
+// Text boxes, the same in every tool: three sizings, handles that change only the box, the font scaled
 // only on request. Pure and unit-free: the tool measures (`measure`) and maps its own coordinates.
 //
 // - `auto-width`: as wide as the longest line, lines break only at Enter (and at the edge of the frame the tool gives)

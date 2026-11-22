@@ -7,11 +7,11 @@ import { union, type Box } from '../geometry.js';
 import type { Rect } from '@in-browser/graphics/snap.js';
 import type { SelectionDoc, Lifted } from '../input/selection.svelte.js';
 import type { SuggestionDoc } from '../input/suggestion.svelte.js';
-import { isStroke, type Ink, type InkTool, type ShapeItem, type Stroke } from '../items.js';
+import { isShape, isStroke, type Ink, type InkTool, type ShapeItem, type Stroke } from '../items.js';
 import { isIdentity, type Transform } from '../lasso.js';
 import type { ItemKit, SceneItem, SurfacePage } from '../render/kit.js';
 import type { PageScene } from '../render/scene.js';
-import { inkStrokes, withStyle, type ShapeFit, type ShapeStyle } from '../shapes.js';
+import { inkStrokes, styleOf, withStyle, type ShapeFit, type ShapeStyle } from '../shapes.js';
 import { eraseFromStroke } from '../split.js';
 
 /** One undo step */
@@ -99,6 +99,17 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 	/** Adds a shape drawn with the shape tool on top (one undo step); its id */
 	addShape(pageIndex: number, fit: ShapeFit, color: string, size: number, style: ShapeStyle): string | null {
 		return this.addItem(pageIndex, asItem<I>(withStyle({ id: crypto.randomUUID(), type: 'shape', fit, color, size }, style)));
+	}
+
+	/** The geometry of a shape on a page, null when it isn't there (any more) */
+	shapeFit(pageIndex: number, id: string): ShapeFit | null {
+		const item = this.sceneAt(pageIndex)?.scene.items.find((i) => i.id === id);
+		return item && isShape(item) ? item.fit : null;
+	}
+
+	/** Gives a shape another geometry – and style, e.g. a fill once it is closed (one undo step) */
+	setFit(pageIndex: number, id: string, fit: ShapeFit, style?: ShapeStyle) {
+		this.change(pageIndex, new Set([id]), (item) => (isShape(item) ? asItem<I>(withStyle({ ...item, fit }, style ?? styleOf(item))) : null));
 	}
 
 	/** Adds an item drawn on the surface on top (one undo step; drawn into the tiles, not re-rendered); its id */
@@ -264,7 +275,8 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 			if (old === null) return null;
 			// `old` as it looks (`ItemKit.color`, a highlighter's with its opacity): a color chosen fully opaque for a
 			// see-through item says so (`ff` – a highlighter without one would be see-through)
-			return { ...item, color: color.length === 7 && old.length === 9 ? `${color}ff` : color };
+			const next = color.length === 7 && old.length === 9 ? `${color}ff` : color;
+			return this.kit.recolor?.(item, next) ?? { ...item, color: next };
 		});
 	}
 
@@ -278,6 +290,24 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 			return changed ? [{ removed: item, at: scene.items.indexOf(item), added: [changed] }] : [];
 		});
 		this.applyOps(page.id, ops);
+	}
+
+	/** Changes items on every page as one undo step (e.g. a setting they all share) */
+	changeAll(change: (item: I) => I | null) {
+		const commands: Command[] = [];
+		for (const page of this.host.pages) {
+			const scene = this.host.scene(page.id);
+			if (!scene) continue;
+			const ops = scene.items.flatMap((item, at) => {
+				const changed = change(item);
+				return changed ? [{ removed: item, at, added: [changed] }] : [];
+			});
+			if (ops.length) commands.push(this.opsCommand(page.id, ops.reverse()));
+		}
+		if (!commands.length) return;
+		const command: Command = { undo: () => commands.forEach((c) => c.undo()), redo: () => commands.forEach((c) => c.redo()) };
+		command.redo();
+		this.host.push(command);
 	}
 
 	/** Moves items in the draw order (one undo step): all the way to the front or back, or one place past the next

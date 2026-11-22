@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Start page: the PDFs opened recently, "Open PDF …" from the files and "Open from the computer …" (a copy in the
+	// Start page: the PDFs opened recently, "New PDF …" (an empty one with a paper), "Open PDF …" from the files and "Open from the computer …" (a copy in the
 	// files first – the editor always works on a file it can save). Files opens PDFs in the editor directly.
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -11,11 +11,14 @@
 	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
 	import { editorUrl } from '#lib/brand.js';
 	import { formatDateTime, m } from '#lib/i18n/index.js';
+	import NewPdfDialog from '#lib/components/NewPdfDialog.svelte';
 	import { recent } from '#lib/model/recent.js';
 
 	let entries = $state<StartEntry[] | null>(null);
 	let input = $state<HTMLInputElement>();
 	let copying = $state(false);
+	/** "New PDF …" is open */
+	let creating = $state(false);
 	const available = typeof navigator !== 'undefined' && supported();
 
 	async function refresh() {
@@ -95,7 +98,10 @@
 	formatDate={formatDateTime}
 >
 	{#snippet actions()}
-		<button class="btn btn-primary" onclick={openPdf}>
+		<button class="btn btn-primary" onclick={() => (creating = true)}>
+			<span class="icon-[material-symbols-light--note-add-outline] size-6" aria-hidden="true"></span>{m.newPdf.command}
+		</button>
+		<button class="btn" onclick={openPdf}>
 			<span class="icon-[material-symbols-light--folder-open-outline] size-6" aria-hidden="true"></span>{m.home.open}
 		</button>
 		<button class="btn" onclick={() => input?.click()} disabled={copying}>
@@ -109,3 +115,7 @@
 		<input bind:this={input} type="file" accept="application/pdf,.pdf" class="hidden" onchange={fromDevice} />
 	{/snippet}
 </StartPage>
+
+{#if creating}
+	<NewPdfDialog folder={recent.lastFolder()} oncreated={(path) => void open(path)} onclose={() => (creating = false)} />
+{/if}

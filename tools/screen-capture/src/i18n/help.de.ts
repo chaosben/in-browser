@@ -12,7 +12,7 @@ const help: typeof enHelp = {
 				title: 'Menüband',
 				text: 'Befehle, die gerade nicht wirken können, bleiben an ihrem Platz und sind ausgegraut. Knöpfe mit kleinem Pfeil öffnen eine Auswahl („Frame halten“ seine Länge, „Löschen“ das Löschen mit Lücke, „Formen“ die vier Formen). Das Menü am rechten Ende des Menübands stellt seine Anzeige um – für alle Tools von in-browser auf diesem Gerät –, und der Pfeil daneben klappt das Menüband auf seine Registerkarten zusammen (ein Klick auf eine öffnet dann ihre Befehle über dem Editor; auch ein Doppelklick auf eine Registerkarte oder Strg+F1); Alt oder F10 zeigen zu jeder Registerkarte und jedem Befehl einen Buchstaben.',
 				options: {
-					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Gruppen mit großen Knöpfen und ihren Namen – alles auf einen Blick.' },
+					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Befehle in drei Zeilen mit ihren Namen, in Gruppen mit je einem Namen. Am leichtesten zu finden, braucht etwa 130 Pixel Höhe.' },
 					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile – mehr Platz für Vorschau und Timeline.' },
 					minimal: { label: 'Minimal (Standard auf Handy und Tablet)', text: 'Eine Zeile Symbole ohne Text; halte den Zeiger über ein Symbol – oder halte es gedrückt –, um seinen Namen zu sehen. Am wenigsten Höhe, und jeder Befehl bleibt erreichbar.' }
 				},
@@ -530,7 +530,7 @@ const help: typeof enHelp = {
 		items: {
 			box: {
 				title: 'Textbox',
-				text: 'Wie in Figma ändern die Anfasser nur die Box, nie die Schrift: Die linke und rechte Seite legen die Breite fest (der Text bricht um, die Höhe folgt ihm), Ober- und Unterkante und die Ecken eine feste Größe (Umschalt hält bei einer Ecke das Seitenverhältnis); Text, der nicht in eine feste Größe passt, ragt unten aus der Box heraus. Drück K, während du einen Anfasser ziehst, um die Schrift mit der Box zu skalieren. „Größe der Box“ unter Schrift wechselt zwischen den dreien. Würde eine Box größer als die Leinwand, bricht sie auf Leinwandbreite um und bekommt bei Bedarf eine kleinere Schrift.',
+				text: 'Die Anfasser ändern nur die Box, nie die Schrift: Die linke und rechte Seite legen die Breite fest (der Text bricht um, die Höhe folgt ihm), Ober- und Unterkante und die Ecken eine feste Größe (Umschalt hält bei einer Ecke das Seitenverhältnis); Text, der nicht in eine feste Größe passt, ragt unten aus der Box heraus. Drück K, während du einen Anfasser ziehst, um die Schrift mit der Box zu skalieren. „Größe der Box“ unter Schrift wechselt zwischen den dreien. Würde eine Box größer als die Leinwand, bricht sie auf Leinwandbreite um und bekommt bei Bedarf eine kleinere Schrift.',
 				options: {
 					autoWidth: { label: 'Automatische Breite (Standard)', text: 'So breit wie die längste Zeile; neue Zeilen nur, wo du Enter drückst. Für Beschriftungen und Titel.' },
 					autoHeight: { label: 'Automatische Höhe', text: 'Behält ihre Breite; die Zeilen brechen um und die Box wächst mit dem Text. Für längere Texte.' },

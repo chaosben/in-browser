@@ -1,10 +1,10 @@
 import type { Locator, Page } from '@playwright/test';
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 import { formPdf, getFile, putFile, shot } from './pdf.js';
 
-// Files, Text Editor, Notes and the PDF Editor on a phone (project `mobile`: Pixel 7, touch only): everything without right-click,
-// double-click, keyboard shortcuts or dragging. Notes is mobile-first: this is its one flow (`stack.md`).
+// Files, Text Editor and the PDF Editor on a phone (project `mobile`: Pixel 7, touch only): everything without
+// right-click, double-click, keyboard shortcuts or dragging.
 
 /** Holds a finger on the element (real touch events, so the page sees `pointerType: 'touch'`) */
 async function longPress(page: Page, target: Locator) {
@@ -154,95 +154,7 @@ test('Text Editor: wraps lines, switches to the Markdown preview, edits a CSV as
 	problems.splice(0, problems.length, ...problems.filter((p) => !own(p)));
 });
 
-test('Notes: a finger draws, two fingers pinch, the ribbon works by tapping, pictures and PDFs go in, it exports', async ({ page, problems: _ }) => {
-	await page.goto('/notes');
-	await page.getByRole('button', { name: 'New notebook' }).tap();
-	await page.getByRole('button', { name: 'Save', exact: true }).tap();
-	await expect(page.getByTestId('surface')).toBeVisible();
-	const box = (await page.getByTestId('surface').boundingBox())!;
-	const cdp = await page.context().newCDPSession(page);
-	const touch = (type: string, points: { x: number; y: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
-
-	// One finger: a stroke
-	const x = box.x + 60;
-	const y = box.y + 120;
-	await touch('touchStart', [{ x, y }]);
-	for (let i = 1; i <= 12; i++) await touch('touchMove', [{ x: x + i * 15, y: y + Math.sin(i) * 10 }]);
-	await touch('touchEnd', []);
-	await expect.poll(() => savedItems(page)).toBe(1);
-
-	// Two fingers: zoom changes, no stroke
-	const zoom = page.getByTitle('Zoom');
-	const before = await zoom.textContent();
-	const cx = box.x + box.width / 2;
-	const cy = box.y + box.height / 2;
-	await touch('touchStart', [{ x: cx - 30, y: cy }, { x: cx + 30, y: cy }]);
-	for (let i = 1; i <= 8; i++) await touch('touchMove', [{ x: cx - 30 - i * 10, y: cy }, { x: cx + 30 + i * 10, y: cy }]);
-	await touch('touchEnd', []);
-	await expect(zoom).not.toHaveText(before!);
-
-	// The ribbon (tab "Draw"): highlighter, a color, its thickness and the smoothing
-	await page.locator('[data-command="highlighter"]').tap();
-	await page.locator('[data-command="color"]').tap();
-	await page.getByRole('button', { name: 'Color #22c55e' }).tap();
-	await page.keyboard.press('Escape');
-	await page.locator('[data-command="thickness"]').tap();
-	await page.getByRole('menuitem', { name: 'Thickness 22' }).tap();
-	await page.locator('[data-command="smoothing"]').tap();
-	await page.getByRole('menuitem', { name: 'Strong' }).tap();
-	await expect
-		.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('notes:tools') ?? '{}')))
-		.toMatchObject({ highlighter: { color: expect.stringMatching(/^#22c55e/), size: 22 }, smoothing: 0.7 });
-	expect(await savedItems(page)).toBe(1);
-
-	// Kept across a reload
-	await page.reload();
-	await expect(page.getByTestId('surface')).toBeVisible();
-	await expect.poll(() => savedItems(page)).toBe(1);
-
-	// An image goes into the assets (selected right away); a PDF becomes pages after the current one, rendered by
-	// PDF.js workers under the real CSP
-	const insertTab = async () => {
-		await page.getByTestId('ribbon').getByRole('tab', { name: 'Insert', exact: true }).tap();
-	};
-	await insertTab();
-	await page.locator('[data-command="image"]').tap();
-	const chooser = page.waitForEvent('filechooser');
-	await page.getByRole('menuitem', { name: 'Image from this device …' }).tap();
-	await (await chooser).setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: PNG });
-	await expect.poll(() => savedItems(page)).toBe(2);
-	// (the tab "Selection" opened for the picture)
-	await insertTab();
-	await page.locator('[data-command="insertPdf"]').tap();
-	const pdfChooser = page.waitForEvent('filechooser');
-	await page.getByRole('menuitem', { name: 'PDF from this device …' }).tap();
-	await (await pdfChooser).setFiles({ name: 'sheet.pdf', mimeType: 'application/pdf', buffer: await onePagePdf() });
-	await expect(page.getByText('1 page inserted')).toBeVisible();
-	await expect.poll(() => savedPages(page)).toEqual({ pages: 2, pdf: 1 });
-
-	// Export as PDF and download it (the ribbon's tab "File")
-	await page.getByTestId('ribbon').getByRole('tab', { name: 'File', exact: true }).tap();
-	await page.locator('[data-command="export"]:visible').tap();
-	await page.getByRole('dialog').getByRole('button', { name: 'Export', exact: true }).tap();
-	const download = page.waitForEvent('download');
-	await page.getByRole('button', { name: 'Download' }).tap();
-	expect((await download).suggestedFilename()).toBe('Notebook.pdf');
-	await page.getByRole('dialog', { name: 'Export' }).getByRole('button', { name: 'Close' }).tap();
-
-	// Help: full screen on the phone, topics in a list, closed by tapping
-	await page.getByRole('banner').getByRole('button', { name: 'Help' }).tap();
-	const help = page.getByRole('dialog', { name: 'Help' });
-	await expect(help).toBeVisible();
-	const helpBox = (await help.boundingBox())!;
-	expect(helpBox.width).toBe(page.viewportSize()!.width);
-	const topics = help.getByRole('combobox', { name: 'Topics' });
-	await topics.selectOption({ index: 1 });
-	await expect(help.getByRole('heading', { level: 3 })).toHaveText((await topics.locator('option:checked').textContent())!);
-	await help.getByRole('button', { name: 'Close help' }).tap();
-	await expect(help).toBeHidden();
-});
-
-test('PDF Editor: fill in a field, draw with a finger, pick pages in the selection mode', async ({ page, problems: _ }) => {
+test('PDF Editor: fill in a field, draw with a finger, pinch with two, pick pages in the selection mode', async ({ page, problems: _ }) => {
 	await page.goto('/pdf-editor');
 	await putFile(page, 'Form.pdf', await formPdf(2));
 	await page.goto('/pdf-editor/editor?path=%2FForm.pdf');
@@ -275,6 +187,17 @@ test('PDF Editor: fill in a field, draw with a finger, pick pages in the selecti
 	};
 	await expect.poll(saved, { timeout: 10_000 }).toEqual({ name: 'Zoë', ink: 1 });
 
+	// Two fingers: the zoom changes, nothing is drawn
+	const zoom = page.getByTitle('Zoom', { exact: true });
+	const before = await zoom.textContent();
+	const cx = box.x + box.width / 2;
+	const cy = box.y + box.height / 2;
+	await touch('touchStart', [{ x: cx - 30, y: cy }, { x: cx + 30, y: cy }]);
+	for (let i = 1; i <= 8; i++) await touch('touchMove', [{ x: cx - 30 - i * 10, y: cy }, { x: cx + 30 + i * 10, y: cy }]);
+	await touch('touchEnd', []);
+	await expect(zoom).not.toHaveText(before!);
+	expect((await saved()).ink).toBe(1);
+
 	// Pages: a long press opens the page's menu and starts the selection mode; taps then pick
 	await page.getByTestId('ribbon').getByRole('tab', { name: 'View', exact: true }).tap();
 	await page.locator('[data-command="panel:pages"]').tap();
@@ -295,41 +218,3 @@ test('PDF Editor: fill in a field, draw with a finger, pick pages in the selecti
 	await pages.getByRole('button', { name: 'Page 2', exact: true }).tap();
 	await expect(page.getByRole('dialog')).toBeHidden();
 });
-
-/** Items (strokes, pictures) saved in the notebook `Notebook.note` (OPFS); -1 while a file is being written (not there
- * for a moment – polls try again instead of failing) */
-function savedItems(page: Page): Promise<number> {
-	return page.evaluate(async () => {
-		try {
-			const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files');
-			const pages = await (await root.getDirectoryHandle('Notebook.note')).getDirectoryHandle('pages');
-			let count = 0;
-			for await (const handle of (pages as unknown as { values(): AsyncIterable<FileSystemFileHandle> }).values()) {
-				count += JSON.parse(await (await handle.getFile()).text()).items.length;
-			}
-			return count;
-		} catch (e) {
-			if (e instanceof DOMException && e.name === 'NotFoundError') return -1;
-			throw e;
-		}
-	});
-}
-
-/** A 1×1 PNG */
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-
-async function onePagePdf(): Promise<Buffer> {
-	const doc = await PDFDocument.create();
-	doc.addPage([300, 200]).drawRectangle({ x: 0, y: 0, width: 150, height: 200, color: rgb(1, 0, 0) });
-	return Buffer.from(await doc.save());
-}
-
-/** Pages in `Notebook.note` and how many have a PDF page under them */
-function savedPages(page: Page): Promise<{ pages: number; pdf: number }> {
-	return page.evaluate(async () => {
-		const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('files');
-		const file = await (await (await root.getDirectoryHandle('Notebook.note')).getFileHandle('project.json')).getFile();
-		const pages = JSON.parse(await file.text()).pages as { background?: unknown }[];
-		return { pages: pages.length, pdf: pages.filter((p) => p.background).length };
-	});
-}

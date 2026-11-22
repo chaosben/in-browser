@@ -1,29 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { COLLAPSED, defaultMode, fitGroups, keyTips, LARGE, MEDIUM, ribbonSettings, shrinkOrder, SMALL } from './ribbon';
+import { COLLAPSED, defaultMode, fitGroups, keyTips, MEDIUM, ribbonSettings, shrinkOrder, SMALL } from './ribbon';
 
-// widths per group: large, medium, small, collapsed
-const g = (large: number) => [large, large * 0.7, large * 0.4, 30];
+// widths per group: medium, small, collapsed
+const g = (medium: number) => [medium, medium * 0.5, 30];
 
 describe('fitGroups', () => {
 	const widths = [g(300), g(200), g(100)];
 	const order = shrinkOrder(3);
 
-	it('keeps everything large when there is room', () => {
-		expect(fitGroups(widths, 1000, order, 10)).toEqual([LARGE, LARGE, LARGE]);
+	it('keeps every label when there is room', () => {
+		expect(fitGroups(widths, 1000, order, 10)).toEqual([MEDIUM, MEDIUM, MEDIUM]);
 	});
 
 	it('shrinks from the right, one size per round', () => {
-		// 600 + 20 gap = 620 > 600: the last group gets medium first (70 → 590)
-		expect(fitGroups(widths, 600, order, 10)).toEqual([LARGE, LARGE, MEDIUM]);
-		// Not enough: all three medium (420 + 20 = 440 ≤ 450)
-		expect(fitGroups(widths, 450, order, 10)).toEqual([MEDIUM, MEDIUM, MEDIUM]);
-		// Small from the right
-		expect(fitGroups(widths, 400, order, 10)).toEqual([MEDIUM, SMALL, SMALL]);
+		// 600 + 20 gap = 620 > 600: the last group gets small first (50 → 570)
+		expect(fitGroups(widths, 600, order, 10)).toEqual([MEDIUM, MEDIUM, SMALL]);
+		// Not enough: the middle one too (300 + 100 + 50 + 20 = 470 ≤ 480)
+		expect(fitGroups(widths, 480, order, 10)).toEqual([MEDIUM, SMALL, SMALL]);
+		// All three small (300 + 20 = 320 ≤ 330)
+		expect(fitGroups(widths, 330, order, 10)).toEqual([SMALL, SMALL, SMALL]);
 	});
 
 	it('only takes a size that saves room', () => {
 		// The middle group is narrower small than collapsed: it stays small
-		const mixed = [g(300), [200, 140, 30, 60], g(100)];
+		const mixed = [g(300), [200, 30, 60], g(100)];
 		expect(fitGroups(mixed, 100, shrinkOrder(3), 0)).toEqual([COLLAPSED, SMALL, COLLAPSED]);
 	});
 

@@ -33,7 +33,7 @@ const help: typeof enHelp = {
 					items: {
 						browser: {
 							title: 'In deinem Browser, nicht auf einem Server',
-							text: 'Jedes Tool von in-browser speichert in einen Speicher deines Browsers auf diesem Gerät. Nichts wird hochgeladen – es gibt keinen Server, der deine Dateien speichern könnte. Alle Tools teilen sich diesen Speicher: ein Notizbuch aus Notizen, ein Projekt aus der Bildschirmaufnahme und ein Text aus dem Texteditor sind dort Dateien. Das Tool Dateien zeigt und verwaltet sie, wie der Dateimanager deines Rechners.'
+							text: 'Jedes Tool von in-browser speichert in einen Speicher deines Browsers auf diesem Gerät. Nichts wird hochgeladen – es gibt keinen Server, der deine Dateien speichern könnte. Alle Tools teilen sich diesen Speicher: eine PDF aus dem PDF-Editor, ein Projekt aus der Bildschirmaufnahme und ein Text aus dem Texteditor sind dort Dateien. Das Tool Dateien zeigt und verwaltet sie, wie der Dateimanager deines Rechners.'
 						},
 						perBrowser: {
 							title: 'Ein Speicher pro Browser',
@@ -71,7 +71,7 @@ const help: typeof enHelp = {
 						},
 						download: {
 							title: 'Herunterladen',
-							text: 'Markiere in Dateien die gewünschten Dateien und dann „Herunterladen“, oder „Als ZIP herunterladen“ für einen Ordner oder mehrere Dateien. Die meisten Tools exportieren ihre Dokumente außerdem in gängige Formate, z. B. Notizbücher als PDF, Bildschirmaufnahmen als MP4.'
+							text: 'Markiere in Dateien die gewünschten Dateien und dann „Herunterladen“, oder „Als ZIP herunterladen“ für einen Ordner oder mehrere Dateien. Die meisten Tools exportieren ihre Dokumente außerdem in gängige Formate, z. B. Bildschirmaufnahmen als MP4.'
 						}
 					}
 				},
@@ -80,7 +80,7 @@ const help: typeof enHelp = {
 					items: {
 						quota: {
 							title: 'Wie viel passt',
-							text: 'Browser geben einer Seite einen Anteil am freien Platz des Geräts – meist einen großen. Die Fußzeile von Dateien zeigt, wie viel in-browser belegt und wie viel der Browser erlaubt. Aufnahmen und importierte Videos brauchen den meisten Platz, Texte und Notizbücher sehr wenig. Ist der Speicher voll, sagt das Speichern es („… passt nicht mehr: Der Speicher dieses Browsers ist voll“), und die Synchronisierung lässt Dateien aus, die nicht passen, bis wieder Platz ist.'
+							text: 'Browser geben einer Seite einen Anteil am freien Platz des Geräts – meist einen großen. Die Fußzeile von Dateien zeigt, wie viel in-browser belegt und wie viel der Browser erlaubt. Aufnahmen und importierte Videos brauchen den meisten Platz, Texte sehr wenig. Ist der Speicher voll, sagt das Speichern es („… passt nicht mehr: Der Speicher dieses Browsers ist voll“), und die Synchronisierung lässt Dateien aus, die nicht passen, bis wieder Platz ist.'
 						},
 						free: {
 							title: 'Platz freigeben',
@@ -163,7 +163,7 @@ const help: typeof enHelp = {
 					items: {
 						newer: {
 							title: 'Die neuere Version gewinnt',
-							text: 'Hat sich eine Datei seit dem letzten Sync auf zwei Geräten geändert, behält die neuere Version den Namen, die andere bleibt als Konfliktkopie daneben erhalten. Ein Notizbuch oder ein Projekt ist ein Dokument: Dort bleibt das ganze Dokument, wie es auf diesem Gerät war, als Kopie erhalten, z. B. „Reise (Konflikt Laptop)“ neben „Reise“. Nichts geht verloren; sieh dir beide an und lösche die, die du nicht brauchst.',
+							text: 'Hat sich eine Datei seit dem letzten Sync auf zwei Geräten geändert, behält die neuere Version den Namen, die andere bleibt als Konfliktkopie daneben erhalten. Ein Projekt der Bildschirmaufnahme ist ein Dokument: Dort bleibt das ganze Dokument, wie es auf diesem Gerät war, als Kopie erhalten, z. B. „Reise (Konflikt Laptop)“ neben „Reise“. Nichts geht verloren; sieh dir beide an und lösche die, die du nicht brauchst.',
 							tip: 'Bevor du auf einem Gerät weitermachst, das länger nicht offen war, öffne zuerst in-browser auf einem deiner anderen Geräte und lass es synchronisieren. Dateien warnt dich, wenn dieses Gerät wahrscheinlich hinterher ist.'
 						},
 						open: {
@@ -171,7 +171,7 @@ const help: typeof enHelp = {
 							text: 'Ändert sich eine Datei, die du in einem Tool offen hast, woanders – auf einem anderen Gerät, in einem anderen Tab oder durch ein anderes Programm – und hast du keine ungespeicherten Änderungen, fragt das Tool „… wurde woanders geändert“, bevor es die andere Version zeigt. Jedes Tool fragt gleich, einmal pro Version. Hast du ungespeicherte Änderungen, behält das Tool sie und sagt es dir (Texteditor und PDF-Editor pausieren das Speichern und lassen dich in einer Leiste wählen).',
 							options: {
 								reload: { label: 'Neu laden', text: 'Zeigt die andere Version. Von dir geht nichts verloren – ungespeicherte Änderungen gab es keine.' },
-								keep: { label: 'Nicht neu laden', text: 'Zeigt weiter deine Version. Änderst du sie, sagt dir das Tool Bescheid, bevor deine Version die andere ersetzt (Notizen und Bildschirmaufnahme schreiben darüber).' },
+								keep: { label: 'Nicht neu laden', text: 'Zeigt weiter deine Version. Änderst du sie, sagt dir das Tool Bescheid, bevor deine Version die andere ersetzt (die Bildschirmaufnahme schreibt darüber).' },
 								dontAsk: { label: 'Nicht mehr fragen, solange die Datei offen ist', text: 'Trifft bei weiteren Änderungen dieselbe Wahl ohne Frage, bis du die Datei schließt. Öffnest du sie wieder, fragt es wieder.' }
 							},
 							tip: 'Arbeitest du auf zwei Geräten gleichzeitig an derselben Datei? Wähl auf dem, auf dem du nur schaust, „Neu laden“ und „Nicht mehr fragen“.'
@@ -201,7 +201,7 @@ const help: typeof enHelp = {
 					items: {
 						everywhere: {
 							title: 'Auf allen deinen Geräten',
-							text: 'Was du in Dateien löschst – oder ein Notizbuch oder Projekt in seinem Tool –, landet im Papierkorb, und zwar auf jedem Gerät. So holst du es auf jedem davon zurück: Dateien → „Papierkorb“ → „Wiederherstellen“.'
+							text: 'Was du in Dateien löschst – oder ein Projekt in seinem Tool –, landet im Papierkorb, und zwar auf jedem Gerät. So holst du es auf jedem davon zurück: Dateien → „Papierkorb“ → „Wiederherstellen“.'
 						},
 						keep: {
 							title: 'Wie lange',
@@ -274,7 +274,7 @@ const help: typeof enHelp = {
 						},
 						everywhere: {
 							title: 'In jedem Tool',
-							text: 'Verbundene Ordner erscheinen in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien und im Öffnen- und Speichern-Dialog der Tools (die Auswahl vor dem Ordnerpfad). Jedes Tool öffnet und speichert direkt dort: Texte im Texteditor, Notizbücher in Notizen, Projekte und Aufnahmen in der Bildschirmaufnahme. Die Startseiten von Notizen und der Bildschirmaufnahme zeigen Notizbücher und Projekte aus verbundenen Ordnern, sobald du sie dort angelegt oder geöffnet hast – verbundene Ordner werden nicht durchsucht, sie können groß sein.'
+							text: 'Verbundene Ordner erscheinen in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien und im Öffnen- und Speichern-Dialog der Tools (die Auswahl vor dem Ordnerpfad). Jedes Tool öffnet und speichert direkt dort: Texte im Texteditor, PDFs im PDF-Editor, Projekte und Aufnahmen in der Bildschirmaufnahme. Die Startseite der Bildschirmaufnahme zeigt Projekte aus verbundenen Ordnern, sobald du sie dort angelegt oder geöffnet hast – verbundene Ordner werden nicht durchsucht, sie können groß sein.'
 						},
 						notSynced: {
 							title: 'Nicht synchronisiert',

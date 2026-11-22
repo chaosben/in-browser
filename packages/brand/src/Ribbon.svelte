@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The ribbon of a tool, modeled on Microsoft Office and LibreOffice (see `ribbon.ts`): tabs with labeled groups of
+	// The ribbon of a tool (see `ribbon.ts`): tabs with labeled groups of
 	// commands below the BrandBar; quick commands (undo/redo) fixed left of the tabs; contextual tabs for the current
-	// object after the others. Room runs out → groups shrink (large → medium → small → collapsed), always the same way
+	// object after the others. Room runs out → groups shrink (medium → small → collapsed), always the same way
 	// for the same width. Displays: classic, simplified (one row), minimal (one row of icons) – the same in every tool
 	// of this device, minimal by default where fingers point or the window is narrow. Apart from the display the
 	// ribbon can be collapsed (the arrow, Ctrl+F1, a double click on a tab): only the tabs stay, a tab opens its
@@ -17,7 +17,6 @@
 		fitGroups,
 		isCustom,
 		keyTips,
-		LARGE,
 		MEDIUM,
 		defaultMode,
 		RIBBON_KEY,
@@ -143,17 +142,21 @@
 	let panel = $state<HTMLElement>();
 	let measure = $state<HTMLElement>();
 	let available = $state(0);
-	/** Measured widths per group of the current tab: [large, medium, small, collapsed] */
+	/** Measured widths per group of the current tab: [medium, small, collapsed] */
 	let widths = $state.raw<number[][]>([]);
 	const GAP = 9;
+	/** The classic display: commands in three rows of 24 px (the bar is 96 px: 8 padding, 72 rows, 16 group name) –
+	 * whatever a row holds is that high, so nothing is cut off */
+	const ROWS =
+		'grid grid-flow-col grid-rows-[repeat(3,1.5rem)] content-center items-center gap-x-0.5 [&_.btn]:h-6 [&_.btn]:min-h-6 [&_.input]:h-6 [&_.input]:min-h-6 [&_.select]:h-6 [&_.select]:min-h-6';
 
 	const sizes = $derived.by((): GroupSize[] => {
 		const groups = current?.groups ?? [];
 		// Minimal: icons only – under a finger the row scrolls, else groups that don't fit collapse
 		if (bar) return groups.map(() => SMALL);
-		if (widths.length !== groups.length || !available) return groups.map(() => (mode === 'minimal' ? SMALL : LARGE));
+		if (widths.length !== groups.length || !available) return groups.map(() => (mode === 'minimal' ? SMALL : MEDIUM));
 		if (mode !== 'minimal') return fitGroups(widths, available, shrinkOrder(groups.length), GAP);
-		const icons = widths.map((row) => [row[SMALL], row[SMALL], row[SMALL], row[COLLAPSED]]);
+		const icons = widths.map((row) => [row[SMALL], row[SMALL], row[COLLAPSED]]);
 		return fitGroups(icons, available, shrinkOrder(groups.length), GAP).map((size) => (size === COLLAPSED ? COLLAPSED : SMALL));
 	});
 
@@ -176,7 +179,7 @@
 			const rows = new Map<number, number[]>();
 			for (const g of groups) {
 				const index = Number(g.dataset.group);
-				const row = rows.get(index) ?? [0, 0, 0, 0];
+				const row = rows.get(index) ?? [0, 0, 0];
 				row[Number(g.dataset.size)] = Math.ceil(g.getBoundingClientRect().width);
 				rows.set(index, row);
 			}
@@ -379,13 +382,8 @@
 {#snippet command(c: Command, size: GroupSize, inMenu = false)}
 	{@const on = c.active?.() ?? false}
 	{@const off = !enabled(c)}
-	{@const big = mode === 'classic' && size === LARGE && !inMenu}
 	{@const iconOnly = size === SMALL && !inMenu}
-	{@const look = big
-		? 'btn btn-ghost h-auto min-h-14 max-w-24 flex-col justify-start gap-0.5 px-1.5 py-1 text-xs leading-tight font-normal'
-		: iconOnly
-			? 'btn btn-ghost btn-sm btn-square'
-			: 'btn btn-ghost btn-sm justify-start gap-1.5 px-2 font-normal'}
+	{@const look = iconOnly ? 'btn btn-ghost btn-sm btn-square' : 'btn btn-ghost btn-sm justify-start gap-1.5 px-2 font-normal'}
 	{#if bar && !inMenu}
 		<!-- Under a finger: one 44 px button; a split button runs on a tap and opens its menu on a long press -->
 		<button
@@ -402,9 +400,9 @@
 			{#if c.menu}<span class="icon-[material-symbols-light--arrow-drop-down] absolute right-0 bottom-0 size-3.5 opacity-60" aria-hidden="true"></span>{/if}
 		</button>
 	{:else if c.run && c.menu}
-		<div class={['join relative', big && 'flex-col']}>
+		<div class="join relative">
 			<button
-				class={[look, 'join-item', on && 'btn-active', big && 'rounded-b-none']}
+				class={[look, 'join-item', on && 'btn-active']}
 				disabled={off}
 				aria-pressed={c.active ? on : undefined}
 				title={title(c)}
@@ -413,11 +411,11 @@
 				onclick={() => run(c)}
 				oncontextmenu={touch ? (e) => explain(e, c) : undefined}
 			>
-				<span class={[c.icon, big ? 'size-7' : 'size-5', 'shrink-0']} aria-hidden="true"></span>
-				{#if !iconOnly}<span class={big ? 'line-clamp-2 text-center' : 'truncate'}>{c.label}</span>{/if}
+				<span class={[c.icon, 'size-5 shrink-0']} aria-hidden="true"></span>
+				{#if !iconOnly}<span class="truncate">{c.label}</span>{/if}
 			</button>
 			<button
-				class={['btn btn-ghost join-item px-0 font-normal', big ? 'btn-xs h-4 min-h-4 rounded-t-none' : 'btn-sm w-4']}
+				class="btn btn-ghost btn-sm join-item w-4 px-0 font-normal"
 				disabled={off}
 				title={c.label}
 				aria-label={`${c.label}: ${t.ribbon.more}`}
@@ -439,8 +437,8 @@
 			onclick={(e) => (c.run ? run(c) : openMenu(e, c))}
 			oncontextmenu={touch ? (e) => explain(e, c) : undefined}
 		>
-			<span class={[c.icon, big ? 'size-7' : 'size-5', 'shrink-0']} aria-hidden="true"></span>
-			{#if !iconOnly}<span class={big ? 'line-clamp-2 text-center' : 'truncate'}>{c.label}</span>{/if}
+			<span class={[c.icon, 'size-5 shrink-0']} aria-hidden="true"></span>
+			{#if !iconOnly}<span class="truncate">{c.label}</span>{/if}
 			{#if c.menu && !iconOnly}<span class="icon-[material-symbols-light--arrow-drop-down] -ml-1 size-4 shrink-0" aria-hidden="true"></span>{/if}
 			{@render tip(tipOf(c))}
 		</button>
@@ -449,8 +447,7 @@
 
 {#snippet item(it: RibbonItem, size: GroupSize, inMenu = false)}
 	{#if isCustom(it)}
-		<!-- Custom items get the look commands have: large only in the classic display -->
-		{@render it.custom(inMenu || (mode !== 'classic' && size === LARGE) ? MEDIUM : size)}
+		{@render it.custom(inMenu ? MEDIUM : size)}
 	{:else}
 		{@render command(it, size, inMenu)}
 	{/if}
@@ -459,17 +456,15 @@
 {#snippet group(g: RibbonGroup, size: GroupSize, index: number, measuring = false)}
 	{@const first = g.items.find((it) => !isCustom(it)) as Command | undefined}
 	{#if size === COLLAPSED}
-		<div class="relative flex shrink-0" data-group={measuring ? index : undefined} data-size={size}>
+		<div class="relative flex shrink-0 items-center" data-group={measuring ? index : undefined} data-size={size}>
 			<button
-				class={mode === 'classic'
-					? 'btn btn-ghost h-auto min-h-14 max-w-24 flex-col gap-0.5 px-1.5 py-1 text-xs leading-tight font-normal'
-					: 'btn btn-ghost btn-sm gap-1 px-2 font-normal'}
+				class="btn btn-ghost btn-sm gap-1 px-2 font-normal"
 				aria-haspopup="true"
 				aria-expanded={popover?.id === g.id}
 				data-group-button={g.id}
 				onclick={(e) => openGroup(e, g)}
 			>
-				{#if first}<span class={[first.icon, mode === 'classic' ? 'size-7' : 'size-5', 'shrink-0']} aria-hidden="true"></span>{/if}
+				{#if first}<span class={[first.icon, 'size-5 shrink-0']} aria-hidden="true"></span>{/if}
 				<span class="flex items-center">
 					<span class="truncate">{g.label}</span><span class="icon-[material-symbols-light--arrow-drop-down] size-4 shrink-0" aria-hidden="true"></span>
 				</span>
@@ -484,19 +479,9 @@
 			data-group={measuring ? index : undefined}
 			data-size={size}
 		>
-			<div
-				class={[
-					'flex-1',
-					// Large commands top-aligned: icons and labels on one line, with or without an arrow below
-					mode === 'classic' && size === LARGE
-						? 'flex items-start gap-0.5'
-						: mode !== 'classic'
-							? 'flex items-center gap-0.5'
-							: 'grid grid-flow-col grid-rows-3 content-center items-center gap-x-0.5'
-				]}
-			>
+			<div class={['flex-1', mode === 'classic' ? ROWS : 'flex items-center gap-0.5']}>
 				{#each g.items as it (it.id)}
-					{@render item(it, mode !== 'classic' && size === MEDIUM ? LARGE : size)}
+					{@render item(it, size)}
 				{/each}
 			</div>
 			{#if mode === 'classic'}
@@ -517,12 +502,12 @@
 {#snippet groups(measuring = false)}
 	{#each current?.groups ?? [] as g, i (g.id)}
 		{#if measuring}
-			{#each [LARGE, MEDIUM, SMALL, COLLAPSED] as size (size)}
+			{#each [MEDIUM, SMALL, COLLAPSED] as size (size)}
 				{@render group(g, size as GroupSize, i, true)}
 			{/each}
 		{:else}
 			{#if i > 0}<div class={['bg-base-content/15 w-px shrink-0', mode === 'classic' ? 'my-1 self-stretch' : bar ? 'my-2 self-stretch' : 'h-6 self-center']} aria-hidden="true"></div>{/if}
-			{@render group(g, sizes[i] ?? LARGE, i)}
+			{@render group(g, sizes[i] ?? MEDIUM, i)}
 		{/if}
 	{/each}
 {/snippet}
@@ -583,7 +568,7 @@
 			bind:this={panel}
 			class={[
 				'bg-base-200 flex items-stretch overflow-x-auto overflow-y-hidden',
-				mode === 'classic' ? 'h-[5.75rem] gap-1 px-1 py-1' : bar ? 'h-11' : 'h-10 gap-1 px-1',
+				mode === 'classic' ? 'h-24 gap-1 px-1 py-1' : bar ? 'h-11' : 'h-10 gap-1 px-1',
 				collapsed && 'border-base-300 absolute inset-x-0 top-full border-b shadow-lg'
 			]}
 			role="toolbar"
@@ -598,7 +583,7 @@
 	     the row under a finger, which scrolls instead of fitting -->
 	{#if !bar}
 		<div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" inert>
-			<div bind:this={measure} class={['invisible absolute top-0 left-0 flex w-max items-stretch', mode === 'classic' ? 'h-[5.75rem] py-1' : 'h-10']}>
+			<div bind:this={measure} class={['invisible absolute top-0 left-0 flex w-max items-stretch', mode === 'classic' ? 'h-24 py-1' : 'h-10']}>
 				{@render groups(true)}
 			</div>
 		</div>
@@ -606,13 +591,13 @@
 	{#if popover && openGroupOf}
 		{@const g = openGroupOf}
 		<div
-			class="bg-base-100 border-base-300 fixed z-40 flex h-[5.75rem] items-stretch rounded border p-1 shadow-lg"
+			class="bg-base-100 border-base-300 fixed z-40 flex h-24 items-stretch rounded border p-1 shadow-lg"
 			style="left: {Math.min(popover.x, innerWidth - 320)}px; top: {popover.y}px"
 			role="group"
 			aria-label={g.label}
 		>
 			<div class="flex flex-col">
-				<div class="grid flex-1 grid-flow-col grid-rows-3 content-center items-center gap-x-0.5">
+				<div class={['flex-1', ROWS]}>
 					{#each g.items as it (it.id)}
 						{@render item(it, MEDIUM, true)}
 					{/each}

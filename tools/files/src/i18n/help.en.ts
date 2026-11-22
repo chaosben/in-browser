@@ -9,7 +9,7 @@ const help = {
 		items: {
 			what: {
 				title: 'What Files is',
-				text: 'Every in-browser tool keeps its documents in one shared storage inside this browser: recordings and projects of Screen Capture, texts of the Text Editor, notes. Files shows that storage like a drive. Here you upload and download, sort documents into folders, rename, copy and delete them – and set up syncing with a folder on your computer or with your other devices. Nothing is uploaded to a server.',
+				text: 'Every in-browser tool keeps its documents in one shared storage inside this browser: recordings and projects of Screen Capture, texts of the Text Editor, PDFs. Files shows that storage like a drive. Here you upload and download, sort documents into folders, rename, copy and delete them – and set up syncing with a folder on your computer or with your other devices. Nothing is uploaded to a server.',
 				link: { href: '/help/storage', label: 'Where your files are kept' }
 			},
 			layout: {
@@ -20,7 +20,7 @@ const help = {
 				title: 'Ribbon display',
 				text: 'When the window gets narrower, the groups on the right get smaller first: their buttons lose the text below the icon, then their text altogether, and at last a whole group becomes one button that opens it. The button with the bar icon at the right end of the tabs chooses how the ribbon is shown – for every in-browser tool on this device. The arrow next to it collapses the ribbon: only the tabs stay, and a click on a tab opens its commands over the page until you pick one; a double click on a tab or Ctrl+F1 do the same, and the arrow brings the ribbon back as it was.',
 				options: {
-					classic: { label: 'Classic (default on a computer)', text: 'Large buttons in groups with their names. Easiest to find things, takes about 120 pixels of height.' },
+					classic: { label: 'Classic (default on a computer)', text: 'Commands in three rows with their names, in groups with a name each. Easiest to find things, takes about 130 pixels of height.' },
 					simplified: { label: 'Simplified', text: 'One compact row of buttons, without group names. Leaves more room for the list.' },
 					minimal: { label: 'Minimal (default on phones and tablets)', text: 'One row of icons without text; hold the pointer over an icon – or press and hold it – to see its name. Least height with every command in reach.' }
 				},

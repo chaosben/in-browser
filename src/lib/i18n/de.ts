@@ -60,15 +60,10 @@ const de: Messages = {
 			summary: 'Markdown, JSON, YAML und Code mit Syntax-Hervorhebung bearbeiten',
 			keywords: 'text editor, textdatei, notizblock, markdown, json, yaml, csv, code, quelltext'
 		},
-		notes: {
-			name: brand.tools['notes'],
-			summary: 'Handschriftliche Notizbücher für Stift, Finger oder Maus',
-			keywords: 'notes, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen, pdf, kommentieren, tafel'
-		},
 		pdfEditor: {
 			name: brand.tools['pdf-editor'],
-			summary: 'PDFs kommentieren, Formulare ausfüllen, Seiten ordnen und zusammenführen',
-			keywords: 'pdf editor, pdf, kommentieren, markieren, hervorheben, formular, ausfüllen, zusammenführen, teilen, seiten, drehen, acrobat, betrachter'
+			summary: 'PDFs beschreiben und kommentieren, Formulare ausfüllen, Seiten ordnen',
+			keywords: 'pdf editor, pdf, kommentieren, markieren, hervorheben, stempel, drucken, formular, ausfüllen, zusammenführen, teilen, seiten, drehen, acrobat, betrachter, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen'
 		}
 	},
 

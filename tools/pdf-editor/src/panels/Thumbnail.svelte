@@ -46,7 +46,8 @@
 				ctx.setTransform(1, 0, 0, 1, 0, 0);
 			}
 		}
-		drawn = true;
+		// A picture kept from before a change (a filled-in field, edited content): drawn again when the new one arrives
+		drawn = !page.number || doc.renders.previewFresh(sourceOf(page), page.number);
 	});
 </script>
 

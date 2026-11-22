@@ -1,4 +1,4 @@
-// The form's scripts (calculations, number formats, checks) in PDF.js's QuickJS sandbox, as Firefox runs them: a
+// The form's scripts (calculations, number formats, checks) in PDF.js's QuickJS sandbox: a
 // JavaScript engine compiled to WebAssembly, in a worker of its own. The scripts see only the form's data handed in;
 // no page, no files, no network. What they change comes back as updates; `alert` becomes a message for the page,
 // `confirm` says no and `prompt` gives nothing (no browser dialogs, `ui.md`).

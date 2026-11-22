@@ -63,7 +63,7 @@ interface Request {
 export interface PdfPagesOptions {
 	/** Tile edge in pixels (default 512) */
 	tile?: number;
-	/** Prefix of log lines, e.g. `[notes]` */
+	/** Prefix of log lines, e.g. `[pdf-editor]` */
 	label?: string;
 	/** Documents the caller already opened (they stay the caller's: never destroyed here); others are read and opened */
 	open?: (doc: string) => Promise<PDFDocumentProxy> | null;
@@ -153,14 +153,30 @@ export class PdfPages {
 		return preview?.image ?? null;
 	}
 
-	/** A whole PDF page rendered at `scale` (export) */
-	async render(doc: string, page: number, scale: number): Promise<HTMLCanvasElement> {
+	/** Is the small picture of a page there as the page looks now (not one kept from before `refresh`)? */
+	previewFresh(doc: string, page: number): boolean {
+		const preview = this.done.get(`${doc}|${page}|preview`);
+		return !!preview && !preview.stale;
+	}
+
+	/**
+	 * A whole PDF page rendered at `scale` (export, print), with the layers shown. `annotations: false` leaves out the
+	 * file's comments (everything but form fields) for this render only
+	 */
+	async render(doc: string, page: number, scale: number, options: { annotations?: boolean } = {}): Promise<HTMLCanvasElement> {
 		const proxy = await this.page(doc, page);
 		const viewport = proxy.getViewport({ scale, rotation: this.rotation?.(doc, page) });
 		const canvas = document.createElement('canvas');
 		canvas.width = Math.ceil(viewport.width);
 		canvas.height = Math.ceil(viewport.height);
-		await proxy.render({ canvas, viewport, annotationMode: ENABLE_STORAGE }).promise;
+		const hide = options.annotations === false ? (await proxy.getAnnotations()).filter((a) => a.subtype !== 'Widget').map((a) => a.id as string) : [];
+		// PDF.js reads the storage when `render` is called: hidden for that moment only, so the screen keeps them
+		const storage = (await this.doc(doc)).annotationStorage;
+		const added = hide.filter((id) => !storage.has(id));
+		for (const id of added) storage.setValue(id, { noView: true });
+		const task = proxy.render({ canvas, viewport, optionalContentConfigPromise: this.layers?.(doc), annotationMode: ENABLE_STORAGE });
+		for (const id of added) storage.remove(id);
+		await task.promise;
 		return canvas;
 	}
 
@@ -173,6 +189,19 @@ export class PdfPages {
 		for (const [key, r] of this.done) if (key.startsWith(prefix)) r.stale = true;
 		// Rendered from the page as it was: their result is stale too
 		for (const key of this.rendering) if (key.startsWith(prefix)) this.again.add(key);
+	}
+
+	/**
+	 * Another document stands for `doc` from now on (the same pages, some with changed content): those pages are
+	 * rendered anew from it, like `refresh` – what is shown stays until then. The caller closes the old document
+	 * once nothing renders from it any more.
+	 */
+	swap(doc: string, proxy: PDFDocumentProxy, pages: Iterable<number>) {
+		this.docs.set(doc, Promise.resolve(proxy));
+		this.own.delete(doc);
+		const prefix = `${doc}|`;
+		for (const key of this.pages.keys()) if (key.startsWith(prefix)) this.pages.delete(key);
+		for (const page of pages) this.refresh(doc, page);
 	}
 
 	/** Is a page still shown as it was before `refresh` (or being rendered anew)? */

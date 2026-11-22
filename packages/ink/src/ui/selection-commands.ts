@@ -1,4 +1,4 @@
-// The commands every drawing tool offers for a selection of ink items and pictures (Notes, the PDF Editor): duplicate,
+// The commands every drawing tool offers for a selection of ink items (the PDF Editor): duplicate,
 // delete, thickness, and arranging – draw order, align (a single item with the page), distribute (3+). Each acts on the selection, one undo step;
 // without one the thickness sets the chosen tool's (remembered). The tools place them in their ribbon (format and
 // "Arrange" tabs, `arrangeGroups`); the color and style popovers are `InkColorButton`/`InkStyleButton`.

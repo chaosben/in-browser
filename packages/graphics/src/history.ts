@@ -1,4 +1,4 @@
-// Undo and redo, the same in every tool that edits by steps (Notes, the PDF Editor): a step is already done when it
+// Undo and redo, the same in every tool that edits by steps (the PDF Editor): a step is already done when it
 // is pushed and knows how to take itself back and do itself again.
 
 /** One undo step (already done when pushed) */

@@ -9,7 +9,7 @@ import type { SearchHit } from './text.js';
 
 type Box = SearchHit['boxes'][number];
 /** How text is marked */
-export type MarkKind = 'highlight' | 'underline' | 'strikeout';
+export type MarkKind = 'highlight' | 'underline' | 'strikeout' | 'squiggly';
 
 /** Where a page lies on screen (CSS pixels relative to the host) and its zoom */
 export interface PagePlace {
@@ -153,7 +153,7 @@ export class TextLayers {
 				const h = b.y1 - b.y0;
 				// Underline and strike out: a line along the text (just below the baseline, or through lower-case letters 0.3 em
 				// above it), else the whole box
-				const [y0, y1] = p!.kind === 'underline' ? [b.y1 + h * 0.035, b.y1 + h * 0.105] : p!.kind === 'strikeout' ? [b.y0 + h * 0.665, b.y0 + h * 0.735] : [b.y0, b.y1];
+				const [y0, y1] = p!.kind === 'underline' || p!.kind === 'squiggly' ? [b.y1 + h * 0.035, b.y1 + h * 0.105] : p!.kind === 'strikeout' ? [b.y0 + h * 0.665, b.y0 + h * 0.735] : [b.y0, b.y1];
 				div.style.cssText =
 					`left: calc(var(--total-scale-factor) * ${b.x0}px); top: calc(var(--total-scale-factor) * ${y0}px);` +
 					` width: calc(var(--total-scale-factor) * ${b.x1 - b.x0}px); height: calc(var(--total-scale-factor) * ${y1 - y0}px); background: ${p!.color}`;

@@ -1,9 +1,9 @@
 // Snapping on a page (`snap.ts` of @in-browser/graphics): boxes of items to snap to and to snap with. Targets are the
-// page (edges, center) and the shapes and pictures on it – not handwriting, its boxes would only add noise.
+// page (edges, center) and the shapes on it – not handwriting, its boxes would only add noise.
 
 import type { Rect, SnapTargets } from '@in-browser/graphics/snap.js';
 import { snapTargets } from '@in-browser/graphics/snap.js';
-import { isPicture, isShape, isStroke, type Item } from './items.js';
+import { isShape, isStroke, type Item } from './items.js';
 import { boundsOf } from './geometry.js';
 import { handlesOf } from './shapes.js';
 
@@ -11,7 +11,6 @@ export { SNAP_PX } from '@in-browser/graphics/snap.js';
 
 /** The geometric box of an item (without the pen width): what lines up with others */
 export function snapBox(item: Item): Rect {
-	if (isPicture(item)) return { x: item.x, y: item.y, w: item.w, h: item.h };
 	if (isStroke(item)) {
 		const b = boundsOf(item.points);
 		return { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0 };
@@ -31,9 +30,9 @@ export function unionBox(boxes: Rect[]): Rect {
 	return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y };
 }
 
-/** What to snap to on a page of size `w` × `h`: its edges and center, the shapes and pictures except `exclude` */
+/** What to snap to on a page of size `w` × `h`: its edges and center, the shapes except `exclude` */
 export function pageTargets(items: readonly Item[], exclude: ReadonlySet<string>, w: number, h: number): SnapTargets {
-	const snapping = items.filter((i) => !exclude.has(i.id) && (isShape(i) || isPicture(i)));
+	const snapping = items.filter((i) => !exclude.has(i.id) && isShape(i));
 	return snapTargets(snapping.map(snapBox), { x: 0, y: 0, w, h }, snapping.map((i) => i.id));
 }
 

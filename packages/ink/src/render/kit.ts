@@ -4,7 +4,6 @@
 import type { Rect, SnapTargets } from '@in-browser/graphics/snap.js';
 import type { Box } from '../geometry.js';
 import type { Transform } from '../lasso.js';
-import type { PictureSource } from './pictures.js';
 
 export type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -49,7 +48,6 @@ export interface Backdrop<P extends SurfacePage> {
 /** Caches an item's outline while it is drawn repeatedly (tiles of a scene, the dragged selection) */
 export interface DrawContext {
 	path<T extends SceneItem>(item: T, build: (item: T) => Path2D): Path2D;
-	readonly pictures: PictureSource | null;
 }
 
 /** Everything the surface asks of the items of a tool */
@@ -70,6 +68,8 @@ export interface ItemKit<I extends SceneItem> {
 	targets(items: readonly I[], exclude: ReadonlySet<string>, w: number, h: number): SnapTargets;
 	/** How a guide snapping to the item shows it: its kind's name and icon class or drawing (`GuideMark`) */
 	mark?(item: I): ItemMark;
+	/** The item in another color, when that takes more than setting its `color` (null: just that) */
+	recolor?(item: I, color: string): I | null;
 	/** The item's color (`#rrggbb`, or `#rrggbbaa` when its opacity can be chosen), or null if it can't be recolored */
 	color(item: I): string | null;
 	/** The item moved/scaled (a new object) */

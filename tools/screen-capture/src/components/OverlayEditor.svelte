@@ -153,7 +153,7 @@
 		scaleText: boolean;
 	}
 
-	/** K held (as Figma's scale tool): a text box's handles scale its font too */
+	/** K held: a text box's handles scale its font too */
 	let scaleKey = false;
 	/** A drag in the preview is running: K then scales instead of playing */
 	let dragging = false;
@@ -356,7 +356,7 @@
 	}
 
 	/**
-	 * A text box resized like in Figma (`resizeTextBox`): handles change only the box – a side the width (auto width
+	 * A text box resized (`resizeTextBox`): handles change only the box – a side the width (auto width
 	 * becomes auto height), top, bottom and corners a fixed size; Shift keeps a corner's proportions; K scales the
 	 * font along. The dragged edge snaps. One patch per step: within a gesture every update starts from the state
 	 * before it.

@@ -10,7 +10,7 @@
 // - shape tool: dragging draws the chosen shape from the start point to the pointer (a shape item, see `shapes.ts`).
 // - select ("lasso"): a tap selects the item there, a loop selects what it encloses; dragging the selection (a
 //   corner, a point of a shape) moves/scales/reshapes it; dragging an item not selected yet selects and moves it;
-//   with Shift or Ctrl/⌘ a tap adds the item or takes it out, a loop adds what it encloses. Laser: a fading trail, not stored.
+//   with Shift or Ctrl/⌘ a tap adds the item or takes it out, a loop adds what it encloses.
 // - tools of the tool using this core (a text box, a note …) get the pointer as a `Gesture` from `InputHandlers.gesture`.
 
 import { debug } from '@in-browser/brand/debug.js';
@@ -22,16 +22,16 @@ import { hasRealPressure, penPressure, PressureSimulator } from '../pressure.js'
 import { suggestShape } from '../recognize.js';
 import type { SceneItem, SurfacePage } from '../render/kit.js';
 import type { SelectionHandle, Stage } from '../render/stage.js';
-import { fitFromDrag, shapePoints, type ShapeFit, type ShapeKind, type ShapeStyle } from '../shapes.js';
+import { fitFromDrag, isPathKind, shapePoints, type ShapeFit, type ShapeKind, type ShapeStyle } from '../shapes.js';
 
 /** Zoom factor of one notch of the mouse wheel with Ctrl */
 const WHEEL_STEP = 1.1;
 
 /** The tools of the ink core */
-export type Tool = InkTool | 'shape' | 'eraser' | 'lasso' | 'laser';
+export type Tool = InkTool | 'shape' | 'eraser' | 'lasso';
 export type EraserMode = 'stroke' | 'pixel';
 
-const CORE_TOOLS: ReadonlySet<string> = new Set<Tool>(['pen', 'highlighter', 'shape', 'eraser', 'lasso', 'laser']);
+const CORE_TOOLS: ReadonlySet<string> = new Set<Tool>(['pen', 'highlighter', 'shape', 'eraser', 'lasso']);
 
 /** Settings of the tools; `T`: tools of the tool using the core (handled by `InputHandlers.gesture`) */
 export interface ToolState<T extends string = never> {
@@ -72,6 +72,10 @@ export interface SelectionLike {
 export interface Gesture {
 	move(sx: number, sy: number, e: PointerEvent): void;
 	end(cancelled: boolean): void;
+	/** Asked when the pointer went up where it went down: true keeps the gesture for a second click – `move` then
+	 * follows the hovering pointer, the next press and release end it (Esc or another tool: cancelled). For what two
+	 * points define (a box, a line), so the view can be scrolled between them. */
+	hold?(): boolean;
 }
 
 export interface InputHandlers<T extends string = never> {
@@ -79,8 +83,11 @@ export interface InputHandlers<T extends string = never> {
 	tool(): ToolState<T>;
 	/** A finished stroke; its id */
 	commit(stroke: { page: number; points: Float32Array; tool: InkTool; color: string; size: number }): string | null;
-	/** A shape drawn with the shape tool */
-	commitShape(page: number, fit: ShapeFit, color: string, size: number, style: ShapeStyle): void;
+	/** A shape drawn with the shape tool; its id */
+	commitShape(page: number, fit: ShapeFit, color: string, size: number, style: ShapeStyle): string | null | void;
+	/** Shapes drawn point by point ("Polyline", "Polygon") grow with every point: the shape's geometry now (null: it
+	 * is gone, e.g. undone) and a new one for it – with a style once it is finished (`ItemEditor.shapeFit`/`setFit`) */
+	path?: { fit(page: number, id: string): ShapeFit | null; set(page: number, id: string, fit: ShapeFit, style?: ShapeStyle): void };
 	/** A finished pen stroke resembles a shape (null: drop the suggestion shown, a new action starts) */
 	suggest(suggestion: { page: number; id: string; fit: ShapeFit } | null): void;
 	/** The eraser at a screen point with a radius in screen pixels (called repeatedly during one gesture) */
@@ -96,7 +103,7 @@ export interface InputHandlers<T extends string = never> {
 	passthrough?(e: Event): boolean;
 }
 
-type Mode = 'draw' | 'shape' | 'erase' | 'nav' | 'lasso' | 'select' | 'laser' | 'gesture';
+type Mode = 'draw' | 'shape' | 'erase' | 'nav' | 'lasso' | 'select' | 'gesture';
 
 interface Active {
 	id: number;
@@ -130,10 +137,25 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 	private lassoAdd = false;
 	/** The running gesture of one of the tool's own tools */
 	private gesture: Gesture | null = null;
+	/** Where the gesture's pointer went down (screen pixels), whether it moved from there, and whether the gesture
+	 * was held before (its second click) */
+	private gestureAt = { x: 0, y: 0, moved: false, resumed: false, tool: '' };
+	/** A gesture kept after a click, waiting for its second one (`Gesture.hold`), and its tool */
+	private held: { gesture: Gesture; tool: string } | null = null;
+	/** A shape of two points whose first one was clicked: the next press sets the second, the pointer shows it */
+	private pending: { kind: ShapeKind; style: ShapeStyle | null; page: number; x: number; y: number; size: number; color: string; snap: boolean; targets: SnapTargets | null } | null = null;
+	/** The last event of a hovering pointer: what the previews go by after the view moved */
+	private hovered: PointerEvent | null = null;
+	/** A shape drawn point by point: its page, its item once it has two points (before: where it starts), whether it
+	 * is closed in the end, the style it gets then */
+	private path: { page: number; id: string | null; x: number; y: number; polygon: boolean; style: ShapeStyle | null } | null = null;
 	/** Shape tool: what is dragged, from where (page points of the live stroke's page) and with which pen size */
 	private drag = {
 		kind: 'line' as ShapeKind,
 		style: null as ShapeStyle | null,
+		color: '',
+		/** The start was clicked before (`pending`): this press sets the second point */
+		resumed: false,
 		page: 0,
 		x: 0,
 		y: 0,
@@ -141,14 +163,17 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		moved: false,
 		fit: null as ShapeFit | null,
 		snap: true,
-		targets: null as SnapTargets | null
+		targets: null as SnapTargets | null,
+		/** The drag is a segment of a shape drawn point by point; `first`: it starts that shape */
+		path: false,
+		first: false
 	};
 
 	constructor(
 		private readonly root: HTMLElement,
 		private readonly stage: Stage<P, I>,
 		private readonly h: InputHandlers<T>,
-		/** Prefix of log lines, e.g. `[notes]` */
+		/** Prefix of log lines, e.g. `[pdf-editor]` */
 		private readonly label = '[ink]'
 	) {}
 
@@ -183,7 +208,7 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			on('gesturestart' as keyof HTMLElementEventMap, (e) => e.preventDefault(), opts)
 		];
 		if (this.raw) offs.push(on('pointerrawupdate' as 'pointermove', (e) => this.move(e, true)));
-		// K held while dragging a handle scales what sizes itself too (a text box's font), as Figma's scale tool
+		// K held while dragging a handle scales what sizes itself too (a text box's font)
 		const key = (down: boolean) => (e: KeyboardEvent) => {
 			if (e.key.toLowerCase() !== 'k' || e.ctrlKey || e.metaKey || e.altKey) return;
 			const t = e.target as HTMLElement | null;
@@ -193,6 +218,20 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		const keyDown = key(true);
 		const keyUp = key(false);
 		const blur = () => (this.scaleKey = false);
+		// Enter or Esc end a shape drawn point by point (before anything else takes the key)
+		const pathKey = (e: KeyboardEvent) => {
+			const waiting = this.pending || this.held;
+			if (!(e.key === 'Escape' && waiting) && !(this.path && (e.key === 'Enter' || e.key === 'Escape'))) return;
+			const t = e.target as HTMLElement | null;
+			if (t?.closest?.('input, textarea, select, [contenteditable], dialog')) return;
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			// Esc takes back a clicked first point; otherwise the keys end a shape drawn point by point
+			if (e.key === 'Escape' && waiting) this.dropWaiting();
+			else this.finishPath();
+		};
+		window.addEventListener('keydown', pathKey, true);
+		offs.push(() => window.removeEventListener('keydown', pathKey, true));
 		window.addEventListener('keydown', keyDown);
 		window.addEventListener('keyup', keyUp);
 		window.addEventListener('blur', blur);
@@ -249,13 +288,104 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		if (a.mode === 'nav') this.startNav();
 	}
 
+	/** The points of the shape being drawn point by point (x, y pairs): its item's, or only its start */
+	private pathPoints(): number[] | null {
+		const p = this.path;
+		if (!p) return null;
+		if (!p.id) return [p.x, p.y];
+		const fit = this.h.path?.fit(p.page, p.id);
+		return fit?.kind === 'polyline' ? fit.points : null;
+	}
+
+	/** Ends the shape drawn point by point: a polygon is closed (three points or more) and takes its fill */
+	finishPath() {
+		const p = this.path;
+		this.path = null;
+		this.stage.setRubber(null);
+		if (!p?.id || !p.polygon) return;
+		const fit = this.h.path?.fit(p.page, p.id);
+		if (fit?.kind === 'polyline' && fit.points.length >= 6) this.h.path!.set(p.page, p.id, { kind: 'polygon', points: fit.points }, p.style ?? undefined);
+	}
+
+	/** Forgets a clicked first point (a shape's, a held gesture's) and its preview */
+	private dropWaiting() {
+		if (this.pending) {
+			this.pending = null;
+			this.stage.setRubber(null);
+			this.stage.setGuides(null);
+		}
+		const held = this.held;
+		this.held = null;
+		held?.gesture.end(true);
+	}
+
+	/** The shape dragged (or clicked) from the start point to a page point: fitted, snapped, shown */
+	private shapeTo(px: number, py: number, alt: boolean) {
+		const d = this.drag;
+		const snap = d.snap !== alt;
+		const end = snap && d.targets ? this.snapped(px, py) : null;
+		const onGuide = !!(end?.guides.x || end?.guides.y);
+		// An end on a guide stays there; otherwise lines snap to 15° steps
+		d.fit = fitFromDrag(d.kind, d.x, d.y, end?.point.x ?? px, end?.point.y ?? py, snap && !onGuide);
+		this.stage.setGuides(end ? { page: d.page, guides: end.guides, targets: d.targets! } : null);
+		this.stage.replaceLive(shapePoints(d.fit, d.size));
+	}
+
+	/** What a hovering pointer shows of something begun with a click: the shape to its second point, the next
+	 * segment of a shape drawn point by point, a held gesture. Also called after the view moved. */
+	private preview() {
+		const e = this.hovered;
+		if (!e || this.active.size) return;
+		if (!this.pending && !this.held && !this.path) return;
+		const s = this.h.tool();
+		const [x, y] = this.stage.local(e.clientX, e.clientY);
+		const held = this.held;
+		if (held) {
+			if (s.tool !== held.tool) this.dropWaiting();
+			else held.gesture.move(x, y, e);
+		}
+		const p = this.pending;
+		if (p) {
+			if (s.tool !== 'shape' || s.shape !== p.kind) return this.dropWaiting();
+			this.rubberTo(p, p.kind, p.x, p.y, x, y, e.altKey);
+			return;
+		}
+		const path = this.path;
+		if (!path) return;
+		const points = s.tool === 'shape' && isPathKind(s.shape) ? this.pathPoints() : null;
+		if (!points) return this.stage.setRubber(null);
+		const d = this.drag;
+		this.rubberTo({ page: path.page, size: d.size, color: d.color, snap: d.snap, targets: d.targets }, 'line', points[points.length - 2], points[points.length - 1], x, y, e.altKey);
+	}
+
+	/** Shows a shape from a page point to the pointer (screen pixels) on the overlay, snapped like a dragged one */
+	private rubberTo(of: { page: number; size: number; color: string; snap: boolean; targets: SnapTargets | null }, kind: ShapeKind, x0: number, y0: number, sx: number, sy: number, alt: boolean) {
+		const [px, py] = this.stage.toPage(of.page, sx, sy);
+		const snap = of.snap !== alt;
+		const tol = SNAP_PX / this.stage.view.zoom;
+		const end = snap && of.targets ? snapPoint({ x: px, y: py }, of.targets, { x: tol, y: tol }) : null;
+		const onGuide = !!(end?.guides.x || end?.guides.y);
+		const fit = fitFromDrag(kind, x0, y0, end?.point.x ?? px, end?.point.y ?? py, snap && !onGuide);
+		this.stage.setGuides(end ? { page: of.page, guides: end.guides, targets: of.targets! } : null);
+		this.stage.setRubber({ page: of.page, points: shapePoints(fit, of.size), color: of.color, size: of.size });
+	}
+
 	private startTool(e: PointerEvent, x: number, y: number, s: ToolState<T>): Mode | null {
 		const selection = this.h.selection;
 		this.h.suggest(null);
+		// Another tool or shape: a clicked first point is forgotten
+		if ((this.pending && (s.tool !== 'shape' || s.shape !== this.pending.kind)) || (this.held && s.tool !== this.held.tool)) this.dropWaiting();
+		// Another tool or shape: what was drawn point by point is done
+		if (this.path && (s.tool !== 'shape' || !isPathKind(s.shape))) this.finishPath();
 		if (s.tool !== 'lasso' && selection.active) selection.clear();
 		if (!isCore(s.tool)) {
-			this.gesture = this.h.gesture?.(s.tool, x, y, e) ?? null;
+			// The second click of a held gesture: it goes on to here and ends when the pointer goes up
+			const held = this.held;
+			this.held = null;
+			this.gesture = held?.gesture ?? this.h.gesture?.(s.tool, x, y, e) ?? null;
 			if (!this.gesture) return null;
+			this.gestureAt = { x, y, moved: false, resumed: !!held, tool: s.tool };
+			if (held) this.gesture.move(x, y, e);
 			this.drawId = e.pointerId;
 			return 'gesture';
 		}
@@ -285,22 +415,37 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			this.stage.setLasso(this.lassoPoints);
 			return 'lasso';
 		}
-		if (s.tool === 'laser') {
-			this.drawId = e.pointerId;
-			this.stage.laserPoint(x, y);
-			return 'laser';
-		}
 		if (s.tool === 'shape') {
 			const hit = this.stage.pageAt(x, y);
 			if (!hit || !this.stage.begin(x, y, 0.5, 'pen', s.color, s.size, 0)) return null;
 			this.drawId = e.pointerId;
 			const targets = this.stage.snapTargets(hit.index, new Set());
-			this.drag = { kind: s.shape, style: s.shapeStyle, page: hit.index, x: hit.x, y: hit.y, size: s.size, moved: false, fit: null, snap: s.snap, targets };
+			this.drag = { kind: s.shape, style: s.shapeStyle, color: s.color, resumed: false, page: hit.index, x: hit.x, y: hit.y, size: s.size, moved: false, fit: null, snap: s.snap, targets, path: false, first: false };
+			this.stage.setRubber(null);
+			const pending = this.pending;
+			this.pending = null;
+			if (pending && pending.page === hit.index) {
+				// The second click of a shape: from the point clicked first to here (dragging still adjusts it)
+				this.drag = { ...this.drag, x: pending.x, y: pending.y, moved: true, resumed: true };
+				this.shapeTo(hit.x, hit.y, e.altKey);
+				return 'shape';
+			}
 			// The start point snaps too (shown once the drag moves)
 			if (targets && s.snap !== e.altKey) {
 				const p = this.snapped(hit.x, hit.y).point;
 				this.drag.x = p.x;
 				this.drag.y = p.y;
+			}
+			if (isPathKind(s.shape) && this.h.path) {
+				// Point by point: this press draws the segment from the last point (the first press starts the shape)
+				const points = this.path?.page === hit.index ? this.pathPoints() : null;
+				if (!points) {
+					this.finishPath();
+					this.path = { page: hit.index, id: null, x: this.drag.x, y: this.drag.y, polygon: s.shape === 'freePolygon', style: s.shapeStyle };
+				}
+				const from = points ?? [this.drag.x, this.drag.y];
+				this.drag = { ...this.drag, kind: 'line', path: true, first: !points, x: from[from.length - 2], y: from[from.length - 1] };
+				if (points) this.pathSegment(hit.x, hit.y, s.snap !== e.altKey);
 			}
 			return 'shape';
 		}
@@ -328,22 +473,19 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		if (raw) return;
 		const [x, y] = this.stage.local(e.clientX, e.clientY);
 		if (a.mode === 'gesture') {
+			const g = this.gestureAt;
+			if (!g.moved && Math.hypot(x - g.x, y - g.y) >= 6) g.moved = true;
 			this.gesture?.move(x, y, e);
 			return;
 		}
 		if (a.mode === 'shape') {
 			const d = this.drag;
 			const [px, py] = this.stage.toPage(d.page, x, y);
+			if (d.path && !d.first) return this.pathSegment(px, py, d.snap !== e.altKey);
 			// A tap or a tiny wiggle draws nothing
 			if (!d.moved && Math.hypot(px - d.x, py - d.y) * this.stage.view.zoom < 6) return;
 			d.moved = true;
-			const snap = d.snap !== e.altKey;
-			const end = snap && d.targets ? this.snapped(px, py) : null;
-			const onGuide = !!(end?.guides.x || end?.guides.y);
-			// An end on a guide stays there; otherwise lines snap to 15° steps
-			d.fit = fitFromDrag(d.kind, d.x, d.y, end?.point.x ?? px, end?.point.y ?? py, snap && !onGuide);
-			this.stage.setGuides(end ? { page: d.page, guides: end.guides, targets: d.targets! } : null);
-			this.stage.replaceLive(shapePoints(d.fit, d.size));
+			this.shapeTo(px, py, e.altKey);
 			return;
 		}
 		if (a.mode === 'lasso') {
@@ -353,10 +495,6 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		}
 		if (a.mode === 'select') {
 			this.h.selection.move(x, y, this.h.tool().snap !== e.altKey, { keepAspect: e.shiftKey, axis: e.shiftKey, scaleText: this.scaleKey });
-			return;
-		}
-		if (a.mode === 'laser') {
-			for (const ev of coalesced(e)) this.stage.laserPoint(...this.stage.local(ev.clientX, ev.clientY));
 			return;
 		}
 		if (a.mode === 'erase') {
@@ -373,7 +511,57 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		this.navMove(a, x, y, e.timeStamp);
 	}
 
-	/** A point of the shape being dragged (page points), snapped to the page and the shapes and pictures on it */
+	/** The segment from the last point of a shape drawn point by point to (px, py), shown while the pointer is down */
+	private pathSegment(px: number, py: number, snap: boolean) {
+		const d = this.drag;
+		const end = snap && d.targets ? this.snapped(px, py) : null;
+		const onGuide = !!(end?.guides.x || end?.guides.y);
+		d.fit = fitFromDrag('line', d.x, d.y, end?.point.x ?? px, end?.point.y ?? py, snap && !onGuide);
+		this.stage.setGuides(end ? { page: d.page, guides: end.guides, targets: d.targets! } : null);
+		this.stage.replaceLive(shapePoints(d.fit, d.size));
+	}
+
+	/** The pointer of a shape drawn point by point went up: its first segment, one more point, or its end */
+	private pathUp(cancelled: boolean) {
+		const d = this.drag;
+		const p = this.path;
+		const fit = d.fit?.kind === 'line' ? d.fit : null;
+		if (cancelled || !p || !fit) {
+			// A click that starts the shape: its first point is remembered
+			this.stage.cancel();
+			return;
+		}
+		const near = (x: number, y: number) => Math.hypot(fit.x1 - x, fit.y1 - y) * this.stage.view.zoom < 8;
+		const points = this.pathPoints();
+		if (!p.id || !points) {
+			const stroke = this.stage.end();
+			// A plain line style while it grows: a fill comes when it is closed
+			const id = stroke && d.style && !near(fit.x0, fit.y0) ? this.h.commitShape(d.page, { kind: 'polyline', points: [fit.x0, fit.y0, fit.x1, fit.y1] }, stroke.color, d.size, { ...d.style, fill: null, cloud: false }) : null;
+			if (id) p.id = id;
+			// Nothing was added: nothing will replace the live layer
+			else this.stage.cancel();
+			return;
+		}
+		this.stage.cancel();
+		// On the last point again (a double click or tap) or – a polygon – on the first: done
+		if (near(points[points.length - 2], points[points.length - 1]) || (p.polygon && points.length >= 6 && near(points[0], points[1]))) return this.finishPath();
+		this.h.path!.set(p.page, p.id, { kind: 'polyline', points: [...points, fit.x1, fit.y1] });
+	}
+
+	/** A shape whose two points are (nearly) the same on screen: the second click on the first point */
+	private tiny(fit: ShapeFit): boolean {
+		const pts = shapePoints(fit, 1);
+		let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+		for (let i = 0; i < pts.length; i += 3) {
+			x0 = Math.min(x0, pts[i]);
+			x1 = Math.max(x1, pts[i]);
+			y0 = Math.min(y0, pts[i + 1]);
+			y1 = Math.max(y1, pts[i + 1]);
+		}
+		return Math.hypot(x1 - x0, y1 - y0) * this.stage.view.zoom < 6;
+	}
+
+	/** A point of the shape being dragged (page points), snapped to the page and the shapes on it */
 	private snapped(x: number, y: number) {
 		const tol = SNAP_PX / this.stage.view.zoom;
 		return snapPoint({ x, y }, this.drag.targets!, { x: tol, y: tol });
@@ -408,6 +596,7 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			else {
 				const stroke = this.stage.end();
 				const id = stroke && this.h.commit(stroke);
+				if (!id) this.stage.cancel();
 				// Checked once, after the stroke is on the page (not while drawing)
 				const fit = id && stroke.tool === 'pen' ? suggestShape(stroke.points, this.stage.view.zoom) : null;
 				if (fit) this.h.suggest({ page: stroke!.page, id: id!, fit });
@@ -420,10 +609,17 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			this.drawId = null;
 			const d = this.drag;
 			this.stage.setGuides(null);
-			if (cancelled || !d.moved || !d.fit) this.stage.cancel();
-			else {
+			if (d.path) this.pathUp(cancelled || (d.first && !d.moved));
+			else if (cancelled || !d.moved || !d.fit || (d.resumed && this.tiny(d.fit))) {
+				this.stage.cancel();
+				// A click without dragging: the shape's first point – the next click sets its second
+				if (!cancelled && !d.moved) this.pending = { kind: d.kind, style: d.style, page: d.page, x: d.x, y: d.y, size: d.size, color: d.color, snap: d.snap, targets: d.targets };
+			} else {
 				const stroke = this.stage.end();
-				if (stroke && d.style) this.h.commitShape(d.page, d.fit, stroke.color, d.size, d.style);
+				const id = stroke && d.style ? this.h.commitShape(d.page, d.fit, stroke.color, d.size, d.style) : null;
+				// Nothing was added (the tool only asked for the shape, or the page can't be changed): nothing will
+				// replace the live layer, so it goes now
+				if (!id) this.stage.cancel();
 			}
 		} else if (a.mode === 'lasso' && this.drawId === e.pointerId) {
 			this.drawId = null;
@@ -436,9 +632,10 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			this.drawId = null;
 			const gesture = this.gesture;
 			this.gesture = null;
-			gesture?.end(cancelled);
-		} else if (a.mode === 'laser' && this.drawId === e.pointerId) {
-			this.drawId = null;
+			const g = this.gestureAt;
+			// A click: kept for its second one where the gesture wants that
+			if (gesture && !cancelled && !g.moved && !g.resumed && gesture.hold?.()) this.held = { gesture, tool: g.tool };
+			else gesture?.end(cancelled);
 		} else if (a.mode === 'erase' && this.drawId === e.pointerId) {
 			this.drawId = null;
 			this.stage.hideCursor();
@@ -539,19 +736,23 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		} else {
 			this.stage.panBy(-e.deltaX * unit, -e.deltaY * unit);
 		}
+		// What follows the pointer is now somewhere else on the page
+		this.preview();
 	}
 
 	// --- Hover ---
 
 	private hover(e: PointerEvent) {
 		if (e.pointerType === 'touch' || e.buttons !== 0) return this.stage.hideCursor();
+		this.hovered = e;
+		this.preview();
 		if (e.pointerType === 'pen' && !this.hoverSeen) {
 			this.hoverSeen = true;
 			this.h.hover?.();
 		}
 		const [x, y] = this.stage.local(e.clientX, e.clientY);
 		const s = this.h.tool();
-		if (!this.stage.view.pageAt(this.stage.rects, x, y) || !isCore(s.tool) || s.tool === 'lasso' || s.tool === 'laser') return this.stage.hideCursor();
+		if (!this.stage.view.pageAt(this.stage.rects, x, y) || !isCore(s.tool) || s.tool === 'lasso') return this.stage.hideCursor();
 		if (s.tool === 'eraser') this.stage.showCursor(x, y, s.eraser * 2, null);
 		else this.stage.showCursor(x, y, diameter(s.tool === 'highlighter' ? 'highlighter' : 'pen', s.size, 0.5) * this.stage.view.zoom, s.color);
 	}

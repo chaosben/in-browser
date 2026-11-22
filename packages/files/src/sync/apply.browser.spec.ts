@@ -42,21 +42,21 @@ describe('runSync between two trees', () => {
 	});
 
 	it('keeps the losing version of a package as a whole package, once – never as files inside it', async () => {
-		for (const name of ['project.json', 'pages/1.json', 'pages/2.json', 'media/big.bin']) await writeText(mine, `/Trip.note/${name}`, 'base');
+		for (const name of ['project.json', 'pages/1.json', 'pages/2.json', 'media/big.bin']) await writeText(mine, `/Trip.screencapture/${name}`, 'base');
 		await sync();
-		for (const name of ['project.json', 'pages/1.json']) await writeText(disk, `/Trip.note/${name}`, 'older, in the folder');
+		for (const name of ['project.json', 'pages/1.json']) await writeText(disk, `/Trip.screencapture/${name}`, 'older, in the folder');
 		await later();
-		for (const name of ['project.json', 'pages/1.json']) await writeText(mine, `/Trip.note/${name}`, 'newer, in the browser');
-		await writeText(disk, '/Trip.note/pages/3.json', 'only in the folder');
+		for (const name of ['project.json', 'pages/1.json']) await writeText(mine, `/Trip.screencapture/${name}`, 'newer, in the browser');
+		await writeText(disk, '/Trip.screencapture/pages/3.json', 'only in the folder');
 		const result = await sync();
-		expect(result.conflicts).toEqual(['/Trip.note']);
-		const copy = '/Trip (conflict folder).note';
+		expect(result.conflicts).toEqual(['/Trip.screencapture']);
+		const copy = '/Trip (conflict folder).screencapture';
 		expect((await paths(disk)).filter((path) => path.includes('conflict'))).toEqual(
 			[copy, ...['media', 'media/big.bin', 'pages', 'pages/1.json', 'pages/2.json', 'pages/3.json', 'project.json'].map((name) => `${copy}/${name}`)].sort()
 		);
 		expect(await readText(disk, `${copy}/pages/1.json`)).toBe('older, in the folder');
 		expect(await readText(disk, `${copy}/project.json`)).toBe('older, in the folder');
-		expect(await readText(disk, '/Trip.note/project.json')).toBe('newer, in the browser');
+		expect(await readText(disk, '/Trip.screencapture/project.json')).toBe('newer, in the browser');
 	});
 
 	it('makes no copy when both sides got the same content', async () => {

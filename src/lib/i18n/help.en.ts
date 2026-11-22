@@ -37,7 +37,7 @@ const help = {
 					items: {
 						browser: {
 							title: 'In your browser, not on a server',
-							text: 'Every in-browser tool saves into one storage of your browser on this device. Nothing is uploaded – there is no server that could store your files. All tools share this storage: a notebook from Notes, a project from Screen Capture and a text from the Text Editor are all files there. Files shows and manages them, like the file manager of your computer.'
+							text: 'Every in-browser tool saves into one storage of your browser on this device. Nothing is uploaded – there is no server that could store your files. All tools share this storage: a PDF from the PDF Editor, a project from Screen Capture and a text from the Text Editor are all files there. Files shows and manages them, like the file manager of your computer.'
 						},
 						perBrowser: {
 							title: 'One storage per browser',
@@ -75,7 +75,7 @@ const help = {
 						},
 						download: {
 							title: 'Download',
-							text: 'In Files, select files and choose “Download”, or “Download as ZIP” for a folder or several files. Most tools also export their documents in common formats, e.g. Notes as PDF, Screen Capture as MP4.'
+							text: 'In Files, select files and choose “Download”, or “Download as ZIP” for a folder or several files. Most tools also export their documents in common formats, e.g. Screen Capture as MP4.'
 						}
 					}
 				},
@@ -84,7 +84,7 @@ const help = {
 					items: {
 						quota: {
 							title: 'How much fits',
-							text: 'Browsers give a site a share of the free space on the device – usually a large part of it. The footer of Files shows how much in-browser uses and how much the browser allows. Recordings and imported videos take the most space, text and notebooks very little. When the storage is full, saving says so (“… doesn’t fit: the storage of this browser is full”), and the sync leaves out files that don’t fit until there is room.'
+							text: 'Browsers give a site a share of the free space on the device – usually a large part of it. The footer of Files shows how much in-browser uses and how much the browser allows. Recordings and imported videos take the most space, texts very little. When the storage is full, saving says so (“… doesn’t fit: the storage of this browser is full”), and the sync leaves out files that don’t fit until there is room.'
 						},
 						free: {
 							title: 'Freeing space',
@@ -167,7 +167,7 @@ const help = {
 					items: {
 						newer: {
 							title: 'The newer version wins',
-							text: 'When a file changed on two devices since they last synced, the newer version keeps the name and the other one is kept as a conflict copy next to it. A notebook or a project is one document: there the whole document as it was on this device is kept as a copy, e.g. “Trip (conflict Laptop)” next to “Trip”. Nothing is lost; look at both and delete the one you don’t need.',
+							text: 'When a file changed on two devices since they last synced, the newer version keeps the name and the other one is kept as a conflict copy next to it. A project of Screen Capture is one document: there the whole document as it was on this device is kept as a copy, e.g. “Trip (conflict Laptop)” next to “Trip”. Nothing is lost; look at both and delete the one you don’t need.',
 							tip: 'Before you continue on a device that wasn’t open for a while, open in-browser on one of your other devices first and let it sync. Files warns you when this device is probably behind.'
 						},
 						open: {
@@ -175,7 +175,7 @@ const help = {
 							text: 'When a file you have open in a tool is changed elsewhere – on another device, in another tab or by another program – and you have no unsaved changes, the tool asks “… was changed elsewhere” before it shows the other version. Every tool asks the same way, once per version. If you do have unsaved changes, the tool keeps them and tells you (the Text Editor and the PDF Editor pause saving and let you choose in a bar).',
 							options: {
 								reload: { label: 'Reload', text: 'Shows the other version. Nothing of yours is lost – there were no unsaved changes.' },
-								keep: { label: 'Don’t reload', text: 'Keeps showing your version. If you change it, the tool tells you before your version replaces the other one (the Notes and Screen Capture write over it).' },
+								keep: { label: 'Don’t reload', text: 'Keeps showing your version. If you change it, the tool tells you before your version replaces the other one (Screen Capture writes over it).' },
 								dontAsk: { label: 'Don’t ask again while it is open', text: 'Takes the same choice for further changes without asking, until you close the file. Opened again, it asks again.' }
 							},
 							tip: 'Working on the same file on two devices at once? Choose “Reload” and “Don’t ask again” on the one you only look at.'
@@ -205,7 +205,7 @@ const help = {
 					items: {
 						everywhere: {
 							title: 'On all your devices',
-							text: 'What you delete in Files – or a notebook or project in its tool – lands in the trash, on every device. So you can get it back on any of them: Files → “Trash” → “Restore”.'
+							text: 'What you delete in Files – or a project in its tool – lands in the trash, on every device. So you can get it back on any of them: Files → “Trash” → “Restore”.'
 						},
 						keep: {
 							title: 'How long',
@@ -278,7 +278,7 @@ const help = {
 						},
 						everywhere: {
 							title: 'In every tool',
-							text: 'Connected folders appear in Files in the panel “Folders” below My files and in the open and save dialog of the tools (the choice in front of the folder path). Every tool opens and saves there directly: texts in the Text Editor, notebooks in Notes, projects and recordings in Screen Capture. The start pages of Notes and Screen Capture list notebooks and projects from connected folders once you have created or opened them there – connected folders are not searched, they can be large.'
+							text: 'Connected folders appear in Files in the panel “Folders” below My files and in the open and save dialog of the tools (the choice in front of the folder path). Every tool opens and saves there directly: texts in the Text Editor, PDFs in the PDF Editor, projects and recordings in Screen Capture. The start page of Screen Capture lists projects from connected folders once you have created or opened them there – connected folders are not searched, they can be large.'
 						},
 						notSynced: {
 							title: 'Not synced',

@@ -1,4 +1,4 @@
-// Where the notebook is on screen. The pages are stacked vertically (document coordinates in points, pages
+// Where the document is on screen. The pages are stacked vertically (document coordinates in points, pages
 // centered on a common axis); the view shows the document from (x, y) at `zoom` CSS pixels per point.
 // Plain numbers, no reactivity: it changes with every pan/zoom event.
 

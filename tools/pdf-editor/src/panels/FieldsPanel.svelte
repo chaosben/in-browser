@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The form's fields by page (like PDF-XChange's form fields pane): what each asks for, its kind and value now,
+	// The form's fields by page: what each asks for, its kind and value now,
 	// required ones marked, with how many of them are filled in; a filter for the required ones. A click goes to the
 	// field and focuses it, so it can be filled in right away.
 	import type { PanelProps } from '@in-browser/brand/panels.js';

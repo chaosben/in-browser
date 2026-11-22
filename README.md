@@ -8,8 +8,7 @@ that serves the overview site and every tool on a single origin, so the tools ca
 | `src/` | The app: overview page (launcher, installable as the app of the whole suite), thin routes per tool, Service Worker | https://in-browser.org |
 | `tools/files` | `@in-browser/files-app`: file manager of the shared browser storage, connected folders on disk and servers (WebDAV, S3 – opened live), sync with a folder on disk and between devices | https://in-browser.org/files |
 | `tools/text-editor` | `@in-browser/text-editor`: text, Markdown and code editor (one file per page); CSV as an editable table, JSON/YAML/TOML/XML as an editable tree, previews | https://in-browser.org/text-editor |
-| `tools/notes` | `@in-browser/notes`: handwritten notebooks, PDF import and export | https://in-browser.org/notes |
-| `tools/pdf-editor` | `@in-browser/pdf-editor`: view, search and annotate PDFs, organize pages, fill in forms (with their calculations, run sandboxed) – the file changed in place | https://in-browser.org/pdf-editor |
+| `tools/pdf-editor` | `@in-browser/pdf-editor`: view, search, print and annotate PDFs, organize pages, fill in forms (with their calculations, run sandboxed) – the file changed in place | https://in-browser.org/pdf-editor |
 | `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.org/screen-capture |
 | `packages/brand` | `@in-browser/brand`: header, footer, theme, language logic, PWA, toasts, dialogs, context menu | – |
 | `packages/files` | `@in-browser/files`: shared file system (OPFS) with connected sources (`/:c/<id>`: folders on disk, WebDAV, S3), live access to other devices and guest shares, media in pieces, file dialog, formats, folder and device sync | – |

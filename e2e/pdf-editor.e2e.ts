@@ -1,11 +1,11 @@
 import type { Page } from '@playwright/test';
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, rgb, StandardFonts } from 'pdf-lib';
+import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFRawStream, rgb, StandardFonts } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 import { formPdf, getFile, putFile, scriptedPdf, shot } from './pdf.js';
 
 // The PDF Editor in one flow: open a PDF from the files, see its pages, ribbon, side panel and footer, move between
-// pages, rotate a page (saved by itself as an update of the file; undoing gives the original file again), draw on it,
-// place a note with a subject, a reply and a status, type a text box, fill in a form. The writer, the pages' rendering
+// pages, print two of them, rotate a page (saved by itself as an update of the file; undoing gives the original file again), draw on it,
+// measure a distance with two clicks, delete objects of a page's own content, place a note with a subject, a reply and a status, type a text box, fill in a form. The writer, the pages' rendering
 // and the annotations' looks are covered by the browser specs of packages/pdf and tools/pdf-editor.
 
 /** A PDF with three pages, each with its number as text */
@@ -35,6 +35,40 @@ test('opens a PDF from the files and moves through its pages', async ({ page }) 
 	test.setTimeout(90_000);
 	await page.setViewportSize({ width: 1400, height: 900 });
 	await page.goto('/pdf-editor');
+	// "New PDF …": an empty page with a paper, saved where the dialog says and opened
+	await page.getByRole('button', { name: 'New PDF …' }).click();
+	await page.getByRole('dialog').getByText('Lined').click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByTestId('surface')).toBeVisible();
+	await expect(page.getByText('/ 1')).toBeVisible();
+	expect((await getFile(page, 'New.pdf')).subarray(0, 5).toString()).toBe('%PDF-');
+	// An icon goes onto the page as a picture (an SVG drawn once) and is saved as a stamp
+	await page.getByRole('tab', { name: 'Comment' }).click();
+	await page.getByRole('button', { name: 'Icon', exact: true }).click();
+	await page.locator(':popover-open button.btn-square[title]').first().click();
+	await expect.poll(async () => (await getFile(page, 'New.pdf')).toString('latin1').includes('/Subtype /Stamp'), { timeout: 10_000 }).toBe(true);
+	// A word stamp is placed, and what it says is changed on the page
+	await page.getByRole('tab', { name: 'Comment' }).click();
+	await page.locator('[data-command="stamp"]').first().click();
+	const paper = (await page.getByTestId('surface').boundingBox())!;
+	await page.mouse.click(paper.x + paper.width / 2, paper.y + 120);
+	await page.locator('[data-command="editStamp"]').first().click();
+	const word = page.getByRole('group', { name: 'Edit text' }).getByRole('textbox').first();
+	await word.fill('Checked');
+	await word.press('Enter');
+	await expect.poll(async () => (await getFile(page, 'New.pdf')).toString('latin1').includes('(Checked)'), { timeout: 10_000 }).toBe(true);
+	// Two points are also set with two clicks, and the view scrolls between them: a distance is measured that way
+	await page.keyboard.press('Escape');
+	await page.getByRole('tab', { name: 'Comment' }).click();
+	await page.locator('[data-command="measure-distance"]').first().click();
+	await page.mouse.click(paper.x + paper.width / 2 - 100, paper.y + 300);
+	await page.mouse.move(paper.x + paper.width / 2, paper.y + 340);
+	await page.mouse.wheel(0, 120);
+	await page.mouse.click(paper.x + paper.width / 2 + 100, paper.y + 300);
+	await expect.poll(async () => (await getFile(page, 'New.pdf')).toString('latin1').includes('/LineDimension'), { timeout: 10_000 }).toBe(true);
+
+	await page.goto('/pdf-editor');
 	const original = await pdf();
 	await putFile(page, 'Test.pdf', original);
 	await page.goto('/pdf-editor/editor?path=%2FTest.pdf');
@@ -54,9 +88,28 @@ test('opens a PDF from the files and moves through its pages', async ({ page }) 
 		)
 		.toBe(true);
 
+	// "Print …" (Ctrl+P): our dialog, then the pages as pictures for the browser's print dialog – only they are printed
+	await page.evaluate(() => (window.print = () => {}));
+	await page.keyboard.press('Control+p');
+	await page.getByRole('dialog').getByPlaceholder('e.g. 1-3, 7').fill('1, 3');
+	await page.getByRole('dialog').getByRole('button', { name: 'Print', exact: true }).click();
+	await expect(page.locator('.print-root img')).toHaveCount(2);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await page.evaluate(() => dispatchEvent(new Event('afterprint')));
+	await expect(page.locator('.print-root')).toHaveCount(0);
+
 	// Side panel with the pages; a click goes to page 3
+	const textOffset = () =>
+		page.evaluate(() => {
+			const surface = document.querySelector('[data-testid="surface"]')!.getBoundingClientRect();
+			return document.querySelector('[data-text-layer]')!.getBoundingClientRect().left - surface.left - surface.width / 2;
+		});
+	await expect(page.locator('[data-text-layer]').first()).toBeAttached();
+	const centered = await textOffset();
 	await page.getByRole('button', { name: 'Pages', exact: true }).first().click();
 	await expect(page.getByTestId('panel')).toBeVisible();
+	// The pages' text (and what is dragged open on it) follows the page into the narrower view
+	await expect.poll(textOffset).toBeCloseTo(centered, 0);
 	await shot(page, 'pdf-editor');
 	// Nothing sticks out sideways (the ribbon measures its groups in a hidden box wider than the window)
 	expect(await overflowing(page)).toEqual([]);
@@ -272,4 +325,40 @@ test('opens a PDF from the files and moves through its pages', async ({ page }) 
 	await expect.poll(sum, { timeout: 10_000 }).toBe('3.5');
 	await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
 	await expect.poll(sum, { timeout: 10_000 }).toBe('1.5');
+	// The page's own content: only with the switch "Edit content" on. What is deleted there is gone from the file,
+	// not only from the page (the file is written anew)
+	await putFile(page, 'Content.pdf', original);
+	await page.goto('/pdf-editor/editor?path=%2FContent.pdf');
+	await expect(page.getByTestId('surface')).toBeVisible();
+	const everything = async () => {
+		const bytes = await getFile(page, 'Content.pdf');
+		const doc = await PDFDocument.load(bytes);
+		let all = bytes.toString('latin1');
+		for (const [, object] of doc.context.enumerateIndirectObjects()) if (object instanceof PDFRawStream) all += Buffer.from(decodePDFRawStream(object).decode()).toString('latin1');
+		return all;
+	};
+	const hex = (text: string) => Buffer.from(text, 'latin1').toString('hex').toUpperCase();
+	// A comment is embedded in its page from the menu at the selection – that needs no switch: it is no comment
+	// any more but part of the page's content
+	await page.getByRole('tab', { name: 'Comment' }).click();
+	await page.locator('[data-command="pen"]').first().click();
+	const sheet = (await page.getByTestId('surface').boundingBox())!;
+	await page.mouse.move(sheet.x + 300, sheet.y + 450);
+	await page.mouse.down();
+	await page.mouse.move(sheet.x + 420, sheet.y + 450, { steps: 6 });
+	await page.mouse.up();
+	await page.locator('[data-command="lasso"]').first().click();
+	await page.mouse.click(sheet.x + 360, sheet.y + 450);
+	await page.locator('[data-command="flattenSelection"]').last().click();
+	await expect.poll(async () => (await everything()).includes('/InB0 Do'), { timeout: 10_000 }).toBe(true);
+	expect((await PDFDocument.load(await getFile(page, 'Content.pdf'))).getPage(0).node.Annots()?.size() ?? 0).toBe(0);
+	// The page's own objects need the switch
+	await page.getByRole('tab', { name: 'Content' }).click();
+	await expect(page.locator('[data-command="contentSelectAll"]').first()).toBeDisabled();
+	await page.locator('[data-command="contentEdit"]').first().click();
+	await page.locator('[data-command="contentSelectAll"]').first().click();
+	await expect(page.getByTestId('content-status')).toHaveText('3 objects of the page picked');
+	await page.locator('[data-command="contentDelete"]').first().click();
+	await expect.poll(async () => (await everything()).includes(hex('Page 1 of the test PDF')), { timeout: 10_000 }).toBe(false);
+	expect(await everything()).toContain(hex('Page 2 of the test PDF'));
 });

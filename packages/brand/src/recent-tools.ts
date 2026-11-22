@@ -11,7 +11,7 @@ export function pushRecent(list: readonly string[], item: string, max = RECENT_M
 	return [item, ...list.filter((entry) => entry !== item)].slice(0, max);
 }
 
-/** Start pages of the recently used tools (e.g. `/notes`), most recent first; empty if storage is blocked */
+/** Start pages of the recently used tools (e.g. `/pdf-editor`), most recent first; empty if storage is blocked */
 export function recentTools(): string[] {
 	const value = loadJson<unknown>(RECENT_KEY, []);
 	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];

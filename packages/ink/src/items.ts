@@ -1,7 +1,6 @@
-// What lies on a page, in page points (1/72 inch) with the origin at the page's top left: pen strokes, shapes and
-// pictures. Shared by every tool that draws with the ink core (Notes, PDF Editor); each tool stores them its own way.
+// What lies on a page, in page points (1/72 inch) with the origin at the page's top left: pen strokes and shapes.
+// Shared by every tool that draws with the ink core (the PDF Editor); a tool adds its own kinds next to them.
 
-import type { IconData } from '@in-browser/graphics/icons/types.js';
 import type { Dash, ShapeFit } from './shapes.js';
 
 export type InkTool = 'pen' | 'highlighter';
@@ -32,35 +31,18 @@ export interface ShapeItem {
 	dash?: Exclude<Dash, 'solid'>;
 	/** Hand-drawn instead of exact */
 	sketch?: true;
+	/** The outline of a closed shape as a cloud */
+	cloud?: true;
+	/** The shape measures: what, and the scale and unit of the plan it lies on (1 on paper is `scale` in reality).
+	 * The tool using the core draws the number (the PDF Editor) */
+	measure?: { kind: MeasureKind; scale: number; unit: MeasureUnit };
 }
 
-/** A picture on a page: a box in page points (top left, size), drawn stretched into it */
-interface PictureBase {
-	id: string;
-	x: number;
-	y: number;
-	w: number;
-	h: number;
-}
-
-/** An image file of the notebook (`assets/<asset>`) */
-export interface ImageItem extends PictureBase {
-	type: 'image';
-	asset: string;
-}
-
-/** An icon: its SVG travels along (no icon set needed to show it), drawn in one color */
-export interface IconItem extends PictureBase {
-	type: 'icon';
-	icon: IconData;
-	/** `#rrggbb` */
-	color: string;
-}
-
-export type Picture = ImageItem | IconItem;
+export type MeasureKind = 'distance' | 'perimeter' | 'area';
+export type MeasureUnit = 'mm' | 'cm' | 'm' | 'in' | 'pt';
 
 /** Everything on a page, in draw order (later on top) */
-export type Item = Stroke | ShapeItem | Picture;
+export type Item = Stroke | ShapeItem;
 
 /** What is drawn with a pen: erasable, drawn as strokes (`inkStrokes` in `shapes.ts`) */
 export type Ink = Stroke | ShapeItem;
@@ -69,4 +51,3 @@ export type Ink = Stroke | ShapeItem;
 export const isStroke = <T extends { readonly id: string }>(item: T): item is T & Stroke => 'points' in item;
 export const isShape = <T extends { readonly id: string }>(item: T): item is T & ShapeItem => 'type' in item && item.type === 'shape';
 export const isInk = <T extends { readonly id: string }>(item: T): item is T & Ink => isStroke(item) || isShape(item);
-export const isPicture = (item: Item): item is Picture => !isInk(item);

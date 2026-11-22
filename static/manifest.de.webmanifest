@@ -17,7 +17,6 @@
 	],
 	"shortcuts": [
 		{ "name": "Dateien", "url": "/files", "icons": [{ "src": "/files/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
-		{ "name": "Notizen", "url": "/notes", "icons": [{ "src": "/notes/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
 		{ "name": "Texteditor", "url": "/text-editor", "icons": [{ "src": "/text-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
 		{ "name": "Bildschirmaufnahme", "url": "/screen-capture", "icons": [{ "src": "/screen-capture/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
 		{ "name": "PDF-Editor", "url": "/pdf-editor", "icons": [{ "src": "/pdf-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }

@@ -1,10 +1,10 @@
 // Snapping while dragging: edges and centers of the dragged item snap to the edges and center of the frame (canvas,
 // page) and to the edges and centers of other items; moved items also snap to equal spacing between them. Any unit
-// (Screen Capture: normalized content coordinates, Notes: page points).
+// (Screen Capture: normalized content coordinates, the PDF Editor: page points).
 
 import type { Point } from './shapes.js';
 
-/** Snap distance in screen pixels (preview of Screen Capture, pages of Notes) */
+/** Snap distance in screen pixels (preview of Screen Capture, pages of the PDF Editor) */
 export const SNAP_PX = 6;
 
 export interface Rect {

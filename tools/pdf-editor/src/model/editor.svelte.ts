@@ -21,6 +21,10 @@ export class EditorState {
 	textEdit = $state<string | null>(null);
 	/** The note whose comment is being written (selected) */
 	noteEdit = $state<string | null>(null);
+	/** The word stamp whose text is being written (selected) */
+	stampEdit = $state<string | null>(null);
+	/** The link whose target is being set (selected) */
+	linkEdit = $state<string | null>(null);
 	/** Index of the page in the middle of the view */
 	current = $state(0);
 	/** Pages picked in the panel "Pages" (ids); page commands act on them, else on the current page */

@@ -9,7 +9,6 @@ const de: InkMessages = {
 		eraser: 'Radierer',
 		lasso: 'Auswählen',
 		lassoHint: 'Auswählen – tippe ein Element an oder umkreise mehrere',
-		laser: 'Laserpointer',
 		eraserMode: 'Radiert',
 		eraserModes: { stroke: 'Ganze Striche', pixel: 'Pixel' },
 		size: 'Stärke',
@@ -18,6 +17,9 @@ const de: InkMessages = {
 		smoothing: 'Glättung',
 		smoothingLevels: ['Aus', 'Leicht', 'Mittel', 'Stark'],
 		smoothingHint: 'Glattere Linien, die dem Stift mit kleiner Verzögerung folgen',
+		penOnly: 'Nur der Stift zeichnet',
+		penOnlyTip: 'Finger scrollen und zoomen nur, schon bei der ersten Berührung',
+		penOnlyOn: 'Nur der Stift zeichnet – Finger verschieben die Seite',
 		shapes: {
 			line: 'Linie',
 			arrow: 'Pfeil',
@@ -30,13 +32,13 @@ const de: InkMessages = {
 			parallelogram: 'Parallelogramm',
 			pentagon: 'Fünfeck',
 			hexagon: 'Sechseck',
-			star: 'Stern'
+			star: 'Stern',
+			polyline: 'Linienzug',
+			freePolygon: 'Polygon'
 		},
-		shapeHint: 'Zieh die Form auf der Seite auf. Fast quadratische Formen werden zu Quadrat oder Kreis.',
+		shapeHint: 'Zieh die Form auf der Seite auf. Fast quadratische Formen werden zu Quadrat oder Kreis. „Linienzug“ und „Polygon“ nehmen je Punkt einen Klick oder Zug; ein Doppelklick, die Eingabetaste oder Esc beendet sie.',
 		snap: 'Einrasten',
 		shapeName: 'Form',
-		picture: 'Bild',
-		icon: 'Symbol',
 		snapHint: 'Linien in 15°-Schritten; Kanten und Mitten an Seite, Formen und Bildern; gleiche Abstände. Halte beim Ziehen Alt gedrückt für das Gegenteil.'
 	},
 
@@ -79,8 +81,9 @@ const de: InkMessages = {
 		line: 'Linie',
 		dashes: { solid: 'Durchgezogen', dashed: 'Gestrichelt', dotted: 'Gepunktet' },
 		sketch: 'Handgezeichnet',
-		heads: 'Pfeilspitzen',
-		headOptions: { none: 'Keine', end: 'Am Ende', start: 'Am Anfang', both: 'An beiden Enden' }
+		cloud: 'Wolke',
+		ends: { start: 'Anfang', end: 'Ende' },
+		endOptions: { none: 'Nichts', arrow: 'Pfeil', closed: 'Geschlossener Pfeil', circle: 'Kreis', square: 'Quadrat', diamond: 'Raute', bar: 'Querstrich' }
 	},
 
 	suggest: {

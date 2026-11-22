@@ -1,16 +1,15 @@
-// The ribbon (`Ribbon.svelte`): tabs with labeled groups of commands, modeled on the ribbon of Microsoft Office and
-// the tabbed notebook bar of LibreOffice. Here the parts without UI: its description, how groups shrink when room
+// The ribbon (`Ribbon.svelte`): tabs with labeled groups of commands. Here the parts without UI: its description, how groups shrink when room
 // runs out, and the access keys shown with Alt.
 
 import type { Snippet } from 'svelte';
 import type { Command } from './commands.js';
 
-/** How a group is shown: large buttons (icon over label), medium (icon and label in rows), small (icons in rows), collapsed (one button opening the group) */
-export type GroupSize = 0 | 1 | 2 | 3;
-export const LARGE: GroupSize = 0;
-export const MEDIUM: GroupSize = 1;
-export const SMALL: GroupSize = 2;
-export const COLLAPSED: GroupSize = 3;
+/** How a group is shown: medium (icon and label), small (icons only), collapsed (one button opening the group).
+ * There are no large buttons (decided by the user: they took too much room) */
+export type GroupSize = 0 | 1 | 2;
+export const MEDIUM: GroupSize = 0;
+export const SMALL: GroupSize = 1;
+export const COLLAPSED: GroupSize = 2;
 
 /** Something else than a button in a group (a zoom field, a color field); `size` is the group's */
 export interface RibbonCustom {
@@ -43,7 +42,7 @@ export interface RibbonTab {
 	follow?: () => boolean;
 }
 
-/** How the ribbon shows its commands: groups with labels, one compact row, or one row of icons only */
+/** How the ribbon shows its commands: groups with labels and three rows of commands, one compact row, or one row of icons only */
 export type RibbonMode = 'classic' | 'simplified' | 'minimal';
 export const RIBBON_MODES: readonly RibbonMode[] = ['classic', 'simplified', 'minimal'];
 
@@ -75,14 +74,14 @@ export const isCustom = (item: RibbonItem): item is RibbonCustom => 'custom' in 
 
 /**
  * Sizes of the groups so they fit into `available` pixels: in rounds, every group in `order` one size smaller
- * (large → medium → small → collapsed) until it fits – a size only where it saves room (a group of a few icons can
+ * (medium → small → collapsed) until it fits – a size only where it saves room (a group of a few icons can
  * be narrower than its collapsed button). `widths[g][size]` are the measured widths; `gap` is the room between two
  * groups. What doesn't fit even then scrolls.
  */
 export function fitGroups(widths: readonly (readonly number[])[], available: number, order: readonly number[], gap = 0): GroupSize[] {
-	const sizes = widths.map(() => LARGE) as GroupSize[];
+	const sizes = widths.map(() => MEDIUM) as GroupSize[];
 	const total = () => sizes.reduce<number>((sum, size, g) => sum + widths[g][size], 0) + gap * Math.max(0, widths.length - 1);
-	for (let size = MEDIUM; size <= COLLAPSED; size++) {
+	for (let size = SMALL; size <= COLLAPSED; size++) {
 		for (const g of order) {
 			if (total() <= available) return sizes;
 			if (widths[g][size] < widths[g][sizes[g]]) sizes[g] = size as GroupSize;

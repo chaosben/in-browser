@@ -36,12 +36,6 @@ describe('lasso', () => {
 		const out = stroke('out', line(120, 10, 180, 10));
 		expect(itemsInLasso([inside, half, out], square).map((s) => s.id)).toEqual(['in']);
 	});
-	it('selects pictures by their center and moves/scales their box', () => {
-		const img = { id: 'p', type: 'image' as const, asset: 'a.png', x: 40, y: 40, w: 100, h: 20 };
-		const far = { ...img, id: 'q', x: 120 };
-		expect(itemsInLasso([img, far], square).map((s) => s.id)).toEqual(['p']);
-		expect(transformItem(img, { dx: 10, dy: 0, scale: 0.5, ox: 40, oy: 40 })).toMatchObject({ x: 50, y: 40, w: 50, h: 10 });
-	});
 	it('moves and scales strokes, the width along', () => {
 		const s = transformStroke(stroke('a', [10, 10, 0.5, 20, 10, 0.7], 2), { dx: 5, dy: 0, scale: 2, ox: 10, oy: 10 });
 		expect([...s.points]).toEqual([15, 10, 0.5, 35, 10, expect.closeTo(0.7)]);

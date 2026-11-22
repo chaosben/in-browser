@@ -14,7 +14,7 @@ describe('snapping on a page', () => {
 		expect(snapBox(stroke)).toEqual({ x: 10, y: 10, w: 20, h: 40 });
 		expect(unionBox([{ x: 0, y: 5, w: 10, h: 10 }, { x: 20, y: 0, w: 5, h: 5 }])).toEqual({ x: 0, y: 0, w: 25, h: 15 });
 	});
-	it('snaps to the page and to shapes and pictures, never to handwriting or itself', () => {
+	it('snaps to the page and to shapes, never to handwriting or itself', () => {
 		const items = [shape('a', 100, 100, 200, 150), shape('me', 0, 0, 10, 10), stroke];
 		const targets = pageTargets(items, new Set(['me']), 600, 800);
 		expect(targets.boxes).toEqual([{ x: 100, y: 100, w: 100, h: 50 }]);

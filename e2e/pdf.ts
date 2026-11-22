@@ -21,7 +21,7 @@ export async function formPdf(blank = 0): Promise<Buffer> {
 	return Buffer.from(await doc.save());
 }
 
-/** A form with scripts: hours `a` and `b`, `sum` = a + b by a script of its own, numbers formatted like Acrobat's */
+/** A form with scripts: hours `a` and `b`, `sum` = a + b by a script of its own, numbers formatted by the standard functions (`AFNumber_*`) */
 export async function scriptedPdf(): Promise<Buffer> {
 	const doc = await PDFDocument.create();
 	const page = doc.addPage([595, 842]);

@@ -1,5 +1,5 @@
 <script lang="ts" generics="C">
-	// Side panels of a tool, modeled on LibreOffice's sidebar: a narrow rail of icons, a click opens or closes the
+	// Side panels of a tool: a narrow rail of icons, a click opens or closes the
 	// panel next to the content (its width can be dragged or set with the arrow keys; panel and width are kept as
 	// `<storage>:panel`). Panels are loaded when first opened and get the tool's `context`. Phones have no rail (it
 	// would cost the content its room): commands open a panel (`open`), shown as a full-screen sheet.

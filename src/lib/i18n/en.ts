@@ -66,15 +66,10 @@ const en = {
 			summary: 'Edit Markdown, JSON, YAML and code with syntax highlighting',
 			keywords: 'text, editor, notepad, markdown, json, yaml, csv, html, css, javascript, code, txt'
 		},
-		notes: {
-			name: brand.tools['notes'],
-			summary: 'Handwritten notebooks for stylus, finger or mouse',
-			keywords: 'handwriting, notebook, stylus, pen, sketch, draw, pdf, annotate, whiteboard'
-		},
 		pdfEditor: {
 			name: brand.tools['pdf-editor'],
-			summary: 'Annotate PDFs, fill in forms, organize and merge pages',
-			keywords: 'pdf, annotate, comment, highlight, form, fill, merge, split, pages, rotate, sign, acrobat, viewer'
+			summary: 'Write on and annotate PDFs, fill in forms, organize pages',
+			keywords: 'pdf, annotate, comment, highlight, stamp, print, form, fill, merge, split, pages, rotate, sign, acrobat, viewer, handwriting, notebook, stylus, pen, sketch, draw'
 		}
 	},
 

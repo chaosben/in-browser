@@ -1,4 +1,4 @@
-// What the ribbon's contextual tabs do (like PDF-XChange's “Format” and “Arrange” tabs). The format tab of a kind
+// What the ribbon's contextual tabs do. The format tab of a kind
 // (text box, note, marked text, drawing, a mix) shows while such items are selected – then it changes them, one undo
 // step per choice – or while the tool drawing them is chosen – then it sets how the next one is drawn (remembered
 // per tool). “Arrange” (draw order, align, distribute) only for a selection. What every drawing tool offers
@@ -10,28 +10,31 @@ import { inkSelectionCommands } from '@in-browser/ink/ui/selection-commands.js';
 import { m } from '#lib/i18n/index.js';
 import type { EditorState } from '#lib/model/editor.svelte.js';
 import type { PdfPage } from '#lib/model/document.svelte.js';
-import { isMarkTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
-import { isMarkup, type PdfItem } from '#lib/render/markup.js';
+import { isCaretTool, isMarkTool, isTextTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
+import { isCommented, isMarkup, type PdfItem } from '#lib/render/markup.js';
+import { isCaret } from '#lib/render/caret.js';
+import { isLink } from '#lib/render/link.js';
+import { isStamp } from '#lib/render/stamp.js';
 import { isNote, NOTE_ICONS, noteGlyph, noteIconOf, type NoteItem } from '#lib/render/note.js';
 import type { TextSizing } from '@in-browser/graphics/text-box.js';
 import { alignOf, BORDER_WIDTHS, isText, roomOf, sizingOf, withText, type TextAlign, type TextItem } from '#lib/render/textbox.js';
 
 /** What a format tab is for: one kind of item, or several kinds */
-export type FormatKind = 'text' | 'note' | 'markup' | 'drawing' | 'mixed';
+export type FormatKind = 'text' | 'note' | 'markup' | 'drawing' | 'stamp' | 'link' | 'mixed';
 
 /** The kind of the selected items */
 export function kindOf(items: readonly PdfItem[]): FormatKind | null {
 	if (!items.length) return null;
-	const kinds = new Set(items.map((i): FormatKind => (isText(i) ? 'text' : isNote(i) ? 'note' : isMarkup(i) ? 'markup' : 'drawing')));
+	const kinds = new Set(items.map((i): FormatKind => (isText(i) ? 'text' : isNote(i) ? 'note' : isMarkup(i) || isCaret(i) ? 'markup' : isStamp(i) ? 'stamp' : isLink(i) ? 'link' : 'drawing')));
 	return kinds.size === 1 ? [...kinds][0] : 'mixed';
 }
 
 /** The kind a tool draws (null: it draws nothing, e.g. "Hand", "Select", "Eraser") */
 export function toolKind(tool: string): FormatKind | null {
-	if (tool === 'pen' || tool === 'shape') return 'drawing';
-	if (isMarkTool(tool)) return 'markup';
+	if (tool === 'pen' || tool === 'highlighter' || tool === 'shape') return 'drawing';
+	if (isMarkTool(tool) || isCaretTool(tool) || tool === 'area') return 'markup';
 	if (tool === 'note') return 'note';
-	if (tool === 'textbox') return 'text';
+	if (isTextTool(tool)) return 'text';
 	return null;
 }
 
@@ -83,7 +86,7 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 		return items.length === 1 && is(items[0]) ? items[0] : null;
 	};
 	const singleText = single(isText);
-	/** How the selected text boxes follow their text (Figma's three) */
+	/** How the selected text boxes follow their text (one of the three sizings) */
 	const sizing = (to: TextSizing, label: string, tip: string, icon: string): Command => ({
 		id: `sizing:${to}`,
 		label,
@@ -105,7 +108,7 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 			changeTexts(({ align: _, ...t }) => (to === 'left' ? t : { ...t, align: to }));
 		}
 	});
-	const singleNote = single(isNote);
+	const singleNote = single(isCommented);
 	const notes = () => (sel()?.items ?? []).filter(isNote);
 	/** Gives the selected notes another icon (one undo step) */
 	function changeNotes(change: (n: NoteItem) => NoteItem) {
@@ -118,7 +121,7 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 	}
 
 	return {
-		// Shared with Notes: duplicate, delete, thickness, order, align, distribute
+		// The ink core's: duplicate, delete, thickness, order, align, distribute
 		...ink,
 		sel,
 		texts,

@@ -5,10 +5,19 @@ import { pdfLib } from '@in-browser/pdf/pdf-lib.js';
 import { openPdf } from '@in-browser/pdf/pdfjs.js';
 import type { NewAnnotation } from '@in-browser/pdf/write/annotations.js';
 import { IncrementalPdf } from '@in-browser/pdf/write/incremental.js';
-import type { MarkupItem, PdfItem } from '#lib/render/markup.js';
+import { pdfKit, type MarkupItem, type PdfItem } from '#lib/render/markup.js';
+import { registerStampImage, stampBitmap, stampsSharp, type StampItem } from '#lib/render/stamp.js';
+import type { CaretItem } from '#lib/render/caret.js';
+import type { LinkItem } from '#lib/render/link.js';
+import { isMeasured, measureText } from '#lib/render/measure.js';
+import { attachedFiles } from '#lib/render/note.js';
+import { formBitmap, isForm, type PdfForm } from '@in-browser/pdf/write/form.js';
+import { encodeImage, imageBitmap } from '@in-browser/pdf/write/image.js';
+import { pieceForm } from '@in-browser/pdf/write/piece.js';
+import { svgForm } from '@in-browser/pdf/write/svg.js';
 import type { NoteItem } from '#lib/render/note.js';
 import { loadTextFont, withText, type TextItem } from '#lib/render/textbox.js';
-import { annotationOf } from './annots.js';
+import { annotationOf, partsOf } from './annots.js';
 import { itemsOf, withData } from './imported.js';
 
 // Drawn items written as annotations and drawn again by PDF.js: they must appear where they were drawn on the page
@@ -137,6 +146,261 @@ describe('annotations of drawn items', () => {
 		const [annotation] = await (await opened.getPage(1)).getAnnotations();
 		expect(annotation).toMatchObject({ subtype: 'Highlight', contentsObj: { str: 'Marked' } });
 		await opened.loadingTask.destroy();
+	});
+
+	it('writes a wavy underline as /Squiggly, drawn below its text, and reads it back from the standard entries', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const wavy: MarkupItem = { id: 'w1', type: 'markup', kind: 'squiggly', color: '#000000ff', boxes: [{ x0: 40, y0: 50, x1: 120, y1: 70 }], dir: 0, text: 'Wavy' };
+		const annotation = annotationOf(wavy, toUser, undefined, new Date());
+		expect(annotation).toMatchObject({ subtype: 'Squiggly', contents: 'Wavy' });
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [annotation]]]) });
+		// The line swings around the underline's place just below the box, nothing above it
+		expect(await darkIn(out, 40, 68, 120, 76)).toBeGreaterThan(0);
+		expect(await darkIn(out, 40, 50, 120, 66)).toBe(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(itemsOf(found, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x')).toEqual([wavy]);
+	});
+
+	it('writes an open line as /PolyLine with what its ends carry and a cloud with /BE, and reads both back from the standard entries', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const open: ShapeItem = { id: 'p1', type: 'shape', color: '#000000', size: 2, fit: { kind: 'polyline', points: [40, 60, 100, 100, 160, 60], start: 'circle', end: true } };
+		const cloud: ShapeItem = { id: 'c1', type: 'shape', color: '#000000', size: 2, fit: { kind: 'polygon', points: [40, 200, 200, 200, 200, 320, 40, 320] }, cloud: true };
+		const written = [open, cloud].map((item) => annotationOf(item, toUser, undefined, new Date()));
+		expect(written[0]).toMatchObject({ subtype: 'PolyLine', vertices: [40, 340, 100, 300, 160, 340], lineEndings: ['Circle', 'OpenArrow'] });
+		expect(written[1]).toMatchObject({ subtype: 'Polygon', cloud: 1 });
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, written]]) });
+		// The cloud's arcs bulge out of the polygon: ink outside its top edge, none well inside
+		expect(await darkIn(out, 60, 190, 180, 198)).toBeGreaterThan(0);
+		expect(await darkIn(out, 80, 230, 160, 290)).toBe(0);
+		const found = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.flatMap((a) => itemsOf(a, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x'))).toEqual([open, cloud]);
+	});
+
+	it('writes stamps – a framed word, a picture with see-through parts – as /Stamp and reads them back with the picture', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		// 2 × 1 pixels: opaque red, then nothing
+		const canvas = document.createElement('canvas');
+		canvas.width = 2;
+		canvas.height = 1;
+		const ctx = canvas.getContext('2d')!;
+		ctx.fillStyle = '#ff0000';
+		ctx.fillRect(0, 0, 1, 1);
+		const image = await encodeImage(await new Promise<Blob>((done) => canvas.toBlob((b) => done(b!), 'image/png')));
+		registerStampImage('pic', image);
+		const word: StampItem = { id: 'w', type: 'stamp', x: 40, y: 40, w: 120, h: 30, name: 'Approved', text: 'APPROVED', color: '#000000' };
+		const picture: StampItem = { id: 'p', type: 'stamp', x: 40, y: 200, w: 100, h: 50, name: 'Image', color: '#000000', image: 'pic' };
+		const written = [word, picture].map((item) => withData(annotationOf(item, toUser, undefined, date), item, date, 0, 300, 400));
+		expect(written[0]).toMatchObject({ subtype: 'Stamp', icon: 'Approved', contents: 'APPROVED', rect: [40, 330, 160, 360] });
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, written]]) });
+		// The word's frame and letters; the picture's left half red, its right half the page
+		expect(await darkIn(out, 40, 40, 160, 70)).toBeGreaterThan(50);
+		expect(red(await pixel(out, 1, 0, 65, 225))).toBe(true);
+		expect(white(await pixel(out, 1, 0, 115, 225))).toBe(true);
+		const found = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.flatMap((a) => itemsOf(a, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x'))).toEqual([word, picture]);
+		expect(found[1].image).toMatchObject({ width: 2, height: 1 });
+		const bitmap = await imageBitmap(found[1].image!);
+		expect([bitmap.width, bitmap.height]).toEqual([2, 1]);
+	});
+
+	it('writes a stamp of an SVG as vectors – paths, arcs, transforms – and reads it back as vectors; an SVG with text stays pixels', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		// 40 × 20 pixels: a red disc filling the left half (as two arcs), the right half moved in by a transform
+		const svg =
+			'<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20" viewBox="0 0 4 2"><path fill="#f00" d="M0 1a1 1 0 0 1 2 0 1 1 0 0 1-2 0z"/>' +
+			'<g transform="translate(2)"><rect width="2" height="2" style="fill:none;stroke:#f00;stroke-width:.5"/></g></svg>';
+		const form = (await svgForm(svg))!;
+		expect([form.width, form.height]).toEqual([30, 15]);
+		expect(await svgForm('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><text>a</text></svg>')).toBeNull();
+		registerStampImage('vec', form);
+		const item: StampItem = { id: 'v', type: 'stamp', x: 40, y: 200, w: 200, h: 100, name: 'Image', color: '#000000', image: 'vec' };
+		const written = withData(annotationOf(item, toUser, undefined, date), item, date, 0, 300, 400);
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [written]]]) });
+		// No picture object: the disc's middle red, its box's corner the page; the frame's edge red, its inside the page
+		expect(new TextDecoder('latin1').decode(out.subarray(out.length - 6000))).not.toContain('/Subtype /Image');
+		expect(red(await pixel(out, 1, 0, 90, 250))).toBe(true);
+		expect(white(await pixel(out, 1, 0, 44, 204))).toBe(true);
+		expect(red(await pixel(out, 1, 0, 236, 250))).toBe(true);
+		expect(white(await pixel(out, 1, 0, 190, 250))).toBe(true);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(itemsOf(found, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x')).toEqual([item]);
+		expect(found.image && isForm(found.image) && [found.image.width, found.image.height]).toEqual([30, 15]);
+		const bitmap = await formBitmap(found.image as PdfForm);
+		expect(bitmap.width / bitmap.height).toBe(2);
+		// See-through where the SVG paints nothing (the frame's inside)
+		const shown = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!;
+		shown.drawImage(bitmap, 0, 0);
+		expect(shown.getImageData(Math.round(bitmap.width * 0.75), Math.round(bitmap.height / 2), 1, 1).data[3]).toBe(0);
+	});
+
+	it('makes a vector picture of a piece of a page: its own content with comments drawn on top, upright as shown', async () => {
+		const { PDFDocument, rgb } = await pdfLib();
+		const doc = await PDFDocument.create();
+		doc.addPage([300, 400]).drawRectangle({ x: 100, y: 100, width: 100, height: 100, color: rgb(0, 0, 1) });
+		const pdf = await doc.save();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		// The red stroke lies at y = 60 from the top: 340 in user space
+		const piece = { page: { pdf, index: 0 }, annotations: [annotationOf(stroke, toUser, undefined, new Date())], box: [30, 90, 220, 360] as const };
+		const form = await pieceForm(piece);
+		expect([form.width, form.height]).toEqual([190, 270]);
+		const bytes = await form.pdf;
+		const blue = (c: number[]) => c[2] > 200 && c[0] < 80;
+		expect(blue(await pixel(bytes, 1, 0, 120, 210))).toBe(true);
+		expect(red(await pixel(bytes, 1, 0, 50, 20))).toBe(true);
+		expect(white(await pixel(bytes, 1, 0, 150, 60))).toBe(true);
+		// Nothing left to be listed as a comment
+		expect((await IncrementalPdf.open(bytes)).annotations(0)).toEqual([]);
+		// A page shown turned a quarter clockwise: the piece as seen, the blue square on its left
+		const turned = await pieceForm({ ...piece, rotate: 90 });
+		expect([turned.width, turned.height]).toEqual([270, 190]);
+		expect(blue(await pixel(await turned.pdf, 1, 0, 60, 120))).toBe(true);
+	});
+
+	it('writes a file attached to a comment as /FileAttachment with the file as it is, and reads both back', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const toPage = toShown(pageTransform([0, 0, 300, 400], 0));
+		// Every byte value, a name beyond ASCII
+		const bytes = Uint8Array.from({ length: 600 }, (_, i) => i % 256);
+		attachedFiles.set('f1', bytes);
+		const item: PdfItem = { id: 'a1', type: 'note', x: 100, y: 100, color: '#ffd400', text: 'see this', file: { key: 'f1', name: 'Größen (1).bin', size: 600 } };
+		const date = new Date();
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [withData(annotationOf(item, toUser, undefined, date), item, date, 0, 300, 400)]]]) });
+		// Other programs find the file
+		const opened = await openPdf(out.slice());
+		const [annotation] = await (await opened.getPage(1)).getAnnotations();
+		expect(annotation).toMatchObject({ subtype: 'FileAttachment', file: { filename: 'Größen (1).bin' } });
+		await opened.loadingTask.destroy();
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.file?.name).toBe('Größen (1).bin');
+		expect([...found.file!.bytes]).toEqual([...bytes]);
+		expect(itemsOf(found, toPage, 0, (w) => w ?? 'x')).toEqual([item]);
+		// Without our entry: a note with the file in its place
+		expect(itemsOf({ ...found, data: undefined }, toPage, 0, (w) => w ?? 'x')[0]).toMatchObject({ type: 'note', text: 'see this', file: { name: 'Größen (1).bin', size: 600 } });
+	});
+
+	it('writes an insertion mark as /Caret with what to insert, and reads another program\'s mark back in its place', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const caret: CaretItem = { id: 'c1', type: 'caret', x: 100, y: 80, h: 20, dir: 0, color: '#000000ff', text: 'more' };
+		const written = annotationOf(caret, toUser, undefined, new Date());
+		expect(written).toMatchObject({ subtype: 'Caret', contents: 'more' });
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [written]]]) });
+		// Its tip just above the baseline, its feet below it
+		expect(await darkIn(out, 94, 76, 106, 86)).toBeGreaterThan(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		const [read] = itemsOf(found, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x') as CaretItem[];
+		expect(read).toMatchObject({ id: 'c1', type: 'caret', dir: 0, color: '#000000ff', text: 'more' });
+		expect([read.x, read.y].map(Math.round)).toEqual([100, 80]);
+		expect(read.h).toBeGreaterThan(19);
+		expect(read.h).toBeLessThan(25);
+	});
+
+	it('writes a text replacement as a mark with its struck text as a part of it (/IRT, /RT /Group), and reads the two back as one item – also another program\'s', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const toPage = toShown(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		const item: CaretItem = { id: 'r1', type: 'caret', x: 160, y: 80, h: 20, dir: 0, color: '#000000ff', text: 'new', replaces: [{ x0: 60, y0: 60, x1: 160, y1: 80 }], marked: 'old' };
+		const whole = withData(annotationOf(item, toUser, undefined, date), item, date, 0, 300, 400);
+		const parts = partsOf(item, toUser, undefined, date);
+		expect(whole.intent).toBe('Replace');
+		expect(parts).toMatchObject([{ subtype: 'StrikeOut', contents: 'old', replyTo: 'r1', group: true, intent: 'StrikeOutTextEdit' }]);
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [whole, ...parts]]]) });
+		const tail = new TextDecoder('latin1').decode(out.subarray(out.length - 6000));
+		expect(tail).toMatch(/\/IRT \d+ 0 R \/RT \/Group/);
+		// The line through the text, the mark at its end
+		expect(await darkIn(out, 80, 66, 140, 74)).toBeGreaterThan(0);
+		expect(await darkIn(out, 154, 76, 166, 86)).toBeGreaterThan(0);
+		const found = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.map((a) => a.subtype)).toEqual(['Caret']);
+		expect(itemsOf(found[0], toPage, 0, (w) => w ?? 'x')).toEqual([item]);
+		// Without our data (another program's): the struck boxes from the part's quadrilaterals
+		const [other] = itemsOf({ ...found[0], data: undefined }, toPage, 0, (w) => w ?? 'x') as CaretItem[];
+		expect(other.marked).toBe('old');
+		expect(other.replaces!.map((b) => [b.x0, b.y0, b.x1, b.y1].map(Math.round))).toEqual([[60, 60, 160, 80]]);
+		// The mark written anew with its struck text taken off: nothing of the group stays behind
+		const again = await IncrementalPdf.open(out);
+		const gone = await again.update({ remove: new Set([found[0].ref]) });
+		expect((await IncrementalPdf.open(gone)).annotations(0)).toEqual([]);
+		expect(await darkIn(gone, 80, 66, 140, 74)).toBe(0);
+	});
+
+	it('writes links – to a web address, to a page that moved – as /Link, reads its own back and leaves a script address out', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const toPage = toShown(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		const web: LinkItem = { id: 'l1', type: 'link', x: 40, y: 50, w: 100, h: 20, url: 'https://example.org/a b' };
+		const page: LinkItem = { id: 'l2', type: 'link', x: 40, y: 90, w: 100, h: 20, page: 'p2' };
+		const bad: LinkItem = { id: 'l3', type: 'link', x: 40, y: 130, w: 100, h: 20, url: 'javascript:alert(1)' };
+		// The pages are written in a new order: the second one comes first
+		const placeOf = (id: string) => (id === 'p2' ? 0 : 1);
+		const written = [web, page, bad].map((item) => withData(annotationOf(item, toUser, undefined, date, placeOf), item, date, 0, 300, 400));
+		expect(written.map((a) => [a.subtype, a.uri, a.destPage])).toEqual([['Link', 'https://example.org/a%20b', undefined], ['Link', undefined, 0], ['Link', undefined, undefined]]);
+		const out = await (await IncrementalPdf.open(await sample())).update({ pages: [{ base: 1 }, { base: 0 }], annotations: new Map([[1, written]]) });
+		const found = (await IncrementalPdf.open(out)).annotations(1);
+		// Read back: the web address, and the page where it is now
+		expect(found.map((a) => [a.uri, a.destPage])).toEqual([['https://example.org/a%20b', undefined], [undefined, 0], [undefined, undefined]]);
+		expect(itemsOf(found[0], toPage, 0, (w) => w ?? 'x')).toEqual([{ ...web, url: 'https://example.org/a%20b' }]);
+		expect(itemsOf(found[1], toPage, 0, (w) => w ?? 'x')).toEqual([{ ...page, page: '0' }]);
+		// Another program's link (no data of ours) stays the file's
+		expect(itemsOf({ ...found[0], data: undefined }, toPage, 0, (w) => w ?? 'x')).toEqual([]);
+		// PDF.js follows them as every viewer does
+		const pdf = await openPdf(out.slice());
+		const links = ((await (await pdf.getPage(2)).getAnnotations()) as { subtype: string; url?: string; dest?: unknown[] }[]).filter((a) => a.subtype === 'Link');
+		expect(links[0].url).toBe('https://example.org/a%20b');
+		expect(await pdf.getPageIndex(links[1].dest![0] as Parameters<typeof pdf.getPageIndex>[0])).toBe(0);
+		await pdf.loadingTask.destroy();
+	});
+
+	it('measures a distance and an area at the PDF\'s scale, writes the number and the scale (/Measure) and reads the shape back measuring', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		const measure = { scale: 100, unit: 'm' as const };
+		// 200 points = 70.56 mm on paper = 7.06 m at 1 : 100; 200 × 100 points = 24.89 m²
+		const line: ShapeItem = { id: 'm1', type: 'shape', color: '#000000', size: 1, fit: { kind: 'line', x0: 50, y0: 100, x1: 250, y1: 100, start: 'bar', end: 'bar' }, measure: { kind: 'distance', ...measure } };
+		const field: ShapeItem = { id: 'm2', type: 'shape', color: '#000000', size: 1, fit: { kind: 'polygon', points: [50, 200, 250, 200, 250, 300, 50, 300] }, measure: { kind: 'area', ...measure } };
+		expect([line, field].map((item) => isMeasured(item) && measureText(item).replace(',', '.'))).toEqual(['7.06 m', '24.89 m²']);
+		const written = [line, field].map((item) => withData(annotationOf(item, toUser, undefined, date), item, date, 0, 300, 400));
+		expect(written.map((a) => [a.subtype, a.intent, a.measure?.ratio])).toEqual([['Line', 'LineDimension', '1 mm = 0.1 m'], ['Polygon', 'PolygonDimension', '1 mm = 0.1 m']]);
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, written]]) });
+		expect(new TextDecoder('latin1').decode(out)).toContain('/Type /Measure /Subtype /RL');
+		// The number stands above the middle of the line and in the middle of the area
+		expect(await darkIn(out, 130, 86, 170, 97)).toBeGreaterThan(0);
+		expect(await darkIn(out, 125, 243, 175, 256)).toBeGreaterThan(0);
+		const found = (await IncrementalPdf.open(out)).annotations(0);
+		expect(found.flatMap((a) => itemsOf(a, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x'))).toEqual([line, field]);
+	});
+
+	it('gives an icon stamp another color by drawing its vectors anew, saved and read back with its drawing', async () => {
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		const icon = { body: '<path fill="currentColor" d="M0 0h24v24H0z"/>', width: 24, height: 24 };
+		const placed: StampItem = { id: 'i1', type: 'stamp', x: 100, y: 100, w: 48, h: 48, name: 'Image', color: '#000000', image: 'none', icon };
+		// Through the kit, as the color field does it; the picture is still on its way when the item is saved
+		const item = pdfKit.recolor!(placed, '#ff0000') as StampItem;
+		expect(item).toMatchObject({ color: '#ff0000', icon });
+		expect(item.image).not.toBe('none');
+		expect(pdfKit.color(item)).toBe('#ff0000');
+		const written = withData(annotationOf(item, toUser, undefined, date), item, date, 0, 300, 400);
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [written]]]) });
+		expect(new TextDecoder('latin1').decode(out.subarray(out.length - 6000))).not.toContain('/Subtype /Image');
+		expect(red(await pixel(out, 1, 0, 124, 124))).toBe(true);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(itemsOf(found, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x')).toEqual([item]);
+	});
+
+	it('draws a vector stamp again for the scale it is shown at, and keeps the sharper picture', async () => {
+		const form = (await svgForm('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="#f00"/></svg>'))!;
+		registerStampImage('sharp', form);
+		const item: StampItem = { id: 'z', type: 'stamp', x: 0, y: 0, w: 30, h: 15, name: 'Image', color: '#000000', image: 'sharp' };
+		await stampsSharp([item], 2);
+		const small = stampBitmap('sharp', 2)!;
+		expect(small.width).toBe(60);
+		await stampsSharp([item], 11);
+		// Steps of two: 16 pixels per point
+		expect(stampBitmap('sharp', 11)!.width).toBe(480);
+		// Shown smaller again: the sharp one stays
+		expect(stampBitmap('sharp', 1)!.width).toBe(480);
 	});
 
 	it('reads its own annotations back as the items they were, also on a page turned since', async () => {
@@ -291,6 +555,29 @@ describe('annotations of drawn items', () => {
 		// Without our entry: from its standard entries
 		const [plain] = itemsOf({ ...found, data: undefined }, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x');
 		expect(plain).toMatchObject({ type: 'text', size: 20, color: '#000000', lines: box.lines, rot: 0 });
+	});
+
+	it('writes a callout as a text box with its line and arrow (/CL, /IT /FreeTextCallout), and reads it back – also another program\'s', async () => {
+		await loadTextFont();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const toPage = toShown(pageTransform([0, 0, 300, 400], 0));
+		// The box right of its tip: the line leaves the left side's middle, 14 points straight, then to the tip
+		const empty: TextItem = { id: 't7', type: 'text', x: 150, y: 100, w: 100, h: 0, rot: 0, size: 20, color: '#000000', text: '', lines: [], border: '#000000', borderWidth: 2, sizing: 'auto-height', callout: [50, 250] };
+		const box = withText(empty, 'Hi');
+		const middle = box.y + box.h / 2;
+		const date = new Date();
+		const written = withData(annotationOf(box, toUser, undefined, date), box, date, 0, 300, 400);
+		expect(written).toMatchObject({ intent: 'FreeTextCallout', callout: [50, 150, 136, 400 - middle, 150, 400 - middle] });
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [written]]]) });
+		// Ink on the straight piece and halfway down the slanted one, none beside it
+		expect(await darkIn(out, 140, middle - 3, 146, middle + 3)).toBeGreaterThan(5);
+		expect(await darkIn(out, 88, (middle + 250) / 2 - 6, 98, (middle + 250) / 2 + 6)).toBeGreaterThan(5);
+		expect(await darkIn(out, 20, 100, 80, 160)).toBe(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(itemsOf(found, toPage, 0, (w) => w ?? 'x')).toEqual([box]);
+		// Without our entry: the box from /Rect and /RD, the tip from /CL
+		const [plain] = itemsOf({ ...found, data: undefined }, toPage, 0, (w) => w ?? 'x');
+		expect(plain).toMatchObject({ type: 'text', x: 150, y: 100, w: 100, callout: [50, 250] });
 	});
 
 	it('writes a right-aligned text box with its lines at the right edge and /Q 2, and reads it back', async () => {

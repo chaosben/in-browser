@@ -22,7 +22,7 @@ import type { Transform } from '../lasso.js';
 import { diameter, inkAlpha } from '../outline.js';
 import { Smoother } from '../smooth.js';
 import type { Backdrop, ItemKit, SceneItem, SurfacePage } from './kit.js';
-import { drawLaser, drawLasso, drawLifted, drawSelectionFrame, LiftedContext, type LaserPoint } from './overlay.js';
+import { drawLasso, drawLifted, drawRubber, drawSelectionFrame, LiftedContext } from './overlay.js';
 import type { PageScene } from './scene.js';
 import { TILE, TileCache, tileRange, type Tile, type TilePage } from './tiles.js';
 import { layoutPages, Viewport, type PageRect } from './viewport.js';
@@ -97,11 +97,19 @@ export interface StageOptions<P extends SurfacePage, I extends SceneItem> {
 	backdrop: Backdrop<P>;
 	/** What the items are */
 	kit: ItemKit<I>;
-	/** Prefix of log lines, e.g. `[notes]` */
+	/** Prefix of log lines, e.g. `[pdf-editor]` */
 	label: string;
 }
 
 const SETTLE_MS = 160;
+
+/** A shape previewed on the overlay: its page, its points there (x, y, pressure triples of `shapePoints`), the ink */
+export interface Rubber {
+	page: number;
+	points: ArrayLike<number>;
+	color: string;
+	size: number;
+}
 
 export class Stage<P extends SurfacePage, I extends SceneItem> {
 	readonly view = new Viewport();
@@ -139,11 +147,11 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 	private guides: StageGuides | null = null;
 	/** Lasso loop being drawn (screen pixels, x/y pairs) */
 	private lasso: number[] | null = null;
+	/** A shape shown before it exists (page points as x, y, pressure): from a clicked point to the pointer */
+	private rubber: Rubber | null = null;
 	selection: StageSelection<I> | null = null;
 	/** Outlines of dragged items (computed once per lift) */
 	private readonly lifted = new LiftedContext();
-	/** Laser trail: document points with time */
-	private laser: LaserPoint[] = [];
 	private readonly ghostCtx: CanvasRenderingContext2D;
 	/** Context the current stroke is painted on (live or marker) */
 	private inkCtx: CanvasRenderingContext2D;
@@ -254,6 +262,9 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		if (first) this.view.fitWidth(this.docWidth, 1.5);
 		this.view.clamp(this.docWidth, this.docHeight);
 		this.scale = this.targetScale();
+		// The pages lie elsewhere in a view of another size (centered): what follows them (text and form layers,
+		// the selection's frame) is placed again
+		this.onview?.();
 		if (!sized) return this.request();
 		// Draw again right away (resize observers run before the paint): a cleared canvas would show for a frame –
 		// a black flicker while a side panel is dragged wider
@@ -747,7 +758,7 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		return null;
 	}
 
-	// --- Overlay: lasso, selection, guides, laser ---
+	// --- Overlay: lasso, selection, guides ---
 
 	/** What to snap to on a page: its edges and center, its items except `exclude` (`ItemKit.targets`) */
 	snapTargets(page: number, exclude: ReadonlySet<string>): SnapTargets | null {
@@ -804,6 +815,14 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 
 	setLasso(points: number[] | null) {
 		this.lasso = points;
+		this.request();
+	}
+
+	/** Shows a shape that isn't on the page yet (drawn on the overlay, so it follows scrolling and zooming); null
+	 * takes it away */
+	setRubber(rubber: Rubber | null) {
+		if (!rubber && !this.rubber) return;
+		this.rubber = rubber;
 		this.request();
 	}
 
@@ -900,12 +919,7 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		return [this.view.toDocX(sx) - rect.x, this.view.toDocY(sy) - rect.y];
 	}
 
-	laserPoint(sx: number, sy: number) {
-		this.laser.push({ x: this.view.toDocX(sx), y: this.view.toDocY(sy), t: performance.now() });
-		this.request();
-	}
-
-	/** Draws the overlay (`overlay.ts`); true while it needs further frames (fading laser) */
+	/** Draws the overlay (`overlay.ts`); true while it needs further frames (never, for now) */
 	private drawOverlay(): boolean {
 		const ctx = this.overlayCtx;
 		const { dpr, view } = this;
@@ -920,7 +934,6 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		if (s && rect) {
 			// The dragged items, moved/scaled as they will be put back
 			if (s.lifted) {
-				this.lifted.pictures = this.sceneOf(this.pages[s.page].id)?.pictures ?? null;
 				drawLifted(ctx, view, rect, s.t, s.lifted, this.kit, this.lifted);
 			}
 			if (!s.hidden) drawSelectionFrame(ctx, this.selectionRect()!, s.handles ? this.handlePoints() : null, this.selectionColor);
@@ -928,10 +941,13 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 
 		this.showGuides();
 
+		const rubber = this.rubber;
+		const on = rubber && this.rects[rubber.page];
+		if (rubber && on) drawRubber(ctx, view, on, rubber);
+
 		if (this.lasso && this.lasso.length >= 4) drawLasso(ctx, this.lasso, this.selectionColor);
 
-		this.laser = drawLaser(ctx, view, this.laser);
-		return this.laser.length > 0;
+		return false;
 	}
 
 	// --- Cursor preview (pen hover, eraser) ---

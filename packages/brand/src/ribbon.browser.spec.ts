@@ -61,30 +61,36 @@ beforeAll(async () => {
 });
 
 describe('ribbon', () => {
-	it('shows every group with large buttons when there is room', async () => {
+	it('shows every group in three rows with labels when there is room, nothing cut off', async () => {
 		await show(1400);
 		expect(collapsed()).toBe(0);
 		expect(host.querySelectorAll('[role="toolbar"] [data-size="0"]').length).toBe(3);
 		expect(labels()).toContain('Eraser');
+		// The bar clips what is higher than it: every command lies inside (the lowest row was cut off once)
+		const bar = host.querySelector('[role="toolbar"]')!.getBoundingClientRect();
+		const boxes = [...host.querySelectorAll('[role="toolbar"] [data-command]')].map((b) => b.getBoundingClientRect());
+		expect(new Set(boxes.map((b) => Math.round(b.top))).size).toBe(3);
+		for (const b of boxes) expect(b.top >= bar.top && b.bottom <= bar.bottom).toBe(true);
 		expect(host.querySelectorAll('[role="tab"]').length).toBe(2);
 	});
 
-	it('shrinks groups from the right, collapses them last', async () => {
+	it('shrinks groups from the right, and collapses none that is narrower as icons', async () => {
 		const size = (id: string) => Number(host.querySelector(`[role="toolbar"] [aria-label="${id}"], [role="toolbar"] [data-group-button="${id.toLowerCase()}"]`)?.closest('[data-size]')?.getAttribute('data-size'));
 		await show(1400);
 		expect(['Clipboard', 'Markup', 'Draw'].map(size)).toEqual([0, 0, 0]);
 		unmount(ribbon!);
 		host.remove();
-		// Room for less: the right groups get smaller first, the left one stays large longest
-		await show(480);
+		// Room for less: the right groups get smaller first, the left one keeps its labels longest
+		await show(330);
 		const sizes = ['Clipboard', 'Markup', 'Draw'].map(size);
 		expect(sizes[0]).toBe(0);
 		expect(sizes[2]).toBeGreaterThan(0);
 		expect(sizes[2]).toBeGreaterThanOrEqual(sizes[1]);
 		unmount(ribbon!);
 		host.remove();
+		// Three icons in a column are narrower than a collapsed group's button: such groups never collapse
 		await show(90);
-		expect(collapsed()).toBeGreaterThan(0);
+		expect(['Clipboard', 'Markup', 'Draw'].map(size)).toEqual([1, 1, 1]);
 	});
 
 	it('minimal shows icons only, named for assistive technology, and collapses groups that do not fit', async () => {

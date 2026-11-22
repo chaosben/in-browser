@@ -6,7 +6,7 @@
 	import { inkMessages } from '../i18n/index.svelte.js';
 	import type { Selection } from '../input/selection.svelte.js';
 	import type { SceneItem, SurfacePage } from '../render/kit.js';
-	import { closed, fitFromDrag, type ShapeKind, type ShapeStyle } from '../shapes.js';
+	import { fillableKind, type ShapeKind, type ShapeStyle } from '../shapes.js';
 	import ShapeStyleFields from './ShapeStyleFields.svelte';
 
 	interface Props {
@@ -36,7 +36,7 @@
 		{:else}
 			<ShapeStyleFields
 				style={tools.shapeStyle}
-				fillable={closed(fitFromDrag(tools.shape, 0, 0, 10, 10))}
+				fillable={fillableKind(tools.shape)}
 				onchange={(style) => {
 					tools.shapeStyle = { ...tools.shapeStyle, ...style };
 					tools.store();

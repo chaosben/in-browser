@@ -48,13 +48,6 @@ export const TOOLS: readonly Tool[] = [
 		category: 'writing'
 	},
 	{
-		id: 'notes',
-		url: '/notes',
-		icon: '/notes/favicon.svg',
-		category: 'writing',
-		also: ['drawing']
-	},
-	{
 		id: 'pdfEditor',
 		url: '/pdf-editor',
 		icon: '/pdf-editor/favicon.svg',

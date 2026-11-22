@@ -6,7 +6,7 @@ import type { Backdrop, SurfacePage } from './kit';
 import { PageScene } from './scene';
 import { TILE, TileCache, tileRange } from './tiles';
 
-/** Lined paper, like a page of Notes (what the tiles draw under the strokes) */
+/** Lined paper (what the tiles draw under the strokes) */
 const paper: Backdrop<SurfacePage> = {
 	color: '#ffffff',
 	key: () => 'lined',
@@ -20,7 +20,7 @@ const paper: Backdrop<SurfacePage> = {
 	piece: () => undefined
 };
 
-// Performance budget of the drawing surface (see .claude/rules/notes.md): a full page of handwriting must render
+// Performance budget of the drawing surface (see .claude/rules/ink.md): a full page of handwriting must render
 // its tiles quickly, and adding a stroke to cached tiles must be far below a frame.
 
 function scribble(count: number): Stroke[] {

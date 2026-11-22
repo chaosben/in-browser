@@ -16,7 +16,12 @@ export interface NoteItem {
 	text: string;
 	/** Its icon (missing: `Comment`) */
 	icon?: NoteIcon;
+	/** A file attached here instead of a note's icon: its key in `attachedFiles`, its name and size in bytes */
+	file?: { key: string; name: string; size: number };
 }
+
+/** The files of attachment comments by key, as they are written into the PDF (kept apart from the items) */
+export const attachedFiles = new Map<string, Uint8Array>();
 
 /** Edge of a note's bubble (points) */
 export const NOTE_SIZE = 20;
@@ -80,6 +85,16 @@ export const NOTE_SHAPES: Record<NoteIcon, IconShape> = {
 	Insert: { bodies: [[10, 2, 19.5, 17, 15, 17, 10, 9, 5, 17, 0.5, 17]], marks: [], lines: [] }
 };
 
+/** A file attachment: a tag with a paper clip */
+const PAPERCLIP: IconShape = {
+	bodies: [SQUARE],
+	marks: [],
+	lines: [[12.8, 7.5, 12.8, 13.5, 11.8, 15.5, 9.8, 16.2, 7.8, 15.2, 7, 13.2, 7, 6, 8, 4.4, 9.6, 4, 10.7, 5, 10.7, 12, 10, 12.8, 9.2, 12, 9.2, 7.5]]
+};
+
+/** What a note draws: its icon, or the paper clip of a file attachment */
+export const noteShape = (n: NoteItem): IconShape => (n.file ? PAPERCLIP : NOTE_SHAPES[noteIconOf(n)]);
+
 /** The icon as polylines in a 24 × 24 box (menus: `MenuAction.glyph`) */
 export function noteGlyph(icon: NoteIcon): string[] {
 	const { bodies, marks, lines } = NOTE_SHAPES[icon];
@@ -97,7 +112,7 @@ export const NOTE_INK = '#1f2937';
 /** Draws a note (page points) */
 export function drawNote(ctx: Ctx, n: NoteItem) {
 	const k = NOTE_SIZE / 20;
-	const { bodies, marks, lines } = NOTE_SHAPES[noteIconOf(n)];
+	const { bodies, marks, lines } = noteShape(n);
 	const path = (p: number[], close: boolean) => {
 		ctx.moveTo(n.x + p[0] * k, n.y + p[1] * k);
 		for (let i = 2; i < p.length; i += 2) ctx.lineTo(n.x + p[i] * k, n.y + p[i + 1] * k);

@@ -2,7 +2,7 @@
 // `annotationStorage`: what is set there is how PDF.js draws the pages (`ENABLE_STORAGE`), so a tool shows filled-in
 // values without writing the file first. Saving goes through PDF.js too (`filledForm`): it writes the fields as it
 // draws them – in the form's own font (`/DA`, `/DR`), sized and placed alike – and `IncrementalPdf` takes its objects
-// into the one section (`PdfEdits.form`). So the page on screen and the saved file agree, as in Firefox and Acrobat.
+// into the one section (`PdfEdits.form`). So the page on screen and the saved file agree.
 
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { loadPdf } from './load.js';

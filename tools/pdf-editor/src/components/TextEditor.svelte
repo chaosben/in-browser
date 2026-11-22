@@ -9,7 +9,7 @@
 	import type { PdfDocument } from '#lib/model/document.svelte.js';
 	import { typing } from '#lib/render/markup.js';
 	import type { PdfSelection, PdfStage } from '#lib/render/surface.js';
-	import { alignOf, borderOf, fontOf, isText, LINE_HEIGHT, roomOf, sizingOf, TEXT_PAD, textBounds, textExtent, withText, type TextItem } from '#lib/render/textbox.js';
+	import { alignOf, borderOf, fontOf, isText, itemBounds, LINE_HEIGHT, roomOf, sizingOf, TEXT_PAD, textBounds, textExtent, withText, type TextItem } from '#lib/render/textbox.js';
 
 	interface Props {
 		selection: PdfSelection;
@@ -49,7 +49,7 @@
 	/** Draws the box's place again (shown or hidden) */
 	function repaint(t: TextItem, page: number) {
 		const id = doc.pages[page]?.id;
-		if (id) stage?.regionChanged(id, textBounds(t));
+		if (id) stage?.regionChanged(id, itemBounds(t));
 	}
 
 	// The box's text, the box hidden meanwhile; leaving it writes what was typed
@@ -75,12 +75,19 @@
 			});
 	});
 
-	const rect = $derived(selection.rect);
-	/** CSS pixels per page point, from the box on screen (exactly as the stage draws it) */
+	const framed = $derived(selection.rect);
+	/** CSS pixels per page point, from the item on screen (exactly as the stage draws it) */
 	const zoom = $derived.by(() => {
-		if (!rect || !item) return 1;
+		if (!framed || !item) return 1;
+		const b = itemBounds(item);
+		return framed.w / (b.x1 - b.x0 || 1);
+	});
+	/** The box on screen: the selection's frame less a callout's line */
+	const rect = $derived.by(() => {
+		if (!framed || !item) return framed;
+		const all = itemBounds(item);
 		const b = textBounds(item);
-		return rect.w / (b.x1 - b.x0 || 1);
+		return { x: framed.x + (b.x0 - all.x0) * zoom, y: framed.y + (b.y0 - all.y0) * zoom, w: (b.x1 - b.x0) * zoom, h: (b.y1 - b.y0) * zoom };
 	});
 	/** Grows with the text (its height on the page follows when it is written) */
 	function grow(el: HTMLTextAreaElement) {

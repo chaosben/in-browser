@@ -90,7 +90,7 @@
 		rememberStyle(o.kind, patch);
 	}
 
-	/** Figma's three: the box as wide as the longest line, a fixed width with the height following, or a fixed size */
+	/** The three sizings: the box as wide as the longest line, a fixed width with the height following, or a fixed size */
 	const SIZINGS: { value: TextSizing; label: string; hint: string; icon: string }[] = [
 		{ value: 'auto-width', label: m.inspector.autoWidth, hint: m.inspector.autoWidthHint, icon: 'icon-[material-symbols-light--width]' },
 		{ value: 'auto-height', label: m.inspector.autoHeight, hint: m.inspector.autoHeightHint, icon: 'icon-[material-symbols-light--height]' },

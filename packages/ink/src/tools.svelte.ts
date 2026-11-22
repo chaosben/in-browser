@@ -25,7 +25,7 @@ interface Saved<T extends string> {
 	snap: boolean;
 }
 
-const TOOLS: readonly Tool[] = ['pen', 'highlighter', 'shape', 'eraser', 'lasso', 'laser'];
+const TOOLS: readonly Tool[] = ['pen', 'highlighter', 'shape', 'eraser', 'lasso'];
 
 const DEFAULTS: Saved<never> = {
 	tool: 'pen',
@@ -67,7 +67,8 @@ function load<T extends string>(key: string, own: readonly T[], first: Tool | T)
 		shapeStyle: {
 			fill: typeof raw.shapeStyle?.fill === 'string' && FILL.test(raw.shapeStyle.fill) ? raw.shapeStyle.fill : null,
 			dash: DASHES.includes(raw.shapeStyle?.dash as Dash) ? raw.shapeStyle!.dash : 'solid',
-			sketch: raw.shapeStyle?.sketch === true
+			sketch: raw.shapeStyle?.sketch === true,
+			cloud: raw.shapeStyle?.cloud === true
 		},
 		snap: raw.snap !== false
 	};

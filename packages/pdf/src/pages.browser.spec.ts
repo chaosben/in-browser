@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { degrees, PDFDict, PDFDocument, PDFName, rgb, StandardFonts } from 'pdf-lib';
 import { PdfPages, type Piece } from './pages';
-import { PdfError, readPdfPages } from './pdfjs';
+import { openPdf, PdfError } from './pdfjs';
 
 const TILE = 512;
 
@@ -26,15 +26,8 @@ function pixel(piece: Piece, x: number, y: number) {
 }
 
 describe('PDF pages', () => {
-	it('reads the page sizes as shown (rotation applied)', async () => {
-		expect(await readPdfPages(await makePdf())).toEqual([
-			{ w: 200, h: 100 },
-			{ w: 100, h: 200 }
-		]);
-	});
-
 	it('rejects files that are no PDF', async () => {
-		await expect(readPdfPages(new Blob(['hello']))).rejects.toBeInstanceOf(PdfError);
+		await expect(openPdf(new TextEncoder().encode('hello'))).rejects.toBeInstanceOf(PdfError);
 	});
 
 	it('renders a preview first, then the sharp piece at the tile scale', async () => {

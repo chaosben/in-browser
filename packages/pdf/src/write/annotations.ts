@@ -3,11 +3,14 @@
 // (`/InkList`, `/L`, `/QuadPoints` …) let viewers edit it and keep its meaning. `ExistingAnnotation` is what an
 // annotation of the file says (read by `IncrementalPdf.annotations`), so a tool can edit it and write it back.
 
+import { binary, imageObjects, type PdfImage } from './image.js';
+import type { PdfForm, PdfPicture } from './form.js';
+
 /** RGB 0…1 */
 export type Rgb = [number, number, number];
 
 export interface NewAnnotation {
-	subtype: 'Ink' | 'Square' | 'Circle' | 'Line' | 'Polygon' | 'PolyLine' | 'Highlight' | 'Underline' | 'StrikeOut' | 'Squiggly' | 'Text' | 'FreeText';
+	subtype: 'Ink' | 'Square' | 'Circle' | 'Line' | 'Polygon' | 'PolyLine' | 'Highlight' | 'Underline' | 'StrikeOut' | 'Squiggly' | 'Text' | 'FreeText' | 'Stamp' | 'Caret' | 'FileAttachment' | 'Link';
 	/** Unique name (`/NM`) – how the annotation is found again */
 	name: string;
 	/** User space [x0, y0, x1, y1] */
@@ -37,11 +40,19 @@ export interface NewAnnotation {
 	lineEndings?: [string, string];
 	/** Polygon, PolyLine: x/y pairs */
 	vertices?: number[];
+	/** Square, Circle, Polygon: drawn as a cloud (`/BE /S /C`) of this intensity (1 or 2) */
+	cloud?: number;
 	/** Text markup: 8 numbers per quadrilateral */
 	quadPoints?: number[];
-	/** Text: the icon (`/Note`, `/Comment` …) and whether its popup is open */
+	/** Text: the icon (`/Note`, `/Comment` …) and whether its popup is open; Stamp: what it says (`/Approved` …) */
 	icon?: string;
 	open?: boolean;
+	/** What the annotation is meant as (`/IT`), e.g. `FreeTextTypeWriter`: text typed onto the page without a box */
+	intent?: string;
+	/** FileAttachment: the file embedded with it (`/FS` → `/EF`, stored as it is) */
+	file?: AttachedFile;
+	/** FreeText: a callout's line (`/CL`: x/y pairs from its tip to the box, with `/LE /OpenArrow` at the tip) */
+	callout?: number[];
 	/** FreeText: `/DA` */
 	defaultAppearance?: string;
 	/** FreeText: how its lines are aligned (`/Q`: 1 centered, 2 right; missing: left) */
@@ -49,6 +60,16 @@ export interface NewAnnotation {
 	/** A reply (`/IRT`): the annotation it answers – a ref of the file (`12 0 R`) or the `name` of one written in the
 	 * same update before it */
 	replyTo?: string;
+	/** A measurement (`/Measure`, rectilinear): one point on the page is `factor` of `unit` in reality; `ratio` says
+	 * the scale in words ("1 mm = 0.1 m") */
+	measure?: { ratio: string; unit: string; factor: number };
+	/** A link (`/Link`) to a web address (`/A` with `/URI`; ASCII, as `URL.href` gives it) … */
+	uri?: string;
+	/** … or to a page of the PDF: its place in the pages as they are written (`/Dest`, the view kept) */
+	destPage?: number;
+	/** With `replyTo`: not an answer but a part of that annotation (`/RT /Group`) – the strike-out of a text
+	 * replacement belongs to its insertion mark, and viewers show the two as one */
+	group?: boolean;
 	/** JSON of what the tool needs to edit it again exactly (`/InBrowser`, other viewers ignore it; non-ASCII is
 	 * written as `\u` escapes) */
 	data?: string;
@@ -62,7 +83,19 @@ export interface NewAnnotation {
 		/** Contents of transparency groups, drawn by the content as `/X0 Do`, `/X1 Do` … (with an opacity set before,
 		 * a group is see-through as a whole: overlapping lines in it don't get darker) */
 		groups?: string[];
+		/** Pictures drawn by the content as `/Im0 Do`, `/Im1 Do` … (into the unit square: set a matrix before) */
+		images?: PdfImage[];
+		/** Vector pictures drawn by the content as `/Fm0 Do`, `/Fm1 Do` … (in their own size: set a matrix before) */
+		forms?: PdfForm[];
+		/** The objects of `forms` (set by the writer, which embeds them) */
+		formRefs?: string[];
 	};
+}
+
+/** A file attached to a comment */
+export interface AttachedFile {
+	name: string;
+	bytes: Uint8Array;
 }
 
 /** A number in PDF source: at most 3 decimals, no exponent */
@@ -142,7 +175,7 @@ export interface ExistingReply {
 	modified?: string;
 }
 
-/** Review states (the `Review` state model; Acrobat's and PDF-XChange's “Set status”) */
+/** Review states (the `Review` state model; what PDF programs offer as “Set status”) */
 export const REVIEW_STATES = ['None', 'Accepted', 'Rejected', 'Cancelled', 'Completed'] as const;
 export type ReviewState = (typeof REVIEW_STATES)[number];
 
@@ -161,6 +194,12 @@ export interface ExistingState {
 export interface ExistingAnnotation {
 	/** Its object (`12 0 R`): where it is written back */
 	ref: string;
+	/** A `/Link`: the web address it opens, or the page (of the file, from 0) it goes to */
+	uri?: string;
+	destPage?: number;
+	/** Text marks that are a part of this one (`/IRT` to it with `/RT /Group`): the text a `/Caret` replaces. They
+	 * are not listed on their own */
+	grouped?: { ref: string; quadPoints: number[]; contents?: string }[];
 	/** Its id in PDF.js (`12R`): how it is hidden there while a tool shows it */
 	id: string;
 	subtype: string;
@@ -186,11 +225,19 @@ export interface ExistingAnnotation {
 	line?: [number, number, number, number];
 	lineEndings?: string[];
 	vertices?: number[];
+	/** `/BE /S /C`: its border is a cloud */
+	cloud?: boolean;
+	/** FreeText: a callout's line (`/CL`), from its tip */
+	callout?: number[];
+	/** FileAttachment: its file, decoded */
+	file?: AttachedFile;
+	/** Stamp: the one picture its appearance draws, when it is one this package writes (pixels or a form) */
+	image?: PdfPicture;
 	quadPoints?: number[];
 	/** `/DA` (FreeText: font size and color) */
 	/** FreeText: `/Q` (0 left, 1 centered, 2 right) */
 	quadding?: number;
-	/** Opacities its appearance paints with (first fill, stroke, text) – how PDF-XChange & co. keep a see-through
+	/** Opacities its appearance paints with (first fill, stroke, text) – how PDF programs keep a see-through
 	 * background apart from text and border; on top of them comes `/CA` (`opacity`) */
 	paint?: PaintOpacity;
 	defaultAppearance?: string;
@@ -202,7 +249,7 @@ export interface ExistingAnnotation {
  * when an annotation is written anew (whatever else it has – popup, replies, creation date … – stays) */
 export const REPLACED_KEYS = [
 	'Type', 'Subtype', 'Rect', 'P', 'NM', 'M', 'F', 'AP', 'AS', 'C', 'IC', 'CA', 'ca', 'BS', 'Border', 'BE', 'RD', 'InkList', 'L', 'LE',
-	'Vertices', 'QuadPoints', 'Name', 'Open', 'DA', 'Q', 'InBrowser'
+	'Vertices', 'QuadPoints', 'Name', 'Open', 'DA', 'Q', 'IT', 'CL', 'FS', 'A', 'Dest', 'H', 'Measure', 'InBrowser'
 ];
 
 /** A literal string of JSON text (other characters than printable ASCII as JSON's `\u` escapes) */
@@ -211,8 +258,8 @@ const literal = (s: string) => `(${s.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.cha
 const NAME = /^[A-Za-z0-9]+$/;
 
 /**
- * The objects of an annotation: [annotation, appearance, its groups …]; the appearance is object `appearance`, the
- * groups follow it. `extra` holds entries
+ * The objects of an annotation: [annotation, appearance, its groups …, its pictures …]; the appearance is object
+ * `appearance`, the groups and pictures follow it. `extra` holds entries
  * of an annotation written anew that stay (PDF source); `T` and `Contents` of it stay when `a` has none.
  */
 export function annotationObjects(a: NewAnnotation, appearance: number, pageRef: string, extra = ''): string[] {
@@ -240,15 +287,25 @@ export function annotationObjects(a: NewAnnotation, appearance: number, pageRef:
 	if (a.line) entries.push(`/L ${arr(a.line)}`);
 	if (a.lineEndings) entries.push(`/LE [/${a.lineEndings.filter((e) => NAME.test(e)).join(' /')}]`);
 	if (a.vertices) entries.push(`/Vertices ${arr(a.vertices)}`);
+	if (a.cloud) entries.push(`/BE << /S /C /I ${num(a.cloud)} >>`);
 	if (a.quadPoints) entries.push(`/QuadPoints ${arr(a.quadPoints)}`);
 	if (a.icon && NAME.test(a.icon)) entries.push(`/Name /${a.icon}`);
 	if (a.open !== undefined) entries.push(`/Open ${a.open}`);
 	if (a.defaultAppearance) entries.push(`/DA (${a.defaultAppearance.replace(/[()\\]/g, '\\$&')})`);
 	if (a.quadding) entries.push(`/Q ${a.quadding}`);
+	if (a.intent && NAME.test(a.intent)) entries.push(`/IT /${a.intent}`);
+	if (a.callout?.length === 4 || a.callout?.length === 6) entries.push(`/CL ${arr(a.callout)} /LE /OpenArrow`);
+	// A link draws nothing: no border, the click shown by inverting
+	if (a.subtype === 'Link') entries.push('/Border [0 0 0] /H /I');
+	if (a.uri) entries.push(`/A << /S /URI /URI ${literal(a.uri)} >>`);
+	if (a.measure) {
+		const format = (unit: string, factor: number) => `[<< /Type /NumberFormat /U ${literal(unit)} /C ${num(factor)} /D 100 >>]`;
+		entries.push(`/Measure << /Type /Measure /Subtype /RL /R ${literal(a.measure.ratio)} /X ${format(a.measure.unit, a.measure.factor)} /D ${format(a.measure.unit, 1)} /A ${format(`sq ${a.measure.unit}`, 1)} >>`);
+	}
 	if (a.data) entries.push(`/InBrowser ${literal(a.data)}`);
 	if (extra) entries.push(extra);
 
-	const { content, states = {}, fonts = {}, groups = [] } = a.appearance;
+	const { content, states = {}, fonts = {}, groups = [], images = [], formRefs = [] } = a.appearance;
 	const resources: string[] = [];
 	const gs = Object.entries(states).filter(([name]) => NAME.test(name));
 	if (gs.length) {
@@ -268,15 +325,34 @@ export function annotationObjects(a: NewAnnotation, appearance: number, pageRef:
 			`/Font << ${fs.map(([name, base]) => (/ R$/.test(base) ? `/${name} ${base}` : `/${name} << /Type /Font /Subtype /Type1 /BaseFont /${base} /Encoding /WinAnsiEncoding >>`)).join(' ')} >>`
 		);
 	}
-	if (groups.length) resources.push(`/XObject << ${groups.map((_, i) => `/X${i} ${appearance + 1 + i} 0 R`).join(' ')} >>`);
+	// Groups follow the appearance, then the pictures (each with its soft mask, if any)
+	const pictures: string[] = [];
+	const imageRefs = images.map((image, i) => {
+		const at = appearance + 1 + groups.length + pictures.length;
+		pictures.push(...imageObjects(image, at));
+		return `/Im${i} ${at} 0 R`;
+	});
+	const formEntries = formRefs.filter((ref) => /^\d+ \d+ R$/.test(ref)).map((ref, i) => `/Fm${i} ${ref}`);
+	if (groups.length || imageRefs.length || formEntries.length)
+		resources.push(`/XObject << ${[...groups.map((_, i) => `/X${i} ${appearance + 1 + i} 0 R`), ...imageRefs, ...formEntries].join(' ')} >>`);
 	const forms = groups.map(
 		(group) =>
 			`<< /Type /XObject /Subtype /Form /BBox ${arr(a.rect)} /Group << /S /Transparency >> /Resources << >> /Length ${group.length} >>\n` +
 			`stream\n${group}\nendstream`
 	);
+	// The attached file follows everything else: its stream as it is, named by a file specification in the annotation
+	const files: string[] = [];
+	if (a.file) {
+		const at = appearance + 1 + groups.length + pictures.length;
+		const { name, bytes } = a.file;
+		files.push(`<< /Type /EmbeddedFile /Length ${bytes.length} /Params << /Size ${bytes.length} >> >>\nstream\n${binary(bytes)}\nendstream`);
+		// `/F` for old readers (ASCII), `/UF` the name itself
+		const plain = name.replace(/[^\x20-\x7e]/g, '_').replace(/[()\\]/g, '\\$&');
+		entries.push(`/FS << /Type /Filespec /F (${plain}) /UF ${textString(name)} /EF << /F ${at} 0 R /UF ${at} 0 R >> >>`);
+	}
 	const stream = new TextEncoder().encode(content);
 	const form =
 		`<< /Type /XObject /Subtype /Form /BBox ${arr(a.rect)} /Resources << ${resources.join(' ')} >> /Length ${stream.length} >>\n` +
 		`stream\n${content}\nendstream`;
-	return [`<< ${entries.join(' ')} >>`, form, ...forms];
+	return [`<< ${entries.join(' ')} >>`, form, ...forms, ...pictures, ...files];
 }

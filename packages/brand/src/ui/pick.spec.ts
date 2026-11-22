@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Picker } from './pick.svelte.js';
 
-// Picking in lists and grids – the same in Files, Notes, Screen Capture, the Text Editor and the PDF Editor
+// Picking in lists and grids – the same in Files, Screen Capture, the Text Editor and the PDF Editor
 
 const ORDER = ['a', 'b', 'c', 'd'];
 const click = (mods: Partial<MouseEvent> = {}) => ({ ctrlKey: false, metaKey: false, shiftKey: false, type: 'click', ...mods }) as MouseEvent;

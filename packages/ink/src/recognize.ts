@@ -152,6 +152,8 @@ export function shapeName(fit: ShapeFit): ShapeName {
 	switch (fit.kind) {
 		case 'line':
 			return fit.start && fit.end ? 'doubleArrow' : fit.start || fit.end ? 'arrow' : 'line';
+		case 'polyline':
+			return 'line';
 		case 'roundedRect':
 			return 'roundedRect';
 		case 'ellipse':

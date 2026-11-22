@@ -58,26 +58,12 @@ export const FORMATS: readonly Format[] = [
 		tool: 'screen-capture',
 		open: '/screen-capture/editor'
 	},
-	{
-		ext: '.note',
-		kind: 'package',
-		tool: 'notes',
-		open: '/notes/editor'
-	},
-	// A PDF opens in the PDF Editor (changed in place) …
+	// A PDF opens in the PDF Editor (changed in place)
 	{
 		ext: '.pdf',
 		kind: 'file',
 		tool: 'pdf-editor',
 		open: '/pdf-editor/editor'
-	},
-	// … or becomes a new notebook to write on (Notes asks where it goes)
-	{
-		ext: '.pdf',
-		kind: 'file',
-		tool: 'notes',
-		open: '/notes',
-		fallback: true
 	},
 	...TEXT_EXTENSIONS.map(
 		(ext): Format => ({

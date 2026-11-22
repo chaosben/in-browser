@@ -6,7 +6,7 @@ const TOOLS = [
 	{ path: '/files', name: 'Files' },
 	{ path: '/text-editor', name: 'Text Editor' },
 	{ path: '/screen-capture', name: 'Screen Capture' },
-	{ path: '/notes', name: 'Notes' }
+	{ path: '/pdf-editor', name: 'PDF Editor' }
 ];
 
 test('overview, every tool and the 404 page load', async ({ page, problems }) => {
@@ -31,7 +31,7 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 	await search.fill('screen recorder');
 	await expect(tiles).toHaveText([/Screen Capture/]);
 	await search.fill('notizbuch');
-	await expect(tiles).toHaveText([/Notes/]);
+	await expect(tiles).toHaveText([/PDF Editor/]);
 	await search.fill('xyz');
 	await expect(page.getByRole('status')).toHaveText('No tool matches “xyz”.');
 	await search.fill('');
@@ -62,9 +62,9 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 	await page.getByRole('link', { name: /p2p-node.*Reachable from outside/ }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('p2p-node: an always-on device');
 	await expect(page.getByText('curl -fsSL https://in-browser.org/p2p-node/install.sh | sh')).toBeVisible();
-	await page.goto('/help/notes');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Notes help');
-	await expect(page.getByRole('link', { name: 'Open Notes' })).toHaveAttribute('href', '/notes');
+	await page.goto('/help/pdf-editor');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('PDF Editor help');
+	await expect(page.getByRole('link', { name: 'Open PDF Editor' })).toHaveAttribute('href', '/pdf-editor');
 
 	const response = await page.goto('/does-not-exist');
 	expect(response?.status()).toBe(404);

@@ -3,7 +3,6 @@
 
 import { GridIndex, type Box } from '../geometry.js';
 import type { Ctx, DrawContext, ItemKit, SceneItem } from './kit.js';
-import type { PictureSource } from './pictures.js';
 
 export class PageScene<I extends SceneItem> implements DrawContext {
 	readonly items: I[] = [];
@@ -14,9 +13,7 @@ export class PageScene<I extends SceneItem> implements DrawContext {
 
 	constructor(
 		readonly kit: ItemKit<I>,
-		items?: Iterable<I>,
-		/** Decoded pictures (shared by the document's pages) */
-		readonly pictures: PictureSource | null = null
+		items?: Iterable<I>
 	) {
 		if (items) for (const s of items) this.add(s);
 	}

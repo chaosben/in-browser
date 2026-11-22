@@ -1,6 +1,6 @@
 // Selection on vector data: which items a drawn loop encloses, and moving/scaling them.
 
-import { isInk, isShape, isStroke, type Item, type Picture, type Stroke } from './items.js';
+import { isStroke, type Item, type ShapeItem, type Stroke } from './items.js';
 import { inkPoints, transformFit } from './shapes.js';
 
 /** Is (x, y) inside the polygon (x, y pairs)? Even-odd rule, the loop closes itself */
@@ -17,9 +17,8 @@ export function pointInPolygon(x: number, y: number, poly: ArrayLike<number>): b
 	return inside;
 }
 
-/** A stroke or shape with at least half of its points inside the loop, a picture with its center inside */
+/** A stroke or shape with at least half of its points inside the loop */
 export function inLasso(s: Item, poly: ArrayLike<number>): boolean {
-	if (!isInk(s)) return pointInPolygon(s.x + s.w / 2, s.y + s.h / 2, poly);
 	const pts = inkPoints(s);
 	let inside = 0;
 	const n = pts.length / 3;
@@ -64,15 +63,13 @@ export function transformStroke(s: Stroke, t: Transform): Stroke {
 /** Any item moved/scaled */
 export function transformItem<T extends Item>(item: T, t: Transform): T {
 	if (isStroke(item)) return transformStroke(item, t) as T;
-	if (isShape(item)) return { ...item, fit: transformFit(item.fit, t), size: item.size * t.scale };
-	const p = item as T & Picture;
-	return { ...p, x: t.ox + (p.x - t.ox) * t.scale + t.dx, y: t.oy + (p.y - t.oy) * t.scale + t.dy, w: p.w * t.scale, h: p.h * t.scale };
+	const shape = item as T & ShapeItem;
+	return { ...shape, fit: transformFit(shape.fit, t), size: shape.size * t.scale };
 }
 
 /**
  * The item on a page of `w` × `h` points turned with the page by `quarters` quarter turns clockwise (the page is
- * then `h` × `w` for odd turns). Exact for strokes and every shape (boxes stay axis-parallel); pictures keep their
- * upright content and only move with their box.
+ * then `h` × `w` for odd turns). Exact for strokes and every shape (boxes stay axis-parallel).
  */
 export function rotateItem<T extends Item>(item: T, quarters: number, w: number, h: number): T {
 	const q = ((quarters % 4) + 4) % 4;
@@ -91,14 +88,15 @@ export function rotateItem<T extends Item>(item: T, quarters: number, w: number,
 		}
 		return { ...item, points };
 	}
-	if (isShape(item)) {
-		const fit = item.fit;
+	{
+		const fit = (item as T & ShapeItem).fit;
 		switch (fit.kind) {
 			case 'line': {
 				const [x0, y0] = turn(fit.x0, fit.y0);
 				const [x1, y1] = turn(fit.x1, fit.y1);
 				return { ...item, fit: { ...fit, x0, y0, x1, y1 } };
 			}
+			case 'polyline':
 			case 'polygon': {
 				const points: number[] = [];
 				for (let i = 0; i < fit.points.length; i += 2) points.push(...turn(fit.points[i], fit.points[i + 1]));
@@ -108,6 +106,4 @@ export function rotateItem<T extends Item>(item: T, quarters: number, w: number,
 				return { ...item, fit: { ...fit, ...box(fit.x, fit.y, fit.w, fit.h) } };
 		}
 	}
-	const p = item as T & Picture;
-	return { ...p, ...box(p.x, p.y, p.w, p.h) };
 }

@@ -86,24 +86,3 @@ export async function openPdf(data: Uint8Array): Promise<PDFDocumentProxy> {
 		throw e;
 	}
 }
-
-/** Sizes of all pages in points, as shown (rotation applied) */
-export async function pageSizes(doc: PDFDocumentProxy): Promise<{ w: number; h: number }[]> {
-	const sizes: { w: number; h: number }[] = [];
-	for (let i = 1; i <= doc.numPages; i++) {
-		const viewport = (await doc.getPage(i)).getViewport({ scale: 1 });
-		sizes.push({ w: viewport.width, h: viewport.height });
-	}
-	return sizes;
-}
-
-/** Page sizes of a PDF file; throws `PdfError` if it can't be read */
-export async function readPdfPages(file: Blob): Promise<{ w: number; h: number }[]> {
-	const doc = await openPdf(new Uint8Array(await file.arrayBuffer()));
-	try {
-		if (!doc.numPages) throw new PdfError('invalid');
-		return await pageSizes(doc);
-	} finally {
-		void doc.loadingTask.destroy();
-	}
-}

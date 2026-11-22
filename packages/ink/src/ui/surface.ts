@@ -15,6 +15,10 @@ export function attachSurface<P extends SurfacePage, I extends SceneItem>(root: 
 	window.addEventListener('resize', resize);
 	const scroll = () => stage.updateOrigin();
 	window.addEventListener('scroll', scroll, { passive: true, capture: true });
+	// The element may move without changing its size (something beside it opens while it can't shrink): measured
+	// again once per gesture, before the input reads the point
+	root.addEventListener('pointerenter', scroll);
+	root.addEventListener('pointerdown', scroll, { capture: true });
 	// Theme switch (system or the switch in the header): the desk color around the pages follows
 	const dark = matchMedia('(prefers-color-scheme: dark)');
 	const theme = () => requestAnimationFrame(() => stage.themeChanged());
@@ -26,6 +30,8 @@ export function attachSurface<P extends SurfacePage, I extends SceneItem>(root: 
 		observer.disconnect();
 		window.removeEventListener('resize', resize);
 		window.removeEventListener('scroll', scroll, { capture: true });
+		root.removeEventListener('pointerenter', scroll);
+		root.removeEventListener('pointerdown', scroll, { capture: true });
 		dark.removeEventListener('change', theme);
 		themeObserver.disconnect();
 	};

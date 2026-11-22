@@ -3,13 +3,13 @@ import { basename, isInside, join, normalize, parent, segments, uniqueName } fro
 import { parseRaw, SCHEMA, storedValue, SUITE_SETTINGS } from './settings.js';
 import type { Tree } from './sync/tree.js';
 
-// The trash: what the user deletes (in Files, or a notebook or project in its tool) is moved into the hidden folder
+// The trash: what the user deletes (in Files, or a project in its tool) is moved into the hidden folder
 // `/.in-browser-trash/` of the shared file system instead of being gone. It syncs like everything else – to every
 // device, into the synced folder on disk and to the p2p-node – so it can be restored anywhere. One entry per deleted
 // file or folder: `/.in-browser-trash/<entry>/.trashinfo.json` (where it was, when) plus the item under its full
 // original path (`…/<entry>/Docs/Plan.md`), so the folder choice of a device applies to it without reading anything.
 // Entries are removed after the retention the user picked (suite settings, `settings.ts` – synced as well).
-// What the syncs delete or replace because another side did is not kept (like Syncthing without versioning).
+// What the syncs delete or replace because another side did is not kept (the syncs keep no versions).
 
 export const TRASH_ROOT = '/.in-browser-trash';
 export const TRASH_INFO = '.trashinfo.json';

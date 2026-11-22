@@ -13,19 +13,29 @@ import { ItemEditor } from '@in-browser/ink/edit/items.js';
 import type { Box } from '@in-browser/ink/geometry.js';
 import type { SurfacePage } from '@in-browser/ink/render/kit.js';
 import { PageScene } from '@in-browser/ink/render/scene.js';
-import { pageTransform, toShown, toUserSpace } from '@in-browser/pdf/geometry.js';
+import { pageTransform, toShown, toUserSpace, type Matrix } from '@in-browser/pdf/geometry.js';
+import { inverse, mul, type ContentKind, type ContentObject } from '@in-browser/pdf/content/objects.js';
+import type { ContentChange } from '@in-browser/pdf/content/rewrite.js';
 import { PdfPages } from '@in-browser/pdf/pages.js';
 import { loadPdf } from '@in-browser/pdf/load.js';
 import { openPdf, PdfError, type OptionalContentConfig, type PDFDocumentProxy } from '@in-browser/pdf/pdfjs.js';
 import type { PageText } from '@in-browser/pdf/text.js';
 import { readPageText } from '@in-browser/pdf/text-layer.js';
 import { parsePdfDate, type NewAnnotation, type ReviewState } from '@in-browser/pdf/write/annotations.js';
+import type { PdfForm } from '@in-browser/pdf/write/form.js';
 import { IncrementalPdf, type PdfEdits } from '@in-browser/pdf/write/incremental.js';
+import { pieceForm } from '@in-browser/pdf/write/piece.js';
 import { filledForm, formFonts, readFields, storageValue, type FieldValue, type FormField, type FormWidget } from '@in-browser/pdf/forms.js';
 import { startScripts, type FormScripts, type SandboxEvent, type ScriptChange } from '@in-browser/pdf/scripting.js';
 import { sameValue } from './fields.js';
 import { isAnnotatable, pdfKit, rotatePdfItem, type Annotatable, type PdfItem } from '#lib/render/markup.js';
-import { annotationOf } from './annots.js';
+import { attachedFiles, isNote } from '#lib/render/note.js';
+import { isStamp, registerStampImage, stampEvents } from '#lib/render/stamp.js';
+import { isLink, linkView, type LinkItem } from '#lib/render/link.js';
+import { isMeasured } from '#lib/render/measure.js';
+import type { MeasureUnit } from '@in-browser/ink/items.js';
+import { measureDefault, setMeasureDefault } from './tools.svelte.js';
+import { annotationOf, partsOf } from './annots.js';
 import { kindOf } from './comments.js';
 import { itemsOf, withData } from './imported.js';
 import { applyOp, History, invert, movePages, type Op, type Step } from './edits.js';
@@ -71,6 +81,26 @@ export interface PdfPage extends SurfacePage {
 	/** The page's box in user space (PDF.js `page.view`): where annotations go */
 	readonly view: readonly number[];
 }
+
+/** An object of a page's own content as the page shows it now (`PdfDocument.contentItems`) */
+export interface ContentItem {
+	id: number;
+	kind: ContentKind;
+	/** Its box on the page as shown (points, y down), with the changes made to it */
+	box: Box;
+}
+
+/** A drawing made part of a page's content in this session (a comment flattened, a picture in an image's place) */
+interface ContentAdd {
+	key: number;
+	annotation: NewAnnotation;
+	matrix?: Matrix;
+	/** The object of the file's content it stands for */
+	at?: number;
+}
+
+/** Ids of `ContentItem`s that were added in this session start here (the file's objects count from 0) */
+const ADDED = 1_000_000;
 
 /** What the surface hears about changed items (set by `Surface.svelte`) */
 export interface ItemListener {
@@ -158,6 +188,9 @@ export class PdfDocument {
 	private readonly loaded = new Map<string, PdfItem>();
 	/** Annotation of the file → its items' ids */
 	private readonly fromFile = new Map<string, string[]>();
+	/** Annotations of the file that are a part of another one (the struck text of a replacement): that one's ref →
+	 * theirs. Written anew with it, never on their own */
+	private readonly parts = new Map<string, string[]>();
 	/** Author and date of comments: read from the file, or the author's name when a new one is first saved */
 	private readonly meta = new Map<string, CommentInfo>();
 	/** Replies per comment (item id); those of the file keep their refs (`fileReplies`: all read) */
@@ -221,6 +254,7 @@ export class PdfDocument {
 		this.pages = pages;
 		this.latest = base;
 		this.stamp = stamp;
+		this.shown = pdf;
 		const doc = this;
 		this.items = new ItemEditor<PdfItem>(
 			{
@@ -250,6 +284,12 @@ export class PdfDocument {
 				rotation: (doc, n) => this.pages.find((p) => sourceOf(p) === doc && p.number === n)?.rotate
 			}
 		);
+		// A stamp's picture is decoded: the pages showing it are drawn again (thumbnails too)
+		stampEvents.ready = (key) => {
+			for (const page of this.pages)
+				if (this.scenes.get(page.id)?.items.some((item) => isStamp(item) && item.image === key)) this.listener?.content(page.id);
+			this.changes++;
+		};
 	}
 
 	get name(): string {
@@ -313,20 +353,24 @@ export class PdfDocument {
 			const toPage = toShown(pageTransform(page.view, page.rotate));
 			const items: PdfItem[] = [];
 			for (const a of found) {
-				const made = itemsOf(a, toPage, page.rotate, unique);
+				// A link names its page by its place in the file: here by the page's id
+				const made = itemsOf(a, toPage, page.rotate, unique).map((item) => (isLink(item) && item.page !== undefined ? { ...item, page: this.pages[Number(item.page)]?.id } : item));
 				if (!made.length) continue;
 				this.fromFile.set(
 					a.ref,
 					made.map((item) => item.id)
 				);
 				for (const item of made) {
+					if (isStamp(item) && item.image && a.image) registerStampImage(item.image, a.image);
+					if (isNote(item) && item.file && a.file) attachedFiles.set(item.file.key, a.file.bytes);
 					this.origin.set(item.id, a.ref);
+					if (a.grouped) this.parts.set(a.ref, a.grouped.map((part) => part.ref));
 					this.loaded.set(item.id, item);
 					this.meta.set(item.id, { author: a.author ?? '', modified: parsePdfDate(a.modified) });
 					if (a.subject) this.fileSubjects.set(item.id, a.subject);
 					items.push(item);
 				}
-				this.pdf.annotationStorage.setValue(a.id, { noView: true });
+				this.store(a.id, { noView: true });
 			}
 			if (!items.length) return;
 			this.scenes.set(page.id, new PageScene(pdfKit, [...items, ...(this.scenes.get(page.id)?.items ?? [])]));
@@ -536,7 +580,7 @@ export class PdfDocument {
 			if (!field) continue;
 			next.set(name, value);
 			for (const w of field.widgets) {
-				this.pdf.annotationStorage.setValue(w.id, storageValue(field, w, value, this.formatted.get(name)));
+				this.store(w.id, storageValue(field, w, value, this.formatted.get(name)));
 				numbers.add(w.page + 1);
 			}
 		}
@@ -614,7 +658,7 @@ export class PdfDocument {
 		return this.states.get(id)?.at(-1) ?? null;
 	}
 
-	/** Sets the review state of a comment or reply (one step to undo; kept as a history like Acrobat does) */
+	/** Sets the review state of a comment or reply (one step to undo; kept as a history) */
 	setState(id: string, state: ReviewState) {
 		if (this.editable !== 'yes' || (this.stateOf(id)?.state ?? 'None') === state) return;
 		const entry: StateEntry = { id: crypto.randomUUID(), state, author: authorName(), modified: new Date() };
@@ -722,10 +766,343 @@ export class PdfDocument {
 		}
 	}
 
-	/** The PDF.js document a page comes from (null: a blank page) */
+	/** The PDF.js document a page is shown from (null: a blank page): for the file's pages the one with the changes
+	 * to their content (`shown`) */
 	proxyOf(page: PdfPage): PDFDocumentProxy | null {
 		if (!page.number) return null;
-		return page.source ? (this.inserted.get(page.source)?.pdf ?? null) : this.pdf;
+		return page.source ? (this.inserted.get(page.source)?.pdf ?? null) : this.shown;
+	}
+
+	// --- The pages' own content (objects: text pieces, images, paths, forms) ---
+
+	/** Changes to objects of the file's pages: page number → object id → moved/scaled or taken out */
+	private contentEdits: ReadonlyMap<number, ReadonlyMap<number, ContentChange>> = new Map();
+	/** Drawings made part of the pages' content: page number → in drawing order */
+	private contentAdds: ReadonlyMap<number, readonly ContentAdd[]> = new Map();
+	private addKey = 0;
+	/** The objects of the file's pages as the writer reads them (page number → objects; null: not readable) */
+	private readonly contentRead = new Map<number, Promise<readonly ContentObject[] | null>>();
+	private readonly contentKnown = new Map<number, readonly ContentObject[] | null>();
+	/** The document the file's pages are shown from: the open one, or the file with the content changes */
+	private shown: PDFDocumentProxy;
+	private shownRun = 0;
+	/** Raised when a page's content looks different (its text is read anew); per page number */
+	private readonly contentRevs = new Map<number, number>();
+	/** Raised with every change to the content (selections read their boxes anew) */
+	contentChanges = $state(0);
+	/** Raised when the pages show a change to their content (a picture dragged along can go) */
+	contentShown = $state(0);
+
+	/** Revision of a page's content (part of what its text layer and text are keyed by) */
+	contentRev(page: PdfPage): number {
+		return page.source || !page.number ? 0 : (this.contentRevs.get(page.number) ?? 0);
+	}
+
+	/** Reads the objects of a page's content (once); false: this page's content can't be edited */
+	async loadContent(index: number): Promise<boolean> {
+		const page = this.pages[index];
+		if (!page?.number || page.source || this.editable !== 'yes' || !this.writer) return false;
+		let read = this.contentRead.get(page.number);
+		if (!read) {
+			read = this.writer.then((writer) => writer.contentObjects(page.number - 1)).catch(() => null);
+			this.contentRead.set(page.number, read);
+			void read.then((objects) => {
+				this.contentKnown.set(page.number, objects);
+				this.contentChanges++;
+			});
+		}
+		return !!(await read);
+	}
+
+	/** Can a page's content be edited? `unknown` until it was read, `none` for a page that isn't the file's or
+	 * whose content can't be read safely */
+	contentState(index: number): 'unknown' | 'ok' | 'none' {
+		const page = this.pages[index];
+		if (!page?.number || page.source || this.editable !== 'yes') return 'none';
+		if (!this.contentKnown.has(page.number)) return 'unknown';
+		return this.contentKnown.get(page.number) ? 'ok' : 'none';
+	}
+
+	/** The objects of a page's content as shown now, in drawing order (null: not read yet or not readable) */
+	contentItems(index: number): ContentItem[] | null {
+		const page = this.pages[index];
+		const objects = page?.number && !page.source ? this.contentKnown.get(page.number) : null;
+		if (!page || !objects) return null;
+		const edits = this.contentEdits.get(page.number);
+		const adds = this.contentAdds.get(page.number) ?? [];
+		const shown = pageTransform(page.view, page.rotate);
+		const out: ContentItem[] = [];
+		const push = (id: number, kind: ContentKind, box: { x0: number; y0: number; x1: number; y1: number }, matrix: Matrix | undefined) => {
+			const m = matrix ? mul(matrix, shown) : shown;
+			const xs: number[] = [];
+			const ys: number[] = [];
+			for (const [x, y] of [[box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1]]) {
+				xs.push(x * m[0] + y * m[2] + m[4]);
+				ys.push(x * m[1] + y * m[3] + m[5]);
+			}
+			out.push({ id, kind, box: { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) } });
+		};
+		const added = (a: ContentAdd) => push(ADDED + a.key, a.at === undefined ? 'form' : 'image', { x0: a.annotation.rect[0], y0: a.annotation.rect[1], x1: a.annotation.rect[2], y1: a.annotation.rect[3] }, a.matrix);
+		for (const object of objects) {
+			// Something else stands in its place
+			const instead = adds.find((a) => a.at === object.id);
+			if (instead) {
+				added(instead);
+				continue;
+			}
+			const change = edits?.get(object.id);
+			if (change && 'remove' in change) continue;
+			push(object.id, object.kind, object.box, change?.matrix);
+		}
+		for (const a of adds) if (a.at === undefined) added(a);
+		return out;
+	}
+
+	/** Moves or scales objects of a page's content by a transformation of the page as shown (one undo step) */
+	transformContent(index: number, ids: Iterable<number>, shownChange: Matrix) {
+		const page = this.pages[index];
+		if (!page?.number || page.source) return;
+		const shown = pageTransform(page.view, page.rotate);
+		const back = inverse(shown);
+		if (!back) return;
+		// The same change in the page's own space
+		const own = mul(mul(shown, shownChange), back);
+		const picked = new Set(ids);
+		const edits = new Map(this.contentEdits.get(page.number) ?? []);
+		for (const id of picked) {
+			if (id >= ADDED) continue;
+			const old = edits.get(id);
+			if (old && 'remove' in old) continue;
+			edits.set(id, { matrix: old ? mul(old.matrix, own) : own });
+		}
+		const adds = (this.contentAdds.get(page.number) ?? []).map((a) => (picked.has(ADDED + a.key) ? { ...a, matrix: a.matrix ? mul(a.matrix, own) : own } : a));
+		this.changeContent(page.number, edits, adds);
+	}
+
+	/** Takes objects out of a page's content (one undo step) */
+	removeContent(index: number, ids: Iterable<number>) {
+		const page = this.pages[index];
+		if (!page?.number || page.source) return;
+		const picked = new Set(ids);
+		const edits = new Map(this.contentEdits.get(page.number) ?? []);
+		for (const id of picked) if (id < ADDED) edits.set(id, { remove: true });
+		const adds: ContentAdd[] = [];
+		for (const a of this.contentAdds.get(page.number) ?? []) {
+			if (!picked.has(ADDED + a.key)) adds.push(a);
+			// What it stood for stays out
+			else if (a.at !== undefined) edits.set(a.at, { remove: true });
+		}
+		this.changeContent(page.number, edits, adds);
+	}
+
+	/**
+	 * A picture of some objects of a page's content alone, as they are now, on a see-through page (`scale`: pixels
+	 * per point): shown moving while they are dragged. Null when it can't be made.
+	 */
+	async liftedContent(index: number, ids: ReadonlySet<number>, scale: number): Promise<HTMLCanvasElement | null> {
+		const page = this.pages[index];
+		const objects = page?.number && !page.source ? this.contentKnown.get(page.number) : null;
+		const writer = await this.writer;
+		if (!page || !objects || !writer) return null;
+		try {
+			// The page with nothing but these: every other object out, of the added ones only the picked
+			const edits = new Map(this.contentEdits.get(page.number) ?? []);
+			for (const object of objects) if (!ids.has(object.id)) edits.set(object.id, { remove: true });
+			const adds = (this.contentAdds.get(page.number) ?? []).filter((a) => ids.has(ADDED + a.key)).map(({ annotation, matrix, at }) => ({ annotation, matrix, at }));
+			const bytes = await writer.update({ content: new Map([[page.number - 1, edits]]), flatten: new Map([[page.number - 1, adds]]) });
+			const pdf = await openPdf(bytes.slice());
+			try {
+				const proxy = await pdf.getPage(page.number);
+				// At most about 8 megapixels
+				const fit = Math.min(scale, Math.sqrt(8_000_000 / Math.max(1, page.w * page.h)));
+				const viewport = proxy.getViewport({ scale: fit, rotation: page.rotate });
+				const canvas = document.createElement('canvas');
+				canvas.width = Math.ceil(viewport.width);
+				canvas.height = Math.ceil(viewport.height);
+				// A see-through picture: PDF.js makes an opaque context for a canvas it is given, so it gets ours
+				const context = canvas.getContext('2d');
+				if (!context) return null;
+				await proxy.render({ canvas: null, canvasContext: context, viewport, background: 'rgba(0,0,0,0)', annotationMode: 0 }).promise;
+				return canvas;
+			} finally {
+				void pdf.loadingTask.destroy();
+			}
+		} catch (e) {
+			console.warn('[pdf-editor] content preview', e);
+			return null;
+		}
+	}
+
+	/** Can a comment become part of the page (`flatten`)? Not what only works as a comment: links, attached files */
+	flattens(item: PdfItem): boolean {
+		return !isLink(item) && !(isNote(item) && !!item.file);
+	}
+
+	/**
+	 * Makes comments part of their page's content ("flatten"): each is drawn into the page as it looks and is no
+	 * comment any more – its text, replies and state go. One undo step. `ids`: the items of that page; without:
+	 * every comment of the page.
+	 */
+	flatten(index: number, ids?: ReadonlySet<string>) {
+		this.asOne(() => this.flattenPage(index, ids));
+	}
+
+	/** Flattens every comment of the PDF (one undo step) */
+	flattenAll() {
+		this.asOne(() => this.pages.forEach((_, i) => this.flattenPage(i)));
+	}
+
+	/** Are there comments that `flatten` would take (on a page, or anywhere)? */
+	canFlatten(index?: number): boolean {
+		return this.pages.some((page, i) => (index === undefined || i === index) && !!page.number && !page.source && !!this.scenes.get(page.id)?.items.some((item) => this.flattens(item)));
+	}
+
+	private flattenPage(index: number, ids?: ReadonlySet<string>) {
+		const page = this.pages[index];
+		if (!page?.number || page.source || this.editable !== 'yes') return;
+		const items = (this.scenes.get(page.id)?.items ?? []).filter((item) => (!ids || ids.has(item.id)) && this.flattens(item));
+		if (!items.length) return;
+		const toUser = toUserSpace(pageTransform(page.view, page.rotate));
+		const date = new Date();
+		const drawn = items.flatMap((item) => [annotationOf(item, toUser, undefined, date), ...partsOf(item, toUser, undefined, date)]);
+		this.items.deleteItems(index, new Set(items.map((item) => item.id)));
+		const adds = [...(this.contentAdds.get(page.number) ?? []), ...drawn.map((annotation) => ({ key: this.addKey++, annotation }))];
+		this.changeContent(page.number, this.contentEdits.get(page.number) ?? new Map(), adds);
+	}
+
+	/**
+	 * Puts a picture in the place of an image of a page's content: fitted into the image's box in proportion,
+	 * drawn where the image was drawn (what lies over it stays over it). One undo step; the picture's object id.
+	 */
+	replaceImage(index: number, id: number, picture: { key: string; width: number; height: number }): number | null {
+		const page = this.pages[index];
+		const old = this.contentItems(index)?.find((item) => item.id === id);
+		if (!page?.number || page.source || !old || !(picture.width > 0 && picture.height > 0)) return null;
+		const { x0, y0, x1, y1 } = old.box;
+		const scale = Math.min((x1 - x0) / picture.width, (y1 - y0) / picture.height);
+		const w = picture.width * scale;
+		const h = picture.height * scale;
+		const stamp: PdfItem = { id: crypto.randomUUID(), type: 'stamp', x: (x0 + x1 - w) / 2, y: (y0 + y1 - h) / 2, w, h, name: 'Image', color: '#000000', image: picture.key };
+		const annotation = annotationOf(stamp, toUserSpace(pageTransform(page.view, page.rotate)), undefined, new Date());
+		const before = this.contentAdds.get(page.number) ?? [];
+		// In the place of the file's image – also when that was replaced before
+		const at = id >= ADDED ? before.find((a) => ADDED + a.key === id)?.at : id;
+		const key = this.addKey++;
+		const adds = [...before.filter((a) => ADDED + a.key !== id), { key, annotation, ...(at !== undefined && { at }) }];
+		const edits = new Map(this.contentEdits.get(page.number) ?? []);
+		if (at !== undefined) edits.delete(at);
+		this.changeContent(page.number, edits, adds);
+		return ADDED + key;
+	}
+
+	private changeContent(number: number, edits: ReadonlyMap<number, ContentChange>, adds: readonly ContentAdd[]) {
+		const before = { edits: this.contentEdits.get(number) ?? new Map<number, ContentChange>(), adds: this.contentAdds.get(number) ?? [] };
+		const after = { edits, adds };
+		const set = (state: typeof after) => {
+			const nextEdits = new Map(this.contentEdits);
+			if (state.edits.size) nextEdits.set(number, state.edits);
+			else nextEdits.delete(number);
+			this.contentEdits = nextEdits;
+			const nextAdds = new Map(this.contentAdds);
+			if (state.adds.length) nextAdds.set(number, state.adds);
+			else nextAdds.delete(number);
+			this.contentAdds = nextAdds;
+			this.contentChanges++;
+			void this.showContent([number]);
+		};
+		set(after);
+		this.pushStep({ undo: () => set(before), redo: () => set(after) });
+	}
+
+	/** Several steps as one to undo */
+	private asOne(run: () => void) {
+		const steps: Step[] = (this.grouped = []);
+		try {
+			run();
+		} finally {
+			this.grouped = null;
+		}
+		if (steps.length) this.pushStep({ undo: () => [...steps].reverse().forEach((step) => step.undo()), redo: () => steps.forEach((step) => step.redo()) });
+	}
+	private grouped: Step[] | null = null;
+
+	/** The content edits as the writer takes them, keyed by `key(page number)` (left out: pages not there) */
+	private contentFor(key: (number: number) => number | undefined) {
+		const content = new Map<number, ReadonlyMap<number, ContentChange>>();
+		const flatten = new Map<number, { annotation: NewAnnotation; matrix?: Matrix; at?: number }[]>();
+		for (const [number, edits] of this.contentEdits) {
+			const k = key(number);
+			if (k !== undefined) content.set(k, edits);
+		}
+		for (const [number, adds] of this.contentAdds) {
+			const k = key(number);
+			if (k !== undefined) flatten.set(k, adds.map(({ annotation, matrix, at }) => ({ annotation, matrix, at })));
+		}
+		return { content, flatten };
+	}
+
+	/** Has the content of any page been changed (the file is then written anew as a whole)? */
+	get contentChanged(): boolean {
+		return this.contentEdits.size > 0 || this.contentAdds.size > 0;
+	}
+
+	/** The file with only the changes to its pages' content (the file as opened when there are none) */
+	private async contentBytes(): Promise<Uint8Array> {
+		const writer = await this.writer;
+		const edits = this.contentFor((number) => number - 1);
+		return writer && (edits.content.size || edits.flatten.size) ? await writer.update(edits) : this.base;
+	}
+
+	/** Shows the file's pages with the content changes: the changed pages are rendered anew from a file that has
+	 * them (what is shown stays until then) */
+	private async showContent(numbers: number[]) {
+		const run = ++this.shownRun;
+		try {
+			const writer = await this.writer;
+			if (!writer) return;
+			const bytes = await this.contentBytes();
+			if (run !== this.shownRun) return;
+			const proxy = bytes === this.base ? this.pdf : await openPdf(bytes.slice());
+			if (run !== this.shownRun) {
+				if (proxy !== this.pdf) void proxy.loadingTask.destroy();
+				return;
+			}
+			// What is hidden or filled in on the open document is so on this one too
+			if (proxy !== this.pdf) for (const [id, value] of this.pdf.annotationStorage.serializable.map ?? []) proxy.annotationStorage.setValue(id, value as object);
+			const old = this.shown;
+			this.shown = proxy;
+			this.renders.swap(MAIN, proxy, numbers);
+			for (const number of numbers) {
+				this.contentRevs.set(number, (this.contentRevs.get(number) ?? 0) + 1);
+				for (const key of [...this.text.keys()]) if (key.startsWith(`${MAIN}|${number}|`)) this.text.delete(key);
+			}
+			for (const p of this.pages) if (!p.source && numbers.includes(p.number)) this.listener?.backdrop?.(p.id);
+			this.changes++;
+			// Told once the pages are drawn anew (or after a while, when they aren't in view)
+			const since = performance.now();
+			const before = this.rendered;
+			let seen = before;
+			const settled = () => {
+				if (run !== this.shownRun) return;
+				// Something was rendered since, and nothing more for a moment
+				const done = this.rendered > before && this.rendered === seen;
+				seen = this.rendered;
+				if (!done && performance.now() - since < 3000) setTimeout(settled, 120);
+				else this.contentShown++;
+			};
+			setTimeout(settled, 120);
+			// Renders still running read from the old one: closed a little later
+			if (old !== this.pdf && old !== proxy) setTimeout(() => void old.loadingTask.destroy(), 10_000);
+		} catch (e) {
+			console.warn('[pdf-editor] content', e);
+		}
+	}
+
+	/** Writes a value into the documents' annotation storage (hidden annotations, filled-in fields): the open
+	 * document's and the one shown */
+	private store(id: string, value: Record<string, unknown>) {
+		this.pdf.annotationStorage.setValue(id, value);
+		if (this.shown !== this.pdf) this.shown.annotationStorage.setValue(id, value);
 	}
 
 	/** A new page list (moved, deleted, inserted pages) – one step to undo; pages keep their items */
@@ -750,6 +1127,10 @@ export class PdfDocument {
 
 	/** Records a step that was just done */
 	private pushStep(step: Step) {
+		if (this.grouped) {
+			this.grouped.push(step);
+			return;
+		}
 		this.history.push(step);
 		this.markChanged();
 	}
@@ -790,6 +1171,32 @@ export class PdfDocument {
 	}
 
 	/**
+	 * A piece of a page as a vector picture, e.g. for a stamp: the comments `ids` alone (their box), or everything
+	 * in `box` (as shown) – the page's own content as it is now (with the changes to it) and all comments on it. Null when there is nothing to take.
+	 */
+	async piece(index: number, what: { ids: ReadonlySet<string> } | { box: Box }): Promise<PdfForm | null> {
+		const page = this.pages[index];
+		if (!page) return null;
+		const toUser = toUserSpace(pageTransform(page.view, page.rotate));
+		const all = this.scenes.get(page.id)?.items.filter(isAnnotatable) ?? [];
+		const items = 'ids' in what ? all.filter((item) => what.ids.has(item.id)) : all;
+		const annotations = items.flatMap((item) => [annotationOf(item, toUser, undefined, new Date()), ...partsOf(item, toUser, undefined, new Date())]);
+		let box: [number, number, number, number];
+		if ('ids' in what) {
+			if (!annotations.length) return null;
+			const rects = annotations.map((a) => a.rect);
+			box = [Math.min(...rects.map((r) => r[0])), Math.min(...rects.map((r) => r[1])), Math.max(...rects.map((r) => r[2])), Math.max(...rects.map((r) => r[3]))];
+		} else {
+			const corners = [toUser(what.box.x0, what.box.y0), toUser(what.box.x1, what.box.y1)];
+			box = [Math.min(corners[0][0], corners[1][0]), Math.min(corners[0][1], corners[1][1]), Math.max(corners[0][0], corners[1][0]), Math.max(corners[0][1], corners[1][1])];
+		}
+		if (!(box[2] - box[0] >= 1 && box[3] - box[1] >= 1)) return null;
+		// The page's own content only for a box; a blank page has none
+		const source = 'ids' in what || !page.number ? undefined : { pdf: page.source ? this.inserted.get(page.source)!.bytes : await this.contentBytes(), index: page.number - 1 };
+		return pieceForm({ page: source, annotations, box, rotate: page.rotate });
+	}
+
+	/**
 	 * What is drawn on the pages, as annotations in user space: new ones added, changed ones of the file written anew
 	 * in their place, deleted ones taken off
 	 */
@@ -812,7 +1219,8 @@ export class PdfDocument {
 			}
 			// The subject as set; new ones get their kind's name
 			const subject = this.subjects.get(item.id) ?? (this.origin.has(item.id) ? undefined : kindOf(item).label);
-			return withData({ ...annotationOf(item, toUser, author, date), subject }, item, date, page.rotate, page.w, page.h);
+			const placeOf = (id: string) => this.pages.findIndex((p) => p.id === id);
+			return withData({ ...annotationOf(item, toUser, author, date, placeOf), ...(!isLink(item) && { subject }) }, item, date, page.rotate, page.w, page.h);
 		};
 		const itemsOfPage = this.pages.map((page) => this.scenes.get(page.id)?.items.filter(isAnnotatable) ?? []);
 		/** Items read from the file that are still there, with their page's index */
@@ -844,6 +1252,18 @@ export class PdfDocument {
 				const ref = stands.get(item.id);
 				if (ref) sequence.push(ref);
 				else if (!this.origin.has(item.id) || extra.has(item.id)) sequence.push(list.push(annotation(item, index)) - 1);
+			}
+			// What belongs to an item besides its own annotation (the struck text of a replacement): with a new one,
+			// and anew – instead of the file's – with one written anew in its place
+			for (const item of items) {
+				const ref = stands.get(item.id);
+				if (ref && !replace.has(ref)) continue;
+				if (this.origin.has(item.id) && !ref && !extra.has(item.id)) continue;
+				const page = this.pages[index];
+				const date = this.dates.get(item.id) ?? now;
+				const made = partsOf(item, toUserSpace(pageTransform(page.view, page.rotate)), this.meta.get(item.id)?.author || undefined, date, ref ?? item.id);
+				if (ref) for (const part of this.parts.get(ref) ?? []) remove.add(part);
+				list.push(...made);
 			}
 			// New replies after what they answer (as `/Text` notes drawing nothing: viewers list them with it), then
 			// new review states (hidden), each after what it is set on
@@ -933,7 +1353,9 @@ export class PdfDocument {
 			const pages = this.pages.map((p) =>
 				!p.number ? { blank: { width: p.view[2], height: p.view[3] } } : p.source ? { copy: { pdf: this.inserted.get(p.source)!.bytes, index: p.number - 1 } } : { base: p.number - 1 }
 			);
-			const bytes = await writer.update({ pages, rotate: new Map(this.pages.map((p, i) => [i, p.rotate])), ...this.annotations(), form: await this.form() });
+			// Changes to the content of the file's pages, by where each page stands now
+			const places = new Map(this.pages.flatMap((p, i) => (!p.source && p.number ? [[p.number, i] as const] : [])));
+			const bytes = await writer.update({ pages, rotate: new Map(this.pages.map((p, i) => [i, p.rotate])), ...this.annotations(), form: await this.form(), ...this.contentFor((number) => places.get(number)) });
 			// Never replace a version saved elsewhere meanwhile without being told
 			const now = await stat(this.path);
 			if (this.conflict !== 'deleted' && now && !sameStamp(stampOf(now), this.stamp)) {
@@ -994,6 +1416,18 @@ export class PdfDocument {
 	}
 
 	/** Content of an embedded file */
+	/** The files attached to comments, by page (`index`: its place) */
+	attached(): { index: number; id: string; name: string; size: number; key: string }[] {
+		void this.changes;
+		return this.pages.flatMap((page, index) =>
+			(this.scenes.get(page.id)?.items ?? []).flatMap((item) => (isNote(item) && item.file ? [{ index, id: item.id, ...item.file }] : []))
+		);
+	}
+	/** How many there are (follows the items) */
+	get attachedCount(): number {
+		return this.attached().length;
+	}
+
 	async attachmentContent(attachment: Attachment): Promise<Blob> {
 		const content = await this.pdf.getAttachmentContent(attachment.id);
 		if (!content) throw new Error('the attachment has no content');
@@ -1009,7 +1443,7 @@ export class PdfDocument {
 	}
 
 	private textOf(page: PdfPage): Promise<PageText> {
-		const key = `${sourceOf(page)}|${page.number}|${page.rotate}`;
+		const key = `${sourceOf(page)}|${page.number}|${page.rotate}|${this.contentRev(page)}`;
 		let text = this.text.get(key);
 		if (!text) {
 			const proxy = this.proxyOf(page);
@@ -1026,7 +1460,7 @@ export class PdfDocument {
 	/** The text of a page if it was read already (`texts()` reads it) */
 	pageText(index: number): PageText | null {
 		const page = this.pages[index];
-		return page ? (this.textNow.get(`${sourceOf(page)}|${page.number}|${page.rotate}`) ?? null) : null;
+		return page ? (this.textNow.get(`${sourceOf(page)}|${page.number}|${page.rotate}|${this.contentRev(page)}`) ?? null) : null;
 	}
 
 	/** Which layers are shown (loaded on first use; the view only, the file stays as it is) */
@@ -1039,6 +1473,71 @@ export class PdfDocument {
 	layersChanged() {
 		this.renders.forget(MAIN);
 		this.pages = this.pages.map((p) => ({ ...p, rev: p.rev + 1 }));
+	}
+
+	/** Links of the file's pages that aren't items here (other programs'), by page id: their boxes as shown */
+	private readonly fileLinks = new Map<string, Promise<{ box: Box; url?: string; dest?: string | unknown[] }[]>>();
+
+	/**
+	 * The link at a point of a page (page points as shown): one made here, else one of the file. `url`: a web
+	 * address; `place`: where in this PDF it leads.
+	 */
+	async linkAt(index: number, x: number, y: number): Promise<{ url?: string; place?: { index: number; y: number } } | null> {
+		const page = this.pages[index];
+		if (!page) return null;
+		const own = this.scenes.get(page.id)?.items.findLast((item): item is LinkItem => isLink(item) && x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
+		if (own) {
+			if (own.url) return { url: own.url };
+			const at = this.pages.findIndex((p) => p.id === own.page);
+			return at >= 0 ? { place: { index: at, y: 0 } } : null;
+		}
+		if (!page.number || page.source) return null;
+		let links = this.fileLinks.get(page.id);
+		if (!links) {
+			links = (async () => {
+				const proxy = await this.pdf.getPage(page.number);
+				const found = (await proxy.getAnnotations()) as { subtype: string; id: string; rect: number[]; url?: string; dest?: string | unknown[] }[];
+				const toPage = toShown(pageTransform(page.view, page.rotate));
+				const ours = new Set([...this.fromFile.keys()].map((ref) => ref.replace(/ 0 R$/, 'R').replace(/ (\d+) R$/, 'R$1')));
+				return found
+					.filter((a) => a.subtype === 'Link' && !ours.has(a.id) && (a.url || a.dest))
+					.map((a) => {
+						const [ax, ay] = toPage(a.rect[0], a.rect[1]);
+						const [bx, by] = toPage(a.rect[2], a.rect[3]);
+						return { box: { x0: Math.min(ax, bx), y0: Math.min(ay, by), x1: Math.max(ax, bx), y1: Math.max(ay, by) }, url: a.url, dest: a.dest };
+					});
+			})().catch(() => []);
+			this.fileLinks.set(page.id, links);
+		}
+		const hit = (await links).findLast((l) => x >= l.box.x0 && x <= l.box.x1 && y >= l.box.y0 && y <= l.box.y1);
+		if (!hit) return null;
+		if (hit.url) return { url: hit.url };
+		const place = await this.destination(hit.dest ?? null);
+		return place ? { place } : null;
+	}
+
+	/** The scale and unit this PDF is measured with: those of its measurements (one for the whole PDF), else the
+	 * ones used last */
+	measureScale(): { scale: number; unit: MeasureUnit } {
+		for (const page of this.pages) {
+			const found = this.scenes.get(page.id)?.items.find(isMeasured);
+			if (found) return { scale: found.measure.scale, unit: found.measure.unit };
+		}
+		return { ...measureDefault };
+	}
+
+	/** Gives the PDF another scale: every measurement measures anew (one undo step) */
+	setMeasureScale(scale: number, unit: MeasureUnit) {
+		setMeasureDefault(scale, unit);
+		this.items.changeAll((item) => (isMeasured(item) && (item.measure.scale !== scale || item.measure.unit !== unit) ? { ...item, measure: { ...item.measure, scale, unit } } : null));
+	}
+
+	/** Shows or hides the boxes of the links made here (the pages holding some are drawn again) */
+	showLinks(shown: boolean) {
+		if (linkView.shown === shown) return;
+		linkView.shown = shown;
+		for (const page of this.pages) if (this.scenes.get(page.id)?.items.some(isLink)) this.listener?.content(page.id);
+		this.changes++;
 	}
 
 	/** Index of the page a destination of the outline or a link points to, with its height on the page (points from the top) */
@@ -1068,6 +1567,7 @@ export class PdfDocument {
 
 	destroy() {
 		this.destroyed = true;
+		stampEvents.ready = null;
 		this.scripts?.destroy();
 		clearTimeout(this.saveTimer);
 		this.renders.destroy();

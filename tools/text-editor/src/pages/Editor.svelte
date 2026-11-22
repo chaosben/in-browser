@@ -442,7 +442,7 @@
 		close: { id: 'close', label: m.actions.close, icon: 'icon-[material-symbols-light--close]', shortcut: S.close, run: () => void go(resolve('/text-editor')) }
 	} satisfies Record<string, Command>;
 
-	// Ctrl+Y redoes too (like Office)
+	// Ctrl+Y redoes too
 	const redoAlt: Command = { ...commands.redo, id: 'redoAlt', shortcut: S.redoAlt };
 	$effect(() => installCommandKeys(() => (supported() ? [...Object.values(commands), redoAlt] : [])));
 

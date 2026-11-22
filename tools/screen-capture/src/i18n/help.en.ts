@@ -16,7 +16,7 @@ const help = {
 				title: 'Ribbon',
 				text: 'Commands that can’t act right now stay in their place, grayed out. Buttons with a small arrow open choices (“Hold frame” its length, “Delete” deleting with a gap, “Shapes” the four shapes). The menu at the right end of the ribbon switches its display – for every in-browser tool on this device – and the arrow next to it collapses the ribbon to its tabs (a click on a tab then opens its commands over the editor; also a double click on a tab or Ctrl+F1); Alt or F10 show a letter for every tab and command.',
 				options: {
-					classic: { label: 'Classic (default on a computer)', text: 'Groups with large buttons and their names – everything at a glance.' },
+					classic: { label: 'Classic (default on a computer)', text: 'Commands in three rows with their names, in groups with a name each. Easiest to find things, takes about 130 pixels of height.' },
 					simplified: { label: 'Simplified', text: 'One compact row – more room for preview and timeline.' },
 					minimal: { label: 'Minimal (default on phones and tablets)', text: 'One row of icons without text; hold the pointer over an icon – or press and hold it – to see its name. Least height with every command in reach.' }
 				},
@@ -534,7 +534,7 @@ const help = {
 		items: {
 			box: {
 				title: 'Text box',
-				text: 'Like in Figma, the handles change only the box, never the font: the left and right side set the width (the text wraps, the height follows it), the top, bottom and corners a fixed size (Shift keeps a corner’s proportions); text that doesn’t fit a fixed size runs out below the box. Press K while dragging a handle to scale the font with the box. “Box size” under Font switches between the three. A box that would get larger than the canvas wraps to the canvas width and, if needed, gets a smaller font.',
+				text: 'The handles change only the box, never the font: the left and right side set the width (the text wraps, the height follows it), the top, bottom and corners a fixed size (Shift keeps a corner’s proportions); text that doesn’t fit a fixed size runs out below the box. Press K while dragging a handle to scale the font with the box. “Box size” under Font switches between the three. A box that would get larger than the canvas wraps to the canvas width and, if needed, gets a smaller font.',
 				options: {
 					autoWidth: { label: 'Auto width (default)', text: 'As wide as the longest line; lines break only where you press Enter. For labels and titles.' },
 					autoHeight: { label: 'Auto height', text: 'Keeps its width; lines wrap and the box grows with the text. For longer texts.' },

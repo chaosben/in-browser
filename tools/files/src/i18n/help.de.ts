@@ -7,7 +7,7 @@ const help: typeof enHelp = {
 		items: {
 			what: {
 				title: 'Wozu Dateien da ist',
-				text: 'Jedes Tool von in-browser legt seine Dokumente in einem gemeinsamen Speicher in diesem Browser ab: Aufnahmen und Projekte der Bildschirmaufnahme, Texte des Texteditors, Notizen. Das Tool Dateien zeigt diesen Speicher wie ein Laufwerk. Hier lädst du hoch und herunter, sortierst Dokumente in Ordner, benennst um, kopierst und löschst – und richtest das Synchronisieren mit einem Ordner auf deinem Rechner oder mit deinen anderen Geräten ein. Nichts wird auf einen Server hochgeladen.',
+				text: 'Jedes Tool von in-browser legt seine Dokumente in einem gemeinsamen Speicher in diesem Browser ab: Aufnahmen und Projekte der Bildschirmaufnahme, Texte des Texteditors, PDFs. Das Tool Dateien zeigt diesen Speicher wie ein Laufwerk. Hier lädst du hoch und herunter, sortierst Dokumente in Ordner, benennst um, kopierst und löschst – und richtest das Synchronisieren mit einem Ordner auf deinem Rechner oder mit deinen anderen Geräten ein. Nichts wird auf einen Server hochgeladen.',
 				link: { href: '/help/storage', label: 'Wo deine Dateien liegen' }
 			},
 			layout: {
@@ -18,7 +18,7 @@ const help: typeof enHelp = {
 				title: 'Darstellung des Menübands',
 				text: 'Wird das Fenster schmaler, werden zuerst die Gruppen rechts kleiner: Ihre Schaltflächen verlieren den Text unter dem Symbol, dann den Text ganz, und zuletzt wird eine ganze Gruppe zu einer Schaltfläche, die sie öffnet. Die Schaltfläche mit dem Leisten-Symbol am rechten Ende der Registerkarten wählt, wie das Menüband aussieht – für alle Tools von in-browser auf diesem Gerät. Der Pfeil daneben klappt das Menüband zusammen: Nur die Registerkarten bleiben, und ein Klick auf eine öffnet ihre Befehle über der Seite, bis du einen wählst; ein Doppelklick auf eine Registerkarte oder Strg+F1 tun dasselbe, und der Pfeil holt das Menüband zurück, wie es war.',
 				options: {
-					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Große Schaltflächen in Gruppen mit ihren Namen. Am leichtesten zu finden, braucht etwa 120 Pixel Höhe.' },
+					classic: { label: 'Klassisch (Standard am Rechner)', text: 'Befehle in drei Zeilen mit ihren Namen, in Gruppen mit je einem Namen. Am leichtesten zu finden, braucht etwa 130 Pixel Höhe.' },
 					simplified: { label: 'Vereinfacht', text: 'Eine kompakte Zeile Schaltflächen, ohne Gruppennamen. Lässt mehr Platz für die Liste.' },
 					minimal: { label: 'Minimal (Standard auf Handy und Tablet)', text: 'Eine Zeile Symbole ohne Text; halte den Zeiger über ein Symbol – oder halte es gedrückt –, um seinen Namen zu sehen. Am wenigsten Höhe, und jeder Befehl bleibt erreichbar.' }
 				},

@@ -7,7 +7,7 @@ import { accessAction } from './sources/connections.svelte.js';
  * error unless `text` says more; with what the user can do about it – allowing access to a connected folder again
  * or changing a server's sign-in data (`accessAction`; `retry` runs once access is back).
  */
-export function showError(e: unknown, { text, context, retry }: { text?: string; /** For the console, e.g. `[notes] export` */ context?: string; retry?: () => void } = {}): void {
+export function showError(e: unknown, { text, context, retry }: { text?: string; /** For the console, e.g. `[pdf-editor] stamp` */ context?: string; retry?: () => void } = {}): void {
 	if (context) console.error(context, e);
 	else console.error(e);
 	const action = accessAction(e, retry);

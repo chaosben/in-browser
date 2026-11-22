@@ -1,9 +1,9 @@
 <script lang="ts">
-	// How shapes are drawn besides color and thickness: fill (closed shapes), line style, hand-drawn, arrowheads
-	// (lines). Used by the shape tool's panel and the selection menu.
+	// How shapes are drawn besides color and thickness: fill and cloud (closed shapes), line style, hand-drawn, what
+	// lines carry at their ends. Used by the shape tool's panel and the selection menu.
 	import ColorField from '@in-browser/graphics/ColorField.svelte';
 	import { inkMessages } from '../i18n/index.svelte.js';
-	import { DASHES, type ShapeStyle } from '../shapes.js';
+	import { DASHES, LINE_ENDS, type LineEnd, type ShapeStyle } from '../shapes.js';
 
 	interface Props {
 		style: ShapeStyle;
@@ -11,9 +11,9 @@
 		fillable: boolean;
 		/** `final`: the color field is done (not while dragging in it) */
 		onchange: (style: Partial<ShapeStyle>, final: boolean) => void;
-		/** Arrowheads of lines, when lines are concerned */
-		heads?: { start: boolean; end: boolean } | null;
-		onheads?: (start: boolean, end: boolean) => void;
+		/** What lines carry at their ends, when lines are concerned */
+		heads?: { start: LineEnd | null; end: LineEnd | null } | null;
+		onheads?: (start: LineEnd | null, end: LineEnd | null) => void;
 	}
 
 	let { style, fillable, onchange, heads = null, onheads }: Props = $props();
@@ -24,13 +24,6 @@
 
 	/** Fills are stored with their opacity (`#rrggbbaa`) */
 	const fillOf = (v: string | null) => (v ? (v.length === 7 ? `${v}ff` : v).toLowerCase() : null);
-
-	const HEADS = [
-		{ id: 'none', start: false, end: false },
-		{ id: 'end', start: false, end: true },
-		{ id: 'start', start: true, end: false },
-		{ id: 'both', start: true, end: true }
-	] as const;
 
 	/** Dash pattern of the line style previews */
 	const PATTERNS = { solid: '', dashed: '5 3', dotted: '0 3.5' };
@@ -75,28 +68,27 @@
 	<span class="w-20 shrink-0 truncate text-xs opacity-70">{m.shapeStyle.sketch}</span>
 	<input type="checkbox" class="toggle toggle-sm toggle-primary" checked={style.sketch} onchange={(e) => onchange({ sketch: e.currentTarget.checked }, true)} />
 </label>
+{#if fillable}
+	<label class="flex cursor-pointer items-center gap-1">
+		<span class="w-20 shrink-0 truncate text-xs opacity-70">{m.shapeStyle.cloud}</span>
+		<input type="checkbox" class="toggle toggle-sm toggle-primary" checked={style.cloud ?? false} onchange={(e) => onchange({ cloud: e.currentTarget.checked }, true)} />
+	</label>
+{/if}
 {#if heads && onheads}
-	<div class="flex items-center gap-1">
-		<span class="w-20 shrink-0 truncate text-xs opacity-70">{m.shapeStyle.heads}</span>
-		<div class="join min-w-0 flex-1" role="group" aria-label={m.shapeStyle.heads}>
-			{#each HEADS as h (h.id)}
-				{@const active = heads.start === h.start && heads.end === h.end}
-				<button
-					class="btn btn-sm join-item flex-1 px-1 {active ? 'btn-active btn-primary' : ''}"
-					onclick={() => onheads(h.start, h.end)}
-					title={m.shapeStyle.headOptions[h.id]}
-					aria-label={m.shapeStyle.headOptions[h.id]}
-					aria-pressed={active}
-				>
-					<svg viewBox="0 0 32 12" class="h-3 w-8" aria-hidden="true">
-						<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-							<line x1="3" y1="6" x2="29" y2="6" />
-							{#if h.end}<polyline points="24,2 29,6 24,10" />{/if}
-							{#if h.start}<polyline points="8,2 3,6 8,10" />{/if}
-						</g>
-					</svg>
-				</button>
-			{/each}
-		</div>
-	</div>
+	{#each ['start', 'end'] as const as side (side)}
+		<label class="flex items-center gap-1">
+			<span class="w-20 shrink-0 truncate text-xs opacity-70">{m.shapeStyle.ends[side]}</span>
+			<select
+				class="select select-sm min-w-0 flex-1"
+				value={heads[side] ?? ''}
+				onchange={(e) => {
+					const end = (e.currentTarget.value || null) as LineEnd | null;
+					onheads(side === 'start' ? end : heads.start, side === 'end' ? end : heads.end);
+				}}
+			>
+				<option value="">{m.shapeStyle.endOptions.none}</option>
+				{#each LINE_ENDS as end (end)}<option value={end}>{m.shapeStyle.endOptions[end]}</option>{/each}
+			</select>
+		</label>
+	{/each}
 {/if}

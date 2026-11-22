@@ -1,12 +1,12 @@
 <script lang="ts" module>
-	/** A document on the start page (a recently opened file, a notebook …) */
+	/** A document on the start page (a recently opened file, a project …) */
 	export interface StartEntry {
 		path: string;
 		/** Shown name (default: the file name) */
 		name?: string;
 		/** Last change; null: not reachable right now (a connected folder without access, a device offline) */
 		modified: number | null;
-		/** `directory` for packages (notebooks …), so the icon is the tool's */
+		/** `directory` for packages (projects …), so the icon is the tool's */
 		kind?: 'file' | 'directory';
 		/** Shown before the date, e.g. the number of pages */
 		detail?: string;

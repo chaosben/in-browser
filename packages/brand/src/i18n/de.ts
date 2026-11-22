@@ -8,7 +8,6 @@ const de: BrandMessages = {
 
 	tools: {
 		files: 'Dateien',
-		notes: 'Notizen',
 		'text-editor': 'Texteditor',
 		'screen-capture': 'Bildschirmaufnahme',
 		'pdf-editor': 'PDF-Editor'

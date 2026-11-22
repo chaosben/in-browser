@@ -1,6 +1,6 @@
 // Geometry on page items in page points: bounding boxes, distances, hit tests and a grid index for fast lookups.
 
-import { isInk, type Item, type Picture, type Stroke } from './items.js';
+import type { Item, Stroke } from './items.js';
 import { inkPoints } from './shapes.js';
 
 export interface Box {
@@ -27,10 +27,7 @@ export function boundsOf(points: Float32Array, pad = 0): Box {
 	return { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
 }
 
-/** Box of a picture */
-export const pictureBounds = (p: Picture): Box => ({ x0: p.x, y0: p.y, x1: p.x + p.w, y1: p.y + p.h });
-
-export const itemBounds = (i: Item): Box => (isInk(i) ? boundsOf(inkPoints(i), i.size / 2 + 1) : pictureBounds(i));
+export const itemBounds = (i: Item): Box => boundsOf(inkPoints(i), i.size / 2 + 1);
 
 export const intersects = (a: Box, b: Box) => a.x0 <= b.x1 && a.x1 >= b.x0 && a.y0 <= b.y1 && a.y1 >= b.y0;
 

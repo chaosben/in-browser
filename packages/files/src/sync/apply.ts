@@ -12,7 +12,7 @@ import type { Tree } from './tree.js';
 //   with the one the plan saw; if it differs, the step is skipped (the next run plans again).
 // - Files arrive in a hidden temporary file and are moved into place only when complete.
 // - The losing version of a change on both sides becomes a conflict copy (unless the content is the same).
-// - Like Syncthing (without versioning), what the other side deleted or replaced is deleted or replaced here: the
+// - No versions are kept: what the other side deleted or replaced is deleted or replaced here: the
 //   user's own deletions are kept in the synced trash (`trash.ts`), so they are on every device anyway.
 
 export interface SyncOptions {

@@ -1,5 +1,5 @@
 // A form's own scripts (calculations, number formats, checks – `/AA` of its fields, the document's JavaScript), run
-// like Firefox runs them: PDF.js's QuickJS sandbox in a worker of its own (`scripting.worker.ts`), started only for
+// in PDF.js's QuickJS sandbox, in a worker of its own (`scripting.worker.ts`), started only for
 // PDFs that have scripts. A tool sends what the user did to a field (`commit`); the answer is what the scripts
 // changed – values, the text they show (`formattedValue`), messages.
 

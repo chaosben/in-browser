@@ -9,7 +9,6 @@ const en = {
 	/** Visible names of the tools (code, folders and addresses stay English: the key is the tool's folder) */
 	tools: {
 		files: 'Files',
-		notes: 'Notes',
 		'text-editor': 'Text Editor',
 		'screen-capture': 'Screen Capture',
 		'pdf-editor': 'PDF Editor'

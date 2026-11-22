@@ -1,20 +1,9 @@
-// Drawing of the stage's overlay canvas (lasso loop, selection frame, laser pointer). Plain functions:
+// Drawing of the stage's overlay canvas (lasso loop, selection frame). Plain functions:
 // the stage passes what they need, once per frame.
 
 import type { Transform } from '../lasso.js';
 import type { DrawContext, ItemKit, SceneItem } from './kit.js';
-import type { PictureSource } from './pictures.js';
 import type { PageRect, Viewport } from './viewport.js';
-
-/** Laser pointer: points fade out after this time */
-const LASER_MS = 1200;
-
-/** A laser point in document coordinates, with the time it was added */
-export interface LaserPoint {
-	x: number;
-	y: number;
-	t: number;
-}
 
 /** Screen box (CSS pixels) */
 export interface ScreenRect {
@@ -24,10 +13,9 @@ export interface ScreenRect {
 	h: number;
 }
 
-/** Outlines of items while they are dragged (computed once per object), and the pictures to draw them with */
+/** Outlines of items while they are dragged (computed once per object) */
 export class LiftedContext implements DrawContext {
 	private readonly paths = new WeakMap<SceneItem, Path2D>();
-	pictures: PictureSource | null = null;
 
 	path<T extends SceneItem>(item: T, build: (item: T) => Path2D): Path2D {
 		let path = this.paths.get(item);
@@ -104,27 +92,19 @@ export function drawLasso(ctx: CanvasRenderingContext2D, points: number[], color
 	ctx.setLineDash([]);
 }
 
-/** Laser trail, fading out; the points still visible (none left: no further frames needed) */
-export function drawLaser(ctx: CanvasRenderingContext2D, view: Viewport, laser: LaserPoint[]): LaserPoint[] {
-	const now = performance.now();
-	const points = laser.filter((p) => now - p.t < LASER_MS);
-	if (!points.length) return points;
-	ctx.strokeStyle = '#ef4444';
-	ctx.shadowColor = '#ef4444';
-	ctx.shadowBlur = 8;
-	ctx.lineWidth = 4;
-	for (let i = 1; i < points.length; i++) {
-		const a = points[i - 1];
-		const b = points[i];
-		// A new stroke starts after a pause
-		if (b.t - a.t > 200) continue;
-		ctx.globalAlpha = Math.max(0, 1 - (now - b.t) / LASER_MS);
-		ctx.beginPath();
-		ctx.moveTo(view.toScreenX(a.x), view.toScreenY(a.y));
-		ctx.lineTo(view.toScreenX(b.x), view.toScreenY(b.y));
-		ctx.stroke();
-	}
-	ctx.globalAlpha = 1;
-	ctx.shadowBlur = 0;
-	return points;
+/** A shape not on the page yet (page points as x, y, pressure triples), as a plain line in its ink */
+export function drawRubber(
+	ctx: CanvasRenderingContext2D,
+	view: { zoom: number; toScreenX(x: number): number; toScreenY(y: number): number },
+	rect: { x: number; y: number },
+	rubber: { points: ArrayLike<number>; color: string; size: number }
+) {
+	const pts = rubber.points;
+	if (pts.length < 6) return;
+	ctx.strokeStyle = rubber.color;
+	ctx.lineWidth = Math.max(1, rubber.size * view.zoom);
+	ctx.beginPath();
+	ctx.moveTo(view.toScreenX(rect.x + pts[0]), view.toScreenY(rect.y + pts[1]));
+	for (let i = 3; i < pts.length; i += 3) ctx.lineTo(view.toScreenX(rect.x + pts[i]), view.toScreenY(rect.y + pts[i + 1]));
+	ctx.stroke();
 }
