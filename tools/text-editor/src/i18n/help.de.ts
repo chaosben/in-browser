@@ -15,7 +15,7 @@ const help: typeof enHelp = {
 			},
 			fileMenu: {
 				title: 'Die Registerkarte „Datei“',
-				text: 'Die obere Leiste zeigt nur, wo du bist: Der Name der gezeigten Datei steht nach „Texteditor“. Was du mit der Datei selbst tust, steht in der ersten Registerkarte des Menübands, „Datei“: die Gruppe „Neu“ mit „Neu“ und „Öffnen“ („Aus Dateien öffnen …“, „Vom Rechner öffnen …“), die Gruppe „Datei“ mit „Speichern“, „Speichern unter …“, „Herunterladen“, „In Dateien zeigen“ und „Schließen“. Was für diese Datei nicht geht, ist ausgegraut – einen Text ohne Ort kannst du noch nicht in Dateien zeigen. Der Editor öffnet mit der Registerkarte „Start“, in der du am Text arbeitest. Eine Datei heißt wie ihre Datei im Browserspeicher; umbenennen kannst du sie in Dateien.'
+				text: 'Die obere Leiste zeigt nur, wo du bist: Der Name der gezeigten Datei steht nach „Texteditor“. Was du mit der Datei selbst tust, steht in der ersten Registerkarte des Menübands, „Datei“: die Gruppe „Neu“ mit „Neu“ und „Öffnen“ („Aus Dateien öffnen …“, „Vom Rechner öffnen …“), die Gruppe „Datei“ mit „Speichern“, „Speichern unter …“, „Herunterladen“, „Freigeben …“ (die Datei für einen Gast – ein Link, ein QR-Code oder vier Wörter; siehe die Hilfeseite zum Freigeben), „In Dateien zeigen“ und „Schließen“. Was für diese Datei nicht geht, ist ausgegraut – einen Text ohne Ort kannst du noch nicht in Dateien zeigen. Der Editor öffnet mit der Registerkarte „Start“, in der du am Text arbeitest. Eine Datei heißt wie ihre Datei im Browserspeicher; umbenennen kannst du sie in Dateien.'
 			},
 			ribbon: {
 				title: 'Das Menüband',

@@ -3,7 +3,7 @@ import type { TrashRef } from '../trash.js';
 
 export type { TrashRef } from '../trash.js';
 
-// A connected source: storage outside My files that is opened live (nothing is copied into the browser). fs.ts routes
+// A connected source: storage outside My files – opened live, or (a guest share) a synced copy kept apart. fs.ts routes
 // every path under `/:c/<id>` to the source of that connection, so tools use it like any other path. Paths given to
 // a source are inside it (`/` = its root); entries come back with such paths too.
 //

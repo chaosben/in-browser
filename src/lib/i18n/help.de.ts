@@ -270,7 +270,7 @@ const help: typeof enHelp = {
 					items: {
 						rule: {
 							title: 'Zwei Arten von Speicher',
-							text: '„Meine Dateien“ liegen im Speicher deines Browsers und reisen mit deinen Geräten. Ein Ordner unter „Verbunden“ bleibt, wo er ist: in-browser öffnet ihn live, liest und speichert direkt dort und behält keine Kopie. Trennst du ihn, bleibt nichts davon im Browser.'
+							text: '„Meine Dateien“ liegen im Speicher deines Browsers und reisen mit deinen Geräten. Was unter „Verbunden“ steht, gehört nicht dazu und reist nie mit deinen Geräten. Ein Ordner auf deinem Rechner oder einem Server bleibt, wo er ist: in-browser öffnet ihn live, liest und speichert direkt dort und behält keine Kopie. Was dir jemand freigibt, ist die eine Ausnahme: Es wird in diesen Browser kopiert, damit es ohne das freigebende Gerät funktioniert, liegt getrennt von Meine Dateien und wird gelöscht, wenn die Freigabe endet. Trennst du eines davon, bleibt nichts davon im Browser.'
 						},
 						everywhere: {
 							title: 'In jedem Tool',
@@ -347,25 +347,40 @@ const help: typeof enHelp = {
 					title: 'Für einen Gast freigeben',
 					items: {
 						start: {
-							title: 'Einen Ordner freigeben',
-							text: 'Wähle in Dateien „Ordner freigeben …“ unter „Freigaben“ in der Seitenleiste und such einen Ordner in Meine Dateien aus – oder wähle „Freigeben …“ im Menü eines Ordners. Wähle, was der Gast darf, dann „Freigeben“: Der Dialog zeigt einen Link und einen QR-Code. Der Gast öffnet den Link in einem beliebigen aktuellen Browser – ohne Konto, ohne eines deiner Geräte zu sein. Der Ordner öffnet sich dort live von diesem Gerät; in seinem Browser bleibt nichts davon, und es ist weg, wenn er den Tab schließt.',
+							title: 'Einen Ordner oder eine Datei freigeben',
+							text: 'Wähle „Freigeben …“ im Menü eines Ordners oder einer Datei in Dateien, „Ordner freigeben …“ unter „Freigaben“ in seiner Seitenleiste – oder „Freigeben …“ auf der Registerkarte „Datei“ von PDF-Editor, Texteditor und Bildschirmaufnahme für das offene Dokument. Wähle, was der Gast darf und wie lange es gilt, dann „Freigeben“: Der Dialog zeigt einen Link und einen QR-Code, und „Vier Wörter zeigen“ gibt Wörter zum Eintippen. Der Gast öffnet es in einem beliebigen aktuellen Browser – ohne Konto, ohne eines deiner Geräte zu sein. Was du freigibst, wird in den Browser des Gasts kopiert und mit diesem Gerät abgeglichen, solange in-browser hier offen ist; eine einzelne Datei öffnet sich dort gleich in ihrem Tool, und der Gast bekommt nur diese Datei, nie das, was daneben liegt.',
 							options: {
-								view: { label: '„Nur ansehen“ (Standard)', text: 'Dateien öffnen, ansehen und herunterladen. Hier ändert sich nichts.' },
-								edit: { label: '„Bearbeiten“', text: 'Auch speichern, hochladen, umbenennen und löschen. Was der Gast löscht, landet hier im Papierkorb.' }
+								view: { label: '„Nur ansehen“ (Standard)', text: 'Öffnen, ansehen und herunterladen. Hier ändert sich nichts.' },
+								edit: { label: '„Bearbeiten“', text: 'Auch speichern, hochladen, umbenennen und löschen. Was der Gast löscht, landet hier im Papierkorb; eine freigegebene Datei selbst lässt sich nicht löschen oder verschieben.' }
 							},
-							tip: 'Gib zum Ansehen frei, um Fotos oder Dokumente weiterzugeben; nimm „Bearbeiten“, wenn der Gast Dateien zurückbringen soll, z. B. seine Bilder von einer Reise.'
+							tip: 'Gib zum Ansehen frei, um Fotos oder Dokumente weiterzugeben – oder eine Präsentation an einen Rechner am Beamer; nimm „Bearbeiten“, wenn der Gast Dateien zurückbringen soll.'
+						},
+						words: {
+							title: 'Vier Wörter statt des Links',
+							text: 'Ein Rechner ohne Kamera kann den QR-Code nicht scannen, und der Link ist lang zum Abtippen. „Vier Wörter zeigen“ im Freigabe-Dialog zeigt vier kurze Wörter in deiner Sprache. Öffne am anderen Rechner in-browser, wähle in Dateien „Verbinden …“ (unter Meine Dateien in der Seitenleiste „Ordner“ oder die Registerkarte „Verbinden“), dann „Freigabe mit vier Wörtern …“, und tippe sie – auf Deutsch oder Englisch, groß oder klein, ä oder ae gleich; das gerade getippte Wort wird ergänzt. Die Wörter gelten einmal und 10 Minuten lang; „Neue Wörter“ macht neue. Sie übergeben nur den eigentlichen Schlüssel der Freigabe: Niemand kann sie rechtzeitig erraten, und nach dem Benutzen öffnen sie nichts mehr.',
+							tip: 'Lies die Wörter vor oder zeig deinen Bildschirm – sie gehen nie über einen Chat. Sind sie abgelaufen, bevor die andere Seite sie getippt hat, mach einfach neue.'
 						},
 						valid: {
 							title: 'Wie lange und für wen',
-							text: 'Eine Freigabe gilt, bis du sie beendest. Sie kann jeweils ein Browser nutzen: Solange ein Gast verbunden ist, erfährt ein zweiter Browser, dass die Freigabe gerade in einem anderen Browser geöffnet ist, und versucht es selbst wieder. Der Gast kann den Tab schließen und den Link später wieder öffnen. Wer den Link hat, kommt also hinein, solange niemand sonst drin ist – gib ihn nur deinem Gast und beende Freigaben, die du nicht mehr brauchst. Lass in-browser auf diesem Gerät offen, solange der Gast ihn nutzt – im selben WLAN ist die Verbindung am schnellsten und zuverlässigsten.'
+							text: 'Beim Freigeben wählst du, wie lange es gilt: eine Stunde, einen Tag (Standard), eine Woche oder bis du sie beendest – eine vergessene Freigabe endet von selbst. Sie kann jeweils ein Browser nutzen: Solange ein Gast verbunden ist, erfährt ein zweiter Browser, dass die Freigabe gerade in einem anderen Browser geöffnet ist, und versucht es selbst wieder. Wer den Link hat, kommt also hinein, solange niemand sonst drin ist – gib ihn nur deinem Gast und beende Freigaben, die du nicht mehr brauchst. Lass in-browser auf diesem Gerät offen, bis der Gast alles hat und wann immer Änderungen ankommen sollen – im selben WLAN ist die Verbindung am schnellsten und zuverlässigsten. Was der Gast schon hat, bleibt dort nutzbar, während dieses Gerät weg ist.'
 						},
 						guest: {
 							title: 'Als Gast',
-							text: 'Der freigegebene Ordner erscheint in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien als „Ordner“ von dem Gerät, das ihn freigibt, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. „Trennen“ oder das Schließen des Tabs beendet es für dich; der Link öffnet es wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Beendet das freigebende Gerät die Freigabe, siehst du sofort „Die Freigabe wurde beendet.“ – „Entfernen“ nimmt sie weg; was du in deine eigenen Dateien kopiert hast, bleibt. Ist das freigebende Gerät nicht erreichbar, sagt Dateien das: Dort muss in-browser offen sein.'
+							text: 'Ein freigegebener Ordner erscheint in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien als „Ordner von“ dem, der ihn freigibt – dem Namen aus dessen Einstellungen („Profil“ → „Dein Name“), sonst dem seines Geräts –, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. Was freigegeben ist, wird in deinen Browser kopiert und mit dem freigebenden Gerät abgeglichen; eine Zeile über der Liste sagt, was gerade geschieht („Die Freigabe wird geholt …“ oder dass das freigebende Gerät gerade nicht erreichbar ist – dann siehst du die Freigabe so, wie sie zuletzt war, und kannst sie weiter nutzen). Bevor eine Freigabe geholt wird, die groß ist (standardmäßig ab 1 GB, die Einstellung „Vor dem Synchronisieren neuer Ordner fragen ab“ unter „Sync“) oder nicht in den freien Speicher deines Browsers passt, wirst du gefragt: „Holen“ startet es. Dein Browser merkt sich die Freigabe – auch nachdem er geschlossen war –, bis sie endet, abläuft oder du „Trennen“ wählst. Beendet das freigebende Gerät sie, siehst du sofort „Die Freigabe wurde beendet.“, und ihre Kopie wird aus deinem Browser gelöscht – „Entfernen“ nimmt den Eintrag weg; was du in deine eigenen Dateien kopiert hast, bleibt.'
+						},
+						copies: {
+							title: 'Was beim Gast bleibt',
+							text: 'Alles, was du freigibst, wird in den Browser des Gasts kopiert – du hast es ihm bewusst gegeben, und so öffnet es sich auch, wenn dieses Gerät nicht erreichbar ist. Bei „Nur ansehen“ folgt die Kopie nur diesem Gerät: Der Gast kann sie dort nicht ändern, und von ihm kommt nie etwas zurück. Bei „Bearbeiten“ gehen Änderungen in beide Richtungen; haben beide Seiten dieselbe Datei geändert, gilt die neuere Fassung, und die andere bleibt als Kopie mit „(Konflikt …)“ im Namen daneben. Die Kopie liegt getrennt von den eigenen Dateien des Gasts: Sie gehört nicht zu seinen „Meine Dateien“, wird nie zu seinen anderen Geräten synchronisiert und landet nie in einem Ordner auf seinem Rechner. Sie wird gelöscht, wenn die Freigabe endet oder abläuft oder der Gast „Trennen“ wählt – wird der Browser des Gasts nicht mehr geöffnet, dann beim nächsten Öffnen. Was der Gast in seine eigenen Dateien kopiert oder heruntergeladen hat, bleibt bei ihm.',
+							tip: 'Gib mit einer Dauer frei, wenn du Dateien an einen Rechner gibst, der nicht deiner ist – die Kopie geht mit der Freigabe. Gib nur frei, was der Gast behalten darf: Eine Kopie, die er während der Freigabe gemacht hat, lässt sich nicht zurückholen.'
+						},
+						live: {
+							title: 'Live mit einem Gast oder deinen Geräten',
+							text: 'Startet der Gast – oder eines deiner eigenen Geräte – mit dem, was du freigibst, etwas live, z. B. eine Präsentation einer PDF, sagt es jedes Tool von in-browser auf deiner Seite in einer Meldung („Dein Gast präsentiert …“) mit dem Weg hinein („Fernsteuern“) – in einem Tab, der im Hintergrund war, sobald du zu ihm zurückkommst; solange es läuft, steht es auch im Menü des Sync-Symbols unten rechts. Diese Live-Verbindungen gehen direkt zwischen den beiden Browsern wie die Freigabe selbst und brauchen auf beiden Seiten offenes in-browser. Die Seite, die du dafür öffnest, übernimmt die Verbindungen dieses Browsers von seinen anderen Tabs, damit ein Handy sie behält, auch wenn diese Tabs schlafen.',
+							link: { href: '/help/pdf-editor#present', label: 'Präsentieren mit Fernsteuerung' }
 						},
 						end: {
 							title: 'Eine Freigabe beenden',
-							text: 'Deine aktiven Freigaben stehen in Dateien unter „Freigaben“, mit einem Punkt, der grün wird, solange ein Gast verbunden ist. Ein Klick zeigt Link und QR-Code wieder; Rechtsklick (oder gedrückt halten) für „Freigabe beenden“. Beenden trennt den Gast sofort und sagt es ihm; im Ordner ändert sich nichts. Eine Freigabe gilt, bis du sie beendest.'
+							text: 'Deine aktiven Freigaben stehen in Dateien unter „Freigaben“, mit einem Punkt, der grün wird, solange ein Gast verbunden ist. Ein Klick zeigt Link und QR-Code wieder; Rechtsklick (oder gedrückt halten) für „Freigabe beenden“. Beenden trennt den Gast sofort und sagt es ihm; an dem, was du freigegeben hast, ändert sich nichts. Eine Freigabe mit Dauer endet von selbst.'
 						}
 					}
 				}

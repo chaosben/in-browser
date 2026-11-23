@@ -148,7 +148,7 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 		if (!found || !stroke || !isStroke(stroke)) return null;
 		const { page, scene } = found;
 		const shape: ShapeItem = { id: crypto.randomUUID(), type: 'shape', fit, color: stroke.color, size: stroke.size };
-		this.applyOps(page.id, [{ removed: stroke, at: scene.items.indexOf(stroke), added: [asItem<I>(shape)] }]);
+		this.applyOps(page.id, [{ removed: stroke, at: scene.items.indexOf(stroke), added: [this.made(stroke, asItem<I>(shape))] }]);
 		return shape.id;
 	}
 
@@ -188,7 +188,7 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 			const at = scene.remove(stroke);
 			if (at < 0) continue;
 			const pen = pieces.length ? inkStrokes(stroke as I & Ink)[0] : null;
-			const added = pieces.map((points) => asItem<I>({ id: crypto.randomUUID(), tool: pen!.tool, color: pen!.color, size: pen!.size, points } satisfies Stroke));
+			const added = pieces.map((points) => this.made(stroke, asItem<I>({ id: crypto.randomUUID(), tool: pen!.tool, color: pen!.color, size: pen!.size, points } satisfies Stroke)));
 			added.forEach((piece, i) => scene.add(piece, at + i));
 			this.erasing.ops.push({ removed: stroke, at, added });
 			box = union(box, bounds);
@@ -197,6 +197,11 @@ export class ItemEditor<I extends SceneItem> implements SelectionDoc<I>, Suggest
 			this.host.region(page.id, box);
 			this.host.touch(page.id);
 		}
+	}
+
+	/** An item made out of `from`, with what the tool keeps on it (`ItemKit.inherit`) */
+	private made(from: I, item: I): I {
+		return this.kit.inherit?.(from, item) ?? item;
 	}
 
 	eraseEnd() {

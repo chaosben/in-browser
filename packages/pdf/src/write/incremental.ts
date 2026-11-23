@@ -97,8 +97,10 @@ interface NewContent {
 }
 
 /** A page of the edited PDF: one of the file (its index there), a new blank one (size in points) or one copied from
- * another PDF (its bytes – the same array for pages of the same PDF – and the page's index there) */
-export type PageSlot = { base: number } | { blank: { width: number; height: number } } | { copy: { pdf: Uint8Array; index: number } };
+ * another PDF (its bytes – the same array for pages of the same PDF – and the page's index there; `annotations:
+ * false` leaves its annotations behind, e.g. a page of the file itself copied once more, whose drawings the tool
+ * writes anew) */
+export type PageSlot = { base: number } | { blank: { width: number; height: number } } | { copy: { pdf: Uint8Array; index: number; annotations?: false } };
 
 /** Subtypes `annotations()` reads (the ones tools draw themselves; notes that answer another – `/IRT` – are left out) */
 const READ = new Set(['Text', 'FreeText', 'Ink', 'Line', 'Square', 'Circle', 'Polygon', 'PolyLine', 'Highlight', 'Underline', 'StrikeOut', 'Squiggly', 'Stamp', 'Caret', 'FileAttachment', 'Link']);
@@ -479,8 +481,9 @@ export class IncrementalPdf {
 				const whole = dict.get(key('IRT'));
 				if (subtype === 'StrikeOut' && whole instanceof PDFRef && dict.lookupMaybe(key('RT'), PDFName)?.asString() === '/Group') partOf.set(ref.toString(), whole.toString());
 				const flags = dict.lookupMaybe(key('F'), PDFNumber)?.asNumber() ?? 0;
-				// Hidden (2) or not viewed (32)
-				if (!subtype || !READ.has(subtype) || flags & 34) continue;
+				// Hidden (2) or not viewed (32): the file's – unless it is a tool's own data kept on the page (`/InBrowser`)
+				const hidden = !!(flags & 34);
+				if (!subtype || !READ.has(subtype) || (hidden && !dict.has(key('InBrowser')))) continue;
 				if (subtype === 'Text' && dict.has(key('IRT'))) continue;
 				const rect = numbers(dict.get(key('Rect')));
 				if (rect?.length !== 4) continue;
@@ -501,6 +504,7 @@ export class IncrementalPdf {
 					ref: ref.toString(),
 					id: ref.generationNumber ? `${ref.objectNumber}R${ref.generationNumber}` : `${ref.objectNumber}R`,
 					subtype,
+					...(hidden && { hidden }),
 					rect: [Math.min(rect[0], rect[2]), Math.min(rect[1], rect[3]), Math.max(rect[0], rect[2]), Math.max(rect[1], rect[3])],
 					inset: inset?.length === 4 ? (inset as [number, number, number, number]) : undefined,
 					color: rgb(numbers(dict.get(key('C')))),
@@ -699,6 +703,7 @@ export class IncrementalPdf {
 				sources.set(w.pdf, (source = loaded.doc));
 			}
 			const [page] = await doc.copyPages(source, [w.index]);
+			if (w.annotations === false) page.node.delete(this.lib.PDFName.of('Annots'));
 			doc.addPage(page);
 			pages.set(w.slot, page.ref);
 		}

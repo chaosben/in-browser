@@ -85,6 +85,12 @@ export interface ItemKit<I extends SceneItem> {
 	/** Sizes itself when scaled (a text box keeps its font unless `Transform.scaleText`): drawn as `transform` gives
 	 * it while a selection is scaled, not stretched */
 	ownScale?(item: I): boolean;
+	/**
+	 * Items made out of another one (the pieces the pixel eraser leaves, a shape a stroke was turned into) as the
+	 * tool wants them: what the tool keeps on an item beyond the core's fields goes along (the PDF Editor's steps of
+	 * showing and hiding). Missing: they get only the core's fields.
+	 */
+	inherit?(from: I, made: I): I;
 }
 
 /** An item's kind as guides show it: name, and an icon class or a drawing (polyline points in 24 × 24) */

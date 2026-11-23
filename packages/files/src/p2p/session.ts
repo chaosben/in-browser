@@ -47,6 +47,10 @@ export interface ServeOptions {
 	free?: () => Promise<number | null>;
 	/** Bytes from which a new folder arriving here waits for confirmation (`null`: never) */
 	limit?: () => Promise<number | null>;
+	/** Paths the driver may neither delete nor rename (what a guest share stands on) */
+	keep?: (path: string) => boolean;
+	/** Files the driver deletes go here instead of being removed (a guest's deletions: this device's trash) */
+	trash?: (path: string) => Promise<void>;
 	log?: LogFn;
 }
 
@@ -72,10 +76,12 @@ const stateToJson = (s: FileState | null): Json => (s ? { kind: s.kind, size: s.
  * Answers the requests of the driving device. Returns a function to call when the connection ends: it frees this
  * device for other sessions if the driver vanished in the middle of one.
  */
-export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, setup, allowFolders, free, limit, log }: ServeOptions): () => void {
+export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, setup, allowFolders, free, limit, keep, trash, log }: ServeOptions): () => void {
 	// One session is one run: package copies (`PackageCopies`) are made once in it
 	let copies: PackageCopies = new Map();
 	const side = treeSide(tree, { onWrite, log, packages: () => copies });
+	// Deleting files goes through the trash where one is given
+	const trashing = trash ? treeSide({ ...tree, remove: trash }, { onWrite, log }) : side;
 	let holding = false;
 	const release = () => {
 		if (holding) gate.leave();
@@ -112,10 +118,12 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, al
 	rpc.handle('mkdir', async (params) => void (await side.mkdir(params as string)));
 	rpc.handle('remove', async (params) => {
 		const { path, kind, expect } = params as { path: string; kind: FileState['kind']; expect: FileState | null };
-		return { value: await side.remove(path, kind, expect) };
+		if (keep?.(path)) throw new Error(`Kept: ${path}`);
+		return { value: await (kind === 'file' ? trashing : side).remove(path, kind, expect) };
 	});
 	rpc.handle('rename', async (params) => {
 		const { from, to, expect } = params as { from: string; to: string; expect: FileState | null };
+		if (keep?.(from)) throw new Error(`Kept: ${from}`);
 		return { value: await side.rename(from, to, expect) };
 	});
 	return release;
@@ -154,6 +162,13 @@ export interface DriveOptions {
 	allowDeletes?: boolean;
 	/** Large new folders wait for confirmation: the limit (suite setting), free bytes here, folders let through here */
 	holdLarge?: { limit: number | null; free: number | null; allowed: string[] };
+	/**
+	 * This side only follows the other one (a guest's copy of a share for viewing): whatever differs here is taken
+	 * from there, what is gone there goes here, nothing is ever sent or deleted there
+	 */
+	mirror?: boolean;
+	/** Asked with both snapshots before anything moves; `false` leaves the session without syncing (`waiting`) */
+	confirm?: (local: Snapshot, remote: Snapshot) => boolean | Promise<boolean>;
 	onWrite?: (path: string) => void;
 	onProgress?: (done: number, total: number) => void;
 	log?: LogFn;
@@ -168,6 +183,8 @@ export interface DriveResult extends Omit<SyncResult, 'held'> {
 	setup?: true;
 	/** New folders held back that would have arrived on the other device */
 	theirHeldFolders?: HeldFolder[];
+	/** `confirm` said no: nothing was synced */
+	waiting?: true;
 }
 
 /** Runs one sync with the other device (this one drives) */
@@ -190,7 +207,9 @@ export async function drive(rpc: Rpc, options: DriveOptions): Promise<DriveResul
 			allowed: [...options.holdLarge.allowed, ...(begun.allowFolders ?? [])]
 		};
 		try {
-			const { held: _, heldFolders, ...rest } = await run(rpc, { ...options, allowDeletes }, hold);
+			const ran = await run(rpc, { ...options, allowDeletes }, hold);
+			if (!ran) return (result = { ...empty, waiting: true });
+			const { held: _, heldFolders, ...rest } = ran;
 			// Folders held on their way to the other device are its to confirm
 			const flip = (f: HeldFolder): HeldFolder => ({ ...f, direction: 'in' });
 			result = {
@@ -201,7 +220,7 @@ export async function drive(rpc: Rpc, options: DriveOptions): Promise<DriveResul
 			};
 		} finally {
 			const summary: SessionSummary = {
-				complete: result !== empty && !result.failed,
+				complete: result !== empty && !result.failed && !result.waiting,
 				pendingDeletes: result.pendingDeletes,
 				usedAllowDeletes: allowDeletes,
 				heldFolders: result.theirHeldFolders ?? []
@@ -224,7 +243,7 @@ interface Begun {
 	limit?: number | null;
 }
 
-async function run(rpc: Rpc, options: DriveOptions, holdLarge?: SyncOptions['holdLarge']): Promise<SyncResult> {
+async function run(rpc: Rpc, options: DriveOptions, holdLarge?: SyncOptions['holdLarge']): Promise<SyncResult | null> {
 	const { tree } = options;
 	const snapshot = (await rpc.call('snapshot')) as unknown as { scope: string[]; entries: WireState[] };
 	const scope = { mine: options.scope.mine, theirs: snapshot.scope ?? options.scope.theirs };
@@ -233,17 +252,35 @@ async function run(rpc: Rpc, options: DriveOptions, holdLarge?: SyncOptions['hol
 	const remote = intersect(fromWire(snapshot.entries), scope.mine, scope.theirs);
 	// Outside the folders both take part in, the base is forgotten: a folder taken in again starts like a first sync
 	// (both sides merged, nothing deleted)
-	const base = intersect(options.base, scope.mine, scope.theirs);
+	const base = options.mirror ? mirrorBase(local, options.base) : intersect(options.base, scope.mine, scope.theirs);
 	options.log?.('sync.start', { scope, local: local.size, remote: remote.size, base: base.size });
+	if (options.confirm && !(await options.confirm(local, remote))) return null;
 	return runSync(tree, rpcSide(rpc), local, remote, {
 		base,
 		saveBase: options.saveBase,
 		conflictLabel: options.conflictLabel,
-		hold: ['deleteLocal', 'deleteDisk'],
+		hold: options.mirror ? [] : ['deleteLocal', 'deleteDisk'],
 		allowDeletes: options.allowDeletes,
 		holdLarge,
 		onWrite: options.onWrite,
 		onProgress: options.onProgress,
 		log: options.log
 	});
+}
+
+/**
+ * The base of a mirror: everything here counts as unchanged since the last sync, so the plan only ever follows the
+ * other side – a file that differs here is fetched again, one that is gone there is removed here, and nothing here
+ * looks new or changed (which would be sent)
+ */
+function mirrorBase(local: Snapshot, saved: Base): Base {
+	const base: Base = new Map();
+	for (const [path, state] of local) {
+		const was = saved.get(path);
+		// Still as the last sync left it: unchanged there too unless the other side says otherwise. Anything else
+		// here never came from there: it counts as changed there, so it is fetched again
+		const kept = was && was.local.kind === state.kind && was.local.size === state.size && was.local.modified === state.modified;
+		base.set(path, { local: state, disk: kept ? was.disk : state });
+	}
+	return base;
 }

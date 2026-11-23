@@ -19,20 +19,15 @@ export interface LiveServerOptions {
 	tree: Tree;
 	/**
 	 * Where a requested path lies in `tree`, `null` if the asker may not reach it (a folder this device doesn't sync,
-	 * outside a guest's share, hidden internals)
+	 * hidden internals)
 	 */
 	resolve: (path: string) => string | null;
-	/** Only reading is allowed (a guest share for viewing) */
+	/** Only reading is allowed */
 	readOnly?: boolean | (() => boolean);
 	trash?: (path: string) => Promise<TrashRef>;
 	untrash?: (ref: TrashRef) => Promise<string>;
 	/** A request was answered (e.g. to keep a share alive) */
 	onRequest?: () => void;
-	/**
-	 * The asker is a guest: deleting always goes into the trash, the root it reaches (the shared folder) can't be
-	 * deleted or moved, and only its own deletions can be undone
-	 */
-	guest?: boolean;
 }
 
 interface Session {
@@ -50,8 +45,6 @@ interface Session {
 export function serveLive(handle: (method: string, handler: Handler) => void, options: LiveServerOptions): () => void {
 	const { tree } = options;
 	const sessions = new Map<string, Session>();
-	/** Trash entries this connection made (a guest may only undo those) */
-	const trashed = new Set<string>();
 	const readOnly = () => (typeof options.readOnly === 'function' ? options.readOnly() : !!options.readOnly);
 
 	function at(path: unknown): string {
@@ -64,17 +57,15 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		if (readOnly()) throw new Error('files:readOnly');
 		return at(path);
 	}
-	/** A path whose entry goes away (deleted, moved): for a guest never the root it reaches */
+	/** A path whose entry goes away (deleted, moved): never the root */
 	function changing(path: unknown): string {
-		if (options.guest && normalize(String(path ?? '/')) === '/') throw new Error('files:root');
+		if (normalize(String(path ?? '/')) === '/') throw new Error('files:root');
 		return writing(path);
 	}
 	async function toTrash(path: unknown): Promise<TrashRef> {
 		const real = changing(path);
 		if (!options.trash) throw new Error('files:readOnly');
 		const ref = await options.trash(real);
-		trashed.add(ref.entry);
-		// The asker gets its own path back (a guest never learns where the shared folder lies)
 		return { entry: ref.entry, path: normalize(String(path)) };
 	}
 	const on = (method: string, handler: Handler) =>
@@ -92,7 +83,7 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		const path = at(asked);
 		const out: WireEntry[] = [];
 		for (const name of await tree.names(path)) {
-			// Only what the asker may reach (e.g. no hidden entries for a guest)
+			// Only what the asker may reach
 			if (isTemp(name) || options.resolve(join(asked, name)) === null) continue;
 			const state = await tree.stat(join(path, name));
 			if (state) out.push([name, state.kind === 'file' ? 'f' : 'd', state.size, state.modified]);
@@ -111,10 +102,7 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 	});
 	on('live.mkdir', async (params) => void (await tree.mkdir(writing((params as { path: string }).path))));
 	on('live.remove', async (params) => {
-		const path = (params as { path: string }).path;
-		// A guest never deletes for good
-		if (options.guest) await toTrash(path);
-		else await tree.remove(changing(path));
+		await tree.remove(changing((params as { path: string }).path));
 	});
 	on('live.move', async (params) => {
 		const { from, to } = params as { from: string; to: string };
@@ -126,9 +114,7 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		if (typeof ref.entry !== 'string' || typeof ref.path !== 'string') throw new Error('files:notFound');
 		const path = writing(ref.path);
 		if (!options.untrash) throw new Error('files:readOnly');
-		if (options.guest && !trashed.has(ref.entry)) throw new Error('files:notFound');
 		await options.untrash({ entry: ref.entry, path });
-		trashed.delete(ref.entry);
 	});
 
 	// --- Writing in pieces ---

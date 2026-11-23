@@ -16,6 +16,7 @@ import { drawMeasure, isMeasured, labelBox } from './measure.js';
 
 const unionBox = (a: Box, b: Box): Box => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) });
 import { drawStamp, isStamp, recolorIcon, stampBounds, type StampItem } from './stamp.js';
+import { drawStepMark, flipsOf, stepLabel, stepView, withFlips } from './steps.js';
 import { drawCallout, drawText, hitsText, isText, itemBounds, moveTextHandle, textHandles, withText, type TextItem } from './textbox.js';
 
 export type { MarkKind };
@@ -223,39 +224,9 @@ export const pdfKit: ItemKit<PdfItem> = {
 	// A measured shape with its number
 	bounds: (item) => (isOwn(item) ? ownBounds(item) : isMeasured(item) ? unionBox(inkKit.bounds(item), labelBox(item)) : inkKit.bounds(item)),
 	draw(ctx, item, cx) {
-		if (isNote(item)) return drawNote(ctx, item);
-		if (isStamp(item)) return drawStamp(ctx, item);
-		if (isLink(item)) return drawLink(ctx, item);
-		if (isCaret(item)) {
-			// "Replace text": the text struck out, in the mark's color
-			if (item.replaces) strike(ctx, item.replaces, item.dir, item.color);
-			return drawCaret(ctx, item);
-		}
-		// Typed into: its field shows the box, its line stays
-		if (isText(item)) return item.id === typing.id ? drawCallout(ctx, item) : drawText(ctx, item);
-		if (!isMarkup(item)) {
-			inkKit.draw(ctx, item, cx as Parameters<typeof inkKit.draw>[2]);
-			if (isMeasured(item)) drawMeasure(ctx, item);
-			return;
-		}
-		ctx.fillStyle = item.color;
-		ctx.strokeStyle = item.color;
-		if (item.kind === 'highlight') {
-			// Multiply: the text below stays readable (the same in the saved appearance)
-			ctx.globalCompositeOperation = 'multiply';
-			for (const b of item.boxes) ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
-			ctx.globalCompositeOperation = 'source-over';
-			return;
-		}
-		for (const b of item.boxes) {
-			const { points, width } = item.kind === 'squiggly' ? squiggle(b, item.dir) : { points: markLine(item.kind, b, item.dir).line, width: markLine(item.kind, b, item.dir).width };
-			ctx.lineWidth = width;
-			ctx.lineJoin = 'round';
-			ctx.beginPath();
-			ctx.moveTo(points[0], points[1]);
-			for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
-			ctx.stroke();
-		}
+		drawItem(ctx, item, cx);
+		// While the panel of the steps is open: the steps at which the item comes and goes, marked on it
+		if (stepView.shown) drawStepMark(ctx, stepLabel(item), pdfKit.bounds(item));
 	},
 	hit: (item, x, y, r) => (isOwn(item) ? ownHit(item, x, y, r) : inkKit.hit(item, x, y, r)),
 	erases: (item, x, y, r) => (isOwn(item) ? ownHit(item, x, y, r) : inkKit.erases(item, x, y, r)),
@@ -284,8 +255,47 @@ export const pdfKit: ItemKit<PdfItem> = {
 	// A text box's corners and sides change its box (its font only with K); a shape's points
 	handles: (item) => (isText(item) ? textHandles(item) : isOwn(item) ? null : (inkKit.handles?.(item) ?? null)),
 	moveHandle: (item, index, x, y, o) => (isText(item) ? moveTextHandle(item, index, x, y, o) : isOwn(item) ? item : inkKit.moveHandle!(item, index, x, y, o)),
-	ownScale: isText
+	ownScale: isText,
+	// Pieces of an erased stroke and a stroke turned into a shape keep their steps
+	inherit: (from, made) => withFlips(made, flipsOf(from))
 };
+
+/** An item as it looks on the page */
+function drawItem(ctx: Ctx, item: PdfItem, cx: unknown) {
+	if (isNote(item)) return drawNote(ctx, item);
+	if (isStamp(item)) return drawStamp(ctx, item);
+	if (isLink(item)) return drawLink(ctx, item);
+	if (isCaret(item)) {
+		// "Replace text": the text struck out, in the mark's color
+		if (item.replaces) strike(ctx, item.replaces, item.dir, item.color);
+		return drawCaret(ctx, item);
+	}
+	// Typed into: its field shows the box, its line stays
+	if (isText(item)) return item.id === typing.id ? drawCallout(ctx, item) : drawText(ctx, item);
+	if (!isMarkup(item)) {
+		inkKit.draw(ctx, item, cx as Parameters<typeof inkKit.draw>[2]);
+		if (isMeasured(item)) drawMeasure(ctx, item);
+		return;
+	}
+	ctx.fillStyle = item.color;
+	ctx.strokeStyle = item.color;
+	if (item.kind === 'highlight') {
+		// Multiply: the text below stays readable (the same in the saved appearance)
+		ctx.globalCompositeOperation = 'multiply';
+		for (const b of item.boxes) ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+		ctx.globalCompositeOperation = 'source-over';
+		return;
+	}
+	for (const b of item.boxes) {
+		const { points, width } = item.kind === 'squiggly' ? squiggle(b, item.dir) : { points: markLine(item.kind, b, item.dir).line, width: markLine(item.kind, b, item.dir).width };
+		ctx.lineWidth = width;
+		ctx.lineJoin = 'round';
+		ctx.beginPath();
+		ctx.moveTo(points[0], points[1]);
+		for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+		ctx.stroke();
+	}
+}
 
 /** Ink, marked text, insertion marks, notes, text boxes and stamps (words or pictures): everything the editor writes
  * as annotations */

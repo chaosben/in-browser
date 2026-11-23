@@ -127,6 +127,16 @@ export function withValue(text: string | null, category: CategoryId, key: string
 	return JSON.stringify({ ...raw, [category]: { ...section, [key]: value } }, null, '\t');
 }
 
+/** The user's name (`profile.name`), read from a tree; `''` when none is set or the settings can't be read */
+export async function profileNameOf(tree: { stat(path: string): Promise<unknown>; read(path: string): Promise<Blob> }): Promise<string> {
+	try {
+		const text = (await tree.stat(SUITE_SETTINGS)) ? await (await tree.read(SUITE_SETTINGS)).text() : null;
+		return parseSettings(text).profile.name.trim();
+	} catch {
+		return '';
+	}
+}
+
 /** The size from which a new folder waits for confirmation (`sync.askAbove`), read from a tree (browser or p2p-node) */
 export async function askAboveOf(tree: { stat(path: string): Promise<unknown>; read(path: string): Promise<Blob> }): Promise<number | null> {
 	try {

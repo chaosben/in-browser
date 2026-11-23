@@ -5,9 +5,9 @@ import { fakeRelay, type RelayEvent } from './relay.js';
 
 // The P2P sync in one flow: two devices (separate browser contexts = separate OPFS and IndexedDB) pair with a one-time
 // key and sync – through a fake relay, with real WebRTC between them – and one is removed. Then a guest share: A shares
-// one folder; C – another browser, not one of A's devices – opens the link, sees only that folder live (also after
-// reloading), writes into it (“Edit”), and loses it when A ends the share. Nothing of it stays in C's storage, and the
-// relays see only a few events.
+// one folder; C – another browser, not one of A's devices – opens the link, gets only that folder as a synced copy
+// (kept after reloading), writes into it (“Edit”), and loses it when A ends the share: nothing of it stays in C's
+// storage – never in its My files, and the copy is deleted. The relays see only a few events.
 
 /** Names in My files of a browser (its own storage, not what it sees live) */
 function ownFiles(page: Page): Promise<string[]> {
@@ -47,7 +47,7 @@ function busiestKey(events: RelayEvent[]): number {
 }
 
 
-test('two devices pair, sync and can be removed; a guest opens a shared folder live until the share ends', async ({ browser }) => {
+test('two devices pair, sync and can be removed; a guest gets a shared folder until the share ends', async ({ browser }) => {
 	test.setTimeout(150_000);
 	const relay = fakeRelay();
 	const contextA = await browser.newContext({ locale: 'en-US' });
@@ -264,6 +264,17 @@ test('two devices pair, sync and can be removed; a guest opens a shared folder l
 
 	// C is told right away, without reloading; “Remove” takes it back to its own files
 	await expect(c.getByText('The share has ended.').first()).toBeVisible({ timeout: 10_000 });
+	// Its copy went with the share
+	await expect
+		.poll(() =>
+			c.evaluate(async () => {
+				const shares = await (await navigator.storage.getDirectory()).getDirectoryHandle('shares').catch(() => null);
+				const names: string[] = [];
+				if (shares) for await (const name of shares.keys()) names.push(name);
+				return names;
+			})
+		)
+		.toEqual([]);
 	await c.getByRole('button', { name: 'Remove' }).click();
 	await expect(c).toHaveURL(/\/files$/);
 	await expect(c.getByTestId('panel').getByText('Trip')).toHaveCount(0);

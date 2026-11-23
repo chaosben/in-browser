@@ -97,7 +97,75 @@ const de: FilesMessages = {
 	share: {
 		connection: (folder, host) => (host ? `${folder} von ${host}` : folder),
 		pending: 'Freigegebener Ordner',
-		viewOnly: 'Nur ansehen'
+		viewOnly: 'Nur ansehen',
+		guest: 'Gast',
+		host: 'Freigabe',
+		syncing: (done, total) => (total ? `Die Freigabe wird geholt … ${done}/${total}` : 'Die Freigabe wird geholt …'),
+		connecting: 'Das freigebende Gerät wird gesucht …',
+		offline: 'Das freigebende Gerät ist gerade nicht erreichbar – du siehst die Freigabe so, wie sie zuletzt war.',
+		taken: 'Die Freigabe ist gerade in einem anderen Browser geöffnet – dieser versucht es von selbst wieder.',
+		ask: (size) => `Die Freigabe ist ${size} groß. Auf dieses Gerät holen?`,
+		askFull: (size) => `Die Freigabe ist ${size} groß und passt nicht in den freien Speicher dieses Browsers.`,
+		fetch: 'Holen',
+		failed: (n) => (n === 1 ? '1 Datei konnte nicht abgeglichen werden.' : `${n} Dateien konnten nicht abgeglichen werden.`)
+	},
+
+	shareDialog: {
+		action: 'Freigeben …',
+		tip: 'Ein Gast öffnet diese Datei in seinem Browser – mit einem Link, einem QR-Code oder vier Wörtern',
+		title: (name) => `„${name}“ freigeben`,
+		introFolder: 'Ein Gast bekommt diesen Ordner in seinen Browser: Er wird auf sein Gerät kopiert und abgeglichen, solange in-browser hier offen ist. Endet die Freigabe, wird die Kopie dort gelöscht.',
+		introFile: 'Ein Gast bekommt diese Datei in seinen Browser: Sie wird auf sein Gerät kopiert und abgeglichen, solange in-browser hier offen ist. Endet die Freigabe, wird die Kopie dort gelöscht.',
+		mode: 'Der Gast darf',
+		view: 'Nur ansehen',
+		viewHint: 'Öffnen, ansehen und herunterladen (Standard).',
+		edit: 'Bearbeiten',
+		editHint: 'Auch speichern, hochladen, umbenennen und löschen – Gelöschtes landet hier im Papierkorb.',
+		duration: 'Die Freigabe endet',
+		durations: ['Nach einer Stunde', 'Nach einem Tag (Standard)', 'Nach einer Woche', 'Wenn du sie beendest'],
+		create: 'Freigeben',
+		link: 'Link für den Gast',
+		qr: 'QR-Code des Freigabe-Links',
+		copy: 'Link kopieren',
+		copied: 'Link kopiert.',
+		showWords: 'Vier Wörter zeigen',
+		wordsHint: 'Einfacher an einem anderen Rechner: Öffne dort in-browser, wähle „Freigabe öffnen“ und tippe diese Wörter.',
+		wordsLabel: 'Wörter für den Gast',
+		wordsLeft: (minutes) => (minutes <= 1 ? 'Sie gelten noch weniger als eine Minute, einmal.' : `Sie gelten noch ${minutes} Minuten, einmal.`),
+		wordsUsed: 'Die Wörter wurden benutzt oder sind abgelaufen.',
+		newWords: 'Neue Wörter',
+		waiting: 'Wartet auf den Gast – jeweils ein Browser kann sie öffnen.',
+		connected: 'Gast verbunden.',
+		away: 'Der Gast ist gerade nicht verbunden.',
+		untilEnded: 'Bis du sie beendest',
+		endsAt: (at) => `Endet ${at.toLocaleString('de', { dateStyle: 'medium', timeStyle: 'short' })}`,
+		end: 'Freigabe beenden',
+		endTitle: 'Freigabe beenden?',
+		endMessage: (name) => `Der Gast kann „${name}“ dann nicht mehr öffnen. Hier ändert sich daran nichts.`,
+		help: 'So funktioniert das Freigeben für einen Gast',
+		cancel: 'Abbrechen',
+		close: 'Schließen',
+		unavailable: 'Von hier lassen sich nur Dateien aus Meine Dateien auf diesem Gerät freigeben.'
+	},
+
+	live: {
+		present: (title, peer) => (peer ? `${peer} präsentiert „${title}“` : `Dein Gast präsentiert „${title}“`),
+		control: 'Fernsteuern',
+		join: 'Teilnehmen'
+	},
+
+	openShare: {
+		title: 'Freigabe öffnen',
+		menu: 'Freigabe mit vier Wörtern …',
+		intro: 'Tippe die vier Wörter, die das freigebende Gerät zeigt – Groß- und Kleinschreibung ist egal.',
+		label: 'Vier Wörter',
+		placeholder: 'z. B. apfel fluss wolke stein',
+		open: 'Öffnen',
+		opening: 'Frage beim freigebenden Gerät an …',
+		notWords: 'Das sind keine vier bekannten Wörter. Prüfe jedes einzelne.',
+		ended: 'Diese Wörter öffnen (mehr) keine Freigabe: Sie gelten einmal und 10 Minuten lang. Lass dir neue geben.',
+		offline: 'Das freigebende Gerät hat nicht geantwortet. Prüfe die Wörter; dort muss in-browser offen sein, und beide Geräte brauchen Internet, um sich zu finden.',
+		cancel: 'Abbrechen'
 	},
 
 	folderSync: {

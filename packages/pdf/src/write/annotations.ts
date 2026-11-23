@@ -33,6 +33,8 @@ export interface NewAnnotation {
 	modified?: Date;
 	/** A review state set on `replyTo` (`/State … /StateModel (Review)`): hidden, an empty appearance */
 	state?: ReviewState;
+	/** Never shown or printed (`/F` hidden and not viewed), e.g. a tool's data kept on a page */
+	hidden?: boolean;
 	/** Ink: polylines in user space */
 	inkList?: number[][];
 	/** Line: x1 y1 x2 y2, its endings (`/None`, `/OpenArrow` …) */
@@ -243,6 +245,8 @@ export interface ExistingAnnotation {
 	defaultAppearance?: string;
 	/** `/InBrowser`, when the file has it */
 	data?: string;
+	/** Never shown (`/F` hidden or not viewed): only read when it carries `/InBrowser` */
+	hidden?: boolean;
 }
 
 /** Keys of an annotation that `annotationObjects` writes or that describe its look: dropped from the old dictionary
@@ -271,7 +275,7 @@ export function annotationObjects(a: NewAnnotation, appearance: number, pageRef:
 		`/NM ${textString(a.name)}`,
 		`/M ${pdfDate(a.modified ?? new Date())}`,
 		// Print; a state is never shown (hidden, not viewed)
-		a.state ? '/F 34' : '/F 4',
+		a.state || a.hidden ? '/F 34' : '/F 4',
 		`/AP << /N ${appearance} 0 R >>`
 	];
 	if (a.color) entries.push(`/C ${arr(a.color)}`);

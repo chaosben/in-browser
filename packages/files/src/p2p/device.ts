@@ -1,7 +1,10 @@
 import { FilesError } from '../entry.js';
 import { basename, isHidden, isInside, normalize } from '../path.js';
 import { inTrash, trashInTree, untrashInTree } from '../trash.js';
-import { sharePath, tokenHash, type Share } from './shares.js';
+import { expired, sharePath, shareRoot, tokenHash, type Share } from './shares.js';
+import { shareTree } from './share-tree.js';
+import { newWordCode, wordSecret, WORDS_TTL } from './words.js';
+import { Rebindable, SESSIONS, sessionsOf, type LiveEnd, type LiveSession } from './live-ends.js';
 import {
 	answerHello,
 	checkHello,
@@ -12,6 +15,7 @@ import {
 	pairProof,
 	PROTOCOL,
 	shareProof,
+	wordsProof,
 	roomId,
 	type HelloAnswer
 } from './auth.js';
@@ -20,7 +24,7 @@ import { advance, mergeDevices, mergeLogs, record, type Change, type DeviceInfo,
 import type { Link } from './link.js';
 import type { LogFn } from '../sync/log.js';
 import type { HeldFolder } from '../sync/plan.js';
-import { askAboveOf } from '../settings.js';
+import { askAboveOf, profileNameOf } from '../settings.js';
 import { createOp, heads, knownRooms, mergeOps, resolve, roomHashOf, verifyOps, type Group, type Op } from './members.js';
 import { uniqueDeviceName } from './names.js';
 import type { Network, NetworkRoom } from './network.js';
@@ -43,6 +47,8 @@ const HELLO_TIMEOUT = 10_000;
 /** A device leaving its group waits this long for the others to take note */
 const LEAVE_WAIT = 2000;
 const INTERVAL = 60_000;
+/** After a start, the rooms of used shares are entered anew this long after it (`rejoinShares`) */
+const REANNOUNCE = [3000, 8000];
 /** Paths a session wrote are no local changes for this long */
 const OWN_WRITE_FOR = 10_000;
 /** A confirmation of held deletions counts for the sessions within this time (on both devices of a session) */
@@ -59,7 +65,9 @@ export type DeviceEvent =
 	| { type: 'remoteChanged' }
 	| { type: 'added'; name: string }
 	| { type: 'removed'; name: string }
-	| { type: 'paired' };
+	| { type: 'paired' }
+	/** The other end of a connection started something live (e.g. presenting a PDF): `path` is this device's */
+	| { type: 'live'; end: string; peer: string; kind: string; path: string; title: string };
 
 export interface DeviceOptions {
 	store: Store;
@@ -107,6 +115,13 @@ export class Device {
 	/** Rooms of guest shares and the guests connected to each */
 	private shareRooms = new Map<string, NetworkRoom>();
 	private guests = new Map<string, Map<Rpc, string>>();
+	/** Live channels per connection (`live-ends.ts`), and the live sessions the other ends told */
+	private ends = new Map<string, Rebindable>();
+	private endListeners = new Set<(end: LiveEnd) => void>();
+	private sessions = new Map<string, LiveSession[]>();
+	/** Word codes handing a share's key over (share id → its room and when it runs out); kept in memory only */
+	private wordRooms = new Map<string, { room: NetworkRoom; expires: number }>();
+	private reannounce: ReturnType<typeof setTimeout>[] = [];
 	private gate = new Gate();
 	private ownWrites = new Map<string, number>();
 	/** Until when held deletions may go through (the user confirmed them) */
@@ -133,6 +148,13 @@ export class Device {
 		return `${this.group?.members.get(id)?.name ?? this.group?.removed.get(id)?.name ?? '?'} (${id.slice(0, 6)})`;
 	}
 
+	/** Enters a room – never once stopped (a start still running when another tab took the lead must not leave a
+	 * device behind that answers in rooms) */
+	private enter(id: string, secret: string): NetworkRoom {
+		if (this.stopped) return { onLink() {}, leave() {} };
+		return this.options.network.join(id, secret);
+	}
+
 	private now() {
 		return this.options.now?.() ?? Date.now();
 	}
@@ -144,17 +166,41 @@ export class Device {
 		this.group = resolve(this.state.ops, this.state.rooms);
 		this.log('device.start', { self: this.nameOf(this.identity.id), members: this.group ? [...this.group.members.keys()].map((id) => this.nameOf(id)) : [], scope: this.state.scope });
 		await this.connect();
+		await this.endExpired();
 		for (const share of this.shares()) await this.listenForShare(share);
-		this.interval = setInterval(() => this.scheduleAll(0), INTERVAL);
+		// Stopped while starting (another tab took the lead): nothing keeps running
+		if (this.stopped) return;
+		// A guest that was connected comes back right now (this page reloaded): rooms announce themselves mostly in
+		// their first seconds, so the shares' rooms are entered anew twice while no guest is back yet
+		for (const delay of REANNOUNCE) this.reannounce.push(setTimeout(() => void this.rejoinShares(), delay));
+		this.interval = setInterval(() => {
+			this.scheduleAll(0);
+			void this.endExpired();
+		}, INTERVAL);
 		this.emit();
+	}
+
+	/** The rooms this device is in now (each is announced regularly: their number is what public relays limit) */
+	roomCount(): { devices: number; old: number; shares: number } {
+		return { devices: this.rooms.size, old: Math.max(0, this.rooms.size - (this.group?.room != null ? 1 : 0)), shares: this.shareRooms.size + this.wordRooms.size + this.pairRooms.size };
+	}
+
+	/** Everything this device saved so far is written (after `stop`, before another tab reads the state) */
+	settled(): Promise<void> {
+		return this.saving;
 	}
 
 	stop() {
 		this.stopped = true;
+		this.reannounce.forEach(clearTimeout);
 		clearInterval(this.interval);
 		this.leaveDevices();
 		for (const room of this.shareRooms.values()) room.leave();
 		this.shareRooms.clear();
+		for (const words of this.wordRooms.values()) words.room.leave();
+		this.wordRooms.clear();
+		this.ends.clear();
+		this.sessions.clear();
 		for (const rpcs of this.guests.values()) for (const rpc of rpcs.keys()) rpc.close();
 		this.guests.clear();
 	}
@@ -174,13 +220,24 @@ export class Device {
 		return this.state.shares ?? [];
 	}
 
-	/** Shares `folder` with a guest until ended; the link carries the returned share's code */
-	async share(folder: string, mode: Share['mode']): Promise<Share> {
+	/**
+	 * Shares `folder` with a guest – with `single` only that entry (a file, a package) – until ended or, with a
+	 * duration, until it runs out; the link carries the returned share's code
+	 */
+	async share(folder: string, mode: Share['mode'], options: { single?: boolean; duration?: number | null } = {}): Promise<Share> {
 		folder = normalize(folder);
-		// Hidden folders (tool data, the trash) are never shared
-		if (isHidden(folder)) throw new FilesError('notFound', folder);
+		// Hidden entries (tool data, the trash) and the whole of My files are never shared
+		if (isHidden(folder) || folder === '/') throw new FilesError('notFound', folder);
 		if (mode !== 'view' && mode !== 'edit') mode = 'view';
-		const share: Share = { id: crypto.randomUUID(), folder, mode, code: newInviteCode() };
+		const duration = typeof options.duration === 'number' && options.duration > 0 ? options.duration : null;
+		const share: Share = {
+			id: crypto.randomUUID(),
+			folder,
+			mode,
+			code: newInviteCode(),
+			...(options.single && { single: true as const }),
+			...(duration && { expires: this.now() + duration })
+		};
 		this.state.shares = [...this.shares(), share];
 		await this.save();
 		await this.listenForShare(share);
@@ -189,8 +246,106 @@ export class Device {
 		return share;
 	}
 
+	// --- Live channels (`live-ends.ts`) ---
+
+	/** The ends whose connection is there now */
+	liveEnds(): LiveEnd[] {
+		return [...this.ends.values()].filter((end) => end.open);
+	}
+
+	/** Tells about ends that open (or open again); returns how to stop */
+	onLiveEnd(listener: (end: LiveEnd) => void): () => void {
+		this.endListeners.add(listener);
+		return () => this.endListeners.delete(listener);
+	}
+
+	/** The end of a connection, bound to it (made the first time; its live sessions are heard from then on) */
+	private bindEnd(id: string, peer: () => { kind: 'guest' | 'device'; name: string; share?: string }, rpc: Rpc, link: Link, handle: (method: string, handler: Handler) => void) {
+		let end = this.ends.get(id);
+		if (!end) {
+			const made = new Rebindable({ id, ...peer() });
+			made.onMessage(SESSIONS, (message) => this.setSessions(made, sessionsOf(message)));
+			this.ends.set(id, made);
+			end = made;
+		}
+		const bound = end;
+		bound.bind(rpc, handle);
+		link.onClose(() => {
+			bound.unbind(rpc);
+			if (!bound.open && this.sessions.delete(id)) this.emit();
+		});
+		for (const listener of [...this.endListeners]) listener(bound);
+	}
+
+	/** What an end offers live now; new ones are told as events, with this device's path */
+	private setSessions(end: Rebindable, list: LiveSession[]) {
+		const before = this.sessions.get(end.peer.id) ?? [];
+		this.sessions.set(end.peer.id, list);
+		for (const session of list) {
+			if (before.some((s) => s.kind === session.kind && s.path === session.path)) continue;
+			const path = this.hostPath(end, session.path);
+			if (path) this.options.onEvent?.({ type: 'live', end: end.peer.id, peer: end.peer.name, kind: session.kind, path, title: session.title });
+		}
+		this.emit();
+	}
+
+	/** Where a path an end names lies here: a guest's inside its share, a device's as it is; null when unreachable */
+	private hostPath(end: LiveEnd, path: string): string | null {
+		if (end.peer.kind !== 'guest') return normalize(path);
+		const share = this.shares().find((s) => s.id === end.peer.share);
+		return share ? sharePath(share, path) : null;
+	}
+
+	/** Ends the shares that ran out (on start and every minute) */
+	private async endExpired() {
+		for (const share of this.shares()) if (expired(share, this.now())) await this.endShare(share.id);
+		for (const [id, words] of this.wordRooms) if (words.expires <= this.now()) this.dropWords(id);
+	}
+
+	/**
+	 * Four words that hand the share's key to the first browser typing them (`words.ts`): valid for `WORDS_TTL`, once;
+	 * a new code replaces the share's earlier one. Returns the words' numbers and when they run out.
+	 */
+	async shareWords(id: string): Promise<{ code: number[]; expires: number }> {
+		const share = this.shares().find((s) => s.id === id);
+		if (!share || expired(share, this.now())) throw new FilesError('ended', '/');
+		this.dropWords(id);
+		const code = newWordCode();
+		const secret = await wordSecret(code);
+		const expires = Math.min(this.now() + WORDS_TTL, share.expires ?? Infinity);
+		const room = this.enter(await roomId('words', secret), secret);
+		room.onLink((link) => {
+			const rpc = new Rpc(link);
+			rpc.handle('words.hello', async (params) => {
+				const { proof } = (params ?? {}) as { proof?: string };
+				const fingerprints = link.fingerprints();
+				const current = this.shares().find((s) => s.id === id);
+				const words = this.wordRooms.get(id);
+				if (!current || expired(current, this.now()) || words?.room !== room || words.expires <= this.now() || proof !== (await wordsProof(secret, 'guest', fingerprints)))
+					throw wireErrorOf('ended');
+				// Once: the words are gone as soon as the key is handed over
+				this.dropWords(id, 2000);
+				this.log('share.words', { folder: current.folder });
+				return { value: { proof: await wordsProof(secret, 'host', fingerprints), code: current.code } };
+			});
+			link.onClose(() => rpc.close());
+		});
+		this.wordRooms.set(id, { room, expires });
+		return { code, expires };
+	}
+
+	/** A share's word code stops working (its room is left – after `delay`, so the last answer still goes out) */
+	private dropWords(id: string, delay = 0) {
+		const words = this.wordRooms.get(id);
+		if (!words) return;
+		this.wordRooms.delete(id);
+		if (delay) setTimeout(() => words.room.leave(), delay);
+		else words.room.leave();
+	}
+
 	/** Ends a share: the guest is disconnected, the link no longer works */
 	async endShare(id: string) {
+		this.dropWords(id);
 		const share = this.state.shares?.find((s) => s.id === id);
 		this.state.shares = (this.state.shares ?? []).filter((s) => s.id !== id);
 		await this.save();
@@ -211,14 +366,25 @@ export class Device {
 		this.emit();
 	}
 
+	/** Enters the rooms of shares a guest used and isn't connected to now again (announced anew) */
+	private async rejoinShares() {
+		for (const share of this.shares()) {
+			if (this.stopped || !share.used || expired(share, this.now()) || this.guests.get(share.id)?.size) continue;
+			this.shareRooms.get(share.code)?.leave();
+			this.shareRooms.delete(share.code);
+			// A room still being left can't be entered yet: the next round (or the guest's own attempts) brings it back
+			await this.listenForShare(share).catch((e: unknown) => this.log('share.rejoin', { error: e instanceof Error ? e.message : String(e) }));
+		}
+	}
+
 	private async listenForShare(share: Share) {
 		if (this.shareRooms.has(share.code)) return;
-		const room = this.options.network.join(await roomId('share', share.code), share.code);
+		const room = this.enter(await roomId('share', share.code), share.code);
 		room.onLink((link) => this.attachGuest(share.id, link));
 		this.shareRooms.set(share.code, room);
 	}
 
-	/** A guest's browser connected: sign in with the share's key (one guest at a time), then live access */
+	/** A guest's browser connected: sign in with the share's key (one guest at a time), then its sync sessions */
 	private attachGuest(id: string, link: Link) {
 		const rpc = new Rpc(link);
 		const current = () => {
@@ -229,7 +395,7 @@ export class Device {
 			const { proof, token } = params as { proof: string; token: string };
 			const share = current();
 			const fingerprints = link.fingerprints();
-			if (!share || proof !== (await shareProof(share.code, 'guest', fingerprints))) throw wireErrorOf('ended');
+			if (!share || expired(share, this.now()) || proof !== (await shareProof(share.code, 'guest', fingerprints))) throw wireErrorOf('ended');
 			const guest = await tokenHash(token);
 			const rpcs = this.guests.get(id) ?? new Map<Rpc, string>();
 			// One guest at a time: another browser waits; the same one (a reload, another of its tabs) comes in
@@ -240,29 +406,50 @@ export class Device {
 			}
 			signedIn = true;
 			rpcs.set(rpc, guest);
+			// Its live channels (one end per share: the guest's tabs share it, the newest connection carries it)
+			this.bindEnd(`guest:${id}`, () => ({ kind: 'guest', name: '', share: id }), rpc, link, guarded);
 			this.guests.set(id, rpcs);
 			this.emit();
-			const host = this.group?.members.get(this.identity.id)?.name ?? '';
+			// Who shares: the user's name from the settings, else this device's
+			const host = (await profileNameOf(this.options.tree)) || (this.group?.members.get(this.identity.id)?.name ?? '');
 			return {
-				value: { proof: await shareProof(share.code, 'host', fingerprints), folder: basename(share.folder), host, mode: share.mode }
+				value: {
+					proof: await shareProof(share.code, 'host', fingerprints),
+					folder: basename(share.folder),
+					host,
+					mode: share.mode,
+					...(share.single && { single: true }),
+					...(share.expires !== undefined && { expires: share.expires })
+				}
 			};
 		});
 		const guarded = (method: string, handler: Handler) =>
 			rpc.handle(method, async (params, upload) => {
-				if (!signedIn || !current()) throw wireErrorOf('ended');
+				const share = current();
+				if (!signedIn || !share || expired(share, this.now())) throw wireErrorOf('ended');
 				return handler(params, upload);
 			});
-		const release = serveLive(guarded, {
-			tree: this.options.tree,
-			resolve: (path) => {
-				const share = current();
-				return share ? sharePath(share, path) : null;
-			},
-			readOnly: () => current()?.mode !== 'edit',
-			guest: true,
-			trash: (path) => trashInTree(this.options.tree, path, this.now()),
-			untrash: (ref) => untrashInTree(this.options.tree, ref)
-		});
+		// The guest syncs its copy of the share with this device (it drives, `session.ts`): the tree of the share and
+		// nothing else, never written for viewing; what the guest deletes lands in this device's trash, and what it
+		// writes counts as a change made here (the sync with the other devices passes it on)
+		const release = serve(
+			{ handle: guarded },
+			{
+				tree: shareTree(this.options.tree, current),
+				gate: new Gate(),
+				keep: (path) => {
+					const share = current();
+					return !share || normalize(path) === shareRoot(share);
+				},
+				trash: async (path) => {
+					const share = current();
+					const host = share && sharePath(share, path);
+					if (!host || share.mode !== 'edit') throw wireErrorOf('readOnly');
+					await trashInTree(this.options.tree, host, this.now());
+				},
+				log: (event, data) => this.log(event, { ...data, guest: id })
+			}
+		);
 		link.onClose(() => {
 			release();
 			this.guests.get(id)?.delete(rpc);
@@ -309,7 +496,7 @@ export class Device {
 			this.identity = await this.options.store.resetIdentity();
 			this.state = { ...this.state, removed: undefined, ops: [], rooms: undefined, devices: {}, log: [], vector: {} };
 		}
-		const room = this.options.network.join(await roomId('pair', code), code);
+		const room = this.enter(await roomId('pair', code), code);
 		try {
 			await new Promise<void>((resolveJoin, rejectJoin) => {
 				const timer = setTimeout(() => rejectJoin(new Error('timeout')), timeout);
@@ -471,9 +658,20 @@ export class Device {
 		if (!this.pendingDeletes.size) this.allowDeletesUntil = 0;
 	}
 
+	/** Guests whose share holds one of the changed paths sync their copy again */
+	private tellGuests(paths: string[]) {
+		for (const share of this.shares()) {
+			const guests = this.guests.get(share.id);
+			if (!guests?.size || !paths.some((path) => isInside(path, share.folder) || isInside(share.folder, path))) continue;
+			for (const rpc of guests.keys()) rpc.call('share.changed').catch(() => {});
+		}
+	}
+
 	/** Changes of the local file system (from `watch`); those a session wrote itself are skipped */
 	async localChange(paths: string[]) {
-		if (!this.group || !this.state) return;
+		if (!this.state) return;
+		this.tellGuests(paths);
+		if (!this.group) return;
 		const now = this.now();
 		// Changes in excluded folders concern only this device
 		const own = paths.filter((path) => {
@@ -518,7 +716,7 @@ export class Device {
 		}
 		for (const [id, secret] of wanted) {
 			if (this.rooms.has(id)) continue;
-			const room = this.options.network.join(id, secret);
+			const room = this.enter(id, secret);
 			room.onLink((link) => this.attach(link));
 			room.onUnreachable?.((peerId) => {
 				this.log('peer.unreachable', { peer: this.nameOf(peerId) });
@@ -532,7 +730,7 @@ export class Device {
 
 	private async listenForPairing(code: string) {
 		if (this.pairRooms.has(code) || !this.group) return;
-		const room = this.options.network.join(await roomId('pair', code), code);
+		const room = this.enter(await roomId('pair', code), code);
 		room.onLink((link) => {
 			const rpc = new Rpc(link);
 			rpc.handle('pair', (params) => this.pair(code, params, link.fingerprints()));
@@ -668,6 +866,8 @@ export class Device {
 				await this.mergeMembers(check.ops);
 				if (!this.group?.members.has(peerId)) return fail();
 				verified(true);
+				const signedPeer = peerId;
+				this.bindEnd(`device:${signedPeer}`, () => ({ kind: 'device', name: this.group?.members.get(signedPeer)?.name ?? '' }), rpc, link, handle);
 				// Only now, and only once the partner has signed us in too (its handlers wait for that): the room secrets,
 				// entries it didn't have when it answered (e.g. a rename made during the sign-in), and what both know
 				const theirs = new Set((answer.ops ?? []).map((op) => op.id));
@@ -978,6 +1178,8 @@ export class Device {
 	}
 
 	private save() {
+		// Stopped (another tab leads now and has read the state): nothing of this one's is written any more
+		if (this.stopped) return this.saving;
 		const snapshot = structuredClone(this.state);
 		this.saving = this.saving.then(() => this.options.store.save(snapshot)).catch((e) => console.error('[P2P]', e));
 		return this.saving;
@@ -1031,11 +1233,21 @@ export class Device {
 			setup: !!this.state.setupPending,
 			failed: this.failed,
 			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0,
+			live: [...this.sessions].flatMap(([id, list]) => {
+				const end = this.ends.get(id);
+				if (!end?.open) return [];
+				return list.flatMap((s) => {
+					const path = this.hostPath(end, s.path);
+					return path ? [{ end: id, peer: end.peer.name, kind: s.kind, path, title: s.title }] : [];
+				});
+			}),
 			shares: this.shares().map((share) => ({
 				id: share.id,
 				folder: share.folder,
 				mode: share.mode,
 				code: share.code,
+				...(share.single && { single: true as const }),
+				...(share.expires !== undefined && { expires: share.expires }),
 				connected: (this.guests.get(share.id)?.size ?? 0) > 0,
 				used: !!share.used
 			}))

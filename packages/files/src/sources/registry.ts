@@ -6,7 +6,7 @@ import { folderSource } from './folder.js';
 import { s3Source } from './s3.js';
 import { unseal, type Sealed } from './secrets.js';
 import { webdavSource } from './webdav.js';
-import { shareSession, shareSource } from './share.js';
+import { onShareSession, shareSession, shareSource } from './share.js';
 import type { Source } from './source.js';
 
 // The connections of this device (only here, never synced), kept in IndexedDB – the only storage that keeps a
@@ -21,7 +21,7 @@ export interface FolderConnection {
 	handle: FileSystemDirectoryHandle;
 }
 
-/** A guest share opened in this tab (`share.ts`, from `sessionStorage`, never stored) */
+/** The guest share opened in this browser (`share.ts`: a synced copy, kept until it ends; never stored with the others) */
 export interface ShareConnection {
 	id: 'share';
 	kind: 'share';
@@ -29,8 +29,12 @@ export interface ShareConnection {
 	name: string;
 	host: string;
 	mode: 'view' | 'edit' | null;
-	/** The sharing device ended it */
+	/** The sharing device ended it, or it ran out */
 	ended: boolean;
+	/** Only one file or package is shared */
+	single: boolean;
+	/** When it runs out (ms since 1970) */
+	expires: number | null;
 }
 
 /** A folder on a WebDAV server */
@@ -79,6 +83,11 @@ function ensureChannel() {
 		loaded = null;
 		listeners.forEach((l) => l());
 	};
+	// The guest share is opened, changed or removed in another tab
+	onShareSession(() => {
+		loaded = null;
+		listeners.forEach((l) => l());
+	});
 }
 
 function sourceOf(connection: Connection): Source {
@@ -100,9 +109,20 @@ export const remoteSource = (connection: RemoteConnection) => sourceOf(connectio
 
 /** The guest share of this tab as a connection */
 function shareConnection(): ShareConnection | null {
-	if (typeof sessionStorage === 'undefined') return null;
+	if (typeof localStorage === 'undefined') return null;
 	const session = shareSession();
-	return session && { id: 'share', kind: 'share', name: session.folder ?? '', host: session.host ?? '', mode: session.mode ?? null, ended: !!session.ended };
+	return (
+		session && {
+			id: 'share',
+			kind: 'share',
+			name: session.folder ?? '',
+			host: session.host ?? '',
+			mode: session.mode ?? null,
+			ended: !!session.ended,
+			single: !!session.single,
+			expires: session.expires ?? null
+		}
+	);
 }
 
 function load() {

@@ -168,7 +168,7 @@ const help: typeof enHelp = {
 			},
 			use: {
 				title: 'Darin arbeiten',
-				text: 'Alles geht wie in Meine Dateien: Öffnen, Vorschau, Hochladen, Herunterladen, Umbenennen, Verschieben und Kopieren – auch zwischen Meine Dateien und einem verbundenen Ordner (Ziehen vom einen ins andere kopiert, wie zwischen Laufwerken). Die untere Zeile zeigt „Live aus …“ statt der Speicherbelegung. Notizbücher und Projekte öffnen sich direkt dort in ihrem Tool.'
+				text: 'Alles geht wie in Meine Dateien: Öffnen, Vorschau, Hochladen, Herunterladen, Umbenennen, Verschieben und Kopieren – auch zwischen Meine Dateien und einem verbundenen Ordner (Ziehen vom einen ins andere kopiert, wie zwischen Laufwerken). Die untere Zeile zeigt „Live aus …“ statt der Speicherbelegung (bei einem für dich freigegebenen Ordner: „Freigegeben von … – eine Kopie auf diesem Gerät“). Notizbücher und Projekte öffnen sich direkt dort in ihrem Tool.'
 			},
 			access: {
 				title: '„Zugriff erlauben“',
@@ -184,14 +184,15 @@ const help: typeof enHelp = {
 				text: 'Ein verbundener Ordner oder Server hat keinen Papierkorb von in-browser: „Löschen“ fragt erst „Endgültig löschen?“ und löscht dann sofort.'
 			},
 			share: {
-				title: 'Einen Ordner für einen Gast freigeben',
-				text: '„Freigeben …“ in der Registerkarte „Freigeben“ gibt den ausgewählten Ordner frei, sonst den geöffneten (in Meine Dateien; sonst fragt es, welchen Ordner) – ebenso im Menü eines Ordners und „Ordner freigeben …“ in der Seitenleiste „Freigaben“. Es erzeugt einen Link und QR-Code für einen Browser außerhalb deiner Geräte – z. B. den Rechner eines Freundes, den du besuchst. Der Gast sieht nur diesen Ordner, live von diesem Gerät; bei ihm bleibt nichts. Wähle „Nur ansehen“ (Standard) oder „Bearbeiten“. Der Link gilt, bis du die Freigabe beendest, für einen Browser gleichzeitig. Deine Freigaben stehen in der Seitenleiste „Freigaben“ (grüner Punkt: Gast verbunden); ein Klick zeigt den Link erneut, ein Rechtsklick (oder ⋮) bietet „Freigabe beenden“.',
-				tip: '„Nur ansehen“, um Dateien weiterzugeben; „Bearbeiten“, wenn der Gast im Ordner speichern oder hochladen soll. Lass in-browser hier offen, solange er ihn nutzt.',
+				title: 'Für einen Gast freigeben',
+				text: '„Freigeben …“ in der Registerkarte „Freigeben“ gibt die ausgewählte Datei oder den ausgewählten Ordner frei, sonst den geöffneten Ordner (in Meine Dateien; sonst fragt es, welchen Ordner) – ebenso im Menü einer Datei oder eines Ordners und „Ordner freigeben …“ in der Seitenleiste „Freigaben“. Es erzeugt einen Link und QR-Code für einen Browser außerhalb deiner Geräte – z. B. den Rechner eines Freundes, den du besuchst – und auf Wunsch vier Wörter zum Eintippen dort. Der Gast bekommt nur, was du freigegeben hast, als Kopie in seinem Browser, die mit diesem Gerät abgeglichen und beim Ende der Freigabe gelöscht wird; eine einzelne Datei öffnet sich dort in ihrem Tool. Wähle „Nur ansehen“ (Standard) oder „Bearbeiten“ und wie lange es gilt (standardmäßig einen Tag). Deine Freigaben stehen in der Seitenleiste „Freigaben“ (grüner Punkt: Gast verbunden); ein Klick zeigt den Link erneut, ein Rechtsklick (oder ⋮) bietet „Freigabe beenden“.',
+				tip: '„Nur ansehen“, um Dateien weiterzugeben; „Bearbeiten“, wenn der Gast im Ordner speichern oder hochladen soll. Lass in-browser hier offen, solange er sie nutzt.',
 				link: { href: '/help/connected#share', label: 'Für einen Gast freigeben' }
 			},
 			guest: {
-				title: 'Einen freigegebenen Link öffnen',
-				text: 'Ein Link, den jemand für dich freigegeben hat, öffnet Dateien mit dem Ordner in der Seitenleiste „Ordner“ unter Meine Dateien, benannt nach ihm und dem Gerät, das ihn freigibt (ein Schloss heißt nur ansehen). Er lebt nur in diesem Tab: „Trennen“ oder das Schließen des Tabs beendet ihn, in deinem Browser bleibt nichts; der Link öffnet ihn wieder, solange die Freigabe besteht. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Kopiere Dateien nach Meine Dateien, um sie zu behalten. Endet die Freigabe, sagt Dateien das sofort; „Entfernen“ nimmt sie aus der Seitenleiste.'
+				title: 'Eine Freigabe öffnen',
+				text: 'Ein Link, den jemand für dich freigegeben hat, öffnet Dateien mit dem Ordner in der Seitenleiste „Ordner“ unter Meine Dateien, benannt nach ihm und dem, der ihn freigibt – dem Namen aus dessen Einstellungen, sonst dem seines Geräts (ein Schloss heißt nur ansehen); eine einzelne freigegebene Datei öffnet sich gleich in ihrem Tool. Ohne Link: „Verbinden …“ (unter Meine Dateien in der Seitenleiste „Ordner“ oder die Registerkarte „Verbinden“) → „Freigabe mit vier Wörtern …“ fragt nach den vier Wörtern, die das freigebende Gerät zeigt. Dein Browser merkt sich die Freigabe, bis sie endet, abläuft oder du „Trennen“ wählst; bis dahin liegt sie als abgeglichene Kopie in diesem Browser. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Kopiere Dateien nach Meine Dateien, um sie zu behalten. Endet die Freigabe, sagt Dateien das sofort; „Entfernen“ nimmt sie aus der Seitenleiste.',
+				link: { href: '/help/connected#share', label: 'Vier Wörter statt des Links' }
 			}
 		}
 	},

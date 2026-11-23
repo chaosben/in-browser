@@ -59,6 +59,12 @@ async function mkdirAt(base: At, path: string): Promise<boolean> {
 	return created;
 }
 
+/** Can `path` be changed where it lies? (Not in a guest share for viewing or another source only for reading) */
+export async function canWrite(path: string): Promise<boolean> {
+	const at = await sourceAt(normalize(path));
+	return !at?.source.caps.readOnly;
+}
+
 // --- Reading ---
 
 /** Entries of a folder (unsorted), including hidden ones; in My files also the folders opened from other devices */

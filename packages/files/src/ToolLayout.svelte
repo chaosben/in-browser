@@ -17,6 +17,9 @@
 	import Toasts from '@in-browser/brand/Toasts.svelte';
 	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
 	import FileDialog from './FileDialog.svelte';
+	import OpenShareDialog from './OpenShareDialog.svelte';
+	import ShareDialog from './ShareDialog.svelte';
+	import { shareDialog } from './share-dialog.svelte.js';
 	import SettingsDialog from './SettingsDialog.svelte';
 	import { openSettings, suiteSettings } from './suite-settings.svelte.js';
 	import SyncIndicator from './SyncIndicator.svelte';
@@ -94,3 +97,16 @@
 <SettingsDialog />
 <UpdateBanner />
 <HelpWindow content={helpContent} {help} page={helpPage} anchor={helpAnchor} />
+{#if shareDialog.target}
+	{#key shareDialog.target}<ShareDialog target={shareDialog.target} onclose={() => (shareDialog.target = null)} />{/key}
+{/if}
+{#if shareDialog.opening}
+	<OpenShareDialog
+		onclose={() => (shareDialog.opening = false)}
+		onopened={(root) => {
+			shareDialog.opening = false;
+			// Files shows it (and opens a single shared file in its tool)
+			location.assign(`/files?path=${encodeURIComponent(root)}&open`);
+		}}
+	/>
+{/if}

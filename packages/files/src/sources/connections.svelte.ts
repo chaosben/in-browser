@@ -13,7 +13,9 @@ import {
 	type WebDavConnection
 } from './registry.js';
 import { seal } from './secrets.js';
-import { beginShare, endShareSession } from './share.js';
+import { allowShareSync, beginShare, codeFromWords, endShareSession, onShareSync, shareSyncState } from './share.js';
+import type { ShareSyncState } from './share-sync.js';
+import { parseWords, wordLists } from '../p2p/words.js';
 import { syncedFolder } from '../sync/sync.svelte.js';
 import { diskFoldersSupported } from '../handles.js';
 
@@ -33,8 +35,14 @@ export interface ConnectionView {
 	/** Guest share: the device that shares it and whether it can be changed (`null` until signed in) */
 	host?: string;
 	mode?: 'view' | 'edit' | null;
-	/** Guest share: the sharing device ended it */
+	/** Guest share: the sharing device ended it, or it ran out */
 	ended?: boolean;
+	/** Guest share of one file or package (it opens in its tool) */
+	single?: boolean;
+	/** Guest share: when it runs out (ms since 1970) */
+	expires?: number | null;
+	/** Guest share: how the sync of its copy here stands (`null`: not known yet) */
+	sync?: ShareSyncState | null;
 }
 
 const folders = (list: Connection[]) => list.filter((c): c is FolderConnection => c.kind === 'folder');
@@ -69,6 +77,11 @@ export function startConnections() {
 	if (started || typeof window === 'undefined' || typeof indexedDB === 'undefined') return;
 	started = true;
 	onConnectionsChanged(() => void refresh());
+	// The copy of a guest share: its sync's state
+	onShareSync(() => {
+		const share = connections.list.find((c) => c.kind === 'share');
+		if (share) share.sync = shareSyncState();
+	});
 	// Access may have been allowed meanwhile (another tab, the browser's site settings)
 	window.addEventListener('focus', () => {
 		void refresh();
@@ -103,7 +116,7 @@ export async function refresh(): Promise<void> {
 		list.map(
 			async (c): Promise<ConnectionView> =>
 				c.kind === 'share'
-					? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted', host: c.host, mode: c.mode, ended: c.ended }
+					? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted', host: c.host, mode: c.mode, ended: c.ended, single: c.single, expires: c.expires, sync: shareSyncState() }
 					: c.kind === 'folder'
 						? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.handle) }
 						: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted' }
@@ -239,7 +252,11 @@ export function accessAction(e: unknown, onAllowed?: () => void): { label: strin
 	};
 }
 
-/** Removes the connection; nothing in the folder is deleted (a guest share of this tab ends here) */
+/** The guest agrees to fetch a share it was asked about (large, or not fitting the free storage) */
+export const fetchShare = allowShareSync;
+
+/** Removes the connection; nothing in the folder is deleted (the guest share of this browser ends here, with its
+ * copy in this browser) */
 export async function disconnect(id: string): Promise<void> {
 	if (id === 'share') endShareSession();
 	await saveConnections((await listConnections()).filter((c) => c.id !== id));
@@ -250,4 +267,16 @@ export async function openShare(code: string): Promise<string> {
 	beginShare(code);
 	await saveConnections(await listConnections());
 	return connectionRoot('share');
+}
+
+/**
+ * Opens a guest share from its four words (`p2p/words.ts`): the sharing device hands its key over, then it opens like
+ * a link. Its root path; throws `FilesError` `ended` (unknown, used or run-out words) or `offline` (nobody answered),
+ * and `notFound` for text that isn't four known words.
+ */
+export async function openShareByWords(text: string): Promise<string> {
+	const code = parseWords(text, await wordLists());
+	if (!code) throw new FilesError('notFound', '/');
+	const key = await codeFromWords(code, async () => (await import('../p2p/trystero.js')).trysteroNetwork);
+	return openShare(key);
 }

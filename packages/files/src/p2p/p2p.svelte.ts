@@ -1,3 +1,4 @@
+import { debug } from '@in-browser/brand/debug.js';
 import { requestPersistence, storageEstimate } from '../cache.js';
 import { FilesError, noticed, watch, type FilesErrorCode } from '../fs.js';
 import { expectDevices, setDevicesSource } from '../sources/registry.js';
@@ -11,6 +12,7 @@ import type { Share } from './shares.js';
 import type { Json } from './rpc.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import type { Device, DeviceEvent } from './device.js';
+import type { LiveEnd } from './live-ends.js';
 import { OFF_VIEW, type P2pView } from './view.js';
 import { ed25519Supported } from './identity.js';
 import { journal } from '../sync/journal.svelte.js';
@@ -47,7 +49,8 @@ type Action =
 	| ['diagnostics']
 	| ['live', string, string, Json, Uint8Array | undefined]
 	| ['holders', string]
-	| ['share', string, Share['mode']]
+	| ['share', string, Share['mode'], { single?: boolean; duration?: number | null }]
+	| ['shareWords', string]
 	| ['endShare', string];
 
 type Message =
@@ -55,7 +58,8 @@ type Message =
 	| { event: DeviceEvent }
 	| { request: Action; id: string }
 	| { reply: string; value?: unknown; error?: string; code?: FilesErrorCode; path?: string }
-	| { hello: true };
+	| { hello: true }
+	| { handedOver: true };
 
 let channel: BroadcastChannel | null = null;
 let device: Device | null = null;
@@ -100,12 +104,48 @@ export function startP2p() {
 	channel.postMessage({ hello: true } satisfies Message);
 	// Paths in folders this device doesn't sync wait for the folder choice before fs.ts routes them
 	expectDevices();
-	ed25519Supported().then((ok) => {
+	ready = ed25519Supported().then((ok) => {
 		p2pStatus.supported = ok;
 		if (!ok) return showView(OFF_VIEW);
-		navigator.locks.request('files:p2p-leader', async () => {
+		askLead(false);
+	});
+}
+
+/** Whether this browser can sync is known, and this tab asked for the lead */
+let ready: Promise<void> = Promise.resolve();
+
+/** Whether this tab asked to lead (a live page that must not depend on a tab the browser may freeze), and whether it
+ * holds the lead (its device may still be starting) */
+let wantsLead = false;
+let leading = false;
+/** Counts leads taken and lost (a lead lost while waiting starts nothing) */
+let generation = 0;
+/** A tab inheriting the lead waits this long before its device starts */
+const INHERIT_WAIT = 1500;
+
+/**
+ * Asks for the lead (Web Lock `files:p2p-leader`); with `steal` it is taken from the tab leading now, which stops its
+ * device, writes what it had and says so (`handedOver`) before this one reads the state. A tab whose lead is taken
+ * waits for it again.
+ */
+function askLead(steal: boolean) {
+	const asked = (navigator.locks.query?.() ?? Promise.resolve({ held: [] }))
+		.then((state) => !!state.held?.some((lock) => lock.name === 'files:p2p-leader'))
+		.catch(() => false);
+	navigator.locks
+		.request('files:p2p-leader', steal ? { steal: true } : {}, async () => {
+			const mine = ++generation;
+			leading = true;
+			// Inherited from a tab that just closed or reloaded: that page may take it back at once (a live page) – a
+			// device started meanwhile would announce itself in the rooms and leave others trying to reach it
+			if (!steal && (await asked)) {
+				await new Promise((r) => setTimeout(r, INHERIT_WAIT));
+				if (mine !== generation) return;
+			}
+			if (steal) await handedOver();
+			if (mine !== generation) return;
 			try {
-				await lead();
+				await lead(mine);
 			} catch (e) {
 				// A page of an older version (still open after an update) can't read what a newer one keeps: it
 				// gives the lead away, so a newer tab syncs
@@ -113,11 +153,94 @@ export function startP2p() {
 				throw e;
 			}
 			return new Promise<never>(() => {});
+		})
+		.catch((e: unknown) => {
+			// Taken by another tab: this one's device stops, and it waits to lead again
+			if (e instanceof Error && e.name === 'AbortError') void giveUp();
+			else console.error('[P2P] lead', e);
 		});
+}
+
+/** The lead went to another tab: the device stops and what it had is written, then that tab is told */
+async function giveUp() {
+	generation++;
+	const d = device;
+	device = null;
+	leading = false;
+	wantsLead = false;
+	if (d) {
+		d.stop();
+		await d.settled();
+	}
+	channel?.postMessage({ handedOver: true } satisfies Message);
+	askLead(false);
+}
+
+/** Waits until the tab that led has handed over (at most 3 s: a frozen tab writes nothing) */
+function handedOver(): Promise<void> {
+	return new Promise((done) => {
+		const timer = setTimeout(finish, 3000);
+		function finish() {
+			clearTimeout(timer);
+			removeEventListener('message', heard);
+			channel?.removeEventListener('message', heard);
+			done();
+		}
+		function heard(e: MessageEvent) {
+			if ((e.data as { handedOver?: boolean })?.handedOver) finish();
+		}
+		channel?.addEventListener('message', heard);
 	});
 }
 
-async function lead() {
+/**
+ * Makes this tab lead (if it doesn't): for live pages, which hold connections a background tab would lose when the
+ * browser freezes it (phones do). Resolves once this tab's device runs.
+ */
+export async function takeLead(): Promise<void> {
+	if (!started) return;
+	await ready;
+	if (!p2pStatus.supported) return;
+	if (!device && !leading && !wantsLead) {
+		wantsLead = true;
+		// Only ever from another tab. With nobody leading, this tab's own request (made at the start) is granted any
+		// moment: stealing would take the lead from this very page while its device starts – that left a device
+		// nobody stops in the rooms, and the next one failed on them
+		const held = await (navigator.locks.query?.() ?? Promise.resolve({ held: [] }))
+			.then((state) => !!state.held?.some((lock) => lock.name === 'files:p2p-leader'))
+			.catch(() => false);
+		if (held && !leading && !device) askLead(true);
+	}
+	// This tab's device runs (or starts already; a tab whose state is too new for it never gets one)
+	while (!device) await new Promise((r) => setTimeout(r, 100));
+}
+
+/** The live channels' ends of this tab's device (it leads; `takeLead`) */
+export const liveEnds = (): LiveEnd[] => device?.liveEnds() ?? [];
+/** Tells about ends that open while this tab leads; returns how to stop */
+export function onLiveEnd(listener: (end: LiveEnd) => void): () => void {
+	const offs: (() => void)[] = [];
+	let current: Device | null = null;
+	const watch = setInterval(() => {
+		if (device === current) return;
+		current = device;
+		offs.splice(0).forEach((off) => off());
+		if (device) offs.push(device.onLiveEnd(listener));
+	}, 500);
+	if (device) {
+		current = device;
+		offs.push(device.onLiveEnd(listener));
+	}
+	return () => {
+		clearInterval(watch);
+		offs.forEach((off) => off());
+	};
+}
+
+let watching = false;
+
+/** Starts this tab's device; `mine` is the lead it starts for – taken away meanwhile, nothing starts (or stays) */
+async function lead(mine: number) {
 	const log = await journal('p2p');
 	// Loaded only in the leading tab (Trystero and its Nostr crypto are not needed elsewhere)
 	const [{ Device }, { idbStore }, { opfsTree }, { trysteroNetwork }] = await Promise.all([
@@ -126,7 +249,8 @@ async function lead() {
 		import('../sync/opfs-tree.js'),
 		import('./trystero.js')
 	]);
-	device = new Device({
+	if (mine !== generation) return;
+	const made = (device = new Device({
 		store: idbStore,
 		tree: opfsTree,
 		network: trysteroNetwork,
@@ -146,10 +270,19 @@ async function lead() {
 			if (event.type === 'remoteChanged') remoteChanged();
 			channel?.postMessage({ event } satisfies Message);
 		}
-	});
-	// Connected folders are no part of My files: their changes never reach the other devices
-	watch((paths) => void device?.localChange(paths.filter((path) => !isConnected(path))));
-	await device.start();
+	}));
+	// Connected folders are no part of My files: their changes never reach the other devices (once per page)
+	if (!watching) watch((paths) => void device?.localChange(paths.filter((path) => !isConnected(path))));
+	watching = true;
+	await made.start();
+	// The lead went while it started: it must not stay in the rooms
+	if (mine !== generation) {
+		made.stop();
+		if (device === made) device = null;
+		return;
+	}
+	const rooms = made.roomCount();
+	debug(`[p2p] device started: ${rooms.devices} rooms of the devices (${rooms.old} of them replaced ones), ${rooms.shares} of shares`);
 	void dropOldCopies(opfsTree);
 }
 
@@ -195,7 +328,9 @@ async function run(action: Action): Promise<unknown> {
 		case 'holders':
 			return d.holdersOf(action[1]);
 		case 'share':
-			return d.share(action[1], action[2]);
+			return d.share(action[1], action[2], action[3]);
+		case 'shareWords':
+			return d.shareWords(action[1]);
 		case 'endShare':
 			return d.endShare(action[1]);
 	}
@@ -255,8 +390,11 @@ function remoteChanged() {
 	if (p2pStatus.view.scope.length) noticed(...p2pStatus.view.scope);
 }
 
-/** Shares a folder with a guest (a browser outside your devices); its link carries the code */
-export const shareFolder = (folder: string, mode: Share['mode']) => request<Share>('share', folder, mode);
+/** Shares a folder – or with `single` one file or package – with a guest (a browser outside your devices) until
+ * ended or for `duration` ms; its link carries the code */
+export const shareFolder = (folder: string, mode: Share['mode'], options: { single?: boolean; duration?: number | null } = {}) => request<Share>('share', folder, mode, options);
+/** Four words handing a share's key to a guest (`words.ts`): their numbers and when they run out */
+export const shareWords = (id: string) => request<{ code: number[]; expires: number }>('shareWords', id);
 export const endShare = (id: string) => request<void>('endShare', id);
 
 /** Devices that have `path` (for “can't be reached right now”) */

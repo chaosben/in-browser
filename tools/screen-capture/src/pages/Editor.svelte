@@ -3,6 +3,8 @@
 	// the preview with its editing layer, the properties on the right and the timeline below. Every action is a
 	// `Command` (`ui/commands.ts`): ribbon, context menus and keys come from there. Changes save themselves; the save
 	// state, size, length and a running import sit in the footer. One tab per project.
+	import { canShare, openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
+	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import InspectorPane from '@in-browser/brand/Inspector.svelte';
 	import { InspectorState } from '@in-browser/brand/inspector.svelte.js';
 	import PanelRail from '@in-browser/brand/PanelRail.svelte';
@@ -406,6 +408,17 @@
 	// The project itself (tab “File”); it is named after its file – renamed in Files
 	const fileCommands = {
 		saveAs: { id: 'saveAs', label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', enabled: () => !!editor, run: () => void saveAs() },
+		share: {
+			id: 'share',
+			label: filesMessages().shareDialog.action,
+			tip: filesMessages().shareDialog.tip,
+			icon: 'icon-[material-symbols-light--share-outline]',
+			enabled: () => canShare(editor?.project.id),
+			run: () => {
+				const path = editor?.project.id;
+				if (path) openShareDialog({ path, single: true });
+			}
+		},
 		showInFiles: {
 			id: 'showInFiles',
 			label: m.editor.showInFiles,
@@ -426,7 +439,7 @@
 		{
 			id: 'file',
 			label: brandMessages().ribbon.file,
-			groups: [{ id: 'project', label: m.ribbon.groups.project, items: [fileCommands.saveAs, fileCommands.showInFiles, fileCommands.export] }]
+			groups: [{ id: 'project', label: m.ribbon.groups.project, items: [fileCommands.saveAs, fileCommands.share, fileCommands.showInFiles, fileCommands.export] }]
 		},
 		{
 			id: 'home',

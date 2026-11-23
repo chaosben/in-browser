@@ -30,6 +30,7 @@
 		connectionsSupported,
 		openShare,
 		disconnect,
+		fetchShare,
 	} from '@in-browser/files/sources/connections.svelte.js';
 	import { displayName, listConnections } from '@in-browser/files/sources/registry.js';
 	import { parseInviteCode, parseShareCode } from '@in-browser/files/p2p/auth.js';
@@ -39,7 +40,7 @@
 	import { fail, newFolder, newTextFile, paste, removeItems, rename, toClipboard, toolUrl, transfer, duplicate, openInNewTab } from '#lib/actions.js';
 	import { connectEntries, connectUi, editConnection } from '#lib/connections.svelte.js';
 	import ConnectDialog from '#lib/components/ConnectDialog.svelte';
-	import ShareDialog from '#lib/components/ShareDialog.svelte';
+	import { openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
 	import FileList from '#lib/components/FileList.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
 	import PropertiesDialog from '#lib/components/PropertiesDialog.svelte';
@@ -79,9 +80,7 @@
 	const t = $derived(filesMessages());
 
 	let preview = $state<Item | null>(null);
-	/** Folder being shared with a guest (dialog) */
-	let sharing = $state<{ path: string; id?: string } | null>(null);
-	/** A folder of My files on this device can be shared with a guest (an excluded one isn't here) */
+	/** An entry of My files on this device can be shared with a guest (an excluded one isn't here) */
 	const shareable = (path: string) => p2pStatus.supported && path !== '/' && !isConnected(path) && inScope(path, p2pStatus.view.scope);
 	let properties = $state<Item | null>(null);
 	let uploading = $state<string | null>(null);
@@ -106,7 +105,7 @@
 		open,
 		preview: (item) => (preview = item),
 		properties: (item) => (properties = item),
-		share: (path, id) => (sharing = { path, id }),
+		share: (path, id, single) => openShareDialog(id ? { id } : { path, single }),
 		shareNew,
 		shareable,
 		readOnlyAt,
@@ -330,7 +329,12 @@
 			icon: 'icon-[material-symbols-light--share-outline]',
 			tip: m.commands.shareTip,
 			enabled: () => p2pStatus.supported,
-			run: () => (shareable(folderTarget) ? (sharing = { path: folderTarget }) : void shareNew())
+			// A selected file or folder, else the open folder, else one to choose
+			run: () => {
+				if (one && shareable(one.path)) openShareDialog({ path: one.path, single: !one.folder });
+				else if (shareable(manager.folder)) openShareDialog({ path: manager.folder });
+				else void shareNew();
+			}
 		},
 		connect: {
 			id: 'connect',
@@ -497,7 +501,7 @@
 			}),
 		connectionMenu: (c) => connectionEntries(menus, c),
 		shareMenu: (share) => shareEntries(menus, share),
-		openShare: (share) => (sharing = { path: share.folder, id: share.id }),
+		openShare: (share) => openShareDialog({ id: share.id }),
 		shareNew
 	};
 
@@ -667,7 +671,10 @@
 		const url = new URL(location.href);
 		url.hash = '';
 		const cleared = goto(url, { state: page.state, shallow: true, replace: true });
-		if (shared) void cleared.then(() => openShare(shared)).then(navigate);
+		if (shared) {
+			openSingle = true;
+			void cleared.then(() => openShare(shared)).then(navigate);
+		}
 		if (code) {
 			devicesUi.joinCode = code;
 			openDevicesDialog('join');
@@ -739,13 +746,28 @@
 			toast(folder === '/' ? m.share.notRoot : m.share.notShareable, 'info', 8000);
 			return;
 		}
-		sharing = { path: folder };
+		openShareDialog({ path: folder });
 	}
+
+	// A share of one file, opened from its link or words (`?open`): the file opens in its tool right away
+	let openSingle = $state(page.url.searchParams.has('open'));
+	$effect(() => {
+		if (!openSingle || connection?.kind !== 'share' || !connection.single || manager.folder !== connection.path) return;
+		const only = manager.visible.length === 1 ? manager.visible[0] : null;
+		if (!only) return;
+		openSingle = false;
+		const url = toolUrl(only);
+		if (url) location.assign(url);
+	});
 
 	async function disconnectShare() {
 		await disconnect('share');
 		navigate('/');
 	}
+
+	/** How the copy of the guest share shown here is synced (`null`: no such share, ended, or not known yet) */
+	const shareSync = $derived(connection?.kind === 'share' && !connection.ended ? (connection.sync ?? null) : null);
+	const fm = filesMessages();
 
 	// A guest share that ends while it is open: say it once
 	let endedShown = false;
@@ -757,13 +779,6 @@
 		if (endedShown) return;
 		endedShown = true;
 		toast(m.share.ended, 'info', 8000);
-	});
-
-	// A guest share that can't be opened right now (device away, another guest in it): try again by itself
-	$effect(() => {
-		if (connection?.kind !== 'share' || (manager.errorCode !== 'offline' && manager.errorCode !== 'taken')) return;
-		const timer = setTimeout(() => untrack(() => manager.refresh()), 20_000);
-		return () => clearTimeout(timer);
 	});
 
 	async function downloadItems(items: Item[]) {
@@ -854,7 +869,7 @@
 		{#if connection}
 			<span class="hidden items-center gap-1 lg:flex">
 				<span class="icon-[material-symbols-light--link] size-4" aria-hidden="true"></span>{connection.kind === 'share'
-					? m.connected.liveShared(connection.host ?? '')
+					? m.connected.sharedCopy(connection.host ?? '')
 					: connection.kind === 'folder'
 						? m.connected.live(connection.name)
 						: m.connected.liveServer(connection.name)}
@@ -922,6 +937,24 @@
 					{#if trashOpen}
 						<TrashView />
 					{/if}
+					{#if shareSync && shareSync.phase !== 'synced' && !trashOpen}
+						<!-- The copy of a guest share: what its sync is doing, and the question before a large one is fetched -->
+						<div class="bg-base-200 flex flex-wrap items-center gap-2 px-4 py-2 text-sm" role="status" data-share-sync={shareSync.phase}>
+							{#if shareSync.phase === 'waiting' && shareSync.ask}
+								<span class="icon-[material-symbols-light--download] size-5 shrink-0" aria-hidden="true"></span>
+								<span class="min-w-0 flex-1">{(shareSync.ask.full ? fm.share.askFull : fm.share.ask)(formatSize(shareSync.ask.bytes, intlLocale))}</span>
+								<button class="btn btn-sm btn-primary" onclick={() => fetchShare()}>{fm.share.fetch}</button>
+							{:else if shareSync.phase === 'offline'}
+								<span class="icon-[material-symbols-light--cloud-off-outline] size-5 shrink-0" aria-hidden="true"></span>
+								<span>{shareSync.taken ? fm.share.taken : fm.share.offline}</span>
+							{:else}
+								<span class="loading loading-spinner loading-xs shrink-0" aria-hidden="true"></span>
+								<span>{shareSync.phase === 'syncing' ? fm.share.syncing(shareSync.done ?? 0, shareSync.total ?? 0) : fm.share.connecting}</span>
+							{/if}
+						</div>
+					{:else if shareSync?.failed && !trashOpen}
+						<p class="bg-base-200 px-4 py-2 text-sm" role="status">{fm.share.failed(shareSync.failed)}</p>
+					{/if}
 					{#if connection?.ended && !trashOpen}
 						<div class="flex flex-col items-start gap-2 p-6">
 							<p class="flex items-center gap-2">
@@ -947,11 +980,6 @@
 							</p>
 							<a class="link text-sm" href={resolve('/help/sync')} target="_blank" rel="noopener">{m.remote.help}</a>
 						</div>
-					{:else if manager.error && connection?.kind === 'share' && (manager.errorCode === 'offline' || manager.errorCode === 'taken')}
-						<p class="flex items-center gap-2 p-6">
-							<span class="icon-[material-symbols-light--cloud-off-outline] size-6 shrink-0" aria-hidden="true"></span>
-							{manager.errorCode === 'offline' ? m.share.unreachable : manager.error}
-						</p>
 					{:else if manager.error}
 						<p class="text-error p-6">{manager.error}</p>
 					{:else}
@@ -983,9 +1011,7 @@
 {#if preview}
 	<PreviewDialog item={preview} ondownload={(item) => downloadItems([item])} onclose={() => (preview = null)} />
 {/if}
-{#if sharing}
-	<ShareDialog path={sharing.path} id={sharing.id} onclose={() => (sharing = null)} />
-{/if}
+
 {#if properties}
 	<PropertiesDialog item={properties} onclose={() => (properties = null)} />
 {/if}

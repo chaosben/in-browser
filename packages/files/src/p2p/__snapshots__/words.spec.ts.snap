@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`share word codes > has two lists of 1024 distinct plain words, none in both 1`] = `
+[
+  "able",
+  "carousel",
+  "abend",
+  "pollen",
+]
+`;

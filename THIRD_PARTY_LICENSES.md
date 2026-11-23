@@ -19,7 +19,7 @@ the following third-party software. All of it is used unmodified. The full licen
 | [Trystero](https://github.com/dmotz/trystero) (`trystero`, `@trystero-p2p/core`, `@trystero-p2p/nostr`) | 0.27.0 | MIT | © 2021 Dan Motzenbecker | device sync | https://github.com/dmotz/trystero |
 | [noble-secp256k1](https://github.com/paulmillr/noble-secp256k1) (`@noble/secp256k1`) | 3.2.0 | MIT | © 2019 Paul Miller | device sync (via Trystero) | https://github.com/paulmillr/noble-secp256k1 |
 | [client-zip](https://github.com/Touffy/client-zip) (`client-zip`) | 2.5.1 | MIT | © 2020 David Junger | Files | https://github.com/Touffy/client-zip |
-| [uqr](https://github.com/unjs/uqr) (`uqr`) | 0.1.3 | MIT | © Project Nayuki, © 2023 Anthony Fu | Files | https://github.com/unjs/uqr |
+| [uqr](https://github.com/unjs/uqr) (`uqr`) | 0.1.3 | MIT | © Project Nayuki, © 2023 Anthony Fu | QR codes of pairing and sharing (`packages/files`) | https://github.com/unjs/uqr |
 | [CodeMirror](https://codemirror.net) (`@codemirror/*`, `@lezer/*`, `style-mod`, `crelt`, `w3c-keyname`, `@marijn/find-cluster-break`) | 6.x (exact versions in `package-lock.json`) | MIT | © 2016–2024 Marijn Haverbeke and others | Text Editor | https://github.com/codemirror |
 | [marked](https://marked.js.org) (`marked`) | 18.2.1 | MIT | © 2018+ MarkedJS, © 2011–2018 Christopher Jeffrey | Text Editor | https://github.com/markedjs/marked |
 | [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist`) | 6.5.438 | Apache-2.0 | © Mozilla Foundation | PDF Editor | https://github.com/mozilla/pdf.js |

@@ -267,14 +267,14 @@ const help = {
 
 		connected: {
 			title: 'Connected folders',
-			summary: 'Open a folder on your computer, a WebDAV server or S3 storage live in every tool – nothing is copied into the browser',
+			summary: 'Open a folder on your computer, a WebDAV server or S3 storage live in every tool – and share files with a guest',
 			topics: {
 				basics: {
 					title: 'My files and Connected',
 					items: {
 						rule: {
 							title: 'Two kinds of storage',
-							text: '“My files” lie in the storage of your browser and travel with your devices. A folder under “Connected” stays where it is: in-browser opens it live, reads and saves right there and keeps no copy. Disconnect it and nothing of it is left in the browser.'
+							text: '“My files” lie in the storage of your browser and travel with your devices. What stands under “Connected” is not part of them and never travels with your devices. A folder on your computer or a server stays where it is: in-browser opens it live, reads and saves right there and keeps no copy. What a guest share gives you is the one exception: it is copied into this browser so it works without the sharing device, kept apart from My files and deleted when the share ends. Disconnect either and nothing of it is left in the browser.'
 						},
 						everywhere: {
 							title: 'In every tool',
@@ -351,25 +351,40 @@ const help = {
 					title: 'Sharing with a guest',
 					items: {
 						start: {
-							title: 'Share a folder',
-							text: 'In Files, choose “Share a folder …” under “Shares” in the sidebar and pick a folder of My files – or choose “Share …” in the menu of a folder. Pick what the guest may, then “Share”: the dialog shows a link and a QR code. The guest opens the link in any current browser – no account, not one of your devices. The folder opens there live from this device; nothing of it stays in their browser, and it is gone when they close the tab.',
+							title: 'Share a folder or a file',
+							text: 'Choose “Share …” in the menu of a folder or file in Files, “Share a folder …” under “Shares” in its sidebar – or “Share …” on the tab “File” of the PDF Editor, the Text Editor and Screen Capture for the open document. Pick what the guest may and how long it lasts, then “Share”: the dialog shows a link and a QR code, and “Show four words” gives words to type instead. The guest opens it in any current browser – no account, not one of your devices. What you share is copied into the guest’s browser and kept in sync with this device while in-browser is open here; a single file opens there right away in its tool, and the guest gets only that file, never what lies next to it.',
 							options: {
-								view: { label: '“View only” (default)', text: 'Open, preview and download files. Nothing changes here.' },
-								edit: { label: '“Edit”', text: 'Also save, upload, rename and delete. What the guest deletes goes into the trash here.' }
+								view: { label: '“View only” (default)', text: 'Open, preview and download. Nothing changes here.' },
+								edit: { label: '“Edit”', text: 'Also save, upload, rename and delete. What the guest deletes goes into the trash here; a shared file itself can’t be deleted or moved.' }
 							},
-							tip: 'Share for viewing to hand over photos or documents; choose “Edit” when the guest should bring files back, e.g. their pictures of a trip.'
+							tip: 'Share for viewing to hand over photos or documents – or a presentation to a computer at a projector; choose “Edit” when the guest should bring files back.'
+						},
+						words: {
+							title: 'Four words instead of the link',
+							text: 'A computer without a camera can’t scan the QR code, and the link is long to type. “Show four words” in the share dialog shows four short words in your language. On the other computer, open in-browser, choose “Connect …” in Files (below My files in the panel “Folders”, or the tab “Connect”), then “A share by four words …”, and type them – in German or English, upper or lower case, ä or ae alike; the word being typed is completed. The words work once and for 10 minutes; “New words” makes new ones. They only hand the share’s real key over: nobody can guess them in time, and after use they open nothing.',
+							tip: 'Read the words out or show your screen – they never travel over a chat. If they ran out before the other side typed them, just make new ones.'
 						},
 						valid: {
 							title: 'How long and for whom',
-							text: 'A share stays until you end it. One browser at a time can use it: while a guest is connected, a second browser is told the share is open in another browser and tries again by itself. The guest can close the tab and open the link again later. So whoever has the link gets in while nobody else is – give it only to your guest and end shares you no longer need. Keep in-browser open on this device while the guest uses it – in the same Wi-Fi the connection is fastest and most reliable.'
+							text: 'When you share, you choose how long it lasts: an hour, a day (default), a week, or until you end it – a forgotten share ends by itself. One browser at a time can use it: while a guest is connected, a second browser is told the share is open in another browser and tries again by itself. So whoever has the link gets in while nobody else is – give it only to your guest and end shares you no longer need. Keep in-browser open on this device until the guest has everything and whenever changes should travel – in the same Wi-Fi the connection is fastest and most reliable. What the guest already has stays usable there while this device is away.'
 						},
 						guest: {
 							title: 'As a guest',
-							text: 'The shared folder appears in Files in the panel “Folders” below My files as “Folder” from the device that shares it, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. “Disconnect” or closing the tab ends it for you; the link opens it again as long as the share lasts. If another browser is in it right now, Files says so and tries again by itself. When the sharing device ends the share, you see “The share has ended.” right away – “Remove” takes it away; what you copied into your own files stays. If the sharing device can’t be reached, Files says so: in-browser has to be open there.'
+							text: 'A shared folder appears in Files in the panel “Folders” below My files as “Folder from” whoever shares it – the name from their settings (“Profile” → “Your name”), else their device’s –, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. What is shared is copied into your browser and kept in sync with the sharing device; a line above the list says what is happening (“Fetching the share …”, or that the sharing device can’t be reached right now – then you see the share as it last was and can go on using it). Before a share that is large (1 GB by default, the setting “Ask before syncing new folders larger than” under “Sync”) or doesn’t fit your browser’s free storage is fetched, you are asked: “Fetch” starts it. Your browser remembers the share – also after it was closed – until it ends, runs out or you choose “Disconnect”. When the sharing device ends it, you see “The share has ended.” right away and its copy is deleted from your browser – “Remove” takes the entry away; what you copied into your own files stays.'
+						},
+						copies: {
+							title: 'What stays with the guest',
+							text: 'Everything you share is copied into the guest’s browser – you gave it to them on purpose, and so it still opens when this device can’t be reached. With “View only” the copy only follows this device: the guest can’t change it there, and nothing of theirs ever comes back. With “Edit” changes travel both ways; if both sides changed the same file, the newer version holds and the other is kept next to it as a copy named “(conflict …)”. The copy lies apart from the guest’s own files: it is not part of their “My files”, never syncs to their other devices and never lands in a folder on their computer. It is deleted when the share ends or runs out, or when the guest chooses “Disconnect” – unless the guest’s browser isn’t opened again, then it is deleted the next time it is. What the guest copied into their own files or downloaded stays with them.',
+							tip: 'Share with a duration when you hand files to a computer that isn’t yours – the copy goes with the share. Share only what the guest may keep: a copy made while the share lasted can’t be taken back.'
+						},
+						live: {
+							title: 'Live with a guest or your devices',
+							text: 'When the guest – or one of your own devices – starts something live with what you share, e.g. presents a PDF, every in-browser tool on your side says so in a message (“Your guest presents …”) with the way in (“Remote control”) – in a tab that was in the back as soon as you come back to it; while it lasts, the menu of the sync symbol at the bottom right lists it too. These live connections are direct between the two browsers like the share itself and need in-browser open on both. The page you open for it takes over the connections of this browser from its other tabs, so a phone keeps them even when those tabs sleep.',
+							link: { href: '/help/pdf-editor#present', label: 'Presenting with a remote control' }
 						},
 						end: {
 							title: 'Ending a share',
-							text: 'Your active shares are in Files under “Shares”, with a dot that turns green while a guest is connected. A click shows the link and QR code again; right-click (or press and hold) for “End share”. Ending disconnects the guest at once and tells them so; nothing in the folder changes. A share lasts until you end it.'
+							text: 'Your active shares are in Files under “Shares”, with a dot that turns green while a guest is connected. A click shows the link and QR code again; right-click (or press and hold) for “End share”. Ending disconnects the guest at once and tells them so; nothing of what you shared changes. A share with a duration ends by itself.'
 						}
 					}
 				}

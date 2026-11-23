@@ -9,6 +9,8 @@
 	import { onP2pEvent, p2pStatus, syncDevicesNow } from './p2p/p2p.svelte.js';
 	import { selfStale } from './p2p/staleness.js';
 	import { syncNow, syncStatus } from './sync/sync.svelte.js';
+	import { liveUrl } from './live-sessions.js';
+	import type { LiveView } from './p2p/view.js';
 
 	// Sync status in the footer of every tool (BrandFooter `indicators`): the folder on disk and the other devices.
 	// Renders nothing while neither is set up. The status comes from the tabs that run the syncs, mirrored into every
@@ -22,17 +24,39 @@
 		return () => clearInterval(timer);
 	});
 
-	// Toasts only in the tab in front, so they don't pile up in every open tab
-	$effect(() =>
-		onP2pEvent((event) => {
+	// Toasts only in the tab in front, so they don't pile up in every open tab. What started live while this tab was
+	// in the back is told when it comes to the front, if it still goes on – the way in must not be missed
+	$effect(() => {
+		type Live = Extract<Parameters<Parameters<typeof onP2pEvent>[0]>[0], { type: 'live' }>;
+		const missed = new Map<string, Live>();
+		const tellLive = (event: Live) => {
+			const url = liveUrl(event);
+			if (url) toast(liveLabel(event), 'info', 15_000, { label: liveAction(event), run: () => location.assign(url) });
+		};
+		const front = () => {
 			if (document.visibilityState !== 'visible') return;
+			for (const event of missed.values()) if (p2pStatus.view.live.some((s) => s.end === event.end && s.kind === event.kind && s.path === event.path)) tellLive(event);
+			missed.clear();
+		};
+		document.addEventListener('visibilitychange', front);
+		const off = onP2pEvent((event) => {
+			if (document.visibilityState !== 'visible') {
+				if (event.type === 'live') missed.set(`${event.end} ${event.kind} ${event.path}`, event);
+				return;
+			}
 			const p = filesMessages().p2p;
 			if (event.type === 'conflicts') toast(p.conflicts(event.paths.map((path) => basename(path))), 'warning', 8000);
 			else if (event.type === 'added') toast(p.added(event.name), 'success');
 			else if (event.type === 'removed') toast(p.removedDevice(event.name), 'info');
 			else if (event.type === 'paired') toast(p.paired, 'success');
-		})
-	);
+			// Something started live at the other end: the way to join it
+			else if (event.type === 'live') tellLive(event);
+		});
+		return () => {
+			off();
+			document.removeEventListener('visibilitychange', front);
+		};
+	});
 
 	const view = $derived(p2pStatus.view);
 	const others = $derived(view.devices.filter((d) => !d.self));
@@ -44,7 +68,10 @@
 	const folderProblem = $derived(!!syncStatus.folder && (syncStatus.state === 'paused' || syncStatus.failed > 0 || syncStatus.pendingDeletes > 0));
 	/** New folders waiting for confirmation (from the folder on disk and the other devices) */
 	const heldFolders = $derived([...syncStatus.pendingFolders, ...view.pendingFolders]);
-	const visible = $derived(!!syncStatus.folder || view.state === 'removed' || devices);
+	const visible = $derived(!!syncStatus.folder || view.state === 'removed' || devices || view.live.length > 0);
+
+	const liveLabel = (s: Pick<LiveView, 'kind' | 'title' | 'peer'>) => (s.kind === 'present' ? t.live.present(s.title, s.peer) : s.title);
+	const liveAction = (s: Pick<LiveView, 'kind'>) => (s.kind === 'present' ? t.live.control : t.live.join);
 
 	type Tone = 'ok' | 'busy' | 'warn' | 'idle';
 	const status = $derived.by((): { label: string; tone: Tone } => {
@@ -90,6 +117,12 @@
 
 	function menu(e: MouseEvent) {
 		const entries: MenuEntry[] = [];
+		// What other browsers offer live now, with the way in
+		for (const s of view.live) {
+			const url = liveUrl(s);
+			if (url) entries.push({ label: `${liveLabel(s)} – ${liveAction(s)}`, icon: 'icon-[material-symbols-light--settings-remote-outline]', href: url, run: () => location.assign(url) });
+		}
+		if (view.live.length) entries.push({ separator: true });
 		if (devices) {
 			for (const d of others) entries.push({ heading: deviceLine(d) });
 			entries.push({ separator: true });
@@ -123,6 +156,7 @@ if (syncStatus.folder) {
 		onclick={menu}
 		title={t.indicator.label}
 		aria-label="{t.indicator.label}: {status.label}"
+		data-live={view.live.length}
 	>
 		{#if status.tone === 'busy'}
 			<span class="icon-[material-symbols-light--sync] size-4 shrink-0 animate-spin" aria-hidden="true"></span>

@@ -39,18 +39,35 @@ export interface P2pView {
 	lastSync: number;
 	/** Folders shared with a guest right now */
 	shares: ShareView[];
+	/** What the other ends of connections offer live now (`live-ends.ts`), with this device's paths */
+	live: LiveView[];
 }
 
 /** No group (yet), or not started */
-export const OFF_VIEW: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, pendingFolders: [], setup: false, failed: 0, lastSync: 0, shares: [] };
+export const OFF_VIEW: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, pendingFolders: [], setup: false, failed: 0, lastSync: 0, shares: [], live: [] };
 
 export interface ShareView {
 	id: string;
 	folder: string;
 	mode: Share['mode'];
 	code: string;
+	/** Only that entry (a file, a package) is shared */
+	single?: true;
+	/** When it runs out (ms since 1970); missing: when it is ended */
+	expires?: number;
 	/** A guest is connected right now */
 	connected: boolean;
 	/** A guest opened it (the link no longer works in another browser) */
 	used: boolean;
+}
+
+export interface LiveView {
+	/** The end it comes from (`LivePeer.id`) */
+	end: string;
+	/** The device's name; empty for a guest */
+	peer: string;
+	kind: string;
+	/** The document on this device */
+	path: string;
+	title: string;
 }

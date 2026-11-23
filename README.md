@@ -8,10 +8,10 @@ that serves the overview site and every tool on a single origin, so the tools ca
 | `src/` | The app: overview page (launcher, installable as the app of the whole suite), thin routes per tool, Service Worker | https://in-browser.org |
 | `tools/files` | `@in-browser/files-app`: file manager of the shared browser storage, connected folders on disk and servers (WebDAV, S3 – opened live), sync with a folder on disk and between devices | https://in-browser.org/files |
 | `tools/text-editor` | `@in-browser/text-editor`: text, Markdown and code editor (one file per page); CSV as an editable table, JSON/YAML/TOML/XML as an editable tree, previews | https://in-browser.org/text-editor |
-| `tools/pdf-editor` | `@in-browser/pdf-editor`: view, search, print and annotate PDFs, organize pages, fill in forms (with their calculations, run sandboxed), export pages as pictures or a JW Library playlist – the file changed in place | https://in-browser.org/pdf-editor |
+| `tools/pdf-editor` | `@in-browser/pdf-editor`: view, search, print and annotate PDFs, organize pages, fill in forms (with their calculations, run sandboxed), export pages as pictures or a JW Library playlist, present them (comments shown and hidden in steps, speaker notes, presenter view, remote control from a phone) – the file changed in place | https://in-browser.org/pdf-editor |
 | `tools/screen-capture` | `@in-browser/screen-capture`: record, edit and export screen videos | https://in-browser.org/screen-capture |
 | `packages/brand` | `@in-browser/brand`: header, footer, theme, language logic, PWA, toasts, dialogs, context menu | – |
-| `packages/files` | `@in-browser/files`: shared file system (OPFS) with connected sources (`/:c/<id>`: folders on disk, WebDAV, S3), live access to other devices and guest shares, media in pieces, file dialog, formats, folder and device sync | – |
+| `packages/files` | `@in-browser/files`: shared file system (OPFS) with connected sources (`/:c/<id>`: folders on disk, WebDAV, S3), live access to other devices, guest shares (synced into the guest's browser), media in pieces, file dialog, formats, folder and device sync | – |
 | `packages/ink` | `@in-browser/ink`: ink core of the drawing tools – strokes, shapes and pictures on pages, pen math (pressure, smoothing, outlines, shape recognition, snapping) | – |
 | `packages/pdf` | `@in-browser/pdf`: PDF.js and pdf-lib loaded on demand, PDF pages rendered in blocks for tiles, changes written as incremental updates, form scripts in a QuickJS sandbox | – |
 | `packages/graphics` | `@in-browser/graphics`: colors, icons, shapes and fields of the drawing tools | – |
@@ -29,8 +29,10 @@ Your devices sync their files directly with each other over WebRTC; only encrypt
 public Nostr relays. Both syncs (devices and a folder on disk) share one way of applying changes
 (`packages/files/src/sync/apply.ts`): the newer version wins, the other one becomes a conflict copy, and what the user
 deletes goes into the synced trash `/.in-browser-trash/` (`packages/files/src/trash.ts`). Folders a device doesn't
-sync open live from a device that has them, and a guest share gives one folder to a browser outside the group – both
-through live requests on the same connections (`packages/files/src/p2p/live.ts`). How this looks to users:
+sync open live from a device that has them (live requests on the same connections, `packages/files/src/p2p/live.ts`).
+A guest share gives one folder or file to a browser outside the group (by link, QR code or four words): the guest
+gets a copy kept in sync by the same sessions (`packages/files/src/p2p/session.ts`, `share-tree.ts`) and deleted
+when the share ends. How this looks to users:
 https://in-browser.org/help/sync and https://in-browser.org/help/connected.
 
 Stack: SvelteKit with Svelte 5 (runes), Tailwind CSS 4 + daisyUI 5, TypeScript, Vitest, Playwright. The UI is

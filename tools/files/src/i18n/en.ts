@@ -163,7 +163,7 @@ const en = {
 	share: {
 		action: 'Share …',
 		title: (folder: string) => `Share “${folder}”`,
-		intro: 'A guest opens this folder in their browser with a link or QR code – live from this device, nothing stays with them. Keep in-browser open here while they use it.',
+		intro: 'A guest gets this folder in their browser with a link or QR code: it is copied onto their device and kept in sync while in-browser is open here. When the share ends, the copy there is deleted.',
 		mode: 'The guest may',
 		view: 'View only',
 		viewHint: 'Open, preview and download files (default).',
@@ -187,9 +187,8 @@ const en = {
 		guestWaiting: 'No guest connected',
 		menu: (folder: string) => `Actions for the share of “${folder}”`,
 		ended: 'The share has ended.',
-		endedHint: 'What you copied into My files stays.',
+		endedHint: 'Its copy on this device was deleted. What you copied into My files stays.',
 		remove: 'Remove',
-		unreachable: 'The sharing device can’t be reached right now – in-browser has to be open there.',
 		show: 'Show link',
 		panelLabel: 'Folders shared with a guest',
 		section: 'Shares',
@@ -233,7 +232,7 @@ const en = {
 		alsoSynced: (name: string) => `My files already sync with “${name}” – its content now shows up twice.`,
 		live: (name: string) => `Live from “${name}” on your computer`,
 		liveServer: (name: string) => `Live from “${name}”`,
-		liveShared: (host: string) => (host ? `Live from ${host} (shared)` : 'Live (shared)'),
+		sharedCopy: (host: string) => (host ? `Shared by ${host} – a copy on this device` : 'Shared – a copy on this device'),
 		help: 'How connected folders work'
 	},
 

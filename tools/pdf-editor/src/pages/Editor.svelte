@@ -17,6 +17,7 @@
 	import Ribbon from '@in-browser/brand/Ribbon.svelte';
 	import type { GroupSize, RibbonGroup, RibbonItem, RibbonTab } from '@in-browser/brand/ribbon.js';
 	import RibbonPopover from '@in-browser/brand/RibbonPopover.svelte';
+	import VisibilityButton from '#lib/components/VisibilityButton.svelte';
 	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { openMenuAbove, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
@@ -45,6 +46,17 @@
 	import NewPdfDialog from '#lib/components/NewPdfDialog.svelte';
 	import PrintDialog from '#lib/components/PrintDialog.svelte';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
+	import Display from '#lib/show/Display.svelte';
+	import Presenter from '#lib/show/Presenter.svelte';
+	import { ShowControl } from '#lib/show/control.svelte.js';
+	import { DisplayController } from '#lib/show/display.svelte.js';
+	import { controlLink, newSession } from '#lib/show/local.js';
+	import { toOtherScreen } from '#lib/show/screen.js';
+	import { offerRemote } from '#lib/show/remote-link.js';
+	import { presentSettings, type PresentMode } from '#lib/show/settings.svelte.js';
+	import { showUrl } from '#lib/brand.js';
+	import { canShare, openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
+	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import PdfPageDialog from '#lib/components/PdfPageDialog.svelte';
 	import StampEditor from '#lib/components/StampEditor.svelte';
 	import LinkEditor from '#lib/components/LinkEditor.svelte';
@@ -121,6 +133,8 @@
 			// Messages of the form's scripts (`app.alert`) – never a browser dialog
 			next.onScriptMessage = (text) => toast(text, 'info', 8000);
 			old?.destroy();
+			// Shown as slides right now: they go on with the new version where they were
+			if (presenting?.mode === 'display') presenting.display.reloaded();
 			if (!quiet) toast(m.conflict.reloaded(next.name));
 		};
 
@@ -139,14 +153,19 @@
 				next.onScriptMessage = (text) => toast(text, 'info', 8000);
 				recent.remember(path);
 				reload = reopen;
+				void resumePresenting(next);
 				// A version saved elsewhere: asked first (once per version; the answer may be kept while it is open)
 				const external = new ExternalVersions();
 				stopWatch = watch(
 					(paths) =>
 						void opened?.filesChanged(paths, async (version) => {
-							const silent = external.silent;
-							if (!(await external.shouldReload(next.name, version)) || disposed || opened?.dirty) return;
-							await reopen(!silent).catch((e) => console.error('[pdf-editor] reload', e));
+							// Nothing to ask where nothing can be changed (a share for viewing) or while it is presented: the new
+							// version is shown
+							const follow = !!presenting || opened?.editable === 'readonly';
+							const silent = follow || external.silent;
+							if (!follow && !(await external.shouldReload(next.name, version))) return;
+							if (disposed || opened?.dirty) return;
+							await reopen(!silent || !!presenting).catch((e) => console.error('[pdf-editor] reload', e));
 						})
 				);
 			} catch (e) {
@@ -445,6 +464,136 @@
 		const shown = tools.tool === 'link' || tools.tool === 'lasso';
 		ed.doc?.showLinks(shown);
 	});
+
+	// --- Presenting: the steps marked on the pages while the panel “Presentation steps” is open ---
+
+	$effect(() => {
+		const shown = ed.panel === 'steps';
+		ed.doc?.showSteps(shown);
+	});
+
+	/** Presenting: the presenter view here with the slides in a window of their own, or the slides filling this screen */
+	let presenting = $state<
+		| { mode: 'presenter'; session: string; control: ShowControl; close: () => void; open: (at: { page: number; step: number }) => Window | null }
+		| { mode: 'display'; display: DisplayController; stopOffer: () => void }
+		| null
+	>(null);
+
+	/** The slides of the open document as it is now (a version read anew while presenting takes its place) */
+	const deckOf = (first: PdfDocument) => () => {
+		const doc = ed.doc ?? first;
+		return { pages: doc.pages.length, steps: (i: number) => doc.stepsOf(doc.pages[i]?.id ?? '') };
+	};
+
+	/** Starts presenting at a place, the way chosen (`presentSettings.mode`) */
+	async function present(at: { page: number; step: number }) {
+		const doc = ed.doc;
+		if (!doc || presenting) return;
+		ed.selection?.clear();
+		if (presentSettings.mode === 'display') {
+			// Full screen needs the click itself: asked for before anything waits
+			void document.documentElement.requestFullscreen().catch(() => {});
+			const display = new DisplayController(deckOf(doc), at, () => ed.doc?.fingerprint ?? '');
+			// A phone may control it (sharing this PDF, or one of this user's devices)
+			presenting = { mode: 'display', display, stopOffer: offerRemote(display, doc.path, doc.name) };
+			return;
+		}
+		// The slides window reads the file: everything saved first
+		if (doc.dirty) await doc.save();
+		const session = newSession();
+		const view = presenterOf(doc, session);
+		if (!view.open(at)) return view.close();
+		remember(PRESENTING_KEY, { session, path: doc.path });
+		presenting = view;
+	}
+
+	/** Kept for this tab while it is the presenter view: a reload finds its slides window again */
+	const PRESENTING_KEY = 'pdf-editor:presenting';
+	const remember = (key: string, value: unknown) => {
+		try {
+			if (value === null) sessionStorage.removeItem(key);
+			else sessionStorage.setItem(key, JSON.stringify(value));
+		} catch {
+			// Without it a reload leaves the slides to their own keys
+		}
+	};
+
+	/** The presenter view of the slides window `session` shows (opened by `open`, also again after it was closed) */
+	function presenterOf(doc: PdfDocument, session: string) {
+		const path = doc.path;
+		let win: Window | null = null;
+		const open = (from: { page: number; step: number }) => {
+			win = window.open(showUrl(path, session, from), `pdf-editor-show-${session}`, 'popup,width=960,height=600');
+			if (win) void toOtherScreen(win);
+			else toast(m.show.popupBlocked, 'warning', 10_000);
+			return win;
+		};
+		const link = controlLink(session);
+		const control = new ShowControl(link, deckOf(doc));
+		return {
+			mode: 'presenter' as const,
+			session,
+			control,
+			open,
+			close: () => {
+				// The slides window closes itself on `end` (after a reload of this tab there is no handle to it)
+				control.end();
+				control.destroy();
+				link.close();
+				if (win && !win.closed) win.close();
+			}
+		};
+	}
+
+	/** After a reload of this tab while it was the presenter view: its slides window still shows – the presenter view
+	 * comes back at their place (the slides went on with their own keys meanwhile) */
+	async function resumePresenting(doc: PdfDocument) {
+		let kept: { session?: unknown; path?: unknown } | null = null;
+		try {
+			kept = JSON.parse(sessionStorage.getItem(PRESENTING_KEY) ?? 'null');
+		} catch {
+			// Nothing kept
+		}
+		if (!kept || typeof kept.session !== 'string' || kept.path !== doc.path) return;
+		const view = presenterOf(doc, kept.session);
+		// The slides answer a `hello` at once when they are there
+		for (let waited = 0; !view.control.connected && waited < 1500; waited += 50) await new Promise((r) => setTimeout(r, 50));
+		if (!view.control.connected || presenting || ed.doc !== doc) {
+			// No slides anymore (closed meanwhile): nothing to end
+			view.control.destroy();
+			if (!presenting) remember(PRESENTING_KEY, null);
+			return;
+		}
+		presenting = view;
+	}
+
+	/** Ends presenting; the editor shows the page the presentation was at */
+	function stopPresenting() {
+		const p = presenting;
+		if (!p) return;
+		const at = p.mode === 'display' ? p.display.state.page : p.control.place.page;
+		if (p.mode === 'presenter') p.close();
+		else {
+			p.stopOffer();
+			p.display.leave();
+		}
+		if (p.mode === 'presenter') remember(PRESENTING_KEY, null);
+		presenting = null;
+		if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+		ed.goTo(at);
+	}
+
+	function presentWith(mode: PresentMode, at: () => { page: number; step: number }) {
+		presentSettings.mode = mode;
+		presentSettings.store();
+		void present(at());
+	}
+	const presentMenu = (at: () => { page: number; step: number }) => () => [
+		{ label: m.show.withPresenter, checked: presentSettings.mode === 'presenter', run: () => presentWith('presenter', at) },
+		{ label: m.show.displayOnly, checked: presentSettings.mode === 'display', run: () => presentWith('display', at) }
+	];
+	const fromStart = () => ({ page: 0, step: 0 });
+	const fromHere = () => ({ page: ed.current, step: 0 });
 	/** Goes where the link at a point of a page leads: to its page, or – asked first, it leaves the PDF – to its address */
 	async function followLink(page: number, x: number, y: number) {
 		const link = await ed.doc?.linkAt(page, x, y);
@@ -582,6 +731,17 @@
 			enabled: () => !!ed.doc,
 			run: () => (exporting = 'all')
 		},
+share: {
+			id: 'share',
+			label: filesMessages().shareDialog.action,
+			tip: filesMessages().shareDialog.tip,
+			icon: 'icon-[material-symbols-light--share-outline]',
+			enabled: () => canShare(ed.doc?.path),
+			run: () => {
+				const path = ed.doc?.path;
+				if (path) openShareDialog({ path, single: true });
+			}
+		},
 		showInFiles: { id: 'showInFiles', label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', enabled: () => !!ed.doc, run: () => showInFiles() },
 		undo: { id: 'undo', label: m.commands.undo, icon: 'icon-[material-symbols-light--undo]', shortcut: { key: 'z', ctrl: true }, enabled: () => !!ed.doc?.canUndo, run: () => changed(() => ed.doc?.undo()) },
 		redo: {
@@ -646,6 +806,40 @@
 				}),
 			// With a paper: a page of that paper, as big as the current one
 			menu: () => PAPERS.map((paper) => ({ label: m.newPdf.blankWith(m.newPdf.papers[paper]), run: () => void changePages(() => void insertPaper(paper)) }))
+		},
+		duplicatePages: {
+			id: 'duplicatePages',
+			label: m.commands.duplicatePages,
+			tip: m.commands.duplicatePagesTip,
+			icon: 'icon-[material-symbols-light--content-copy-outline]',
+			enabled: editable,
+			run: () =>
+				void changePages((doc, ids) => {
+					const made = doc.duplicatePages(new Set(ids));
+					ed.clearPagePick();
+					const at = doc.pages.findIndex((p) => p.id === made.at(-1));
+					if (at >= 0) ed.goTo(at);
+				})
+		},
+		present: {
+			id: 'present',
+			label: m.show.present,
+			tip: m.show.presentTip,
+			icon: 'icon-[material-symbols-light--slideshow-outline]',
+			shortcut: { key: 'F5' },
+			enabled: () => !!ed.doc && ed.doc.editable !== 'checking',
+			run: () => void present(fromStart()),
+			menu: presentMenu(fromStart)
+		},
+		presentFromHere: {
+			id: 'presentFromHere',
+			label: m.show.fromHere,
+			tip: m.show.fromHereTip,
+			icon: 'icon-[material-symbols-light--co-present-outline]',
+			shortcut: { key: 'F5', shift: true },
+			enabled: () => !!ed.doc && ed.doc.editable !== 'checking',
+			run: () => void present(fromHere()),
+			menu: presentMenu(fromHere)
 		},
 		insertPdf: {
 			id: 'insertPdf',
@@ -995,6 +1189,7 @@
 		asEntry(commands.moveDown),
 		asEntry(commands.moveLast),
 		{ separator: true },
+		asEntry(commands.duplicatePages),
 		asEntry(commands.insertBlank),
 		asEntry(commands.insertPdf),
 		asEntry(commands.insertImage),
@@ -1057,7 +1252,10 @@
 			label: m.panels.layers,
 			available: () => !!ed.doc?.hasLayers,
 			load: async () => (await import('#lib/panels/LayersPanel.svelte')).default
-		}
+		},
+		// Seldom used: last
+		{ id: 'notes', icon: 'icon-[material-symbols-light--speaker-notes-outline]', label: m.panels.notes, load: async () => (await import('#lib/panels/NotesPanel.svelte')).default },
+		{ id: 'steps', icon: 'icon-[material-symbols-light--format-list-numbered]', label: m.panels.steps, load: async () => (await import('#lib/panels/StepsPanel.svelte')).default }
 	];
 
 	/** Opens or closes a side panel (commands of the "View" tab; on phones the only way to them) */
@@ -1076,6 +1274,7 @@
 	}
 	const kind = $derived(ed.selection?.count ? kindOf(ed.selection.items) : editable() ? toolKind(tools.tool) : null);
 	const objectGroup: RibbonGroup = { id: 'object', label: m.ribbon.groups.object, items: [sc.duplicate, commands.deleteSelection] };
+	const revealGroup: RibbonGroup = { id: 'visibility', label: m.ribbon.groups.visibility, items: [{ id: 'visibility', label: m.present.visibility, custom: visibilityButton }] };
 	/** A format tab for one kind: its format group, then duplicate and delete (phones open it for a selection only) */
 	const formatTab = (id: FormatKind, label: string, groups: RibbonGroup[]): RibbonTab => ({
 		id,
@@ -1083,7 +1282,7 @@
 		contextual: true,
 		visible: () => kind === id,
 		follow: () => !!sc.sel(),
-		groups: [...groups, objectGroup]
+		groups: [...groups, revealGroup, objectGroup]
 	});
 	const color: RibbonItem = { id: 'color', label: inkMessages().selection.color, custom: formatColor };
 	/** Colors of the selection while they are dragged (opacity, picker) – `fill`, `border`: shown at once,
@@ -1132,7 +1331,7 @@
 			id: 'file',
 			label: brandMessages().ribbon.file,
 			groups: [
-				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.exportPages, commands.print, commands.showInFiles] },
+				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.exportPages, commands.print, commands.share, commands.showInFiles] },
 				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
 			]
 		},
@@ -1168,7 +1367,7 @@
 			label: m.ribbon.tabs.pages,
 			groups: [
 				{ id: 'rotate', label: m.ribbon.groups.rotate, items: [commands.rotateLeft, commands.rotateRight] },
-				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.deletePages, commands.moveUp, commands.moveDown] },
+				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.duplicatePages, commands.deletePages, commands.moveUp, commands.moveDown] },
 				{ id: 'insert', label: m.ribbon.groups.insert, items: [commands.insertBlank, commands.insertPdf, commands.insertImage] }
 			]
 		},
@@ -1181,6 +1380,14 @@
 					label: m.ribbon.groups.fields,
 					items: [panelCommand(panels.find((p) => p.id === 'fields')!), formCommands.highlightFields, formCommands.clearForm]
 				}
+			]
+		},
+		{
+			id: 'present',
+			label: m.ribbon.tabs.present,
+			groups: [
+				{ id: 'present', label: m.ribbon.groups.present, items: [commands.present, commands.presentFromHere] },
+				{ id: 'prepare', label: m.ribbon.groups.prepare, items: [panelCommand(panels.find((p) => p.id === 'notes')!), panelCommand(panels.find((p) => p.id === 'steps')!)] }
 			]
 		},
 		{
@@ -1222,7 +1429,8 @@
 	// Backspace deletes too
 	const deleteAlt: Command = { ...commands.deleteSelection, id: 'deleteAlt', shortcut: { key: 'Backspace' } };
 
-	$effect(() => installCommandKeys(() => [...Object.values(commands), zoomInAlt, redoAlt, deleteAlt, find]));
+	// While presenting, the presentation has the keys
+	$effect(() => installCommandKeys(() => (presenting ? [] : [...Object.values(commands), zoomInAlt, redoAlt, deleteAlt, find])));
 	// Arrow keys move the selection (one undo step per key sequence)
 	$effect(() => installNudgeKeys(() => ed.selection));
 
@@ -1230,7 +1438,7 @@
 	// popover or dialog takes the Esc)
 	$effect(() => {
 		const key = (e: KeyboardEvent) => {
-			if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector(':popover-open, dialog[open], .modal-open')) return;
+			if (e.key !== 'Escape' || e.defaultPrevented || presenting || document.querySelector(':popover-open, dialog[open], .modal-open')) return;
 			if (ed.selection?.active) ed.selection.clear();
 			else if (tools.tool !== 'lasso' && editable() && !inTextField(e.target)) choose('lasso');
 		};
@@ -1338,6 +1546,11 @@
 	</RibbonPopover>
 {/snippet}
 
+<!-- Every format tab: at which steps of the presentation the selected comments show -->
+{#snippet visibilityButton(size: GroupSize)}
+	<VisibilityButton doc={ed.doc} selection={sc.sel()} steps={(index) => ed.stepsOf(index)} {size} />
+{/snippet}
+
 <!-- Format tab "Text box": background and border (with their opacity; "None") -->
 {#snippet fillButton(size: GroupSize)}
 	{@const fill = draftOr('fill', sc.boxStyle().fill)}
@@ -1434,10 +1647,10 @@
 							<button class="btn btn-ghost btn-sm" onclick={() => void doc.keepMine()}>{m.conflict.keepMine}</button>
 						</div>
 					</div>
-				{:else if doc.editable === 'encrypted' || doc.editable === 'failed'}
+				{:else if doc.editable === 'encrypted' || doc.editable === 'failed' || doc.editable === 'readonly'}
 					<div role="status" class="alert rounded-none py-2 text-sm">
 						<span class="icon-[material-symbols-light--lock-outline] size-5" aria-hidden="true"></span>
-						<span>{doc.editable === 'encrypted' ? m.notice.encrypted : m.notice.failed}</span>
+						<span>{doc.editable === 'encrypted' ? m.notice.encrypted : doc.editable === 'readonly' ? m.notice.readonly : m.notice.failed}</span>
 					</div>
 				{:else if doc.signed && !signedSeen}
 					<div role="status" class="alert rounded-none py-2 text-sm">
@@ -1522,6 +1735,12 @@
 	{/if}
 	{#if stampDialogs.page}<PdfPageDialog path={stampDialogs.page.path} pages={stampDialogs.page.pages} ondone={stampDialogs.page.done} />{/if}
 	{#if stampDialogs.word}<StampWordDialog word={stampDialogs.word.word} onclose={() => (stampDialogs.word = null)} />{/if}
+	{#if presenting?.mode === 'display'}
+		<Display {doc} display={presenting.display} onexit={stopPresenting} />
+	{:else if presenting?.mode === 'presenter'}
+		{@const p = presenting}
+		<Presenter {doc} control={p.control} onend={stopPresenting} onopen={() => p.open(p.control.place)} />
+	{/if}
 {:else}
 	<div class="flex h-full items-center justify-center">
 		<span class="loading loading-spinner opacity-60"></span>

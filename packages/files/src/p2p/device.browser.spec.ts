@@ -102,4 +102,17 @@ describe('P2P devices', { timeout: 30_000 }, () => {
 		await until(() => a.view().devices.length === 1, 15_000, 'A learns that B left');
 		expect(a.device.group!.room).not.toBeNull();
 	});
+
+	it('opens live channels between paired devices', async () => {
+		const network = hub();
+		const [a, b] = await pairedGroup(network, 'A', 'B');
+		const endAt = (d: TestDevice) => d.device.liveEnds().find((e) => e.peer.kind === 'device');
+		await until(() => !!endAt(a) && !!endAt(b), 15_000, 'ends open');
+		expect(endAt(a)!.peer.name).toBe('B');
+		const heard: unknown[] = [];
+		endAt(b)!.onMessage('test', (m) => heard.push(m));
+		endAt(a)!.send('test', { page: 2 });
+		await until(() => heard.length === 1, 4000, 'heard');
+		expect(heard).toEqual([{ page: 2 }]);
+	});
 });

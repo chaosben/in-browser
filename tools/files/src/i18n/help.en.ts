@@ -170,7 +170,7 @@ const help = {
 			},
 			use: {
 				title: 'Working in it',
-				text: 'Everything works as in My files: opening, preview, uploading, downloading, renaming, moving and copying – also between My files and a connected folder (dragging from one to the other copies, as between drives). The bottom line shows “Live from …” instead of the storage use. Notebooks and projects open right there in their tool.'
+				text: 'Everything works as in My files: opening, preview, uploading, downloading, renaming, moving and copying – also between My files and a connected folder (dragging from one to the other copies, as between drives). The bottom line shows “Live from …” instead of the storage use (for a folder shared with you: “Shared by … – a copy on this device”). Notebooks and projects open right there in their tool.'
 			},
 			access: {
 				title: '“Allow access”',
@@ -186,14 +186,15 @@ const help = {
 				text: 'A connected folder or server has no trash of in-browser: “Delete” asks “Delete for good?” first and then deletes right away.'
 			},
 			share: {
-				title: 'Sharing a folder with a guest',
-				text: '“Share …” in the “Share” tab shares the selected folder, or else the open one (in My files; otherwise it asks which folder) – also in the menu of a folder, and “Share a folder …” in the panel “Shares”. It makes a link and QR code for one browser outside your devices – e.g. a friend’s computer you are visiting. The guest sees only that folder, live from this device; nothing stays with them. Choose “View only” (default) or “Edit”. The link works until you end the share, for one browser at a time. Your shares appear in the panel “Shares” (green dot: guest connected); a click shows the link again, right-click (or ⋮) offers “End share”.',
+				title: 'Sharing with a guest',
+				text: '“Share …” in the “Share” tab shares the selected file or folder, or else the open folder (in My files; otherwise it asks which folder) – also in the menu of a file or folder, and “Share a folder …” in the panel “Shares”. It makes a link and QR code for one browser outside your devices – e.g. a friend’s computer you are visiting – and on request four words to type there. The guest gets only what you shared, as a copy in their browser that is kept in sync with this device and deleted when the share ends; a single file opens there in its tool. Choose “View only” (default) or “Edit” and how long it lasts (a day by default). Your shares appear in the panel “Shares” (green dot: guest connected); a click shows the link again, right-click (or ⋮) offers “End share”.',
 				tip: '“View only” to hand over files; “Edit” when the guest should save or upload into the folder. Keep in-browser open here while they use it.',
 				link: { href: '/help/connected#share', label: 'Sharing with a guest' }
 			},
 			guest: {
-				title: 'Opening a shared link',
-				text: 'A link someone shared with you opens Files with the folder in the panel “Folders” below My files, named after it and the device that shares it (a lock means view only). It lives only in this tab: “Disconnect” or closing the tab ends it, nothing of it stays in your browser; the link opens it again while the share lasts. If another browser is in it right now, Files says so and tries again by itself. Copy files into My files to keep them. When the share ends, Files says so at once; “Remove” takes it out of the panel.'
+				title: 'Opening a share',
+				text: 'A link someone shared with you opens Files with the folder in the panel “Folders” below My files, named after it and who shares it – the name from their settings, else their device’s (a lock means view only); a single shared file opens right away in its tool. Without the link: “Connect …” (below My files in the panel “Folders”, or the tab “Connect”) → “A share by four words …” asks for the four words the sharing device shows. Your browser remembers the share until it ends, runs out or you choose “Disconnect”; until then it lies as a synced copy in this browser. If another browser is in it right now, Files says so and tries again by itself. Copy files into My files to keep them. When the share ends, Files says so at once; “Remove” takes it out of the panel.',
+				link: { href: '/help/connected#share', label: 'Four words instead of the link' }
 			},
 		}
 	},

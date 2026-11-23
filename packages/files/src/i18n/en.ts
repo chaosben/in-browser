@@ -105,7 +105,81 @@ const en = {
 		/** A share opened as a guest, under “Connected” */
 		connection: (folder: string, host: string) => (host ? `${folder} from ${host}` : folder),
 		pending: 'Shared folder',
-		viewOnly: 'View only'
+		viewOnly: 'View only',
+		/** Whose version a conflict copy holds when a guest and the sharing device both changed a file */
+		guest: 'guest',
+		host: 'sharing device',
+		/** The state of a share opened as a guest: its copy here */
+		syncing: (done: number, total: number) => (total ? `Fetching the share … ${done}/${total}` : 'Fetching the share …'),
+		connecting: 'Looking for the sharing device …',
+		offline: 'The sharing device can’t be reached right now – you see the share as it last was.',
+		taken: 'The share is open in another browser right now – this one tries again by itself.',
+		ask: (size: string) => `The share is ${size} large. Fetch it onto this device?`,
+		askFull: (size: string) => `The share is ${size} large and doesn’t fit this browser’s free storage.`,
+		fetch: 'Fetch',
+		failed: (n: number) => (n === 1 ? '1 file could not be synced.' : `${n} files could not be synced.`)
+	},
+
+	/** Sharing with a guest (dialog of every tool) */
+	shareDialog: {
+		action: 'Share …',
+		tip: 'A guest opens this file in their browser – with a link, a QR code or four words',
+		title: (name: string) => `Share “${name}”`,
+		introFolder: 'A guest gets this folder in their browser: it is copied onto their device and kept in sync while in-browser is open here. When the share ends, the copy there is deleted.',
+		introFile: 'A guest gets this file in their browser: it is copied onto their device and kept in sync while in-browser is open here. When the share ends, the copy there is deleted.',
+		mode: 'The guest may',
+		view: 'View only',
+		viewHint: 'Open, preview and download (default).',
+		edit: 'Edit',
+		editHint: 'Also save, upload, rename and delete – deleted items go into the trash here.',
+		duration: 'The share ends',
+		durations: ['After an hour', 'After a day (default)', 'After a week', 'When you end it'],
+		create: 'Share',
+		link: 'Link for the guest',
+		qr: 'QR code of the share link',
+		copy: 'Copy link',
+		copied: 'Link copied.',
+		showWords: 'Show four words',
+		wordsHint: 'Easier on another computer: open in-browser there, choose “Open a share” and type these words.',
+		wordsLabel: 'Words for the guest',
+		wordsLeft: (minutes: number) => (minutes <= 1 ? 'They work for less than a minute more, once.' : `They work for ${minutes} more minutes, once.`),
+		wordsUsed: 'The words were used or ran out.',
+		newWords: 'New words',
+		waiting: 'Waiting for the guest – one browser at a time can open it.',
+		connected: 'Guest connected.',
+		away: 'The guest is not connected right now.',
+		untilEnded: 'Until you end it',
+		endsAt: (at: Date) => `Ends ${at.toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })}`,
+		end: 'End share',
+		endTitle: 'End the share?',
+		endMessage: (name: string) => `The guest can no longer open “${name}”. Nothing of it changes here.`,
+		help: 'How sharing with a guest works',
+		cancel: 'Cancel',
+		close: 'Close',
+		unavailable: 'Only files of My files on this device can be shared from here.'
+	},
+
+	/** What other browsers offer live (`live-sessions.ts`) */
+	live: {
+		present: (title: string, peer: string) => (peer ? `${peer} presents “${title}”` : `Your guest presents “${title}”`),
+		control: 'Remote control',
+		join: 'Join'
+	},
+
+	/** Opening a share with its four words */
+	openShare: {
+		title: 'Open a share',
+		/** In the menu “Connect …” */
+		menu: 'A share by four words …',
+		intro: 'Type the four words the sharing device shows – upper or lower case doesn’t matter.',
+		label: 'Four words',
+		placeholder: 'e.g. apple river cloud stone',
+		open: 'Open',
+		opening: 'Asking the sharing device …',
+		notWords: 'These aren’t four known words. Check each one.',
+		ended: 'These words don’t open a share (any more): they work once and for 10 minutes. Ask for new ones.',
+		offline: 'The sharing device didn’t answer. Check the words; in-browser has to be open there, and both devices need the internet to find each other.',
+		cancel: 'Cancel'
 	},
 
 	/** Sync with a folder on disk */

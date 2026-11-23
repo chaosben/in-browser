@@ -5,7 +5,7 @@
 	import { groupBase32 } from '@in-browser/files/p2p/base32.js';
 	import { invite, onP2pEvent, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
 	import { m } from '#lib/i18n/index.js';
-	import QrCode from './QrCode.svelte';
+	import QrCode from '@in-browser/files/QrCode.svelte';
 
 	// A one-time key for a new device: as QR code (the phone's camera opens the link) and as text to type in.
 	// Shows live when the new device was added.

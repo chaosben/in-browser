@@ -19,7 +19,7 @@ const help = {
 			},
 			fileMenu: {
 				title: 'The tab “File”',
-				text: 'The top bar only shows where you are: the name of the shown file stands after “Text Editor”. What you do to the file itself is in the first tab of the ribbon, “File”: the group “New” with “New” and “Open” (“Open from Files …”, “Open from computer …”), the group “File” with “Save”, “Save as …”, “Download”, “Show in Files” and “Close”. What doesn’t work for this file is greyed out – a text without a place can’t be shown in Files yet. The editor opens on the tab “Home”, where you work on the text. A file is named after its file in the browser storage; to rename it, rename it in Files.'
+				text: 'The top bar only shows where you are: the name of the shown file stands after “Text Editor”. What you do to the file itself is in the first tab of the ribbon, “File”: the group “New” with “New” and “Open” (“Open from Files …”, “Open from computer …”), the group “File” with “Save”, “Save as …”, “Download”, “Share …” (the file for a guest – a link, a QR code or four words; see the help page on sharing), “Show in Files” and “Close”. What doesn’t work for this file is greyed out – a text without a place can’t be shown in Files yet. The editor opens on the tab “Home”, where you work on the text. A file is named after its file in the browser storage; to rename it, rename it in Files.'
 			},
 			ribbon: {
 				title: 'The ribbon',

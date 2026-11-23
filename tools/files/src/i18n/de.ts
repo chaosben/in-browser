@@ -156,7 +156,7 @@ const de: Messages = {
 	share: {
 		action: 'Freigeben …',
 		title: (folder) => `„${folder}“ freigeben`,
-		intro: 'Ein Gast öffnet diesen Ordner mit einem Link oder QR-Code in seinem Browser – live von diesem Gerät, bei ihm bleibt nichts. Lass in-browser hier offen, solange er ihn nutzt.',
+		intro: 'Ein Gast bekommt diesen Ordner mit einem Link oder QR-Code in seinen Browser: Er wird auf sein Gerät kopiert und abgeglichen, solange in-browser hier offen ist. Endet die Freigabe, wird die Kopie dort gelöscht.',
 		mode: 'Der Gast darf',
 		view: 'Nur ansehen',
 		viewHint: 'Dateien öffnen, ansehen und herunterladen (Standard).',
@@ -180,9 +180,8 @@ const de: Messages = {
 		guestWaiting: 'Kein Gast verbunden',
 		menu: (folder) => `Aktionen für die Freigabe von „${folder}“`,
 		ended: 'Die Freigabe wurde beendet.',
-		endedHint: 'Was du nach Meine Dateien kopiert hast, bleibt.',
+		endedHint: 'Ihre Kopie auf diesem Gerät wurde gelöscht. Was du nach Meine Dateien kopiert hast, bleibt.',
 		remove: 'Entfernen',
-		unreachable: 'Das freigebende Gerät ist gerade nicht erreichbar – dort muss in-browser offen sein.',
 		show: 'Link zeigen',
 		panelLabel: 'Für einen Gast freigegebene Ordner',
 		section: 'Freigaben',
@@ -225,7 +224,7 @@ const de: Messages = {
 		alsoSynced: (name) => `Meine Dateien werden schon mit „${name}“ synchronisiert – sein Inhalt erscheint jetzt doppelt.`,
 		live: (name) => `Live aus „${name}“ auf deinem Rechner`,
 		liveServer: (name) => `Live aus „${name}“`,
-		liveShared: (host) => (host ? `Live von ${host} (freigegeben)` : 'Live (freigegeben)'),
+		sharedCopy: (host) => (host ? `Freigegeben von ${host} – eine Kopie auf diesem Gerät` : 'Freigegeben – eine Kopie auf diesem Gerät'),
 		help: 'So funktionieren verbundene Ordner'
 	},
 

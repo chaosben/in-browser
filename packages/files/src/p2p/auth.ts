@@ -97,11 +97,14 @@ export const pairProof = async (code: string, role: 'new' | 'inviter', fingerpri
 /** Proof of a guest share's key, bound to the connection like `pairProof` */
 export const shareProof = async (code: string, role: 'guest' | 'host', fingerprints: string) => hmac(code, `in-browser-share\n${role}\n${bound(fingerprints)}`);
 
+/** Proof of a share's word code (`words.ts`; its secret is the key), bound to the connection like `shareProof` */
+export const wordsProof = async (secret: string, role: 'guest' | 'host', fingerprints: string) => hmac(secret, `in-browser-words\n${role}\n${bound(fingerprints)}`);
+
 /** Key of a guest share from its link (`…#share=KEY`) */
 export const parseShareCode = (text: string) => parseCode(text, 'share', false);
 
 /** Room of the group, derived from its secret (relays only see a hash) */
-export async function roomId(prefix: 'group' | 'pair' | 'share', secret: string): Promise<string> {
+export async function roomId(prefix: 'group' | 'pair' | 'share' | 'words', secret: string): Promise<string> {
 	return toHex((await sha256(`in-browser-${prefix}\n${secret}`)).slice(0, 16));
 }
 

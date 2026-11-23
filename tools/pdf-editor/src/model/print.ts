@@ -5,6 +5,7 @@ import type { PrintPart } from '@in-browser/brand/ui/print.js';
 import { formatDateTime, m } from '#lib/i18n/index.js';
 import { stampsSharp } from '#lib/render/stamp.js';
 import { linkView } from '#lib/render/link.js';
+import { stepView } from '#lib/render/steps.js';
 import { commentList } from './comments.js';
 import { sourceOf, type PdfDocument, type PdfPage } from './document.svelte.js';
 
@@ -52,13 +53,16 @@ export async function pageCanvas(
 		// Vector stamps are drawn for the picture's resolution, not the screen's
 		await stampsSharp(scene.items, canvas.width / page.w);
 		ctx.setTransform(canvas.width / page.w, 0, 0, canvas.height / page.h, 0, 0);
-		// The boxes of links are the editor's marks: never in a picture
+		// The boxes of links and the steps are the editor's marks: never in a picture
 		const shown = linkView.shown;
+		const steps = stepView.shown;
 		linkView.shown = false;
+		stepView.shown = false;
 		try {
 			scene.draw(ctx, scene.items);
 		} finally {
 			linkView.shown = shown;
+			stepView.shown = steps;
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 		}
 	}

@@ -1,5 +1,6 @@
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+import { openShareByWordsDialog } from '@in-browser/files/share-dialog.svelte.js';
 import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 import { connectFolder, connections, diskConnectionsSupported } from '@in-browser/files/sources/connections.svelte.js';
 import { m } from '#lib/i18n/index.js';
@@ -18,7 +19,10 @@ export function connectEntries(navigate: (path: string) => void): MenuEntry[] {
 			run: () => void connect(navigate)
 		},
 		{ label: m.connected.kinds.webdav, icon: 'icon-[material-symbols-light--dns-outline]', run: () => Object.assign(connectUi, { kind: 'webdav', edit: null }) },
-		{ label: m.connected.kinds.s3, icon: 'icon-[material-symbols-light--database-outline]', run: () => Object.assign(connectUi, { kind: 's3', edit: null }) }
+		{ label: m.connected.kinds.s3, icon: 'icon-[material-symbols-light--database-outline]', run: () => Object.assign(connectUi, { kind: 's3', edit: null }) },
+		// What another device shares with this browser, by the four words it shows
+		{ separator: true },
+		{ label: filesMessages().openShare.menu, icon: 'icon-[material-symbols-light--password]', run: () => openShareByWordsDialog() }
 	];
 }
 

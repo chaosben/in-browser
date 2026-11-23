@@ -5,6 +5,7 @@ import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 import { findAll, type SearchHit } from '@in-browser/pdf/text.js';
 import type { PdfDocument } from './document.svelte.js';
 import { pdfKit } from '#lib/render/markup.js';
+import { MAX_STEP } from '#lib/render/steps.js';
 import type { PdfSelection, PdfStage, PdfSuggestion } from '#lib/render/surface.js';
 import { choose } from './tools.svelte.js';
 
@@ -128,6 +129,52 @@ export class EditorState {
 		this.goTo(index, Math.max(0, pdfKit.bounds(item).y0 - 40));
 		choose('lasso');
 		this.selection?.select(index, new Set([id]));
+	}
+
+	/** Steps asked for with “Another step” (page id → how many the page has in the editor): a step exists in the file
+	 * only once something comes or goes at it, so one after the last change is the editor's until it is used */
+	private wantedSteps = $state<Record<string, number>>({});
+
+	/** The steps of a page as the editor lists them: up to its last change, and those added after it */
+	stepsOf(index: number): number {
+		const id = this.doc?.pages[index]?.id ?? '';
+		return Math.min(MAX_STEP, Math.max(this.doc?.stepsOf(id) ?? 0, this.wantedSteps[id] ?? 0));
+	}
+
+	private wantSteps(index: number, steps: number) {
+		const id = this.doc?.pages[index]?.id;
+		if (id) this.wantedSteps[id] = Math.max(0, Math.min(MAX_STEP, steps));
+	}
+
+	/** Another step after the last one of a page */
+	addStep(index: number) {
+		this.wantSteps(index, this.stepsOf(index) + 1);
+	}
+
+	/** Deletes, inserts before or moves a step of a page (`PdfDocument.removeStep` …), also one nothing changes at yet */
+	removeStep(index: number, step: number) {
+		const steps = this.stepsOf(index);
+		this.doc?.removeStep(index, step, steps);
+		this.wantSteps(index, steps - 1);
+	}
+
+	insertStep(index: number, step: number) {
+		const steps = this.stepsOf(index);
+		if (steps >= MAX_STEP) return;
+		this.doc?.insertStep(index, step, steps);
+		this.wantSteps(index, steps + 1);
+	}
+
+	moveStep(index: number, from: number, to: number) {
+		const steps = this.stepsOf(index);
+		this.doc?.moveStep(index, from, to, steps);
+		this.wantSteps(index, steps);
+	}
+
+	/** Selects comments of a page (with "Select") */
+	selectItems(index: number, ids: ReadonlySet<string>) {
+		choose('lasso');
+		this.selection?.select(index, new Set(ids));
 	}
 
 	/** Shows a page (index), optionally scrolled to `y` page points from its top */

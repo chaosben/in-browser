@@ -19,6 +19,8 @@ import type { NoteItem } from '#lib/render/note.js';
 import { loadTextFont, withText, type TextItem } from '#lib/render/textbox.js';
 import { annotationOf, partsOf } from './annots.js';
 import { itemsOf, withData } from './imported.js';
+import { isNotesAnnotation, notesAnnotation } from './notes.js';
+import { flipsOf, withFlips } from '#lib/render/steps.js';
 
 // Drawn items written as annotations and drawn again by PDF.js: they must appear where they were drawn on the page
 // as shown – also on a turned page and on one whose box doesn't start at the origin.
@@ -418,6 +420,31 @@ describe('annotations of drawn items', () => {
 		// Shown turned by 90° now: the items turn along
 		const [turned] = itemsOf(found[1], toShown(pageTransform([0, 0, 300, 400], 90)), 90, id);
 		expect(turned).toMatchObject({ dir: 90, boxes: [{ x0: 330, y0: 40, x1: 350, y1: 120 }] });
+	});
+
+	it('keeps the steps a comment shows at and a page\'s hidden speaker notes, and copies a page once more without its annotations', async () => {
+		const base = await sample();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const date = new Date();
+		const stepped = withFlips(stroke, [0, 1, 3]);
+		const out = await (await IncrementalPdf.open(base)).update({
+			annotations: new Map([[0, [withData(annotationOf(stepped, toUser, undefined, date), stepped, date, 0, 300, 400), notesAnnotation('Say hello', [0, 0, 300, 400], date)]]])
+		});
+		const found = (await IncrementalPdf.open(out)).annotations(0);
+		const notes = found.filter(isNotesAnnotation);
+		expect(notes.map((a) => a.contents)).toEqual(['Say hello']);
+		const items = found.filter((a) => !isNotesAnnotation(a)).flatMap((a) => itemsOf(a, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (id) => id ?? 'new'));
+		expect(items.map(flipsOf)).toEqual([[0, 1, 3]]);
+		// The notes are never drawn: the page stays white where they lie
+		expect(white(await pixel(out, 1, 0, 0.5, 0.5))).toBe(true);
+		// The first page once more at the end, without its annotations (the tool writes its items anew)
+		const copied = await (await IncrementalPdf.open(out)).update({ pages: [{ base: 0 }, { base: 1 }, { copy: { pdf: out, index: 0, annotations: false } }] });
+		const again = await IncrementalPdf.open(copied);
+		expect(again.pageCount).toBe(3);
+		expect(again.annotations(0)).toHaveLength(2);
+		expect(again.annotations(2)).toEqual([]);
+		expect(red(await pixel(copied, 1, 0, 80, 60))).toBe(true);
+		expect(white(await pixel(copied, 3, 0, 80, 60))).toBe(true);
 	});
 
 	it('reads annotations of other programs from their standard entries, and PDF.js leaves out hidden ones', async () => {
