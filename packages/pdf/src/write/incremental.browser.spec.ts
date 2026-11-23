@@ -193,6 +193,91 @@ describe('IncrementalPdf', () => {
 		expect((await IncrementalPdf.open(out)).annotations(0).map((x) => x.name)).toEqual(['b', 'c', 'd', 'a']);
 	});
 
+	/** The color of a page's pixel at a point of the page as shown (points from the top left) */
+	async function pixel(bytes: Uint8Array, n: number, x: number, y: number): Promise<number[]> {
+		const pdf = await openPdf(bytes.slice());
+		const page = await pdf.getPage(n);
+		const viewport = page.getViewport({ scale: 1 });
+		const canvas = document.createElement('canvas');
+		canvas.width = Math.ceil(viewport.width);
+		canvas.height = Math.ceil(viewport.height);
+		await page.render({ canvas, viewport }).promise;
+		const data = canvas.getContext('2d')!.getImageData(Math.round(x), Math.round(y), 1, 1).data;
+		await pdf.loadingTask.destroy();
+		return [data[0], data[1], data[2]];
+	}
+
+	it('puts a color under a page, replaces and removes it, also on blank and edited pages', async () => {
+		const base = await sample(false, 2);
+		const pdf = await IncrementalPdf.open(base);
+		const red = await pdf.update({ pages: [{ base: 0 }, { blank: { width: 100, height: 100 } }, { base: 1 }], background: new Map([[0, [1, 0, 0]], [1, [0, 0, 1]]]) });
+		expect(prefix(red, base)).toBe(true);
+		expect(await pixel(red, 1, 150, 200)).toEqual([255, 0, 0]);
+		expect(await pixel(red, 2, 50, 50)).toEqual([0, 0, 255]);
+		expect(await pixel(red, 3, 150, 200)).toEqual([255, 255, 255]);
+		// The page's own content lies on it
+		const opened = await openPdf(red.slice());
+		expect(((await (await opened.getPage(1)).getTextContent()).items as { str: string }[]).map((i) => i.str).join('')).toBe('Page 1');
+		await opened.loadingTask.destroy();
+
+		// Read again: the colors are known, another one takes the place (never two), none takes it away
+		const again = await IncrementalPdf.open(red);
+		expect([0, 1, 2].map((i) => again.background(i))).toEqual([[1, 0, 0], [0, 0, 1], null]);
+		// The background is no object of the page's content
+		expect(again.contentObjects(0)?.map((o) => o.kind)).toEqual(['text']);
+		const green = await again.update({ background: new Map<number, [number, number, number] | null>([[0, [0, 1, 0]], [1, null]]) });
+		expect(await pixel(green, 1, 150, 200)).toEqual([0, 255, 0]);
+		expect(await pixel(green, 2, 50, 50)).toEqual([255, 255, 255]);
+		const last = await IncrementalPdf.open(green);
+		expect([0, 1].map((i) => last.background(i))).toEqual([[0, 1, 0], null]);
+		// Content written anew keeps the color under it
+		const text = last.contentObjects(0)![0];
+		const moved = await last.update({ content: new Map([[0, new Map([[text.id, { matrix: [1, 0, 0, 1, 0, -100] as [number, number, number, number, number, number] }]])]]) });
+		expect(await pixel(moved, 1, 150, 200)).toEqual([0, 255, 0]);
+		expect((await IncrementalPdf.open(moved)).background(0)).toEqual([0, 1, 0]);
+	});
+
+	it('gives pages another size: the content and the annotations that stay go along, also on a turned page', async () => {
+		const { PDFDocument, rgb, degrees } = await pdfLib();
+		const doc = await PDFDocument.create();
+		// A black square at the top left of each page as shown (the second page is turned a quarter)
+		doc.addPage([300, 400]).drawRectangle({ x: 0, y: 300, width: 100, height: 100, color: rgb(0, 0, 0) });
+		const turned = doc.addPage([400, 300]);
+		turned.setRotation(degrees(90));
+		turned.drawRectangle({ x: 0, y: 0, width: 100, height: 100, color: rgb(0, 0, 0) });
+		const base = await doc.save({ useObjectStreams: false });
+		expect(await pixel(base, 2, 50, 50)).toEqual([0, 0, 0]);
+		const first = await IncrementalPdf.open(base);
+		const kept: NewAnnotation = { subtype: 'Square', name: 'kept', rect: [0, 300, 100, 400], color: [0, 0, 0], width: 1, appearance: { content: '' } };
+		const withNote = await first.update({ annotations: new Map([[0, [kept]]]) });
+		const pdf = await IncrementalPdf.open(withNote);
+
+		// Both pages 600 × 800 as shown, the content twice as large (it fills the page)
+		const out = await pdf.update({
+			resize: new Map([
+				[0, { width: 600, height: 800, matrix: [2, 0, 0, 2, 0, 0] }],
+				[1, { width: 800, height: 600, matrix: [2, 0, 0, 2, 0, 0] }]
+			]),
+			background: new Map([[0, [1, 1, 0]]])
+		});
+		const opened = await openPdf(out.slice());
+		expect((await opened.getPage(1)).view).toEqual([0, 0, 600, 800]);
+		expect((await opened.getPage(2)).view).toEqual([0, 0, 800, 600]);
+		await opened.loadingTask.destroy();
+		for (const n of [1, 2]) {
+			expect(await pixel(out, n, 150, 150)).toEqual([0, 0, 0]);
+			expect(await pixel(out, n, 250, 250)).not.toEqual([0, 0, 0]);
+		}
+		// The color fills the new page, the annotation lies on the square as before
+		expect(await pixel(out, 1, 590, 790)).toEqual([255, 255, 0]);
+		expect((await IncrementalPdf.open(out)).annotations(0).map((a) => a.rect)).toEqual([[0, 600, 200, 800]]);
+
+		// The content keeps its size in the middle of a larger page: a margin around it
+		const centered = await pdf.update({ resize: new Map([[0, { width: 500, height: 600, matrix: [1, 0, 0, 1, 100, 100] }]]) });
+		expect(await pixel(centered, 1, 50, 50)).toEqual([255, 255, 255]);
+		expect(await pixel(centered, 1, 150, 150)).toEqual([0, 0, 0]);
+	});
+
 	it('writes pages in a new order, without deleted ones and with blank ones, as a flat tree', async () => {
 		const base = await sample(true);
 		const pdf = await IncrementalPdf.open(base);

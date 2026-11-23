@@ -13,7 +13,8 @@ import { isStamp } from '#lib/render/stamp.js';
 import { caretIn } from '#lib/render/caret.js';
 import { isLink } from '#lib/render/link.js';
 import type { Box } from '@in-browser/ink/geometry.js';
-import { layoutText, padOf } from '#lib/render/textbox.js';
+import { layoutText, padOf, withRich, type TextItem } from '#lib/render/textbox.js';
+import { richFromContents } from './rich-pdf.js';
 
 /** User space → page points as shown (`toShown` of `@in-browser/pdf/geometry.js`) */
 export type ToPage = (x: number, y: number) => [number, number];
@@ -112,7 +113,11 @@ export function itemsOf(a: ExistingAnnotation, toPage: ToPage, rotation: number,
 		// A callout points at the first point of its line
 		const callout = a.callout && a.callout.length >= 4 ? { callout: toPage(a.callout[0], a.callout[1]) } : {};
 		const align = a.quadding === 1 ? ({ align: 'center' } as const) : a.quadding === 2 ? ({ align: 'right' } as const) : {};
-		return [{ id: id(a.name), type: 'text', ...align, ...callout, ...box, rot: ((rotation % 360) + 360) % 360, size, color: withOpacity(hex(color), opacityOf(a, a.paint?.text)), text, lines: layoutText(text, size, along, padOf(style)), ...style, sizing: 'fixed' }];
+		const item: TextItem = { id: id(a.name), type: 'text', ...align, ...callout, ...box, rot: ((rotation % 360) + 360) % 360, size, color: withOpacity(hex(color), opacityOf(a, a.paint?.text)), text, lines: layoutText(text, size, along, padOf(style)), ...style, sizing: 'fixed' };
+		// Its text with formats, where the program that wrote it kept them (`/RC`): laid out anew in our fonts – the
+		// lines may break elsewhere than there, the box keeps its size
+		const rich = a.richContents ? richFromContents(a.richContents, a.defaultStyle, { font: 'sans', bold: false, italic: false, underline: false, size, color: item.color }) : null;
+		return [rich ? withRich(item, rich) : item];
 	}
 	if (a.subtype === 'Text' || a.subtype === 'FileAttachment') {
 		// Upright around its box's middle (its size is ours)

@@ -386,3 +386,149 @@ test('opens a PDF from the files and moves through its pages', async ({ page }) 
 	await expect.poll(async () => (await everything()).includes(hex('Page 1 of the test PDF')), { timeout: 10_000 }).toBe(false);
 	expect(await everything()).toContain(hex('Page 2 of the test PDF'));
 });
+
+test('pages get a background and another size – in the file, with the way back', async ({ page }) => {
+	test.setTimeout(60_000);
+	await page.setViewportSize({ width: 1400, height: 900 });
+	await page.goto('/pdf-editor');
+	await putFile(page, 'Pages.pdf', await pdf());
+	await page.goto('/pdf-editor/editor?path=%2FPages.pdf');
+	await expect(page.getByTestId('surface')).toBeVisible();
+	const sizes = async () => (await PDFDocument.load(await getFile(page, 'Pages.pdf'))).getPages().map((p) => [Math.round(p.getWidth()), Math.round(p.getHeight())]);
+	const before = await sizes();
+
+	// A color under the current page: saved into the page, read again by the editor
+	await page.getByRole('tab', { name: 'Pages' }).click();
+	await page.locator('[data-command="pageBackground"]:visible').first().click();
+	await page.getByRole('button', { name: 'Color #' }).first().click();
+	await shot(page, 'page-background');
+	await page.keyboard.press('Escape');
+	await expect(page.locator('[data-save="saved"]')).toBeVisible({ timeout: 10_000 });
+	const colored = await PDFDocument.load(await getFile(page, 'Pages.pdf'));
+	expect(colored.getPage(0).node.has(PDFName.of('InBrowserBackground'))).toBe(true);
+	expect(colored.getPageCount() > 1 && colored.getPage(1).node.has(PDFName.of('InBrowserBackground'))).toBe(false);
+
+	// “Barcode …”: a QR code of what is typed, placed as a picture (a stamp with a vector appearance)
+	await page.getByRole('tab', { name: 'Comment' }).click();
+	await page.locator('[data-command="barcode"]:visible').first().click();
+	const code = page.getByRole('dialog').filter({ hasText: 'Barcode' });
+	await expect(code.getByRole('button', { name: 'Insert' })).toBeDisabled();
+	await code.getByLabel('Kind').selectOption({ label: 'EAN-13' });
+	await code.getByLabel('Content', { exact: true }).fill('4006381333932');
+	await expect(code.getByRole('alert')).toHaveText('The check digit doesn’t fit the other digits.');
+	await code.getByLabel('Kind').selectOption({ label: 'QR code' });
+	// A QR code by a template: the address gets its scheme
+	await code.getByLabel('Content as').selectOption({ label: 'Web address' });
+	await code.getByLabel('Address', { exact: true }).fill('example.org');
+	await expect(code.getByRole('img', { name: 'QR code: https://example.org' })).toBeVisible();
+	await shot(page, 'barcode');
+	await code.getByRole('button', { name: 'Insert' }).click();
+	// It stays a barcode: changed in the same dialog, in its place
+	await page.locator('[data-command="editBarcode"]:visible').first().click();
+	const edited = page.getByRole('dialog').filter({ hasText: 'Edit barcode' });
+	await expect(edited.getByLabel('Content', { exact: true })).toHaveValue('https://example.org');
+	await edited.getByLabel('Kind').selectOption({ label: 'Code 128' });
+	await edited.getByLabel('Content', { exact: true }).fill('PJJ123C');
+	await expect(edited.getByRole('img', { name: 'Code 128: PJJ123C' })).toBeVisible();
+	await shot(page, 'barcode-edit');
+	await edited.getByRole('button', { name: 'Apply' }).click();
+	await expect(edited).toBeHidden();
+	await expect
+		.poll(async () => {
+			const saved = await PDFDocument.load(await getFile(page, 'Pages.pdf'));
+			const annots = saved.getPage(0).node.Annots();
+			return Array.from({ length: annots?.size() ?? 0 }, (_, i) => (saved.context.lookup(annots!.get(i)) as PDFDict).lookup(PDFName.of('Subtype'))?.toString());
+		}, { timeout: 10_000 })
+		.toContain('/Stamp');
+	await page.getByRole('tab', { name: 'Pages' }).click();
+
+	// “Page size …”: all pages as slides, the content fitted in
+	await page.locator('[data-command="pageSize"]:visible').first().click();
+	const dialog = page.getByRole('dialog').filter({ hasText: 'Page size' });
+	await dialog.getByRole('combobox').selectOption({ label: 'Presentation 16:9' });
+	await dialog.getByText('Fit to the page').click();
+	await dialog.getByText(/^All \d+ pages$/).click();
+	await shot(page, 'page-size');
+	await dialog.getByRole('button', { name: 'Change' }).click();
+	await expect(page.getByText('Page size changed.')).toBeVisible({ timeout: 20_000 });
+	expect(await sizes()).toEqual(before.map(() => [960, 540]));
+	await expect(page.getByTestId('surface')).toBeVisible();
+
+	// The way back: the file as it was
+	await page.getByRole('button', { name: 'Undo', exact: true }).last().click();
+	await expect.poll(sizes, { timeout: 20_000 }).toEqual(before);
+	// Our own write back: never taken for a version saved elsewhere (it asked – that happened)
+	await expect(page.getByTestId('surface')).toBeVisible();
+	await page.waitForTimeout(1500);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	// The barcode came back from the file as one that can be changed
+	await page.getByRole('tab', { name: 'Comment' }).click();
+	await page.keyboard.press('l');
+	await page.keyboard.press('Control+a');
+	await expect(page.locator('[data-command="editBarcode"]:visible').first()).toBeVisible();
+});
+
+test('text boxes take formats for parts of their text, lists and a font – saved for every program', async ({ page }) => {
+	test.setTimeout(60_000);
+	await page.setViewportSize({ width: 1400, height: 900 });
+	await page.goto('/pdf-editor');
+	await putFile(page, 'Text.pdf', await pdf());
+	await page.goto('/pdf-editor/editor?path=%2FText.pdf');
+	await expect(page.getByTestId('surface')).toBeVisible();
+	const surface = (await page.getByTestId('surface').boundingBox())!;
+	/** The saved text box's entry `key` as text */
+	const saved = async (key: string) => {
+		const doc = await PDFDocument.load(await getFile(page, 'Text.pdf'));
+		const annots = doc.getPage(0).node.Annots();
+		for (let i = 0; i < (annots?.size() ?? 0); i++) {
+			const a = doc.context.lookup(annots!.get(i));
+			if (a instanceof PDFDict && a.lookup(PDFName.of('Subtype'))?.toString() === '/FreeText') return (a.lookupMaybe(PDFName.of(key), PDFHexString) ?? a.lookup(PDFName.of(key)))?.toString() ?? '';
+		}
+		return '';
+	};
+	const decoded = async (key: string) => {
+		const raw = await saved(key);
+		return /^<[0-9A-Fa-f]*>$/.test(raw) ? PDFHexString.of(raw.slice(1, -1)).decodeText() : raw;
+	};
+
+	// Typed with a part in bold (Ctrl+B switches it for what comes next), then a second line as a list item
+	await page.keyboard.press('t');
+	await page.mouse.click(surface.x + 500, surface.y + 300);
+	const typing = page.getByRole('textbox', { name: 'Text of the text box' });
+	await expect(typing).toBeFocused();
+	await page.keyboard.type('Plain ');
+	await page.keyboard.press('Control+b');
+	await page.keyboard.type('bold');
+	await page.keyboard.press('Control+b');
+	await page.keyboard.type(' again');
+	await page.keyboard.press('Enter');
+	await page.keyboard.type('a point');
+	await page.locator('[data-command="list:bullet"]:visible').first().click();
+	await expect(typing).toBeFocused();
+	// The last word of the line in italics from the ribbon: selected with the keyboard
+	await page.keyboard.press('Shift+Control+ArrowLeft');
+	await page.locator('[data-command="italic"]:visible').first().click();
+	await shot(page, 'pdf-editor-rich-typing');
+	await page.keyboard.press('Escape');
+	await expect.poll(() => decoded('Contents'), { timeout: 10_000 }).toBe('Plain bold again\na point');
+	const rc = await decoded('RC');
+	expect(rc).toMatch(/font-weight:bold;[^"]*">bold<\/span>/);
+	expect(rc).toMatch(/font-weight:normal;[^"]*">Plain <\/span>/);
+	expect(rc).toMatch(/">• <\/span>.*font-style:italic;[^"]*">point<\/span>/);
+
+	// The selected box as a whole in another font: its own style, kept with the formats of its parts
+	await page.keyboard.press('l');
+	await page.mouse.click(surface.x + 520, surface.y + 305);
+	await page.locator('[data-command="fontFamily"]:visible').first().click();
+	await page.getByRole('menuitemcheckbox', { name: 'Serif', exact: true }).or(page.getByRole('menuitem', { name: 'Serif', exact: true })).click();
+	await expect.poll(() => decoded('DS'), { timeout: 10_000 }).toContain('Times');
+	expect(await decoded('RC')).toMatch(/font-family:Times;[^"]*font-weight:bold;[^"]*">bold<\/span>/);
+	await shot(page, 'pdf-editor-rich');
+
+	// Read again: the formats are back in the field
+	await page.reload();
+	await expect(page.getByTestId('surface')).toBeVisible();
+	await page.keyboard.press('l');
+	await page.mouse.dblclick(surface.x + 520, surface.y + 305);
+	await expect(page.getByRole('textbox', { name: 'Text of the text box' }).locator('span', { hasText: /^bold$/ })).toHaveCSS('font-weight', '700');
+});

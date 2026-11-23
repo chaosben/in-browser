@@ -13,6 +13,7 @@
 	import { isCommented, isMarkup, pdfKit, type MarkKind, type MarkupItem } from '#lib/render/markup.js';
 	import type { CaretItem } from '#lib/render/caret.js';
 	import { isNote, NOTE_SIZE } from '#lib/render/note.js';
+	import { loadFonts } from '@in-browser/graphics/fonts.js';
 	import { fontOf, isText, loadTextFont, minTextSize, roomOf, withText, type TextItem } from '#lib/render/textbox.js';
 	import { Stage, type StageElements } from '@in-browser/ink/render/stage.js';
 	import { attachSurface } from '@in-browser/ink/ui/surface.js';
@@ -27,7 +28,7 @@
 	import { shownBox } from '#lib/model/fields.js';
 	import { formView } from '#lib/model/forms.svelte.js';
 	import type { PdfDocument } from '#lib/model/document.svelte.js';
-	import { caretColor, isCaretTool, isMarkTool, isTextTool, markColors, measureTool, noteColor, noteIcon, stampChoice, textStyle, tools } from '#lib/model/tools.svelte.js';
+	import { caretColor, isCaretTool, isMarkTool, isTextTool, markColors, measureTool, noteColor, noteIcon, newTextFormat, stampChoice, textStyle, tools } from '#lib/model/tools.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { stampTool, stampWords } from '#lib/model/stamps.svelte.js';
 	import { isLink } from '#lib/render/link.js';
@@ -607,7 +608,7 @@
 				const min = minTextSize({ size, ...style });
 				const x = Math.max(0, Math.min(page.w - min.w, at[0]));
 				const y = Math.max(0, Math.min(page.h - min.h, at[1] - min.h / 2));
-				const blank: TextItem = { id: crypto.randomUUID(), type: 'text', x, y, w: 0, h: 0, rot: 0, size, color, text: '', lines: [], ...style, ...(align !== 'left' && { align }), sizing: 'auto-width', callout: [hit.x, hit.y] };
+				const blank: TextItem = { id: crypto.randomUUID(), type: 'text', x, y, w: 0, h: 0, rot: 0, size, color, text: '', lines: [], ...style, ...newTextFormat(), ...(align !== 'left' && { align }), sizing: 'auto-width', callout: [hit.x, hit.y] };
 				const id = pdf.items.addItem(hit.index, withText(blank, '', roomOf(blank, page)));
 				if (!id) return;
 				selection.select(hit.index, new Set([id]));
@@ -641,7 +642,7 @@
 				const x = dragged ? Math.min(hit.x, end[0]) : hit.x;
 				const y = dragged ? Math.min(hit.y, end[1]) : hit.y - size * 0.6;
 				const box = dragged ? { w: Math.max(min.w, Math.abs(end[0] - hit.x)), h: Math.max(min.h, Math.abs(end[1] - hit.y)) } : { w: 0, h: 0 };
-				const blank: TextItem = { id: crypto.randomUUID(), type: 'text', x, y, ...box, rot: 0, size, color, text: '', lines: [], ...style, ...(align !== 'left' && { align }), sizing: dragged ? 'fixed' : 'auto-width' };
+				const blank: TextItem = { id: crypto.randomUUID(), type: 'text', x, y, ...box, rot: 0, size, color, text: '', lines: [], ...style, ...newTextFormat(), ...(align !== 'left' && { align }), sizing: dragged ? 'fixed' : 'auto-width' };
 				const item = withText(blank, '', roomOf(blank, page));
 				const id = pdf.items.addItem(hit.index, item);
 				if (!id) return;
@@ -863,7 +864,7 @@
 			el.root.addEventListener('pointerdown', press);
 			el.root.addEventListener('click', click);
 			// Text boxes drawn before their font was there: drawn again with it
-			void loadTextFont().then(() => {
+			void Promise.all([loadTextFont(), loadFonts()]).then(() => {
 				for (const page of pdf.pages) if (pdf.scene(page.id)?.items.some(isText)) s.contentChanged(page.id);
 			});
 			const detach = input.attach();

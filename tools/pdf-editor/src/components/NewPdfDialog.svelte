@@ -6,33 +6,19 @@
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { showError } from '@in-browser/files/errors.js';
 	import { write } from '@in-browser/files/fs.js';
-	import NumberField from '@in-browser/graphics/NumberField.svelte';
-	import { PAGE_FORMAT_IDS, PAGE_FORMATS, PAGE_SIDE, PAPERS, paperPdf, type PageFormat, type Paper } from '@in-browser/pdf/write/paper-page.js';
+	import { PAPERS, paperPdf, type Paper } from '@in-browser/pdf/write/paper-page.js';
 	import { m } from '#lib/i18n/index.js';
+	import PageFormatFields, { pageFormatChoice, pageSizeOf } from './PageFormatFields.svelte';
 
 	let { folder, oncreated, onclose }: { folder: string; oncreated: (path: string) => void; onclose: () => void } = $props();
 
 	const STORE = 'pdf-editor:new';
 	const stored = loadJson<{ format?: unknown; landscape?: unknown; paper?: unknown; width?: unknown; height?: unknown }>(STORE, {});
-	const MM = 72 / 25.4;
-	const side = (v: unknown, fallback: number) => (typeof v === 'number' && v >= PAGE_SIDE.min / MM && v <= PAGE_SIDE.max / MM ? v : fallback);
 
-	let format = $state<PageFormat | 'custom'>(stored.format === 'custom' || PAGE_FORMAT_IDS.includes(stored.format as PageFormat) ? (stored.format as PageFormat | 'custom') : 'a4');
-	let landscape = $state(stored.landscape === true);
+	let choice = $state(pageFormatChoice(stored));
 	let paper = $state<Paper>(PAPERS.includes(stored.paper as Paper) ? (stored.paper as Paper) : 'blank');
-	/** A size of one's own, in millimeters */
-	let width = $state(side(stored.width, 210));
-	let height = $state(side(stored.height, 297));
 	let busy = $state(false);
-
-	/** Only paper sizes are turned; media sizes have their shape, a typed size says it itself */
-	const turnable = $derived(format !== 'custom' && PAGE_FORMATS[format].kind === 'paper');
-	const size = $derived.by(() => {
-		if (format === 'custom') return { w: width * MM, h: height * MM };
-		const { w, h } = PAGE_FORMATS[format];
-		return turnable && landscape ? { w: h, h: w } : { w, h };
-	});
-	const mm = (pt: number) => Math.round(pt / MM);
+	const size = $derived(pageSizeOf(choice));
 
 	/** A small drawing of a paper */
 	const PREVIEW: Record<Paper, string> = {
@@ -48,7 +34,7 @@
 		if (!path) return;
 		busy = true;
 		try {
-			storeJson(STORE, { format, landscape, paper, width, height });
+			storeJson(STORE, { ...choice, paper });
 			await write(path, new Blob([(await paperPdf({ width: size.w, height: size.h, paper })) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' }));
 			oncreated(path);
 		} catch (error) {
@@ -65,31 +51,7 @@
 			<span class="icon-[material-symbols-light--note-add-outline] size-6" aria-hidden="true"></span>
 			{m.newPdf.title}
 		</h3>
-		<label class="flex flex-col gap-1">
-			<span class="text-sm opacity-70">{m.newPdf.format}</span>
-			<select class="select select-sm w-full" bind:value={format}>
-				<optgroup label={m.newPdf.paperFormats}>
-					{#each PAGE_FORMAT_IDS.filter((id) => PAGE_FORMATS[id].kind === 'paper') as id (id)}<option value={id}>{m.newPdf.formats[id]}</option>{/each}
-				</optgroup>
-				<optgroup label={m.newPdf.mediaFormats}>
-					{#each PAGE_FORMAT_IDS.filter((id) => PAGE_FORMATS[id].kind === 'media') as id (id)}<option value={id}>{m.newPdf.formats[id]}</option>{/each}
-				</optgroup>
-				<option value="custom">{m.newPdf.custom}</option>
-			</select>
-		</label>
-		<!-- Always there (disabled where they don't apply), so nothing jumps -->
-		<fieldset class="flex flex-wrap items-center gap-x-4 gap-y-2" disabled={!turnable}>
-			<legend class="mb-1 text-sm opacity-70">{m.newPdf.orientation}</legend>
-			<label class="flex items-center gap-2"><input type="radio" class="radio radio-sm" bind:group={landscape} value={false} /><span class={[!turnable && 'opacity-50']}>{m.newPdf.portrait}</span></label>
-			<label class="flex items-center gap-2"><input type="radio" class="radio radio-sm" bind:group={landscape} value={true} /><span class={[!turnable && 'opacity-50']}>{m.newPdf.landscape}</span></label>
-		</fieldset>
-		<fieldset class="flex flex-col gap-2" disabled={format !== 'custom'}>
-			<legend class="mb-1 text-sm opacity-70">{m.newPdf.size(mm(size.w), mm(size.h))}</legend>
-			<div class={['flex flex-col gap-1', format !== 'custom' && 'opacity-50']}>
-				<NumberField label={m.newPdf.width} unit="mm" value={width} min={mm(PAGE_SIDE.min)} max={mm(PAGE_SIDE.max)} oninput={(v) => (width = v)} />
-				<NumberField label={m.newPdf.height} unit="mm" value={height} min={mm(PAGE_SIDE.min)} max={mm(PAGE_SIDE.max)} oninput={(v) => (height = v)} />
-			</div>
-		</fieldset>
+		<PageFormatFields bind:choice />
 		<fieldset>
 			<legend class="mb-1 text-sm opacity-70">{m.newPdf.paper}</legend>
 			<div class="grid grid-cols-4 gap-2">

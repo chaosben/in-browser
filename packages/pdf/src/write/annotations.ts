@@ -59,6 +59,9 @@ export interface NewAnnotation {
 	defaultAppearance?: string;
 	/** FreeText: how its lines are aligned (`/Q`: 1 centered, 2 right; missing: left) */
 	quadding?: 1 | 2;
+	/** FreeText: the text with its formats for programs that edit it (`/RC`, XHTML) and its default style (`/DS`) */
+	richContents?: string;
+	defaultStyle?: string;
 	/** A reply (`/IRT`): the annotation it answers – a ref of the file (`12 0 R`) or the `name` of one written in the
 	 * same update before it */
 	replyTo?: string;
@@ -243,6 +246,9 @@ export interface ExistingAnnotation {
 	 * background apart from text and border; on top of them comes `/CA` (`opacity`) */
 	paint?: PaintOpacity;
 	defaultAppearance?: string;
+	/** FreeText: its text with formats (`/RC`, XHTML) and the style that holds where it says nothing (`/DS`) */
+	richContents?: string;
+	defaultStyle?: string;
 	/** `/InBrowser`, when the file has it */
 	data?: string;
 	/** Never shown (`/F` hidden or not viewed): only read when it carries `/InBrowser` */
@@ -253,7 +259,7 @@ export interface ExistingAnnotation {
  * when an annotation is written anew (whatever else it has – popup, replies, creation date … – stays) */
 export const REPLACED_KEYS = [
 	'Type', 'Subtype', 'Rect', 'P', 'NM', 'M', 'F', 'AP', 'AS', 'C', 'IC', 'CA', 'ca', 'BS', 'Border', 'BE', 'RD', 'InkList', 'L', 'LE',
-	'Vertices', 'QuadPoints', 'Name', 'Open', 'DA', 'Q', 'IT', 'CL', 'FS', 'A', 'Dest', 'H', 'Measure', 'InBrowser'
+	'Vertices', 'QuadPoints', 'Name', 'Open', 'DA', 'Q', 'RC', 'DS', 'IT', 'CL', 'FS', 'A', 'Dest', 'H', 'Measure', 'InBrowser'
 ];
 
 /** A literal string of JSON text (other characters than printable ASCII as JSON's `\u` escapes) */
@@ -297,6 +303,8 @@ export function annotationObjects(a: NewAnnotation, appearance: number, pageRef:
 	if (a.open !== undefined) entries.push(`/Open ${a.open}`);
 	if (a.defaultAppearance) entries.push(`/DA (${a.defaultAppearance.replace(/[()\\]/g, '\\$&')})`);
 	if (a.quadding) entries.push(`/Q ${a.quadding}`);
+	if (a.richContents) entries.push(`/RC ${textString(a.richContents)}`);
+	if (a.defaultStyle) entries.push(`/DS ${textString(a.defaultStyle)}`);
 	if (a.intent && NAME.test(a.intent)) entries.push(`/IT /${a.intent}`);
 	if (a.callout?.length === 4 || a.callout?.length === 6) entries.push(`/CL ${arr(a.callout)} /LE /OpenArrow`);
 	// A link draws nothing: no border, the click shown by inverting

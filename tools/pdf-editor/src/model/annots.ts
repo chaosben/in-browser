@@ -12,7 +12,9 @@ import { endOf } from '@in-browser/ink/shapes.js';
 import { inWinAnsi, num, winAnsi, type NewAnnotation, type Rgb } from '@in-browser/pdf/write/annotations.js';
 import { UNICODE_FONT, unicodeText } from '@in-browser/pdf/write/unicode.js';
 import { isMarkup, markLine, squiggle, type Annotatable, type MarkupItem } from '#lib/render/markup.js';
-import { ASCENT, borderOf, calloutColor, calloutHead, calloutLine, calloutWidth, isText, itemBounds, LINE_HEIGHT, lineRuns, padOf, textExtent, type TextItem } from '#lib/render/textbox.js';
+import { alignOf, ASCENT, baseStyle, borderOf, calloutColor, calloutHead, calloutLine, calloutWidth, isFormatted, isText, itemBounds, LINE_HEIGHT, lineRuns, padOf, richLines, richTextOf, textExtent, UNDERLINE, type TextItem } from '#lib/render/textbox.js';
+import type { FullStyle } from '@in-browser/graphics/rich-text.js';
+import { defaultStyleOf, richContentsOf } from './rich-pdf.js';
 import { CARET_LINE, caretPoints, isCaret, type CaretItem } from '#lib/render/caret.js';
 import { isLink, safeUrl, type LinkItem } from '#lib/render/link.js';
 import { isMeasured, labelBox, measureLabel, unitsPerPoint, type Measured } from '#lib/render/measure.js';
@@ -384,6 +386,17 @@ function noteAnnotation(item: NoteItem, toUser: ToUser, author: string | undefin
 	};
 }
 
+/** The standard fonts of a PDF the three families are written in – regular, bold, italic, bold italic (the fonts
+ * on screen have their metrics, `@in-browser/graphics/fonts.js`) */
+const STANDARD_FONTS = {
+	sans: ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique'],
+	serif: ['Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'],
+	mono: ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique']
+} as const;
+const faceIndex = (style: Pick<FullStyle, 'bold' | 'italic'>) => (style.bold ? 1 : 0) + (style.italic ? 2 : 0);
+/** The name a style's font has in an appearance's resources (`Helv` as ever for the plain sans-serif one) */
+const fontName = (style: Pick<FullStyle, 'font' | 'bold' | 'italic'>) => (style.font === 'sans' && !faceIndex(style) ? 'Helv' : `F${style.font}${faceIndex(style)}`);
+
 /** A text box: `/FreeText` with the text (`/Contents`), font and color (`/DA`) and no border; the appearance writes
  * the stored lines in Helvetica (characters it lacks become `?` there – `/Contents` keeps them) */
 function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefined, modified: Date): NewAnnotation {
@@ -436,7 +449,38 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 	const text: string[] = [];
 	// Lines with characters beyond WinAnsi in the embedded Liberation Sans (Helvetica's metrics), the rest in Helvetica
 	let unicode = false;
-	item.lines.forEach((line, i) => {
+	const fonts: Record<string, string> = { Helv: 'Helvetica' };
+	const formatted = isFormatted(item);
+	if (formatted) {
+		// Each run of the laid-out lines in its own font, size and color, where it is on screen; an underline as a
+		// bar. Colors with an opacity are drawn in a state of their own
+		const byAlpha = new Map<number, string[]>();
+		const at = (start: number, off: number) => toUser(cx + along[0] * start + down[0] * off, cy + along[1] * start + down[1] * off);
+		for (const line of richLines(item)) {
+			for (const run of line.runs) {
+				if (!run.text) continue;
+				const start = pad + run.x;
+				const off = pad + line.y + line.baseline;
+				const [ex, ey] = at(start, off);
+				const plain = [...run.text].every(inWinAnsi);
+				unicode ||= !plain;
+				const name = fontName(run.style);
+				fonts[name] = STANDARD_FONTS[run.style.font][faceIndex(run.style)];
+				const show = plain ? `/${name} ${num(run.style.size)} Tf ${winAnsi(run.text)}` : `/Uni ${num(run.style.size)} Tf ${unicodeText(run.text)}`;
+				const ink = rgbOps(rgbOf(run.style.color), false);
+				const drawn = [`BT ${ink} ${[a, b, c, d, ex, ey].map(num).join(' ')} Tm ${show} Tj ET`];
+				if (run.style.underline && !run.marker) {
+					const top = off + run.style.size * UNDERLINE.offset;
+					const corners = [at(start, top), at(start + run.width, top), at(start + run.width, top + run.style.size * UNDERLINE.width), at(start, top + run.style.size * UNDERLINE.width)];
+					drawn.push(`${ink} ${corners.map((p, i) => `${num(p[0])} ${num(p[1])} ${i ? 'l' : 'm'}`).join(' ')} h f`);
+				}
+				const alpha = alphaOf(run.style.color);
+				byAlpha.set(alpha, [...(byAlpha.get(alpha) ?? []), ...drawn]);
+			}
+		}
+		for (const [alpha, drawn] of byAlpha) ops.push(withAlpha(states, alpha, drawn.join('\n')));
+	}
+	(formatted ? [] : item.lines).forEach((line, i) => {
 		if (!line) return;
 		const off = pad + item.size * (ASCENT + i * LINE_HEIGHT);
 		const plain = [...line].every(inWinAnsi);
@@ -466,6 +510,8 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 		// `/Q` knows no justified text: other programs editing it see it left-aligned (the appearance stays justified)
 		...((item.align === 'center' || item.align === 'right') && { quadding: item.align === 'center' ? 1 : 2 }),
 		defaultAppearance: `${border ? `${rgbOps(border, true)} ` : ''}/Helv ${num(item.size)} Tf ${rgbOps(color, false)}`,
-		appearance: { content: ops.join('\n'), fonts: unicode ? { Helv: 'Helvetica', Uni: UNICODE_FONT } : { Helv: 'Helvetica' }, states }
+		// The formats as other programs read them when they edit the box (the appearance is what they show)
+		...(formatted && { richContents: richContentsOf(richTextOf(item), baseStyle(item)), defaultStyle: defaultStyleOf(baseStyle(item), alignOf(item)) }),
+		appearance: { content: ops.join('\n'), fonts: unicode ? { ...fonts, Uni: UNICODE_FONT } : fonts, states }
 	};
 }

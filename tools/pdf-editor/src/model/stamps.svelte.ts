@@ -1,6 +1,7 @@
 // "My stamps": pictures kept as files in a hidden folder of the shared file system (`/.apps/pdf-editor/stamps/`), so
 // they travel to the user's other devices with the sync. The stamp tool places them like the standard's words.
 
+import { barcodeSvg, type BarcodeSpec } from '@in-browser/graphics/barcode.js';
 import { deleteToTrash } from '@in-browser/files/trash-browser.js';
 import { copy, list, mkdir, read, readText, write } from '@in-browser/files/fs.js';
 import { FormatError } from '@in-browser/files/formats.js';
@@ -135,6 +136,14 @@ function registered(picture: PdfPicture, path: string, source: string): StampPic
 	const key = crypto.randomUUID();
 	registerStampImage(key, picture);
 	return { key, width: picture.width, height: picture.height, vector: isForm(picture), path, source };
+}
+
+/** A barcode as a picture to place: vectors (its SVG is plain paths, the text below it too) */
+export async function barcodePicture(spec: BarcodeSpec): Promise<StampPicture> {
+	const drawn = await barcodeSvg(spec);
+	if ('problem' in drawn) throw new Error(`No barcode: ${drawn.problem}`);
+	const form = await svgForm(drawn.svg);
+	return registered(form ?? (await encodeImage(new Blob([drawn.svg], { type: 'image/svg+xml' }))), '', '');
 }
 
 /** Reads a stamp's file (`page` of a PDF) and makes it ready to be placed */

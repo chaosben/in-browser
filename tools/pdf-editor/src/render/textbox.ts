@@ -5,11 +5,19 @@
 // box, the text inside it) are optional. Sizing and handles as everywhere in the suite (`@in-browser/graphics/text-box.js`):
 // auto width, auto height or a fixed size; text that doesn't fit a fixed size runs out below the box. Lines are
 // aligned left, centered, right or justified in the box (`align`; justified: the last line of a paragraph stays left).
+//
+// A box may be formatted (`isFormatted`): parts of its text in other styles (`rich`, `@in-browser/graphics/rich-text.js`),
+// a style of its own beyond size and color (`font`, `bold`, `italic`, `underline`) or another line height. Its lines
+// are then laid out from the formatted text whenever they are needed (`richLines`, kept per item) – with the same
+// breaking, so a box without formats is exactly what it always was.
 
+import { fontCss, fontsEpoch, measureStyled, setSansFonts } from '@in-browser/graphics/fonts.js';
+import { DEFAULT_LINE_HEIGHT, isPlain, layoutRich, linesHeight, plainOf, richOf, scaleRich, tidy, type FontFamily, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
 import { handlePoint, resizeTextBox, TEXT_HANDLES, textBoxSize, wrapText, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Box } from '@in-browser/ink/geometry.js';
 import type { Ctx } from '@in-browser/ink/render/kit.js';
 import { standardFontUrl } from '@in-browser/pdf/pdfjs.js';
+import { inWinAnsi } from '@in-browser/pdf/write/annotations.js';
 
 export interface TextItem {
 	id: string;
@@ -39,6 +47,61 @@ export interface TextItem {
 	align?: 'center' | 'right' | 'justify';
 	/** A callout: the point on the page (as shown) its line points at with an arrow */
 	callout?: [number, number];
+	/** The text with formats of its parts (`text` is it without them); missing: plain */
+	rich?: RichText;
+	/** The box's own style beyond size and color; missing: sans-serif, regular */
+	font?: FontFamily;
+	bold?: boolean;
+	italic?: boolean;
+	underline?: boolean;
+	/** Line height × font size; missing: 1.2 */
+	lineHeight?: number;
+}
+
+/** Laid out as formatted text: parts in other styles, a style of its own or another line height */
+export const isFormatted = (t: TextItem) => !!(t.rich || t.font || t.bold || t.italic || t.underline || (t.lineHeight && t.lineHeight !== DEFAULT_LINE_HEIGHT));
+
+/** The style the box's text has where a part of it doesn't say otherwise */
+export const baseStyle = (t: Pick<TextItem, 'font' | 'bold' | 'italic' | 'underline' | 'size' | 'color'>): FullStyle => ({
+	font: t.font ?? 'sans',
+	bold: !!t.bold,
+	italic: !!t.italic,
+	underline: !!t.underline,
+	size: t.size,
+	color: t.color
+});
+
+/** The formatted text of a box (a plain one's as it would be) */
+export const richTextOf = (t: Pick<TextItem, 'rich' | 'text'>): RichText => t.rich ?? richOf(t.text);
+
+setSansFonts({
+	regular: standardFontUrl('LiberationSans-Regular.ttf'),
+	bold: standardFontUrl('LiberationSans-Bold.ttf'),
+	italic: standardFontUrl('LiberationSans-Italic.ttf'),
+	boldItalic: standardFontUrl('LiberationSans-BoldItalic.ttf')
+});
+
+/**
+ * The style a character is written in: the standard fonts of a PDF hold Western European characters only – others
+ * are written in the embedded sans-serif font, regular (bold and italic of it aren't embedded yet)
+ */
+export const shownStyle = (char: string, style: FullStyle): FullStyle => (inWinAnsi(char) ? style : style.font === 'sans' && !style.bold && !style.italic ? style : { ...style, font: 'sans', bold: false, italic: false });
+
+const laidOut = new WeakMap<TextItem, { epoch: number; lines: RichLine[] }>();
+
+/** The lines of a formatted box for its width (page points, from the text's own top left corner after the padding) */
+export function richLines(t: TextItem): RichLine[] {
+	const known = laidOut.get(t);
+	if (known && known.epoch === fontsEpoch.value) return known.lines;
+	const lines = layoutRich(richTextOf(t), baseStyle(t), measureStyled, {
+		// A hair more than the box holds: its width was rounded up from these very lines
+		maxWidth: textExtent(t).w - 2 * padOf(t) + 0.01,
+		lineHeight: t.lineHeight,
+		align: alignOf(t),
+		fallback: shownStyle
+	});
+	laidOut.set(t, { epoch: fontsEpoch.value, lines });
+	return lines;
 }
 
 /** How the lines of a text box are aligned */
@@ -56,6 +119,9 @@ export const isText = (item: { readonly id: string }): item is TextItem => (item
 export const TEXT_PAD = 2;
 export const LINE_HEIGHT = 1.2;
 export const ASCENT = 0.947;
+
+/** Where an underline lies below the baseline and how thick it is (× font size) */
+export const UNDERLINE = { offset: 0.1, width: 0.06 };
 
 /** Border widths to choose from (points) */
 export const BORDER_WIDTHS = [0.5, 1, 2, 3, 4];
@@ -134,6 +200,8 @@ export function roomOf(t: TextItem, page: { w: number; h: number }): number {
  * lines). The box keeps the corner its text starts at.
  */
 export function withText(t: TextItem, text: string, room = Infinity): TextItem {
+	// A formatted box keeps its formats while its text is the same (resized, restyled); other text comes plain
+	if (isFormatted(t)) return withRich(t, t.rich && plainOf(t.rich) === text ? t.rich : richOf(text), room);
 	const pad = padOf(t);
 	const sizing = sizingOf(t);
 	const extent = textExtent(t);
@@ -152,8 +220,37 @@ export function withText(t: TextItem, text: string, room = Infinity): TextItem {
 	return { ...t, text, lines, x, y, ...box };
 }
 
+/**
+ * The item with formatted text written into it, like `withText`: lines and box follow its sizing. Text without any
+ * format in a box without a style of its own is kept plain.
+ */
+export function withRich(t: TextItem, rich: RichText, room = Infinity): TextItem {
+	const tidied = tidy(rich);
+	const { rich: _, ...bare } = t;
+	const next: TextItem = isPlain(tidied) ? bare : { ...bare, rich: tidied };
+	const text = plainOf(tidied);
+	if (!isFormatted(next)) return withText(next, text, room);
+	const pad = padOf(next);
+	const sizing = sizingOf(next);
+	const extent = textExtent(next);
+	const min = minTextSize(next);
+	const width = sizing === 'auto-width' ? room : extent.w;
+	const lines = layoutRich(tidied, baseStyle(next), measureStyled, {
+		maxWidth: Number.isFinite(width) ? Math.max(next.size, width - 2 * pad) : undefined,
+		lineHeight: next.lineHeight,
+		fallback: shownStyle
+	});
+	const widest = Math.max(...lines.map((l) => l.width), 0) + 2 * pad;
+	const content = { w: Math.max(min.w, Math.min(Math.ceil(widest * 100) / 100, room)), h: Math.max(min.h, 2 * pad + linesHeight(lines)) };
+	const { w: along, h: across } = textBoxSize(sizing, extent, content);
+	const box = next.rot % 180 ? { w: across, h: along } : { w: along, h: across };
+	const x = next.rot === 90 || next.rot === 180 ? next.x + next.w - box.w : next.x;
+	const y = next.rot === 180 || next.rot === 270 ? next.y + next.h - box.h : next.y;
+	return { ...next, text, lines: lines.map((l) => l.text), x, y, ...box };
+}
+
 /** How far the text runs out of a box of fixed size (points, across its lines) */
-export const overflowOf = (t: TextItem) => Math.max(0, textHeight(t.lines.length, t.size, padOf(t)) - textExtent(t).h);
+export const overflowOf = (t: TextItem) => Math.max(0, (isFormatted(t) ? 2 * padOf(t) + linesHeight(richLines(t)) : textHeight(t.lines.length, t.size, padOf(t))) - textExtent(t).h);
 
 /** The compass directions clockwise, to turn handles with the text */
 const COMPASS: TextHandle[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
@@ -230,7 +327,7 @@ export function moveTextHandle(t: TextItem, index: number, x: number, y: number,
 	const scaled =
 		r.scale === 1
 			? {}
-			: { size: round(t.size * r.scale), ...(t.borderWidth ? { borderWidth: round(t.borderWidth * r.scale) } : {}) };
+			: { size: round(t.size * r.scale), ...(t.borderWidth ? { borderWidth: round(t.borderWidth * r.scale) } : {}), ...(t.rich ? { rich: scaleRich(t.rich, r.scale) } : {}) };
 	return withText({ ...t, ...scaled, sizing: r.sizing, x: mx - box.w / 2, y: my - box.h / 2, ...box }, t.text, room);
 }
 
@@ -372,9 +469,23 @@ export function drawText(ctx: Ctx, t: TextItem) {
 		ctx.setLineDash([]);
 		ctx.strokeRect(-w / 2 + bw / 2, -h / 2 + bw / 2, w - bw, h - bw);
 	}
+	ctx.textBaseline = 'alphabetic';
+	if (isFormatted(t)) {
+		for (const line of richLines(t)) {
+			for (const run of line.runs) {
+				const x = -w / 2 + pad + run.x;
+				const y = -h / 2 + pad + line.y + line.baseline;
+				ctx.font = fontCss(run.style, run.style.size);
+				ctx.fillStyle = run.style.color;
+				ctx.fillText(run.text, x, y);
+				if (run.style.underline && !run.marker) ctx.fillRect(x, y + run.style.size * UNDERLINE.offset, run.width, run.style.size * UNDERLINE.width);
+			}
+		}
+		ctx.restore();
+		return;
+	}
 	ctx.font = fontOf(t.size);
 	ctx.fillStyle = t.color;
-	ctx.textBaseline = 'alphabetic';
 	for (let i = 0; i < t.lines.length; i++)
 		for (const run of lineRuns(t, i)) ctx.fillText(run.text, -w / 2 + pad + run.at, -h / 2 + pad + t.size * (ASCENT + i * LINE_HEIGHT));
 	ctx.restore();

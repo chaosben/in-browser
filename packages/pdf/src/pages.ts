@@ -58,6 +58,8 @@ interface Request {
 	gen: number;
 	seq: number;
 	tries: number;
+	/** The color under the page's content instead of white */
+	background?: string;
 }
 
 export interface PdfPagesOptions {
@@ -124,21 +126,22 @@ export class PdfPages {
 	}
 
 	/** The piece of a PDF page for tile (tx, ty) at `scale`: sharp, a preview meanwhile, or null (both requested) */
-	tile(doc: string, page: number, scale: number, tx: number, ty: number): Piece | null {
+	tile(doc: string, page: number, scale: number, tx: number, ty: number, background?: string): Piece | null {
 		const TILE = this.size;
 		const bx = Math.floor(tx / BLOCK);
 		const by = Math.floor(ty / BLOCK);
-		const key = `${doc}|${page}|${scale}|${bx}|${by}`;
+		const on = background ? `|${background}` : '';
+		const key = `${doc}|${page}|${scale}|${bx}|${by}${on}`;
 		const block = this.get(key);
 		if (block) {
 			if (!block.image) return blank();
-			if (block.stale && !this.queue.has(key) && !this.rendering.has(key)) this.ask(key, doc, page, scale, bx, by);
+			if (block.stale && !this.queue.has(key) && !this.rendering.has(key)) this.ask(key, doc, page, scale, bx, by, background);
 			return { image: block.image, sx: (tx - bx * BLOCK) * TILE, sy: (ty - by * BLOCK) * TILE, sw: TILE, sh: TILE, exact: !block.stale };
 		}
-		const previewKey = `${doc}|${page}|preview`;
+		const previewKey = `${doc}|${page}|preview${on}`;
 		const preview = this.get(previewKey);
-		if (!preview || (preview.stale && !this.queue.has(previewKey) && !this.rendering.has(previewKey))) this.ask(previewKey, doc, page, 0, 0, 0);
-		this.ask(key, doc, page, scale, bx, by);
+		if (!preview || (preview.stale && !this.queue.has(previewKey) && !this.rendering.has(previewKey))) this.ask(previewKey, doc, page, 0, 0, 0, background);
+		this.ask(key, doc, page, scale, bx, by, background);
 		if (!preview?.image) return null;
 		// The tile's part of the page in preview pixels
 		const k = preview.scale / scale;
@@ -146,16 +149,16 @@ export class PdfPages {
 	}
 
 	/** The small picture of a whole page (thumbnails), null while it is rendered (`ready` follows) */
-	preview(doc: string, page: number): ImageBitmap | null {
-		const key = `${doc}|${page}|preview`;
+	preview(doc: string, page: number, background?: string): ImageBitmap | null {
+		const key = `${doc}|${page}|preview${background ? `|${background}` : ''}`;
 		const preview = this.get(key);
-		if (!preview || (preview.stale && !this.queue.has(key) && !this.rendering.has(key))) this.ask(key, doc, page, 0, 0, 0);
+		if (!preview || (preview.stale && !this.queue.has(key) && !this.rendering.has(key))) this.ask(key, doc, page, 0, 0, 0, background);
 		return preview?.image ?? null;
 	}
 
 	/** Is the small picture of a page there as the page looks now (not one kept from before `refresh`)? */
-	previewFresh(doc: string, page: number): boolean {
-		const preview = this.done.get(`${doc}|${page}|preview`);
+	previewFresh(doc: string, page: number, background?: string): boolean {
+		const preview = this.done.get(`${doc}|${page}|preview${background ? `|${background}` : ''}`);
 		return !!preview && !preview.stale;
 	}
 
@@ -248,7 +251,7 @@ export class PdfPages {
 		return r;
 	}
 
-	private ask(key: string, doc: string, page: number, scale: number, bx: number, by: number) {
+	private ask(key: string, doc: string, page: number, scale: number, bx: number, by: number, background?: string) {
 		const known = this.queue.get(key);
 		if (known) {
 			if (known.gen !== this.gen) {
@@ -256,7 +259,7 @@ export class PdfPages {
 				known.seq = ++this.seq;
 			}
 		} else {
-			this.queue.set(key, { key, doc, page, scale, bx, by, gen: this.gen, seq: ++this.seq, tries: 0 });
+			this.queue.set(key, { key, doc, page, scale, bx, by, background, gen: this.gen, seq: ++this.seq, tries: 0 });
 			if (this.queue.size > QUEUE) this.queue.delete(this.oldest()!.key);
 		}
 		this.pump();
@@ -310,7 +313,7 @@ export class PdfPages {
 		}
 	}
 
-	private async renderBlock({ doc, page: n, scale, bx, by }: Request): Promise<Rendered> {
+	private async renderBlock({ doc, page: n, scale, bx, by, background }: Request): Promise<Rendered> {
 		const TILE = this.size;
 		const t0 = performance.now();
 		const page = await this.page(doc, n);
@@ -325,7 +328,13 @@ export class PdfPages {
 		canvas.width = scale ? Math.max(1, Math.min(size, Math.ceil(viewport.width) - bx * size)) : Math.ceil(viewport.width);
 		canvas.height = scale ? Math.max(1, Math.min(size, Math.ceil(viewport.height) - by * size)) : Math.ceil(viewport.height);
 		const optionalContentConfigPromise = this.layers?.(doc);
-		await page.render({ canvas, viewport, transform: [1, 0, 0, 1, -bx * size, -by * size], optionalContentConfigPromise, annotationMode: ENABLE_STORAGE }).promise;
+		const transform = [1, 0, 0, 1, -bx * size, -by * size];
+		// Another color under the page than white: drawn through a context of our own (as in `render`)
+		const context = background ? canvas.getContext('2d') : null;
+		await (context
+			? page.render({ canvas: null, canvasContext: context, viewport, transform, background, optionalContentConfigPromise, annotationMode: ENABLE_STORAGE })
+			: page.render({ canvas, viewport, transform, optionalContentConfigPromise, annotationMode: ENABLE_STORAGE })
+		).promise;
 		const image = await createImageBitmap(canvas);
 		if (import.meta.hot) {
 			const what = scale ? `${canvas.width}×${canvas.height} px at ${scale}` : 'preview';

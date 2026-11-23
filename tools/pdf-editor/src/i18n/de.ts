@@ -104,6 +104,7 @@ const de: Messages = {
 			sizing: 'Größe',
 			paragraph: 'Absatz',
 			organize: 'Organisieren',
+			page: 'Seite',
 			insert: 'Einfügen',
 			newFile: 'Neue PDF',
 			fields: 'Felder',
@@ -160,6 +161,15 @@ const de: Messages = {
 		edit: 'Text bearbeiten',
 		size: 'Größe',
 		fontSize: 'Schriftgröße',
+		font: 'Schriftart',
+		fonts: { sans: 'Serifenlos', serif: 'Serifen', mono: 'Feste Breite' },
+		bold: 'Fett',
+		italic: 'Kursiv',
+		underline: 'Unterstrichen',
+		lineHeight: 'Zeilenabstand',
+		lineHeightValue: (n: number) => n.toLocaleString('de', { minimumFractionDigits: 1 }),
+		bulleted: 'Aufzählung',
+		numbered: 'Nummerierung',
 		textColor: 'Textfarbe',
 		sizeValue: (pt: number) => `${pt} pt`,
 		style: 'Hintergrund und Rahmen',
@@ -279,6 +289,39 @@ const de: Messages = {
 		highlightFieldsTip: 'Tönt die auszufüllenden Felder und rahmt die Pflichtfelder ein',
 		clearForm: 'Formular leeren',
 		clearFormTip: 'Leert alle ausfüllbaren Felder (ein Schritt zum Rückgängigmachen)'
+	},
+
+	barcode: {
+		command: 'Barcode …',
+		tip: 'Macht aus dem, was du eingibst, einen QR-Code oder Strichcode und setzt ihn als Bild auf die Seite',
+		title: 'Barcode',
+		insert: 'Einfügen',
+		edit: 'Barcode bearbeiten',
+		apply: 'Übernehmen'
+	},
+
+	pageSize: {
+		command: 'Seitengröße …',
+		tip: 'Gibt den gewählten Seiten (im Panel „Seiten“), sonst der aktuellen Seite, eine andere Größe: größer mit Rand, kleiner oder ein anderes Format',
+		title: 'Seitengröße',
+		content: 'Inhalt',
+		keep: 'Größe behalten',
+		fit: 'In die Seite einpassen',
+		place: 'Lage',
+		places: [
+			['Oben links', 'Oben', 'Oben rechts'],
+			['Links', 'Mitte', 'Rechts'],
+			['Unten links', 'Unten', 'Unten rechts']
+		],
+		pages: 'Seiten',
+		picked: (n: number) => (n === 1 ? 'Die aktuelle Seite' : `Die ${n} gewählten Seiten`),
+		all: (n: number) => `Alle ${n} Seiten`,
+		preview: 'Wo der Inhalt auf der neuen Seite liegt',
+		apply: 'Ändern',
+		done: 'Seitengröße geändert.',
+		undo: 'Rückgängig',
+		background: 'Hintergrund',
+		backgroundTip: 'Eine Farbe unter dem Inhalt der gewählten Seiten (im Panel „Seiten“), sonst der aktuellen Seite'
 	},
 
 	newPdf: {

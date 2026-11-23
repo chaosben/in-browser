@@ -105,6 +105,7 @@ const en = {
 			sizing: 'Size',
 			paragraph: 'Paragraph',
 			organize: 'Organize',
+			page: 'Page',
 			insert: 'Insert',
 			newFile: 'New PDF',
 			fields: 'Fields',
@@ -161,6 +162,15 @@ const en = {
 		edit: 'Edit text',
 		size: 'Size',
 		fontSize: 'Font size',
+		font: 'Font',
+		fonts: { sans: 'Sans-serif', serif: 'Serif', mono: 'Monospace' },
+		bold: 'Bold',
+		italic: 'Italic',
+		underline: 'Underline',
+		lineHeight: 'Line spacing',
+		lineHeightValue: (n: number) => n.toLocaleString('en', { minimumFractionDigits: 1 }),
+		bulleted: 'Bullets',
+		numbered: 'Numbering',
 		textColor: 'Text color',
 		sizeValue: (pt: number) => `${pt} pt`,
 		style: 'Background and border',
@@ -280,6 +290,39 @@ const en = {
 		highlightFieldsTip: 'Tints the fields to fill in and frames the required ones',
 		clearForm: 'Clear form',
 		clearFormTip: 'Empties every field that can be filled in (one step to undo)'
+	},
+
+	barcode: {
+		command: 'Barcode …',
+		tip: 'Makes a QR code or a barcode of what you type and places it on the page as a picture',
+		title: 'Barcode',
+		insert: 'Insert',
+		edit: 'Edit barcode',
+		apply: 'Apply'
+	},
+
+	pageSize: {
+		command: 'Page size …',
+		tip: 'Gives the picked pages (in the panel “Pages”), else the current page, another size: larger with a margin, smaller, or another format',
+		title: 'Page size',
+		content: 'Content',
+		keep: 'Keep its size',
+		fit: 'Fit to the page',
+		place: 'Position',
+		places: [
+			['Top left', 'Top', 'Top right'],
+			['Left', 'Middle', 'Right'],
+			['Bottom left', 'Bottom', 'Bottom right']
+		],
+		pages: 'Pages',
+		picked: (n: number) => (n === 1 ? 'The current page' : `The ${n} picked pages`),
+		all: (n: number) => `All ${n} pages`,
+		preview: 'Where the content lies on the new page',
+		apply: 'Change',
+		done: 'Page size changed.',
+		undo: 'Undo',
+		background: 'Background',
+		backgroundTip: 'A color under the content of the picked pages (in the panel “Pages”), else of the current page'
 	},
 
 	newPdf: {

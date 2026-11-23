@@ -7,6 +7,7 @@
 // sticky notes and "Text box" types onto the page (their colors – and the text's size, background and border –
 // remembered with the markers').
 
+import { DEFAULT_LINE_HEIGHT, FONT_FAMILIES, LINE_HEIGHTS, type FontFamily } from '@in-browser/graphics/rich-text.js';
 import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 import type { Tool } from '@in-browser/ink/input/controller.js';
 import type { MeasureKind, MeasureUnit } from '@in-browser/ink/items.js';
@@ -35,7 +36,7 @@ const stored = loadJson<{
 	colors?: Partial<Record<MarkKind, unknown>>;
 	note?: unknown;
 	noteIcon?: unknown;
-	text?: { color?: unknown; size?: unknown; fill?: unknown; border?: unknown; borderWidth?: unknown; align?: unknown };
+	text?: { color?: unknown; size?: unknown; fill?: unknown; border?: unknown; borderWidth?: unknown; align?: unknown; font?: unknown; bold?: unknown; italic?: unknown; underline?: unknown; lineHeight?: unknown };
 	stamp?: { word?: unknown; name?: unknown; custom?: unknown; page?: unknown; info?: unknown; withName?: unknown; withDate?: unknown; withTime?: unknown };
 	caret?: unknown;
 	icon?: unknown;
@@ -69,14 +70,34 @@ export function setNoteIcon(icon: NoteIcon) {
 
 /** Text color, font size, background and border of new text boxes */
 export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 32, 48];
-export const textStyle = $state<{ color: string; size: number; fill: string | null; border: string | null; borderWidth: number; align: TextAlign }>({
+export const textStyle = $state<{ color: string; size: number; fill: string | null; border: string | null; borderWidth: number; align: TextAlign; font: FontFamily; bold: boolean; italic: boolean; underline: boolean; lineHeight: number }>({
 	color: colorOr(stored.text?.color, '#000000'),
 	size: TEXT_SIZES.includes(stored.text?.size as number) ? (stored.text!.size as number) : 12,
 	fill: colorOr(stored.text?.fill, null),
 	border: colorOr(stored.text?.border, null),
 	borderWidth: BORDER_WIDTHS.includes(stored.text?.borderWidth as number) ? (stored.text!.borderWidth as number) : 1,
-	align: TEXT_ALIGNS.includes(stored.text?.align as TextAlign) ? (stored.text!.align as TextAlign) : 'left'
+	align: TEXT_ALIGNS.includes(stored.text?.align as TextAlign) ? (stored.text!.align as TextAlign) : 'left',
+	font: FONT_FAMILIES.includes(stored.text?.font as FontFamily) ? (stored.text!.font as FontFamily) : 'sans',
+	bold: stored.text?.bold === true,
+	italic: stored.text?.italic === true,
+	underline: stored.text?.underline === true,
+	lineHeight: LINE_HEIGHTS.includes(stored.text?.lineHeight as number) ? (stored.text!.lineHeight as number) : DEFAULT_LINE_HEIGHT
 });
+
+/** The style of its own a new text box gets beyond size and color (only what differs from a plain box) */
+export const newTextFormat = () => ({
+	...(textStyle.font !== 'sans' && { font: textStyle.font }),
+	...(textStyle.bold && { bold: true }),
+	...(textStyle.italic && { italic: true }),
+	...(textStyle.underline && { underline: true }),
+	...(textStyle.lineHeight !== DEFAULT_LINE_HEIGHT && { lineHeight: textStyle.lineHeight })
+});
+
+/** Font, bold, italic, underline and line height of new text boxes (remembered) */
+export function setTextFormat(format: Partial<Pick<typeof textStyle, 'font' | 'bold' | 'italic' | 'underline' | 'lineHeight'>>) {
+	Object.assign(textStyle, format);
+	storeMarkup();
+}
 
 /** The stamp placed next: a word of the list (`word`: its id, `stamp-words.ts`; a choice remembered before the
  * list existed is a standard name, which is that word's id) – or, with `custom`, a picture file (its path; `page`

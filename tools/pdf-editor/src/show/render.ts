@@ -33,14 +33,14 @@ export class SlideRenderer {
 	private background(page: PdfPage, scale: number): Promise<HTMLCanvasElement> {
 		// Sizes close to each other share a picture (a window resized a little doesn't render anew)
 		const rounded = Math.round(scale * 20) / 20;
-		const key = `${page.id}|${sourceOf(page)}|${page.number}|${page.rotate}|${page.rev}|${this.doc.contentRev(page)}|${rounded}`;
+		const key = `${page.id}|${sourceOf(page)}|${page.number}|${page.rotate}|${page.rev}|${this.doc.contentRev(page)}|${page.background ?? ''}|${rounded}`;
 		const found = this.cache.find((r) => r.key === key);
 		if (found) {
 			this.cache.splice(this.cache.indexOf(found), 1);
 			this.cache.push(found);
 			return found.canvas;
 		}
-		const canvas = page.number ? this.doc.renders.render(sourceOf(page), page.number, rounded) : Promise.resolve(blank(page, rounded));
+		const canvas = page.number ? this.doc.renders.render(sourceOf(page), page.number, rounded, page.background ? { background: page.background } : {}) : Promise.resolve(blank(page, rounded));
 		const entry = { key, canvas };
 		this.cache.push(entry);
 		// A failed render is tried again next time
@@ -97,13 +97,13 @@ export class SlideRenderer {
 	}
 }
 
-/** A blank page: white paper */
+/** A blank page: paper in its color */
 function blank(page: PdfPage, scale: number): HTMLCanvasElement {
 	const canvas = document.createElement('canvas');
 	canvas.width = Math.max(1, Math.ceil(page.w * scale));
 	canvas.height = Math.max(1, Math.ceil(page.h * scale));
 	const ctx = canvas.getContext('2d')!;
-	ctx.fillStyle = '#ffffff';
+	ctx.fillStyle = page.background ?? '#ffffff';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	return canvas;
 }

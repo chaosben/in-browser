@@ -16,7 +16,9 @@ import { encodeImage, imageBitmap } from '@in-browser/pdf/write/image.js';
 import { pieceForm } from '@in-browser/pdf/write/piece.js';
 import { svgForm } from '@in-browser/pdf/write/svg.js';
 import type { NoteItem } from '#lib/render/note.js';
-import { loadTextFont, withText, type TextItem } from '#lib/render/textbox.js';
+import { loadFonts, measureStyled } from '@in-browser/graphics/fonts.js';
+import type { RichText } from '@in-browser/graphics/rich-text.js';
+import { loadTextFont, withRich, withText, type TextItem } from '#lib/render/textbox.js';
 import { annotationOf, partsOf } from './annots.js';
 import { itemsOf, withData } from './imported.js';
 import { isNotesAnnotation, notesAnnotation } from './notes.js';
@@ -582,6 +584,61 @@ describe('annotations of drawn items', () => {
 		// Without our entry: from its standard entries
 		const [plain] = itemsOf({ ...found, data: undefined }, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x');
 		expect(plain).toMatchObject({ type: 'text', size: 20, color: '#000000', lines: box.lines, rot: 0 });
+	});
+
+	it('writes formatted text in the fonts of its parts, with the formats for other programs, and reads both back', async () => {
+		await Promise.all([loadTextFont(), loadFonts()]);
+		const base = await sample();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const toPage = toShown(pageTransform([0, 0, 300, 400], 0));
+		const empty: TextItem = { id: 'rt', type: 'text', x: 20, y: 100, w: 0, h: 0, rot: 0, size: 20, color: '#000000', text: '', lines: [], sizing: 'auto-width' };
+		const plain = withText(empty, 'Hello big world');
+		// One word bold and red: the box grows by what bold takes; a list item below in another font
+		const rich: RichText = [
+			{ spans: [{ text: 'Hello ' }, { text: 'big', bold: true, color: '#ff0000', underline: true }, { text: ' world' }] },
+			{ spans: [{ text: 'item', font: 'mono', italic: true }], list: 'number' }
+		];
+		const box = withRich(empty, rich);
+		expect(box.text).toBe('Hello big world\nitem');
+		expect(box.lines).toEqual(['Hello big world', 'item']);
+		expect(box.w).toBeGreaterThan(plain.w);
+		expect(box.h).toBeCloseTo(2 * 2 + 2 * 20 * 1.2);
+		// Formats taken back: the plain box again, nothing kept that isn't needed
+		expect(withRich(box, [{ spans: [{ text: 'Hello big world' }] }])).toEqual(plain);
+
+		const date = new Date();
+		const written = annotationOf(box, toUser, undefined, date);
+		// (the list item's mark stands upright in its paragraph's font)
+		expect(written.appearance.fonts).toEqual({ Helv: 'Helvetica', Fsans1: 'Helvetica-Bold', Fmono0: 'Courier', Fmono2: 'Courier-Oblique' });
+		expect(written.richContents).toContain('<span style="font-family:Helvetica;font-size:20pt;color:#ff0000;font-weight:bold;font-style:normal;text-decoration:underline">big</span>');
+		const out = await (await IncrementalPdf.open(base)).update({ annotations: new Map([[0, [withData(written, box, date, 0, 300, 400)]]]) });
+		// Red ink where the bold word stands (and its underline), none where the plain words are
+		const pdf = await openPdf(out.slice());
+		const viewport = (await pdf.getPage(1)).getViewport({ scale: 2 });
+		const canvas = document.createElement('canvas');
+		canvas.width = Math.ceil(viewport.width);
+		canvas.height = Math.ceil(viewport.height);
+		await (await pdf.getPage(1)).render({ canvas, viewport }).promise;
+		await pdf.loadingTask.destroy();
+		const shown = canvas.getContext('2d')!;
+		const red = (x0: number, x1: number) => {
+			const { data } = shown.getImageData(Math.round(x0 * 2), 104 * 2, Math.max(1, Math.round((x1 - x0) * 2)), 24 * 2);
+			let n = 0;
+			for (let k = 0; k < data.length; k += 4) if (data[k] === 255 && data[k + 1] === 0 && data[k + 2] === 0) n++;
+			return n;
+		};
+		const start = 20 + 2 + measureStyled('Hello ', { font: 'sans', bold: false, italic: false, underline: false, size: 20, color: '#000000' });
+		expect(red(start, start + 30)).toBeGreaterThan(20);
+		expect(red(22, start - 2)).toBe(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		expect(itemsOf(found, toPage, 0, (w) => w ?? 'x')).toEqual([box]);
+		// Another program's box (no entry of ours): its formats from `/RC`, a list item's mark as text
+		const [foreign] = itemsOf({ ...found, data: undefined }, toPage, 0, (w) => w ?? 'x') as TextItem[];
+		expect(foreign.rich?.[0].spans).toEqual([{ text: 'Hello ' }, { bold: true, underline: true, color: '#ff0000', text: 'big' }, { text: ' world' }]);
+		expect(foreign.rich?.[1].spans).toEqual([{ text: '1. ' }, { italic: true, font: 'mono', text: 'item' }]);
+		expect(foreign.sizing).toBe('fixed');
+		// Broken markup: the plain text
+		expect((itemsOf({ ...found, data: undefined, richContents: '<body><p>open' }, toPage, 0, (w) => w ?? 'x')[0] as TextItem).rich).toBeUndefined();
 	});
 
 	it('writes a callout as a text box with its line and arrow (/CL, /IT /FreeTextCallout), and reads it back – also another program\'s', async () => {

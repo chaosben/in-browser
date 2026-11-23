@@ -70,7 +70,22 @@ export interface PdfEdits {
 	 * the order they are drawn. Like `content` this writes the file anew. Only pages of the file.
 	 */
 	flatten?: ReadonlyMap<number, readonly Flattened[]>;
+	/**
+	 * Page index → the color under the page's content (red, green, blue, 0…1), or null for none any more. It is a
+	 * content stream of its own before the page's (`q … re f Q` over the page's box), named by the page's
+	 * `/InBrowserBackground` – so another color takes its place, and `background(index)` reads it again. Any page.
+	 */
+	background?: ReadonlyMap<number, Rgb | null>;
+	/**
+	 * Page index → another size: the page's box becomes `[0 0 width height]` (its other boxes go), its content is
+	 * drawn through `matrix` (a scale and a shift from the old user space into the new one; `q matrix cm` before and
+	 * `Q` after its streams) and the annotations of the file that aren't written anew or removed move along.
+	 */
+	resize?: ReadonlyMap<number, { width: number; height: number; matrix: Matrix }>;
 }
+
+/** Names the color of the stream this package put first into a page's content (`PdfEdits.background`) */
+const BACKGROUND = 'InBrowserBackground';
 
 /** A drawing put into a page's content: what an annotation would look like (only its appearance is used) */
 export interface Flattened {
@@ -252,11 +267,20 @@ export class IncrementalPdf {
 		return found;
 	}
 
-	/** A page's content streams, decoded and joined */
+	/** The color put under a page's content (`PdfEdits.background`), or null */
+	background(index: number): Rgb | null {
+		const { PDFArray, PDFName, PDFNumber } = this.lib;
+		const color = this.doc.getPage(index).node.lookupMaybe(PDFName.of(BACKGROUND), PDFArray);
+		const values = color?.asArray().map((v) => (v instanceof PDFNumber ? v.asNumber() : NaN)) ?? [];
+		return values.length === 3 && values.every((v) => v >= 0 && v <= 1) ? (values as unknown as Rgb) : null;
+	}
+
+	/** A page's content streams, decoded and joined – without the background this package put first */
 	private contentBytes(index: number): Uint8Array {
 		const { PDFArray, PDFName, PDFRawStream, decodePDFRawStream } = this.lib;
 		const contents = this.doc.getPage(index).node.lookup(PDFName.of('Contents'));
 		const streams = contents instanceof PDFArray ? contents.asArray().map((ref) => this.doc.context.lookup(ref)) : contents ? [contents] : [];
+		if (this.background(index) && contents instanceof PDFArray) streams.shift();
 		const parts = streams.map((stream) => {
 			if (!(stream instanceof PDFRawStream)) throw new Error('content is no stream');
 			return decodePDFRawStream(stream).decode();
@@ -528,6 +552,8 @@ export class IncrementalPdf {
 					...(subtype === 'Link' ? this.linkTarget(dict) : {}),
 					quadPoints: numbers(dict.get(key('QuadPoints'))),
 					defaultAppearance: text('DA'),
+					richContents: text('RC'),
+					defaultStyle: text('DS'),
 					quadding: dict.lookupMaybe(key('Q'), PDFNumber)?.asNumber(),
 					paint: this.paintOpacity(dict),
 					image: subtype === 'Stamp' ? this.stampImage(dict) : undefined,
@@ -800,7 +826,24 @@ export class IncrementalPdf {
 		const slots: readonly PageSlot[] = edits.pages ?? Array.from({ length: this.pageCount }, (_, i) => ({ base: i }));
 		/** The file's pages as they are (no tree to write) */
 		const same = slots.length === this.pageCount && slots.every((s, i) => 'base' in s && s.base === i);
-		const pages = new Set([...(edits.rotate?.keys() ?? []), ...(edits.annotations?.keys() ?? []), ...(edits.order?.keys() ?? []), ...contents.keys()]);
+		const pages = new Set([
+			...(edits.rotate?.keys() ?? []),
+			...(edits.annotations?.keys() ?? []),
+			...(edits.order?.keys() ?? []),
+			...contents.keys(),
+			...(edits.background?.keys() ?? []),
+			...(edits.resize?.keys() ?? [])
+		]);
+		/** A stream written as it is (short ones: a background, the frame around a resized page's content) */
+		const plain = (text: string) => {
+			const ref = PDFRef.of(next++);
+			out.push({ num: ref.objectNumber, gen: 0, body: ascii.encode(`<< /Length ${text.length} >>\nstream\n${text}\nendstream`) });
+			return ref;
+		};
+		const numbersOf = (o: PDFObject | undefined): number[] => {
+			const array = o instanceof PDFRef ? context.lookup(o) : o;
+			return array instanceof PDFArray ? array.asArray().map((v) => (v instanceof PDFNumber ? v.asNumber() : NaN)) : [];
+		};
 		if (!same) slots.forEach((_, i) => pages.add(i));
 		const slotRefs = slots.map((s, i) => ('base' in s ? this.doc.getPage(s.base).ref : (copiedPages.get(i)?.ref ?? PDFRef.of(next++))));
 		// Replies find what they answer by its ref, or by the name of one written in this update (replaced ones keep
@@ -855,7 +898,9 @@ export class IncrementalPdf {
 			// Moving to the root of a flat tree: what it inherited comes along
 			const moves = !same && !!page && page.node.get(PDFName.of('Parent'))?.toString() !== root?.toString();
 			const content = page ? contents.get(index) : undefined;
-			if (page && !turn && !added.length && !gone.size && !order && !moves && !content) continue;
+			const color = edits.background?.get(index);
+			const size = edits.resize?.get(index);
+			if (page && !turn && !added.length && !gone.size && !order && !moves && !content && color === undefined && !size) continue;
 			let dict: PDFDict;
 			const copy = copiedPages.get(index);
 			if (copy) {
@@ -913,6 +958,57 @@ export class IncrementalPdf {
 					if (entries || kept.entries().length) own.set(PDFName.of(kind), kept);
 				}
 				if (resources || content.drawn.length) dict.set(PDFName.of('Resources'), own);
+			}
+			const had = numbersOf(dict.get(PDFName.of(BACKGROUND)));
+			const colored = had.length === 3;
+			if (color !== undefined || size || (content && colored)) {
+				// The page's content streams: without the background that was there (a content written anew never
+				// held it), in the frame of the new size, the background of now first
+				const now = dict.get(PDFName.of('Contents'));
+				const resolved = now instanceof PDFRef && page ? context.lookup(now) : now;
+				let list: PDFObject[] = resolved instanceof PDFArray ? resolved.asArray().slice() : now ? [now] : [];
+				if (colored && !(content && page) && resolved instanceof PDFArray) list.shift();
+				if (size) {
+					if (list.length) list = [plain(`q ${size.matrix.map(pdfNumber).join(' ')} cm`), ...list, plain('Q')];
+					dict.set(PDFName.of('MediaBox'), context.obj([0, 0, size.width, size.height]));
+					for (const key of ['CropBox', 'BleedBox', 'TrimBox', 'ArtBox']) dict.delete(PDFName.of(key));
+				}
+				const fill = color !== undefined ? color : colored ? (had as unknown as Rgb) : null;
+				if (fill) {
+					const own = numbersOf(dict.get(PDFName.of('MediaBox')) ?? page?.node.getInheritableAttribute(PDFName.of('MediaBox')));
+					const [x0, y0, x1, y1] = own.length === 4 && own.every(Number.isFinite) ? own : [0, 0, 612, 792];
+					const box = [Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0)];
+					list.unshift(plain(`q ${fill.map(pdfNumber).join(' ')} rg ${box.map(pdfNumber).join(' ')} re f Q`));
+					dict.set(PDFName.of(BACKGROUND), context.obj([...fill]));
+				} else dict.delete(PDFName.of(BACKGROUND));
+				if (list.length) {
+					const array = PDFArray.withContext(context);
+					for (const entry of list) array.push(entry);
+					dict.set(PDFName.of('Contents'), array);
+				} else dict.delete(PDFName.of('Contents'));
+			}
+			if (size && before) {
+				// The file's annotations that stay as they are lie in the old space: moved along
+				const [k, , , , dx, dy] = size.matrix;
+				const moved = (o: PDFObject | undefined): PDFObject | undefined => {
+					if (!(o instanceof PDFArray)) return o;
+					const array = PDFArray.withContext(context);
+					o.asArray().forEach((v, i) => array.push(v instanceof PDFArray ? moved(v)! : v instanceof PDFNumber ? PDFNumber.of(v.asNumber() * k + (i % 2 ? dy : dx)) : v));
+					return array;
+				};
+				for (let i = 0; i < before.size(); i++) {
+					const ref = before.get(i);
+					if (!(ref instanceof PDFRef) || gone.has(ref.toString()) || replace.has(ref.toString())) continue;
+					const found = context.lookup(ref);
+					if (!(found instanceof PDFDict)) continue;
+					const annotation = found.clone(context);
+					for (const key of ['Rect', 'QuadPoints', 'Vertices', 'L', 'CL', 'InkList']) {
+						const name = PDFName.of(key);
+						const value = annotation.lookup(name);
+						if (value instanceof PDFArray) annotation.set(name, moved(value)!);
+					}
+					out.push({ num: ref.objectNumber, gen: ref.generationNumber, body: bytesOf(annotation) });
+				}
 			}
 			if (added.length || gone.size || order) {
 				const refs = added.map((annotation) => {

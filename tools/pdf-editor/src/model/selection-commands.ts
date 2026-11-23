@@ -10,14 +10,17 @@ import { inkSelectionCommands } from '@in-browser/ink/ui/selection-commands.js';
 import { m } from '#lib/i18n/index.js';
 import type { EditorState } from '#lib/model/editor.svelte.js';
 import type { PdfPage } from '#lib/model/document.svelte.js';
-import { isCaretTool, isMarkTool, isTextTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
+import { isCaretTool, isMarkTool, isTextTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextFormat, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
+import { loadFonts } from '@in-browser/graphics/fonts.js';
+import { richEditing } from '@in-browser/graphics/rich-editing.svelte.js';
+import { DEFAULT_LINE_HEIGHT, FONT_FAMILIES, LINE_HEIGHTS, styleAll, withList, type FontFamily, type ListKind, type TextStyle } from '@in-browser/graphics/rich-text.js';
 import { isCommented, isMarkup, type PdfItem } from '#lib/render/markup.js';
 import { isCaret } from '#lib/render/caret.js';
 import { isLink } from '#lib/render/link.js';
 import { isStamp } from '#lib/render/stamp.js';
 import { isNote, NOTE_ICONS, noteGlyph, noteIconOf, type NoteItem } from '#lib/render/note.js';
 import type { TextSizing } from '@in-browser/graphics/text-box.js';
-import { alignOf, BORDER_WIDTHS, isText, roomOf, sizingOf, withText, type TextAlign, type TextItem } from '#lib/render/textbox.js';
+import { alignOf, baseStyle, BORDER_WIDTHS, isText, richTextOf, roomOf, sizingOf, withRich, withText, type TextAlign, type TextItem } from '#lib/render/textbox.js';
 
 /** What a format tab is for: one kind of item, or several kinds */
 export type FormatKind = 'text' | 'note' | 'markup' | 'drawing' | 'stamp' | 'link' | 'mixed';
@@ -60,6 +63,84 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 			const next = change(i);
 			return withText(next, i.text, page ? roomOf(next, page) : Infinity);
 		});
+		s.refresh();
+	}
+
+	/**
+	 * A format of text – bold, a font, a size, a color: on what is selected in the box typed into; else on the selected
+	 * boxes as a whole (their own style, and no part of their text says otherwise any more); else on new boxes. The
+	 * fonts are there before anything is measured in them.
+	 */
+	async function formatText(patch: TextStyle) {
+		await loadFonts();
+		const typing = richEditing.current;
+		if (typing) return typing.apply(patch);
+		if (!sel()) {
+			const { size, color, ...format } = patch;
+			if (size) setTextSize(size);
+			void color;
+			return setTextFormat(Object.fromEntries(Object.entries(format).map(([key, value]) => [key, value ?? (key === 'font' ? 'sans' : false)])));
+		}
+		const cleared = Object.fromEntries(Object.keys(patch).map((key) => [key, undefined])) as TextStyle;
+		changeTexts((t) => {
+			const next: TextItem = { ...t, ...(t.rich && { rich: styleAll(t.rich, cleared) }) };
+			for (const [key, value] of Object.entries(patch) as [keyof TextStyle, never][]) {
+				if (key === 'size' || key === 'color') next[key] = value;
+				else if (value && value !== 'sans') next[key] = value;
+				else delete next[key];
+			}
+			return next;
+		});
+	}
+
+	/** What the text a format command works on has: the selection typed in, the first selected box, or new boxes */
+	const formatOf = () => {
+		const typing = richEditing.current;
+		if (typing) return typing.marks;
+		const [t] = texts();
+		return t ? baseStyle(t) : { font: textStyle.font, bold: textStyle.bold, italic: textStyle.italic, underline: textStyle.underline, size: textStyle.size, color: textStyle.color };
+	};
+	const formats = () => texts().length > 0 || forTool('text');
+
+	const toggle = (key: 'bold' | 'italic' | 'underline', label: string, icon: string, letter: string): Command => ({
+		id: key,
+		label,
+		icon,
+		shortcut: { key: letter, ctrl: true },
+		enabled: formats,
+		active: () => formats() && formatOf()[key] === true,
+		run: () => void formatText({ [key]: formatOf()[key] !== true })
+	});
+
+	/** Makes paragraphs list items (or plain again): those selected in the box typed into, else all of the selected boxes */
+	const list = (kind: ListKind, label: string, icon: string): Command => ({
+		id: `list:${kind}`,
+		label,
+		icon,
+		enabled: () => texts().length > 0,
+		active: () => (richEditing.current ? richEditing.current.list === kind : texts().length > 0 && texts().every((t) => richTextOf(t).every((p) => p.list === kind))),
+		run: async () => {
+			await loadFonts();
+			const typing = richEditing.current;
+			if (typing) return typing.setList(kind);
+			const all = texts().every((t) => richTextOf(t).every((p) => p.list === kind));
+			changeRich((t) => {
+				const rich = richTextOf(t);
+				// All of them alike, as one choice: every box gets the list, or every box loses it
+				const some = rich.some((p) => p.list !== kind);
+				return all || some ? withList(all ? rich : rich.map((p) => ({ ...p, list: undefined })), 0, rich.length - 1, all ? null : kind) : rich;
+			});
+		}
+	});
+
+	/** Gives the selected text boxes another formatted text (one step) */
+	function changeRich(change: (t: TextItem) => ReturnType<typeof richTextOf>) {
+		const s = sel();
+		const doc = ed.doc;
+		if (!s || !doc) return;
+		const ids = new Set(texts().map((t) => t.id));
+		const page = doc.pages[s.pageIndex];
+		doc.items.change(s.pageIndex, ids, (i) => (isText(i) && ids.has(i.id) ? withRich(i, change(i), page ? roomOf(i, page) : Infinity) : null));
 		s.refresh();
 	}
 
@@ -179,14 +260,49 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 			icon: 'icon-[material-symbols-light--format-size]',
 			enabled: () => texts().length > 0 || forTool('text'),
 			menu: () => {
-				const current = sel() ? texts()[0]?.size : textStyle.size;
+				const current = formatOf().size;
 				return TEXT_SIZES.map((size) => ({
 					label: m.textbox.sizeValue(size),
 					checked: size === current,
-					run: () => (sel() ? changeTexts((t) => ({ ...t, size })) : setTextSize(size))
+					run: () => void formatText({ size })
 				}));
 			}
 		},
+		formatText,
+		formatOf,
+		bold: toggle('bold', m.textbox.bold, 'icon-[material-symbols-light--format-bold]', 'b'),
+		italic: toggle('italic', m.textbox.italic, 'icon-[material-symbols-light--format-italic]', 'i'),
+		underline: toggle('underline', m.textbox.underline, 'icon-[material-symbols-light--format-underlined]', 'u'),
+		fontFamily: {
+			id: 'fontFamily',
+			label: m.textbox.font,
+			icon: 'icon-[material-symbols-light--font-download-outline]',
+			enabled: formats,
+			menu: () => {
+				const current = formatOf().font;
+				return FONT_FAMILIES.map((font: FontFamily) => ({ label: m.textbox.fonts[font], checked: font === current, run: () => void formatText({ font }) }));
+			}
+		},
+		lineHeight: {
+			id: 'lineHeight',
+			label: m.textbox.lineHeight,
+			icon: 'icon-[material-symbols-light--format-line-spacing]',
+			enabled: formats,
+			menu: () => {
+				const current = sel() ? (texts()[0]?.lineHeight ?? DEFAULT_LINE_HEIGHT) : textStyle.lineHeight;
+				return LINE_HEIGHTS.map((height) => ({
+					label: m.textbox.lineHeightValue(height),
+					checked: height === current,
+					run: async () => {
+						await loadFonts();
+						if (!sel()) return setTextFormat({ lineHeight: height });
+						changeTexts(({ lineHeight: _, ...t }) => (height === DEFAULT_LINE_HEIGHT ? t : { ...t, lineHeight: height }));
+					}
+				}));
+			}
+		},
+		bulleted: list('bullet', m.textbox.bulleted, 'icon-[material-symbols-light--format-list-bulleted]'),
+		numbered: list('number', m.textbox.numbered, 'icon-[material-symbols-light--format-list-numbered]'),
 		borderWidth: {
 			id: 'borderWidth',
 			label: m.textbox.borderWidth,

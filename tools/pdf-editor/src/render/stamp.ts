@@ -3,6 +3,7 @@
 // along). Pictures – pixels or vectors (`PdfPicture`) – are kept apart from the items (`stampImages`, by the item's
 // `image` key): embedded once, drawn for the screen when first shown.
 
+import type { BarcodeSpec } from '@in-browser/graphics/barcode.js';
 import type { Box } from '@in-browser/ink/geometry.js';
 import type { Ctx } from '@in-browser/ink/render/kit.js';
 import { formBitmap, isForm, type PdfPicture } from '@in-browser/pdf/write/form.js';
@@ -29,6 +30,8 @@ export interface StampItem {
 	image?: string;
 	/** The picture is an icon drawn in `color`: its drawing, so another color draws it anew (`recolorIcon`) */
 	icon?: StampIcon;
+	/** The picture is a barcode: what it is made of, so it can be changed (“Edit barcode”) */
+	barcode?: BarcodeSpec;
 }
 
 /** An icon's drawing (SVG markup, `currentColor` where its color goes) and its size */

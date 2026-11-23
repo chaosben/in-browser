@@ -1,4 +1,5 @@
-// The drawing surface of a PDF on the shared ink core: a white page with the PDF page rendered on it.
+// The drawing surface of a PDF on the shared ink core: a page of its color (white paper without one) with the PDF
+// page rendered on it.
 
 import type { Selection } from '@in-browser/ink/input/selection.svelte.js';
 import type { ShapeSuggestion } from '@in-browser/ink/input/suggestion.svelte.js';
@@ -15,13 +16,13 @@ export type PdfSuggestion = ShapeSuggestion<PdfPage, PdfItem>;
 export function pdfBackdrop(doc: PdfDocument): Backdrop<PdfPage> {
 	return {
 		color: '#ffffff',
-		key: (page) => `${sourceOf(page)}|${page.number}|${page.rotate}|${page.rev}`,
+		key: (page) => `${sourceOf(page)}|${page.number}|${page.rotate}|${page.rev}|${page.background ?? ''}`,
 		paint(ctx, page, box) {
-			ctx.fillStyle = '#ffffff';
+			ctx.fillStyle = page.background ?? '#ffffff';
 			ctx.fillRect(Math.max(0, box.x0), Math.max(0, box.y0), Math.min(page.w, box.x1) - Math.max(0, box.x0), Math.min(page.h, box.y1) - Math.max(0, box.y0));
 		},
 		// A blank page has nothing under its items
-		piece: (page, scale, tx, ty) => (page.number ? doc.renders.tile(sourceOf(page), page.number, scale, tx, ty) : undefined),
+		piece: (page, scale, tx, ty) => (page.number ? doc.renders.tile(sourceOf(page), page.number, scale, tx, ty, page.background) : undefined),
 		frame: () => doc.renders.frame(),
 		budget: (tiles) => {
 			doc.renders.max = tiles;

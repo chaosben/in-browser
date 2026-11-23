@@ -15,9 +15,12 @@
 		"icons": "node scripts/icons.mjs"
 	},
 	"dependencies": {
+		"@fontsource/cousine": "5.3.0",
+		"@fontsource/tinos": "5.3.0",
 		"@iconify-json/material-symbols": "1.2.100",
 		"@iconify-json/ph": "1.2.2",
 		"@iconify-json/tabler": "1.2.46",
-		"@in-browser/brand": "*"
+		"@in-browser/brand": "*",
+		"bwip-js": "4.11.4"
 	}
 }

@@ -21,7 +21,7 @@ import { loadPdf } from '@in-browser/pdf/load.js';
 import { openPdf, PdfError, type OptionalContentConfig, type PDFDocumentProxy } from '@in-browser/pdf/pdfjs.js';
 import type { PageText } from '@in-browser/pdf/text.js';
 import { readPageText } from '@in-browser/pdf/text-layer.js';
-import { parsePdfDate, type NewAnnotation, type ReviewState } from '@in-browser/pdf/write/annotations.js';
+import { parsePdfDate, type NewAnnotation, type ReviewState, type Rgb } from '@in-browser/pdf/write/annotations.js';
 import type { PdfForm } from '@in-browser/pdf/write/form.js';
 import { IncrementalPdf, type PdfEdits } from '@in-browser/pdf/write/incremental.js';
 import { pieceForm } from '@in-browser/pdf/write/piece.js';
@@ -35,7 +35,8 @@ import { isLink, linkView, type LinkItem } from '#lib/render/link.js';
 import { isMeasured } from '#lib/render/measure.js';
 import type { MeasureUnit } from '@in-browser/ink/items.js';
 import { measureDefault, setMeasureDefault } from './tools.svelte.js';
-import { annotationOf, partsOf } from './annots.js';
+import { annotationOf, partsOf, rgbOf } from './annots.js';
+import { resizePlace, type PageResize } from './page-size.js';
 import { kindOf } from './comments.js';
 import { itemsOf, withData } from './imported.js';
 import { isNotesAnnotation, notesAnnotation } from './notes.js';
@@ -90,7 +91,11 @@ export interface PdfPage extends SurfacePage {
 	readonly rev: number;
 	/** The page's box in user space (PDF.js `page.view`): where annotations go */
 	readonly view: readonly number[];
+	/** The color under the page's content (`#rrggbb`); none: white paper */
+	readonly background?: string;
 }
+
+const hexOf = (rgb: readonly number[]) => `#${rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}`;
 
 /** An object of a page's own content as the page shows it now (`PdfDocument.contentItems`) */
 export interface ContentItem {
@@ -250,6 +255,12 @@ export class PdfDocument {
 	conflict = $state<'changed' | 'deleted' | null>(null);
 	private readonly history = new History();
 	private writer: Promise<IncrementalPdf> | null = null;
+	/** Backgrounds the file's pages have in the file (page number → color); the pages are shown from a version
+	 * without them once one changes (`contentBytes`), so the color of now shows */
+	private readonly fileBackgrounds = new Map<number, string>();
+	private backgroundsShown = true;
+	/** New sizes of pages for the next save (place → box and content matrix; `resizePages`) */
+	private resizes = new Map<number, { width: number; height: number; matrix: Matrix }>();
 	private stamp: Stamp | null;
 	private version = 0;
 	/** Tells this version of the file from any other (of its bytes as opened or last saved; `''` until known) –
@@ -345,6 +356,7 @@ export class PdfDocument {
 				const fine = !writer.locked && writer.pageCount === this.pages.length;
 				// Only for reading where it lies: shown like an editable one (comments, steps, notes), never changed
 				if (fine) this.takeAnnotations(writer);
+				if (fine) this.takeBackgrounds(writer);
 				this.editable = writer.locked ? 'encrypted' : !fine ? 'failed' : writable ? 'yes' : 'readonly';
 			},
 			(e) => {
@@ -352,6 +364,17 @@ export class PdfDocument {
 				this.editable = 'failed';
 			}
 		);
+	}
+
+	/** The colors the file's pages lie on (written by us, `PdfEdits.background`) */
+	private takeBackgrounds(writer: IncrementalPdf) {
+		this.pages.forEach((page, i) => {
+			const color = writer.background(i);
+			if (color) this.fileBackgrounds.set(page.number, hexOf(color));
+		});
+		if (!this.fileBackgrounds.size) return;
+		this.pages = this.pages.map((page) => (this.fileBackgrounds.has(page.number) && isOwnPage(page) ? { ...page, background: this.fileBackgrounds.get(page.number) } : page));
+		this.changes++;
 	}
 
 	/**
@@ -719,6 +742,68 @@ export class PdfDocument {
 		this.pushStep({ undo: () => this.turn(invert(op)), redo: () => this.turn(op) });
 	}
 
+	/** Puts a color under the content of pages (ids; null: none, white paper) – one step to undo */
+	setBackground(pages: readonly string[], color: string | null) {
+		if (this.editable !== 'yes') return;
+		const background = color ? color.slice(0, 7).toLowerCase() : undefined;
+		this.arrange(this.pages.map((p) => (pages.includes(p.id) && p.background !== background ? { ...p, background, rev: p.rev + 1 } : p)));
+		// The file's own backgrounds would lie over the new color: shown without them from now on
+		if (this.fileBackgrounds.size && this.backgroundsShown) {
+			this.backgroundsShown = false;
+			void this.showContent([...this.fileBackgrounds.keys()]);
+		}
+	}
+
+	/**
+	 * Gives pages (ids) another size, for the next save: their content and comments are scaled and placed as `to`
+	 * says. Not a step to undo – it changes where everything of the file lies, so the caller saves and opens the
+	 * file anew (and keeps the file as it was for taking it back). Only on a document whose pages are all the
+	 * file's own or blank, and once. False when nothing was changed.
+	 */
+	resizePages(pages: readonly string[], to: PageResize): boolean {
+		if (this.editable !== 'yes' || this.resizes.size || this.pages.some((p) => p.source || p.copy)) return false;
+		let any = false;
+		this.pages = this.pages.map((page, i) => {
+			if (!pages.includes(page.id) || (Math.abs(page.w - to.w) < 0.01 && Math.abs(page.h - to.h) < 0.01)) return page;
+			any = true;
+			const { scale, dx, dy } = resizePlace(page.w, page.h, to);
+			const quarter = page.rotate % 180 !== 0;
+			const view = [0, 0, quarter ? to.h : to.w, quarter ? to.w : to.h];
+			if (page.number) {
+				// Where the old user space's origin lands in the new one (the same turn: a scale and a shift)
+				const [sx, sy] = toShown(pageTransform(page.view, page.rotate))(0, 0);
+				const [e, f] = toUserSpace(pageTransform(view, page.rotate))(sx * scale + dx, sy * scale + dy);
+				this.resizes.set(i, { width: view[2], height: view[3], matrix: [scale, 0, 0, scale, e, f] });
+			}
+			const scene = this.scenes.get(page.id);
+			if (scene?.items.length) {
+				this.scenes.set(page.id, new PageScene(pdfKit, scene.items.map((item) => pdfKit.transform(item, { dx, dy, scale, ox: 0, oy: 0, scaleText: true }))));
+				this.listener?.content(page.id);
+			}
+			return { ...page, w: to.w, h: to.h, view, rev: page.rev + 1 };
+		});
+		if (any) this.markChanged();
+		return any;
+	}
+
+	/** Puts the file back as it was (`bytes`, e.g. before pages were resized); the caller opens it anew */
+	async restore(bytes: Uint8Array) {
+		clearTimeout(this.saveTimer);
+		this.dirty = false;
+		// Our own write, like a save: `filesChanged` must not take it for a version saved elsewhere before the stamp
+		// is the new one (it asked “changed elsewhere” – that happened)
+		this.saving = true;
+		try {
+			await write(this.path, new Blob([bytes as Uint8Array<ArrayBuffer>]));
+			this.latest = bytes;
+			this.fingerprint = await fingerprintOf(bytes);
+			const after = await stat(this.path);
+			this.stamp = after && stampOf(after);
+		} finally {
+			this.saving = false;
+		}
+	}
+
 	/** Moves pages (ids, in their order) before the page now at `to` (`pages.length`: to the end) – one step to undo */
 	movePages(ids: ReadonlySet<string>, to: number) {
 		this.arrange(movePages(this.pages, ids, to));
@@ -857,7 +942,7 @@ export class PdfDocument {
 	}
 
 	/** The PDF as it is now, saved first; throws when it can't be saved (saving paused, failed) */
-	private async current(): Promise<Uint8Array> {
+	async current(): Promise<Uint8Array> {
 		if (this.dirty) await this.save();
 		if (this.dirty) throw new Error(this.saveError ?? 'not saved');
 		return this.latest;
@@ -1168,7 +1253,9 @@ export class PdfDocument {
 	private async contentBytes(): Promise<Uint8Array> {
 		const writer = await this.writer;
 		const edits = this.contentFor((number) => number - 1);
-		return writer && (edits.content.size || edits.flatten.size) ? await writer.update(edits) : this.base;
+		// Without the backgrounds of the file once one changed: each page's color of now is drawn under it instead
+		const background = new Map(this.backgroundsShown ? [] : [...this.fileBackgrounds.keys()].map((number) => [number - 1, null] as const));
+		return writer && (edits.content.size || edits.flatten.size || background.size) ? await writer.update({ ...edits, background }) : this.base;
 	}
 
 	/** Shows the file's pages with the content changes: the changed pages are rendered anew from a file that has
@@ -1489,7 +1576,21 @@ export class PdfDocument {
 			);
 			// Changes to the content of the file's pages, by where each page stands now
 			const places = new Map(this.pages.flatMap((p, i) => (isOwnPage(p) ? [[p.number, i] as const] : [])));
-			const bytes = await writer.update({ pages, rotate: new Map(this.pages.map((p, i) => [i, p.rotate])), ...this.annotations(), form: await this.form(), ...this.contentFor((number) => places.get(number)) });
+			// Each page's color where it differs from what the file gives it (copies come without one)
+			const background = new Map<number, Rgb | null>();
+			this.pages.forEach((p, i) => {
+				const file = isOwnPage(p) || (p.copy && !p.source && this.backgroundsShown) ? this.fileBackgrounds.get(p.number) : undefined;
+				if (p.background !== file) background.set(i, p.background ? rgbOf(p.background) : null);
+			});
+			const bytes = await writer.update({
+				pages,
+				rotate: new Map(this.pages.map((p, i) => [i, p.rotate])),
+				...this.annotations(),
+				form: await this.form(),
+				...this.contentFor((number) => places.get(number)),
+				background,
+				resize: this.resizes
+			});
 			// Never replace a version saved elsewhere meanwhile without being told
 			const now = await stat(this.path);
 			if (this.conflict !== 'deleted' && now && !sameStamp(stampOf(now), this.stamp)) {

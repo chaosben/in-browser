@@ -26,8 +26,8 @@
 	$effect(() => {
 		if (!visible || drawn || !canvas) return;
 		void doc.rendered;
-		// A blank page: white paper
-		const bitmap = page.number ? doc.renders.preview(sourceOf(page), page.number) : null;
+		// A blank page: paper in its color
+		const bitmap = page.number ? doc.renders.preview(sourceOf(page), page.number, page.background) : null;
 		if (page.number && !bitmap) return;
 		const dpr = devicePixelRatio || 1;
 		canvas.width = Math.round(width * dpr);
@@ -36,7 +36,7 @@
 		if (ctx) {
 			if (bitmap) ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 			else {
-				ctx.fillStyle = '#ffffff';
+				ctx.fillStyle = page.background ?? '#ffffff';
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
 			}
 			const scene = doc.scene(page.id);
@@ -47,7 +47,7 @@
 			}
 		}
 		// A picture kept from before a change (a filled-in field, edited content): drawn again when the new one arrives
-		drawn = !page.number || doc.renders.previewFresh(sourceOf(page), page.number);
+		drawn = !page.number || doc.renders.previewFresh(sourceOf(page), page.number, page.background);
 	});
 </script>
 

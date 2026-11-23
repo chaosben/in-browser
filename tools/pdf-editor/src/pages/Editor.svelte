@@ -32,6 +32,7 @@
 	import { imagePdf } from '@in-browser/pdf/write/image-page.js';
 	import { editorUrl } from '#lib/brand.js';
 	import ColorField from '@in-browser/graphics/ColorField.svelte';
+	import { richEditing } from '@in-browser/graphics/rich-editing.svelte.js';
 	import { inkMessages } from '@in-browser/ink/i18n/index.svelte.js';
 	import type { Tool } from '@in-browser/ink/input/controller.js';
 	import { SHAPE_KINDS, shapeGlyph } from '@in-browser/ink/shapes.js';
@@ -44,6 +45,9 @@
 	import ShapeSuggestionButton from '@in-browser/ink/ui/ShapeSuggestion.svelte';
 	import NoteEditor from '#lib/components/NoteEditor.svelte';
 	import NewPdfDialog from '#lib/components/NewPdfDialog.svelte';
+	import PageSizeDialog from '#lib/components/PageSizeDialog.svelte';
+	import BarcodeDialog from '#lib/components/BarcodeDialog.svelte';
+	import { barcodeSpec, type BarcodeSpec } from '@in-browser/graphics/barcode.js';
 	import PrintDialog from '#lib/components/PrintDialog.svelte';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import Display from '#lib/show/Display.svelte';
@@ -69,7 +73,7 @@
 	import { choosePdfPage, stampDialogs } from '#lib/model/stamp-dialogs.svelte.js';
 	import { chosenWord, wordText } from '#lib/model/stamp-words.js';
 	import { PAPERS, paperPdf, type Paper } from '@in-browser/pdf/write/paper-page.js';
-	import { customStamps, iconPicture, loadStamps, loadWords, pictureSource, STAMP_TYPES, stampPicture, stampTool, stampWords, type StampPicture } from '#lib/model/stamps.svelte.js';
+	import { barcodePicture, customStamps, iconPicture, loadStamps, loadWords, pictureSource, STAMP_TYPES, stampPicture, stampTool, stampWords, type StampPicture } from '#lib/model/stamps.svelte.js';
 	import { isStamp, pictureStamp, type StampItem } from '#lib/render/stamp.js';
 	import IconPicker from '@in-browser/graphics/IconPicker.svelte';
 	import type { IconData } from '@in-browser/graphics/icons/types.js';
@@ -81,6 +85,7 @@
 	import Surface from '#lib/components/Surface.svelte';
 	import { m } from '#lib/i18n/index.js';
 	import { FILLABLE, PdfDocument } from '#lib/model/document.svelte.js';
+	import type { PageResize } from '#lib/model/page-size.js';
 	import { formView, toggleHighlight } from '#lib/model/forms.svelte.js';
 	import { EditorState } from '#lib/model/editor.svelte.js';
 	import { recent } from '#lib/model/recent.js';
@@ -221,6 +226,58 @@
 		// A selection names its page by place: it goes when pages change
 		ed.selection?.clear();
 		changed(() => run(doc, ids));
+	}
+
+	/** “Page size …” is open */
+	let sizing = $state(false);
+
+	/**
+	 * Gives pages another size. It changes where everything of the file lies, so it isn't a step among the others:
+	 * what is open is saved and read anew (every page is the file's own then), the pages are resized in the file, and
+	 * the file is read again – the message offers the way back to the file as it was.
+	 */
+	async function resizePages(to: PageResize, ids: string[]) {
+		const doc = ed.doc;
+		if (!doc || doc.editable !== 'yes' || !reload) return;
+		if (doc.signed && !signedPagesOk) {
+			if (!(await ask(m.questions.signedPages))) return;
+			signedPagesOk = true;
+		}
+		const places = doc.pages.flatMap((p, i) => (ids.includes(p.id) ? [i] : []));
+		ed.selection?.clear();
+		/** The document read anew, once its comments are there */
+		const fresh = async () => {
+			await reload?.(true);
+			for (let waited = 0; ed.doc?.editable === 'checking' && waited < 15_000; waited += 40) await new Promise((r) => setTimeout(r, 40));
+			return ed.doc?.editable === 'yes' ? ed.doc : null;
+		};
+		try {
+			const before = await doc.current();
+			const opened = await fresh();
+			if (!opened?.resizePages(places.flatMap((i) => (opened.pages[i] ? [opened.pages[i].id] : [])), to)) return;
+			await opened.current();
+			await fresh();
+			toast(m.pageSize.done, 'success', 10_000, {
+				label: m.pageSize.undo,
+				run: async () => {
+					await ed.doc?.restore(before);
+					await reload?.(true);
+				}
+			});
+		} catch (e) {
+			showError(e, { context: '[pdf-editor] page size' });
+		}
+	}
+
+	/** The color under the pages to change (the first one's), and setting it – a dragged color once it is let go */
+	const pageBackground = () => {
+		const ids = ed.pagesToChange();
+		return ed.doc?.pages.find((p) => ids.includes(p.id))?.background ?? null;
+	};
+	let backgroundDraft = $state<{ value: string | null } | null>(null);
+	function setPageBackground(color: string | null, final: boolean) {
+		backgroundDraft = final ? null : { value: color };
+		if (final) void changePages((doc, ids) => doc.setBackground(ids, color));
 	}
 
 	/** Moves the pages to change: one up or down, to the start or the end */
@@ -650,11 +707,11 @@
 
 	/** Longer side of a new icon (points) */
 	const ICON_SIZE = 48;
-	function placePicture(picture: StampPicture, side?: number, icon?: Pick<StampItem, 'icon' | 'color'>) {
+	function placePicture(picture: StampPicture, side?: number, more?: Pick<StampItem, 'icon' | 'color'> | Pick<StampItem, 'barcode'>) {
 		const doc = ed.doc;
 		const at = ed.stage?.insertPoint();
 		if (!doc || !at || doc.editable !== 'yes') return;
-		const id = doc.items.addItem(at.page, { ...pictureStamp(picture, doc.pages[at.page], at.x, at.y, side), ...icon });
+		const id = doc.items.addItem(at.page, { ...pictureStamp(picture, doc.pages[at.page], at.x, at.y, side), ...more });
 		if (!id) return;
 		choose('lasso');
 		ed.selection?.select(at.page, new Set([id]));
@@ -669,6 +726,38 @@
 			if (which) placePicture(await stampPicture(path, which.page));
 		} catch (e) {
 			console.warn('[pdf-editor] picture', e);
+			toast(m.stamps.loadFailed, 'error', 8000);
+		}
+	}
+	/** “Barcode …” is open – for a new code, or to change the one of a stamp (its page and id) */
+	let barcoding = $state<{ edit?: { page: number; id: string; spec: BarcodeSpec } } | null>(null);
+	/** The selected barcode, when exactly one is selected */
+	function selectedBarcode() {
+		const sel = ed.selection;
+		const [item] = sel?.items ?? [];
+		return sel && sel.items.length === 1 && isStamp(item) && item.barcode ? { page: sel.pageIndex, id: item.id, spec: barcodeSpec(item.barcode) } : null;
+	}
+	function editBarcode() {
+		const edit = selectedBarcode();
+		if (edit && editable()) barcoding = { edit };
+	}
+	/**
+	 * A barcode as a picture in the middle of the view (a square code about 3 cm wide, a wide one about 5 cm) – or,
+	 * changing one, in its place: its middle and width stay, its height follows the new code (one step to undo).
+	 */
+	async function insertBarcode(spec: BarcodeSpec) {
+		const edit = barcoding?.edit;
+		try {
+			const picture = await barcodePicture(spec);
+			if (!edit) return placePicture(picture, picture.width > picture.height * 1.2 ? 150 : 90, { barcode: spec });
+			ed.doc?.items.change(edit.page, new Set([edit.id]), (item) => {
+				if (!isStamp(item) || item.id !== edit.id) return null;
+				const h = (item.w * picture.height) / picture.width;
+				return { ...item, image: picture.key, barcode: spec, y: item.y + (item.h - h) / 2, h };
+			});
+			ed.selection?.refresh();
+		} catch (e) {
+			console.warn('[pdf-editor] barcode', e);
 			toast(m.stamps.loadFailed, 'error', 8000);
 		}
 	}
@@ -767,6 +856,29 @@ share: {
 			icon: 'icon-[material-symbols-light--rotate-90-degrees-cw-outline]',
 			enabled: editable,
 			run: () => void changePages((doc, ids) => doc.rotate(ids, 90))
+		},
+		barcode: {
+			id: 'barcode',
+			label: m.barcode.command,
+			tip: m.barcode.tip,
+			icon: 'icon-[material-symbols-light--qr-code-2]',
+			enabled: editable,
+			run: () => (barcoding = {})
+		},
+		editBarcode: {
+			id: 'editBarcode',
+			label: m.barcode.edit,
+			icon: 'icon-[material-symbols-light--qr-code-2]',
+			enabled: () => editable() && !!selectedBarcode(),
+			run: editBarcode
+		},
+		pageSize: {
+			id: 'pageSize',
+			label: m.pageSize.command,
+			tip: m.pageSize.tip,
+			icon: 'icon-[material-symbols-light--aspect-ratio-outline]',
+			enabled: editable,
+			run: () => (sizing = true)
 		},
 		deletePages: {
 			id: 'deletePages',
@@ -1183,6 +1295,7 @@ share: {
 	ed.pageMenu = () => [
 		asEntry(commands.rotateLeft),
 		asEntry(commands.rotateRight),
+		asEntry(commands.pageSize),
 		{ separator: true },
 		asEntry(commands.moveFirst),
 		asEntry(commands.moveUp),
@@ -1268,6 +1381,7 @@ share: {
 	function edit(id: string) {
 		const item = ed.selection?.items.find((i) => i.id === id);
 		if (item && isCommented(item)) ed.noteEdit = id;
+		else if (item && isStamp(item) && item.barcode) editBarcode();
 		else if (item && isStamp(item)) ed.stampEdit = item.image ? null : id;
 		else if (item && isLink(item)) ed.linkEdit = id;
 		else ed.textEdit = id;
@@ -1349,7 +1463,7 @@ share: {
 			groups: [
 				{ id: 'select', label: m.ribbon.groups.select, items: [commands.lasso, commands.selectAll, commands.snap] },
 				{ id: 'markup', label: m.ribbon.groups.markup, items: [commands.highlight, commands.underline, commands.squiggly, commands.strikeout, commands.insert, commands.replace, commands.area] },
-				{ id: 'notes', label: m.ribbon.groups.notes, items: [commands.note, commands.textbox, commands.callout, commands.attach, commands.link, commands.stamp, commands.picture, { id: 'icon', label: m.commands.icon, custom: iconButton }] },
+				{ id: 'notes', label: m.ribbon.groups.notes, items: [commands.note, commands.textbox, commands.callout, commands.attach, commands.link, commands.stamp, commands.picture, { id: 'icon', label: m.commands.icon, custom: iconButton }, commands.barcode] },
 				{ id: 'draw', label: m.ribbon.groups.draw, items: [commands.pen, commands.highlighter, commands.shape, commands.eraser, commands.penOnly] },
 				{ id: 'measure', label: m.ribbon.groups.measure, items: [commands.measureDistance, commands.measurePerimeter, commands.measureArea, commands.measureCalibrate, commands.measureScale] }
 			]
@@ -1367,6 +1481,7 @@ share: {
 			label: m.ribbon.tabs.pages,
 			groups: [
 				{ id: 'rotate', label: m.ribbon.groups.rotate, items: [commands.rotateLeft, commands.rotateRight] },
+				{ id: 'page', label: m.ribbon.groups.page, items: [commands.pageSize, { id: 'pageBackground', label: m.pageSize.background, custom: pageBackgroundButton }] },
 				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.duplicatePages, commands.deletePages, commands.moveUp, commands.moveDown] },
 				{ id: 'insert', label: m.ribbon.groups.insert, items: [commands.insertBlank, commands.insertPdf, commands.insertImage] }
 			]
@@ -1397,8 +1512,8 @@ share: {
 		},
 		// The format of what is selected or what the chosen tool draws, and how a selection is arranged
 		formatTab('text', m.ribbon.tabs.textbox, [
-			{ id: 'text', label: m.ribbon.groups.text, items: [sc.editText, { id: 'textColor', label: m.textbox.textColor, custom: formatColor }, sc.fontSize] },
-			{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [sc.alignLeft, sc.alignCenter, sc.alignRight, sc.justify] },
+			{ id: 'text', label: m.ribbon.groups.text, items: [sc.editText, sc.fontFamily, sc.fontSize, sc.bold, sc.italic, sc.underline, { id: 'textColor', label: m.textbox.textColor, custom: formatColor }] },
+			{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [sc.alignLeft, sc.alignCenter, sc.alignRight, sc.justify, sc.bulleted, sc.numbered, sc.lineHeight] },
 			{
 				id: 'box',
 				label: m.ribbon.groups.box,
@@ -1409,7 +1524,7 @@ share: {
 		formatTab('note', m.ribbon.tabs.note, [{ id: 'format', label: m.ribbon.groups.format, items: [sc.editComment, sc.noteIcon, color, commands.downloadAttached] }]),
 		formatTab('markup', m.ribbon.tabs.markup, [{ id: 'format', label: m.ribbon.groups.format, items: [sc.editComment, color] }]),
 		formatTab('link', m.ribbon.tabs.link, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editLink] }]),
-		formatTab('stamp', m.ribbon.tabs.stamp, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editStamp, color] }]),
+		formatTab('stamp', m.ribbon.tabs.stamp, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editStamp, commands.editBarcode, color] }]),
 		formatTab('drawing', m.ribbon.tabs.drawing, [
 			{ id: 'format', label: m.ribbon.groups.format, items: [color, sc.thickness, commands.smoothing, { id: 'style', label: inkMessages().selection.style, custom: formatStyle }] }
 		]),
@@ -1430,7 +1545,7 @@ share: {
 	const deleteAlt: Command = { ...commands.deleteSelection, id: 'deleteAlt', shortcut: { key: 'Backspace' } };
 
 	// While presenting, the presentation has the keys
-	$effect(() => installCommandKeys(() => (presenting ? [] : [...Object.values(commands), zoomInAlt, redoAlt, deleteAlt, find])));
+	$effect(() => installCommandKeys(() => (presenting ? [] : [...Object.values(commands), zoomInAlt, redoAlt, deleteAlt, find, sc.bold, sc.italic, sc.underline])));
 	// Arrow keys move the selection (one undo step per key sequence)
 	$effect(() => installNudgeKeys(() => ed.selection));
 
@@ -1516,8 +1631,26 @@ share: {
 </svelte:head>
 
 <!-- Format tabs: the color of the selection, else of what the chosen tool draws next – every one with its opacity -->
+{#snippet pageBackgroundButton(size: GroupSize)}
+	{@const color = backgroundDraft ? backgroundDraft.value : pageBackground()}
+	<RibbonPopover id="pageBackground" label={m.pageSize.background} icon="icon-[material-symbols-light--format-color-fill]" {size} swatch={color} disabled={!editable()}>
+		{#snippet children()}
+			<ColorField value={color} allowNone opaque onchange={setPageBackground} />
+		{/snippet}
+	</RibbonPopover>
+{/snippet}
+
 {#snippet formatColor(size: GroupSize)}
 	{@const s = sc.sel()}
+	{#if kind === 'text' && richEditing.current}
+		<!-- While a text box is typed into: the color of what is selected in it -->
+		{@const typed = richEditing.current.marks.color}
+		<RibbonPopover id="formatColor" label={m.textbox.textColor} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={typed}>
+			{#snippet children()}
+				<ColorField value={typed} onchange={(v, final) => v && final && void sc.formatText({ color: v })} />
+			{/snippet}
+		</RibbonPopover>
+	{:else}
 	<InkColorButton
 		id="formatColor"
 		selection={s}
@@ -1527,6 +1660,7 @@ share: {
 		{size}
 		disabled={s ? !s.colorable : !kind}
 	/>
+	{/if}
 {/snippet}
 
 <!-- An icon in the pen's color, in the middle of the view -->
@@ -1698,6 +1832,10 @@ share: {
 										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.editStamp.run} title={commands.editStamp.label} aria-label={commands.editStamp.label}>
 											<span class="icon-[material-symbols-light--edit-outline] size-5" aria-hidden="true"></span>
 										</button>
+									{:else if commands.editBarcode.enabled?.()}
+										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.editBarcode.run} title={commands.editBarcode.label} aria-label={commands.editBarcode.label} data-command="editBarcode">
+											<span class="icon-[material-symbols-light--edit-outline] size-5" aria-hidden="true"></span>
+										</button>
 									{:else if sc.editComment.enabled()}
 										<button class="btn btn-ghost btn-sm btn-square" onclick={sc.editComment.run} title={sc.editComment.label} aria-label={sc.editComment.label}>
 											<span class="icon-[material-symbols-light--edit-note-outline] size-5" aria-hidden="true"></span>
@@ -1718,6 +1856,8 @@ share: {
 	</div>
 	{#if creating}<NewPdfDialog folder={parent(doc.path)} oncreated={(path) => location.assign(editorUrl(path))} onclose={() => (creating = false)} />{/if}
 	{#if printing}<PrintDialog {ed} which={printing} onclose={() => (printing = null)} />{/if}
+	{#if barcoding}<BarcodeDialog spec={barcoding.edit?.spec} oninsert={insertBarcode} onclose={() => (barcoding = null)} />{/if}
+	{#if sizing}<PageSizeDialog pages={doc.pages} picked={ed.pagesToChange()} onapply={resizePages} onclose={() => (sizing = false)} />{/if}
 	{#if exporting}<ExportDialog {ed} which={exporting} onclose={() => (exporting = null)} />{/if}
 	{#if scaling}<MeasureDialog {ed} onclose={() => (scaling = false)} />{/if}
 	{#if calibrating}

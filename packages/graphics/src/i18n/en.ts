@@ -1,6 +1,53 @@
 // Texts of the shared graphics components (color field, icon picker). English leads: de.ts has the same keys.
 
 const en = {
+	barcode: {
+		kind: 'Kind',
+		groups: { matrix: '2D codes', retail: 'Retail', industry: 'Logistics and industry', post: 'Postal', more: 'More' },
+		// Names of kinds that differ from the standard's (`BarcodeType.name`)
+		names: {} as Record<string, string>,
+		content: 'Content',
+		contentAs: 'Content as',
+		templates: { text: 'Text', url: 'Web address', wifi: 'Wi-Fi', contact: 'Contact', email: 'E-mail', phone: 'Phone number', sms: 'Text message' },
+		fields: {
+			text: 'Text',
+			url: 'Address',
+			ssid: 'Network name',
+			password: 'Password',
+			security: 'Security',
+			hidden: 'Hidden network',
+			name: 'Name',
+			org: 'Company',
+			phone: 'Phone number',
+			email: 'E-mail address',
+			address: 'Postal address',
+			subject: 'Subject',
+			body: 'Message',
+			message: 'Message'
+		},
+		securities: { WPA: 'WPA, WPA2, WPA3', WEP: 'WEP', nopass: 'None' },
+		color: 'Color',
+		background: 'Background',
+		ecc: 'Error correction',
+		eccLevels: { L: 'Low (7 %)', M: 'Medium (15 %)', Q: 'High (25 %)', H: 'Highest (30 %)' } as Record<string, string>,
+		eccLevel: (level: string) => `Level ${level}`,
+		showText: 'Show text',
+		quiet: 'Quiet zone',
+		problems: {
+			empty: 'Type what the code should hold.',
+			characters: 'This kind doesn’t take some of these characters.',
+			length: 'This kind needs another number of characters.',
+			checkDigit: 'The check digit doesn’t fit the other digits.',
+			invalid: 'This content doesn’t fit this kind of code.'
+		},
+		detail: (text: string, detail: string) => `${text} (${detail})`,
+		risks: {
+			inverted: 'Light on dark: many scanners don’t read that.',
+			contrast: 'Little contrast: scanners may not read that.',
+			quiet: 'Without the quiet zone the code needs a light margin on the page.'
+		},
+		preview: (kind: string, text: string) => `${kind}: ${text}`
+	},
 	color: {
 		none: 'None',
 		opacity: 'Opacity',

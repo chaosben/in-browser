@@ -27,13 +27,14 @@ export async function printedPage(doc: PdfDocument, page: PdfPage, comments: boo
 /**
  * A page drawn at `scale` (pixels per point) as the screen shows it – form values, layers, rotation – with the
  * comments on it, or without anything commented (`comments` false). `background` lies under the page's content
- * (a CSS color, `rgba(0,0,0,0)` for none; white without it). Free it with `freeCanvas` when done.
+ * (a CSS color, `rgba(0,0,0,0)` for none; white without it) unless the page has a color of its own. Free it with `freeCanvas` when done.
  */
 export async function pageCanvas(
 	doc: PdfDocument,
 	page: PdfPage,
 	{ comments, scale, background }: { comments: boolean; scale: number; background?: string }
 ): Promise<HTMLCanvasElement> {
+	background = page.background ?? background;
 	let canvas: HTMLCanvasElement;
 	if (page.number) canvas = await doc.renders.render(sourceOf(page), page.number, scale, { annotations: comments, background });
 	else {

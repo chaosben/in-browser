@@ -3,6 +3,7 @@
 // `/Underline`, `/Squiggly` and `/StrikeOut` annotations. A highlighted area is a highlight with one box drawn by hand. `pdfKit` draws, hits and moves both kinds; the ink core's selection, eraser and undo work
 // on them unchanged.
 
+import { scaleRich } from '@in-browser/graphics/rich-text.js';
 import type { Box } from '@in-browser/ink/geometry.js';
 import { isInk, type Ink, type Item } from '@in-browser/ink/items.js';
 import { pointInPolygon, rotateItem, type Transform } from '@in-browser/ink/lasso.js';
@@ -181,7 +182,7 @@ function transformBox(item: TextItem, t: Transform): TextItem {
 	// Scaled with its font (its lines stay as they are) only with K; otherwise only its box, now of fixed size
 	if (!t.scaleText) return withText({ ...item, x, y, w: item.w * t.scale, h: item.h * t.scale, sizing: 'fixed' }, item.text);
 	const round = (v: number) => Math.round(v * t.scale * 100) / 100;
-	return { ...item, x, y, w: item.w * t.scale, h: item.h * t.scale, size: round(item.size), ...(item.borderWidth ? { borderWidth: round(item.borderWidth) } : {}) };
+	return { ...item, x, y, w: item.w * t.scale, h: item.h * t.scale, size: round(item.size), ...(item.borderWidth ? { borderWidth: round(item.borderWidth) } : {}), ...(item.rich ? { rich: scaleRich(item.rich, t.scale) } : {}) };
 }
 
 function transformStamp<T extends StampItem | LinkItem>(item: T, t: Transform): T {
