@@ -123,6 +123,24 @@ const help = {
 				},
 				tip: 'Use “Fit to the paper” for reading copies. Choose “Actual size” when measures matter (plans, forms to be scanned, labels) or when you print to a PDF and want pages of the original size.',
 				keys: [['Ctrl', 'P']]
+			},
+			export: {
+				title: 'Exporting pages as pictures or a playlist',
+				text: '“Export …” on the “File” tab (also “Export as pictures …” in the page menu of the panel “Pages”) saves pages as pictures or as a playlist for JW Library. Pages are chosen as for printing: “All”, “Current page”, “Picked pages” or pages you type, e.g. “1-3, 7”. They are drawn as you see them – turned pages turned, filled-in fields with their values, hidden layers left out – one after the other (“Cancel” stops that). “Save …” asks for a folder in your files (pictures) or a file name (playlist); a file that is already there is never replaced – the new one gets “ (2)” in its name. “Download” saves to your computer’s download folder instead: one picture as it is, several as one ZIP file. The dialog remembers its settings on this device.',
+				options: {
+					png: { label: 'PNG (default)', text: 'Exact, without loss: text and lines stay crisp. The largest files.' },
+					jpeg: { label: 'JPEG', text: 'Much smaller files, slightly soft edges around text. Opens everywhere.' },
+					webp: { label: 'WebP', text: 'Smaller than JPEG at the same look. Not every program opens it, and not every browser can write it – then the option is off.' },
+					playlist: { label: 'JW Library playlist (.jwlplaylist)', text: 'One file with every page as a picture (JPEG) in order, named after the PDF. In JW Library: “Playlists”, then add a playlist and import the file.' },
+					resolution: { label: 'Resolution (default: 150 dpi)', text: 'Pixels per inch of the page: an A4 page at 150 dpi is 1241 × 1754 pixels. Twice the dpi gives four times the pixels and much larger files. The line above the buttons shows the size of the first page; pages that would exceed about 16.8 million pixels are drawn smaller, and it says so.' },
+					quality: { label: 'Quality (default: 90 %)', text: 'For JPEG, WebP and the playlist’s pictures: lower makes smaller files with visible blur around text. PNG has no quality – it is always exact.' },
+					comments: { label: 'Export comments (default: on)', text: 'Draws marked text, notes, text boxes, drawings and the file’s other comments into the pictures. Off: the pages without them – form fields and their values stay.' },
+					background: { label: 'Background (default: white)', text: 'What lies under the page’s content where the PDF paints nothing. “None” gives see-through pictures, and a color with less than full opacity a half see-through background – both only for PNG and WebP; JPEG and the playlist use the color fully opaque and white for “None”. Areas the PDF paints itself (scanned pages, white boxes) stay as they are.' },
+					name: { label: 'File name (default: {name}_{page})', text: 'The pictures’ names, with placeholders you insert with the button next to the field: {name} the PDF’s name, {page} the page number (with leading zeros, so the files sort in order), {pages} the number of pages, {date} the date (2026-11-23), {time} the time (14-05). The line above the buttons shows the first name, or what is wrong with it.' },
+					seconds: { label: 'Duration (default: 4 s)', text: 'Playlist only: how long JW Library shows a page before the end action follows.' },
+					endAction: { label: 'At the end (default: Freeze)', text: 'Playlist only, as JW Library names it: “Continue” goes on to the next page, “Stop” goes back to the playlist, “Freeze” keeps the page on screen until you go on, “Repeat” shows it again. You can change it per item in JW Library later.' }
+				},
+				tip: 'For screens and presentations 150 dpi is enough; for printing take 300 dpi. Take PNG for text, plans and drawings (with the background “None” for signatures and logos to lay over something), JPEG or WebP for photos or when the files must be small. For a talk in JW Library take the playlist with “Freeze”, so each page stays until you go on.'
 			}
 		}
 	},

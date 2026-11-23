@@ -26,6 +26,17 @@ function pixel(piece: Piece, x: number, y: number) {
 }
 
 describe('PDF pages', () => {
+	it('renders a whole page on the background asked for – none for see-through pictures – under the content', async () => {
+		const pages = new PdfPages(async () => makePdf(), () => {});
+		const at = (canvas: HTMLCanvasElement, x: number) => [...canvas.getContext('2d')!.getImageData(x, 10, 1, 1).data];
+		// Left half red (the page's content), right half nothing the PDF paints
+		expect(at(await pages.render('a.pdf', 1, 1), 150)).toEqual([255, 255, 255, 255]);
+		const none = await pages.render('a.pdf', 1, 1, { background: 'rgba(0,0,0,0)' });
+		expect(at(none, 150)[3]).toBe(0);
+		expect(at(none, 50)).toEqual([255, 0, 0, 255]);
+		expect(at(await pages.render('a.pdf', 1, 1, { background: '#000000' }), 150)).toEqual([0, 0, 0, 255]);
+	});
+
 	it('rejects files that are no PDF', async () => {
 		await expect(openPdf(new TextEncoder().encode('hello'))).rejects.toBeInstanceOf(PdfError);
 	});

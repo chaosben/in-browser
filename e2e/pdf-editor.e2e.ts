@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { unzipSync } from 'fflate';
 import type { Page } from '@playwright/test';
 import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFRawStream, rgb, StandardFonts } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
@@ -97,6 +99,28 @@ test('opens a PDF from the files and moves through its pages', async ({ page }) 
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 	await page.evaluate(() => dispatchEvent(new Event('afterprint')));
 	await expect(page.locator('.print-root')).toHaveCount(0);
+
+	// "Export …" as a JW Library playlist into the files: built by the playlist worker (WebAssembly – the CSP must let
+	// it run), one item per page, the manifest naming the database's hash
+	await page.getByRole('tab', { name: 'File' }).click();
+	await page.getByRole('button', { name: 'Export …' }).click();
+	await page.getByRole('dialog').getByLabel('Format').selectOption('playlist');
+	await shot(page, 'pdf-editor-export');
+	// The background's color field opens over the dialog and can be used there; Esc closes only it
+	await page.getByRole('dialog').getByRole('button', { name: 'Background' }).click();
+	await page.locator('#export-background').getByRole('button').first().click();
+	await shot(page, 'pdf-editor-export-background');
+	await page.keyboard.press('Escape');
+	await expect(page.locator('#export-background')).toBeHidden();
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save …' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText('Saved as “Test.jwlplaylist”.')).toBeVisible({ timeout: 20_000 });
+	const files = unzipSync(await getFile(page, 'Test.jwlplaylist'));
+	const manifest = JSON.parse(Buffer.from(files['manifest.json']).toString());
+	expect(manifest.userDataBackup.hash).toBe(createHash('sha256').update(files['userData.db']).digest('hex'));
+	expect(Object.keys(files).filter((name) => name.endsWith('.jpg'))).toHaveLength(3);
+	await page.getByRole('tab', { name: 'Home' }).click();
 
 	// Side panel with the pages; a click goes to page 3
 	const textOffset = () =>

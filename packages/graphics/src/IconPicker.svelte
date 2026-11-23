@@ -123,7 +123,7 @@
 </script>
 
 {#snippet tile(icon: IconData)}
-	<button
+	<button type="button"
 		class="btn btn-ghost btn-square btn-sm"
 		draggable={ondragstart ? 'true' : undefined}
 		ondragstart={ondragstart && ((e) => ondragstart(e, icon))}
@@ -177,7 +177,7 @@
 			{/if}
 		</div>
 	{:else}
-		<button class="btn btn-sm" onclick={() => load(set.id)} disabled={loading}>
+		<button type="button" class="btn btn-sm" onclick={() => load(set.id)} disabled={loading}>
 			{#if loading}
 				<span class="loading loading-spinner loading-xs"></span>
 			{:else}

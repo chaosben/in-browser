@@ -20,6 +20,8 @@
 		"@in-browser/files": "*",
 		"@in-browser/graphics": "*",
 		"@in-browser/ink": "*",
-		"@in-browser/pdf": "*"
+		"@in-browser/jwl": "*",
+		"@in-browser/pdf": "*",
+		"fflate": "0.8.3"
 	}
 }

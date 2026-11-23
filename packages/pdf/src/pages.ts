@@ -161,9 +161,10 @@ export class PdfPages {
 
 	/**
 	 * A whole PDF page rendered at `scale` (export, print), with the layers shown. `annotations: false` leaves out the
-	 * file's comments (everything but form fields) for this render only
+	 * file's comments (everything but form fields) for this render only; `background` is what lies under the page's
+	 * content (a CSS color, `rgba(0,0,0,0)` for none) instead of white
 	 */
-	async render(doc: string, page: number, scale: number, options: { annotations?: boolean } = {}): Promise<HTMLCanvasElement> {
+	async render(doc: string, page: number, scale: number, options: { annotations?: boolean; background?: string } = {}): Promise<HTMLCanvasElement> {
 		const proxy = await this.page(doc, page);
 		const viewport = proxy.getViewport({ scale, rotation: this.rotation?.(doc, page) });
 		const canvas = document.createElement('canvas');
@@ -174,7 +175,13 @@ export class PdfPages {
 		const storage = (await this.doc(doc)).annotationStorage;
 		const added = hide.filter((id) => !storage.has(id));
 		for (const id of added) storage.setValue(id, { noView: true });
-		const task = proxy.render({ canvas, viewport, optionalContentConfigPromise: this.layers?.(doc), annotationMode: ENABLE_STORAGE });
+		const layers = this.layers?.(doc);
+		// A canvas handed to PDF.js gets an opaque background: another one is drawn through a context of our own
+		const context = options.background === undefined ? null : canvas.getContext('2d');
+		if (options.background !== undefined && !context) throw new Error('No canvas');
+		const task = context
+			? proxy.render({ canvas: null, canvasContext: context, viewport, background: options.background, optionalContentConfigPromise: layers, annotationMode: ENABLE_STORAGE })
+			: proxy.render({ canvas, viewport, optionalContentConfigPromise: layers, annotationMode: ENABLE_STORAGE });
 		for (const id of added) storage.remove(id);
 		await task.promise;
 		return canvas;

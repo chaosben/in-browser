@@ -15,11 +15,28 @@ const MAX_PIXELS = 12_000_000;
 
 /** A page as a picture (PNG) for printing; `comments` false leaves out everything commented on it */
 export async function printedPage(doc: PdfDocument, page: PdfPage, comments: boolean): Promise<Blob> {
-	const scale = Math.min(PRINT_SCALE, Math.sqrt(MAX_PIXELS / (page.w * page.h)));
+	const canvas = await pageCanvas(doc, page, { comments, scale: Math.min(PRINT_SCALE, Math.sqrt(MAX_PIXELS / (page.w * page.h))) });
+	try {
+		return await canvasBlob(canvas, 'image/png');
+	} finally {
+		freeCanvas(canvas);
+	}
+}
+
+/**
+ * A page drawn at `scale` (pixels per point) as the screen shows it – form values, layers, rotation – with the
+ * comments on it, or without anything commented (`comments` false). `background` lies under the page's content
+ * (a CSS color, `rgba(0,0,0,0)` for none; white without it). Free it with `freeCanvas` when done.
+ */
+export async function pageCanvas(
+	doc: PdfDocument,
+	page: PdfPage,
+	{ comments, scale, background }: { comments: boolean; scale: number; background?: string }
+): Promise<HTMLCanvasElement> {
 	let canvas: HTMLCanvasElement;
-	if (page.number) canvas = await doc.renders.render(sourceOf(page), page.number, scale, { annotations: comments });
+	if (page.number) canvas = await doc.renders.render(sourceOf(page), page.number, scale, { annotations: comments, background });
 	else {
-		// A blank page: white paper
+		// A blank page: just the background
 		canvas = document.createElement('canvas');
 		canvas.width = Math.ceil(page.w * scale);
 		canvas.height = Math.ceil(page.h * scale);
@@ -27,28 +44,37 @@ export async function printedPage(doc: PdfDocument, page: PdfPage, comments: boo
 	const ctx = canvas.getContext('2d');
 	if (!ctx) throw new Error('No canvas');
 	if (!page.number) {
-		ctx.fillStyle = '#ffffff';
+		ctx.fillStyle = background ?? '#ffffff';
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 	}
 	const scene = comments ? doc.scene(page.id) : null;
 	if (scene?.items.length) {
-		// Vector stamps are drawn for the paper's resolution, not the screen's
+		// Vector stamps are drawn for the picture's resolution, not the screen's
 		await stampsSharp(scene.items, canvas.width / page.w);
 		ctx.setTransform(canvas.width / page.w, 0, 0, canvas.height / page.h, 0, 0);
-		// The boxes of links are the editor's marks: never on paper
+		// The boxes of links are the editor's marks: never in a picture
 		const shown = linkView.shown;
 		linkView.shown = false;
 		try {
 			scene.draw(ctx, scene.items);
 		} finally {
 			linkView.shown = shown;
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
 		}
 	}
-	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-	// Frees the canvas memory now instead of with the garbage collector
-	canvas.width = canvas.height = 0;
-	if (!blob) throw new Error('The page is too large to print');
+	return canvas;
+}
+
+/** The canvas encoded (`type` as `toBlob` takes it, `quality` 0–1 for JPEG and WebP) */
+export async function canvasBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> {
+	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+	if (!blob) throw new Error('The page is too large for a picture');
 	return blob;
+}
+
+/** Frees a canvas's memory now instead of with the garbage collector */
+export function freeCanvas(canvas: HTMLCanvasElement) {
+	canvas.width = canvas.height = 0;
 }
 
 /** A page's picture as a sheet of the print job (decoded, so the print dialog shows it at once) */

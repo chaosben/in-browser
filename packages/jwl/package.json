@@ -1,0 +1,23 @@
+{
+	"name": "@in-browser/jwl",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Writes JW Library playlists (.jwlplaylist) of pictures and videos in the browser (included as source code)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@noble/hashes": "2.4.0",
+		"fflate": "0.8.3",
+		"sql.js": "1.15.2"
+	},
+	"devDependencies": {
+		"@types/sql.js": "1.4.11"
+	}
+}

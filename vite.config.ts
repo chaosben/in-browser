@@ -29,7 +29,7 @@ export default defineConfig(({ command }) => ({
 	},
 	// Libraries only loaded on demand (dynamic import): pre-bundled at server start, otherwise found only on first use,
 	// which makes the dev server re-bundle and fail that import (504 "Outdated Optimize Dep")
-	optimizeDeps: { include: ['pdfjs-dist', 'pdfjs-dist/build/pdf.sandbox.min.mjs', 'pdf-lib', '@pdf-lib/fontkit'] },
+	optimizeDeps: { include: ['pdfjs-dist', 'pdfjs-dist/build/pdf.sandbox.min.mjs', 'pdf-lib', '@pdf-lib/fontkit', 'sql.js', 'fflate'] },
 	// Supported browsers: latest two versions, Safari latest two majors (see .claude/rules/browser-support.md)
 	build: { target: ['chrome156', 'edge156', 'firefox159', 'safari26'] },
 	plugins: [

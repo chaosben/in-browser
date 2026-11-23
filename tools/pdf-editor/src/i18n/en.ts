@@ -437,17 +437,20 @@ const en = {
 		subText: 'Line below (optional)'
 	},
 
-	print: {
-		command: 'Print …',
-		tip: 'Prints all or some pages, with or without the comments',
-		title: 'Print',
+	pageChoice: {
 		pages: 'Pages',
 		all: (n: number) => (n === 1 ? 'All (1 page)' : `All (${n} pages)`),
 		current: (n: number) => `Current page (${n})`,
 		picked: (n: number) => (n === 1 ? 'Picked pages (1 page)' : `Picked pages (${n} pages)`),
 		range: 'These pages',
 		rangePlaceholder: 'e.g. 1-3, 7',
-		rangeInvalid: (count: number) => (count === 1 ? 'This PDF has only page 1.' : `Enter pages from 1 to ${count}, e.g. 1-3, 7.`),
+		rangeInvalid: (count: number) => (count === 1 ? 'This PDF has only page 1.' : `Enter pages from 1 to ${count}, e.g. 1-3, 7.`)
+	},
+
+	print: {
+		command: 'Print …',
+		tip: 'Prints all or some pages, with or without the comments',
+		title: 'Print',
 		content: 'Content',
 		comments: 'Print comments',
 		list: 'Add a list of the comments',
@@ -459,6 +462,42 @@ const en = {
 		failed: 'The pages could not be prepared for printing.',
 		listTitle: (name: string) => `Comments in “${name}”`,
 		listEmpty: 'There are no comments on the printed pages.'
+	},
+
+	export: {
+		command: 'Export …',
+		tip: 'Saves pages as pictures (PNG, JPEG, WebP) or as a JW Library playlist',
+		pageCommand: 'Export as pictures …',
+		title: 'Export',
+		format: 'Format',
+		formats: { png: 'PNG', jpeg: 'JPEG', webp: 'WebP', playlist: 'JW Library playlist (.jwlplaylist)' },
+		noWebp: 'This browser can’t write WebP.',
+		resolution: 'Resolution',
+		dpi: 'dpi',
+		quality: 'Quality',
+		size: (w: number, h: number) => `${w} × ${h} pixels`,
+		reduced: (w: number, h: number) => `${w} × ${h} pixels – less than chosen, larger pictures can’t be drawn`,
+		comments: 'Export comments',
+		background: 'Background',
+		fileName: 'File name',
+		placeholders: 'Insert a placeholder',
+		placeholder: { name: 'Name of the PDF', page: 'Page number', pages: 'Number of pages', date: 'Date', time: 'Time' },
+		example: (name: string) => `For example “${name}”`,
+		seconds: 'Duration',
+		secondsUnit: 's',
+		endAction: 'At the end',
+		endActions: { continue: 'Continue', stop: 'Stop', freeze: 'Freeze', repeat: 'Repeat' },
+		itemLabel: (name: string, page: number) => `${name} – page ${page}`,
+		download: 'Download',
+		save: 'Save …',
+		folderTitle: 'Save the pictures in',
+		folderConfirm: 'Save here',
+		saveTitle: 'Save the playlist',
+		preparing: (n: number, total: number) => `Exporting page ${n} of ${total} …`,
+		packing: 'Writing the playlist …',
+		savedPictures: (n: number, folder: string) => (n === 1 ? `1 picture saved in “${folder}”.` : `${n} pictures saved in “${folder}”.`),
+		savedPlaylist: (name: string) => `Saved as “${name}”.`,
+		failed: 'The pages could not be exported.'
 	},
 
 	panels: {

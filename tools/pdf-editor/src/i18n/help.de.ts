@@ -120,6 +120,24 @@ const de: typeof help = {
 				},
 				tip: 'Nimm „An das Papier anpassen“ für Leseexemplare. Wähle „Tatsächliche Größe“, wenn Maße zählen (Pläne, Formulare zum Scannen, Etiketten) oder wenn du in eine PDF druckst und Seiten in Originalgröße willst.',
 				keys: [['Strg', 'P']]
+			},
+			export: {
+				title: 'Seiten als Bilder oder Playlist exportieren',
+				text: '„Exportieren …“ auf der Registerkarte „Datei“ (auch „Als Bilder exportieren …“ im Seitenmenü des Panels „Seiten“) speichert Seiten als Bilder oder als Playlist für JW Library. Die Seiten wählst du wie beim Drucken: „Alle“, „Aktuelle Seite“, „Gewählte Seiten“ oder Seiten, die du eintippst, z. B. „1-3, 7“. Sie werden so gezeichnet, wie du sie siehst – gedrehte Seiten gedreht, ausgefüllte Felder mit ihren Werten, ausgeblendete Ebenen nicht – nacheinander („Abbrechen“ beendet das). „Speichern …“ fragt nach einem Ordner in deinen Dateien (Bilder) oder einem Dateinamen (Playlist); eine vorhandene Datei wird nie ersetzt – die neue bekommt „ (2)“ im Namen. „Herunterladen“ speichert stattdessen in den Download-Ordner deines Rechners: ein Bild so, wie es ist, mehrere als eine ZIP-Datei. Der Dialog merkt sich seine Einstellungen auf diesem Gerät.',
+				options: {
+					png: { label: 'PNG (Standard)', text: 'Genau, ohne Verlust: Text und Linien bleiben scharf. Die größten Dateien.' },
+					jpeg: { label: 'JPEG', text: 'Viel kleinere Dateien, leicht weiche Kanten an Text. Öffnet sich überall.' },
+					webp: { label: 'WebP', text: 'Kleiner als JPEG bei gleichem Aussehen. Nicht jedes Programm öffnet es, und nicht jeder Browser kann es schreiben – dann ist die Option aus.' },
+					playlist: { label: 'JW-Library-Playlist (.jwlplaylist)', text: 'Eine Datei mit jeder Seite als Bild (JPEG) in ihrer Reihenfolge, benannt nach der PDF. In JW Library: „Playlists“, dann eine Playlist hinzufügen und die Datei importieren.' },
+					resolution: { label: 'Auflösung (Standard: 150 dpi)', text: 'Pixel pro Zoll der Seite: eine A4-Seite mit 150 dpi hat 1241 × 1754 Pixel. Doppelte dpi ergeben viermal so viele Pixel und viel größere Dateien. Die Zeile über den Knöpfen zeigt die Größe der ersten Seite; Seiten, die mehr als etwa 16,8 Millionen Pixel hätten, werden kleiner gezeichnet, und er sagt das.' },
+					quality: { label: 'Qualität (Standard: 90 %)', text: 'Für JPEG, WebP und die Bilder der Playlist: weniger ergibt kleinere Dateien mit sichtbarer Unschärfe an Text. PNG hat keine Qualität – es ist immer genau.' },
+					comments: { label: 'Kommentare exportieren (Standard: an)', text: 'Zeichnet markierten Text, Notizen, Textfelder, Zeichnungen und die übrigen Kommentare der Datei in die Bilder. Aus: die Seiten ohne sie – Formularfelder und ihre Werte bleiben.' },
+					background: { label: 'Hintergrund (Standard: Weiß)', text: 'Was unter dem Inhalt der Seite liegt, wo die PDF nichts malt. „Keine“ ergibt durchsichtige Bilder und eine Farbe mit weniger als voller Deckkraft einen halb durchsichtigen Hintergrund – beides nur bei PNG und WebP; JPEG und die Playlist nehmen die Farbe voll deckend und für „Keine“ Weiß. Flächen, die die PDF selbst malt (gescannte Seiten, weiße Kästen), bleiben, wie sie sind.' },
+					name: { label: 'Dateiname (Standard: {name}_{page})', text: 'Die Namen der Bilder, mit Platzhaltern, die du mit dem Knopf neben dem Feld einfügst: {name} der Name der PDF, {page} die Seitenzahl (mit führenden Nullen, damit die Dateien richtig sortiert sind), {pages} die Anzahl der Seiten, {date} das Datum (2026-11-23), {time} die Uhrzeit (14-05). Die Zeile über den Knöpfen zeigt den ersten Namen oder was daran nicht stimmt.' },
+					seconds: { label: 'Dauer (Standard: 4 s)', text: 'Nur Playlist: wie lange JW Library eine Seite zeigt, bevor die Aktion am Ende folgt.' },
+					endAction: { label: 'Am Ende (Standard: Standbild)', text: 'Nur Playlist, wie in JW Library: „Weiter“ geht zur nächsten Seite, „Stopp“ zurück zur Playlist, „Standbild“ lässt die Seite stehen, bis du weitergehst, „Wiederholen“ zeigt sie noch einmal. In JW Library kannst du es später für jedes Element ändern.' }
+				},
+				tip: 'Für Bildschirme und Präsentationen reichen 150 dpi, zum Drucken nimm 300 dpi. Nimm PNG für Text, Pläne und Zeichnungen (mit dem Hintergrund „Keine“ für Unterschriften und Logos zum Darüberlegen), JPEG oder WebP für Fotos oder wenn die Dateien klein sein müssen. Für einen Vortrag in JW Library nimm die Playlist mit „Standbild“, dann bleibt jede Seite, bis du weitergehst.'
 			}
 		}
 	},

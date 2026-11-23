@@ -436,17 +436,20 @@ const de: Messages = {
 		subText: 'Zeile darunter (optional)'
 	},
 
-	print: {
-		command: 'Drucken …',
-		tip: 'Druckt alle oder einzelne Seiten, mit oder ohne Kommentare',
-		title: 'Drucken',
+	pageChoice: {
 		pages: 'Seiten',
 		all: (n) => (n === 1 ? 'Alle (1 Seite)' : `Alle (${n} Seiten)`),
 		current: (n) => `Aktuelle Seite (${n})`,
 		picked: (n) => (n === 1 ? 'Gewählte Seiten (1 Seite)' : `Gewählte Seiten (${n} Seiten)`),
 		range: 'Diese Seiten',
 		rangePlaceholder: 'z. B. 1-3, 7',
-		rangeInvalid: (count) => (count === 1 ? 'Diese PDF hat nur Seite 1.' : `Gib Seiten von 1 bis ${count} an, z. B. 1-3, 7.`),
+		rangeInvalid: (count) => (count === 1 ? 'Diese PDF hat nur Seite 1.' : `Gib Seiten von 1 bis ${count} an, z. B. 1-3, 7.`)
+	},
+
+	print: {
+		command: 'Drucken …',
+		tip: 'Druckt alle oder einzelne Seiten, mit oder ohne Kommentare',
+		title: 'Drucken',
 		content: 'Inhalt',
 		comments: 'Kommentare drucken',
 		list: 'Liste der Kommentare anhängen',
@@ -458,6 +461,42 @@ const de: Messages = {
 		failed: 'Die Seiten konnten nicht für den Druck vorbereitet werden.',
 		listTitle: (name) => `Kommentare in „${name}“`,
 		listEmpty: 'Auf den gedruckten Seiten gibt es keine Kommentare.'
+	},
+
+	export: {
+		command: 'Exportieren …',
+		tip: 'Speichert Seiten als Bilder (PNG, JPEG, WebP) oder als JW-Library-Playlist',
+		pageCommand: 'Als Bilder exportieren …',
+		title: 'Exportieren',
+		format: 'Format',
+		formats: { png: 'PNG', jpeg: 'JPEG', webp: 'WebP', playlist: 'JW-Library-Playlist (.jwlplaylist)' },
+		noWebp: 'Dieser Browser kann kein WebP schreiben.',
+		resolution: 'Auflösung',
+		dpi: 'dpi',
+		quality: 'Qualität',
+		size: (w, h) => `${w} × ${h} Pixel`,
+		reduced: (w, h) => `${w} × ${h} Pixel – weniger als gewählt, größere Bilder lassen sich nicht zeichnen`,
+		comments: 'Kommentare exportieren',
+		background: 'Hintergrund',
+		fileName: 'Dateiname',
+		placeholders: 'Platzhalter einfügen',
+		placeholder: { name: 'Name der PDF', page: 'Seitenzahl', pages: 'Anzahl der Seiten', date: 'Datum', time: 'Uhrzeit' },
+		example: (name) => `Zum Beispiel „${name}“`,
+		seconds: 'Dauer',
+		secondsUnit: 's',
+		endAction: 'Am Ende',
+		endActions: { continue: 'Weiter', stop: 'Stopp', freeze: 'Standbild', repeat: 'Wiederholen' },
+		itemLabel: (name, page) => `${name} – Seite ${page}`,
+		download: 'Herunterladen',
+		save: 'Speichern …',
+		folderTitle: 'Bilder speichern in',
+		folderConfirm: 'Hier speichern',
+		saveTitle: 'Playlist speichern',
+		preparing: (n, total) => `Seite ${n} von ${total} wird exportiert …`,
+		packing: 'Die Playlist wird geschrieben …',
+		savedPictures: (n, folder) => (n === 1 ? `1 Bild in „${folder}“ gespeichert.` : `${n} Bilder in „${folder}“ gespeichert.`),
+		savedPlaylist: (name) => `Gespeichert als „${name}“.`,
+		failed: 'Die Seiten konnten nicht exportiert werden.'
 	},
 
 	panels: {

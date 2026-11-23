@@ -126,7 +126,7 @@
 <!-- Always opaque, so colors stay recognizable at a low opacity (the opacity button shows it). Preset places
 	 (`index`) take a color dropped on them. -->
 {#snippet swatch(color: string, index?: number)}
-	<button
+	<button type="button"
 		class="{swatchClass} {parsed?.hex === color ? selected : 'border-base-content/30'} {index !== undefined && dropIndex === index ? 'ring-selection ring-2 ring-offset-1' : ''}"
 		style="background: {color}"
 		draggable="true"
@@ -144,7 +144,7 @@
 <div class="flex flex-col gap-2">
 	<div class="flex items-center gap-1">
 		{#if allowNone}
-			<button
+			<button type="button"
 				class="{swatchClass} bg-base-100 {value === null ? selected : 'border-base-content/30'}"
 				onclick={() => onchange(null, true)}
 				title={m.color.none}
@@ -160,7 +160,7 @@
 
 		<!-- Always in its place: with "None" it is disabled, not gone -->
 		{#if !opaque}
-			<button
+			<button type="button"
 				bind:this={opacityButton}
 				popovertarget={popoverId}
 				disabled={!parsed}
@@ -206,7 +206,7 @@
 			</div>
 		{/if}
 		{#if !isDefaultPalette(palette)}
-			<button
+			<button type="button"
 				class="btn btn-ghost btn-xs btn-square ml-auto"
 				onclick={() => setPalette([...COLORS])}
 				title={m.color.resetPalette}

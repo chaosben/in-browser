@@ -28,6 +28,10 @@ the following third-party software. All of it is used unmodified. The full licen
 | PDF.js resources: Adobe CMaps | (with PDF.js) | BSD-3-Clause | © 1990–2009 Adobe Systems Incorporated | PDF Editor | https://github.com/adobe-type-tools/cmap-resources |
 | PDF.js resources: OpenJPEG decoder | (with PDF.js) | BSD-2-Clause | © 2002–2014 Université catholique de Louvain, © 2024 Mozilla Foundation and others | PDF Editor | https://github.com/uclouvain/openjpeg |
 | PDF.js resources: qcms | (with PDF.js) | MIT | © 2009–2024 Mozilla Corporation, © 1998–2007 Marti Maria | PDF Editor | https://github.com/FirefoxGraphics/qcms |
+| [sql.js](https://sql.js.org) (`sql.js`, with its WebAssembly build) | 1.15.2 | MIT | © 2017 sql.js authors | PDF Editor (JW Library playlists, `packages/jwl`) | https://github.com/sql-js/sql.js |
+| [SQLite](https://sqlite.org) (compiled into sql.js) | (with sql.js) | Public domain | – | PDF Editor (JW Library playlists) | https://sqlite.org/copyright.html |
+| [fflate](https://github.com/101arrowz/fflate) (`fflate`) | 0.8.3 | MIT | © 2026 Arjun Barrett | PDF Editor (exported pictures as ZIP, JW Library playlists) | https://github.com/101arrowz/fflate |
+| [noble-hashes](https://github.com/paulmillr/noble-hashes) (`@noble/hashes`) | 2.4.0 | MIT | © 2022 Paul Miller | PDF Editor (JW Library playlists) | https://github.com/paulmillr/noble-hashes |
 | PDF.js resources: QuickJS | (with PDF.js) | MIT | © 2017–2021 Fabrice Bellard, Charlie Gordon; © 2026 Mozilla Foundation | PDF Editor (form scripts) | https://bellard.org/quickjs/ |
 | [pdf-lib](https://pdf-lib.js.org) (`pdf-lib`, `@pdf-lib/standard-fonts`) | 1.17.1 | MIT | © 2018–2019 Andrew Dillon | PDF Editor | https://github.com/Hopding/pdf-lib |
 | [fontkit for pdf-lib](https://github.com/Hopding/fontkit) (`@pdf-lib/fontkit`) | 1.1.1 | MIT | Devon Govett, Andrew Dillon (authors in its package.json; the package ships no LICENSE file) | PDF Editor (fonts of text boxes, via pdf-lib) | https://github.com/Hopding/fontkit |

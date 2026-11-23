@@ -44,6 +44,7 @@
 	import NoteEditor from '#lib/components/NoteEditor.svelte';
 	import NewPdfDialog from '#lib/components/NewPdfDialog.svelte';
 	import PrintDialog from '#lib/components/PrintDialog.svelte';
+	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import PdfPageDialog from '#lib/components/PdfPageDialog.svelte';
 	import StampEditor from '#lib/components/StampEditor.svelte';
 	import LinkEditor from '#lib/components/LinkEditor.svelte';
@@ -91,6 +92,8 @@
 	let creating = $state(false);
 	/** The print dialog is open, starting with these pages */
 	let printing = $state<'all' | 'picked' | null>(null);
+	/** The export dialog is open, starting with these pages */
+	let exporting = $state<'all' | 'picked' | null>(null);
 
 	function loadError(e: unknown): string {
 		if (e instanceof PdfError) return e.reason === 'password' ? m.editor.password : m.editor.invalid;
@@ -571,6 +574,14 @@
 			enabled: () => !!ed.doc,
 			run: () => (printing = 'all')
 		},
+		exportPages: {
+			id: 'exportPages',
+			label: m.export.command,
+			tip: m.export.tip,
+			icon: 'icon-[material-symbols-light--photo-library-outline]',
+			enabled: () => !!ed.doc,
+			run: () => (exporting = 'all')
+		},
 		showInFiles: { id: 'showInFiles', label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', enabled: () => !!ed.doc, run: () => showInFiles() },
 		undo: { id: 'undo', label: m.commands.undo, icon: 'icon-[material-symbols-light--undo]', shortcut: { key: 'z', ctrl: true }, enabled: () => !!ed.doc?.canUndo, run: () => changed(() => ed.doc?.undo()) },
 		redo: {
@@ -991,6 +1002,7 @@
 		asEntry(commands.extract),
 		// The picked pages, else the current one – like every entry here
 		{ label: m.print.command, icon: commands.print.icon, run: () => (printing = 'picked') },
+		{ label: m.export.pageCommand, icon: commands.exportPages.icon, run: () => (exporting = 'picked') },
 		asEntry(commands.deletePages)
 	];
 
@@ -1120,7 +1132,7 @@
 			id: 'file',
 			label: brandMessages().ribbon.file,
 			groups: [
-				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.print, commands.showInFiles] },
+				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.exportPages, commands.print, commands.showInFiles] },
 				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
 			]
 		},
@@ -1493,6 +1505,7 @@
 	</div>
 	{#if creating}<NewPdfDialog folder={parent(doc.path)} oncreated={(path) => location.assign(editorUrl(path))} onclose={() => (creating = false)} />{/if}
 	{#if printing}<PrintDialog {ed} which={printing} onclose={() => (printing = null)} />{/if}
+	{#if exporting}<ExportDialog {ed} which={exporting} onclose={() => (exporting = null)} />{/if}
 	{#if scaling}<MeasureDialog {ed} onclose={() => (scaling = false)} />{/if}
 	{#if calibrating}
 		<CalibrateDialog
