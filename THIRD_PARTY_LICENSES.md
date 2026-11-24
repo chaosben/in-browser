@@ -20,7 +20,7 @@ the following third-party software. All of it is used unmodified. The full licen
 | [noble-secp256k1](https://github.com/paulmillr/noble-secp256k1) (`@noble/secp256k1`) | 3.2.0 | MIT | © 2019 Paul Miller | device sync (via Trystero) | https://github.com/paulmillr/noble-secp256k1 |
 | [client-zip](https://github.com/Touffy/client-zip) (`client-zip`) | 2.5.1 | MIT | © 2020 David Junger | Files | https://github.com/Touffy/client-zip |
 | [uqr](https://github.com/unjs/uqr) (`uqr`) | 0.1.3 | MIT | © Project Nayuki, © 2023 Anthony Fu | QR codes of pairing and sharing (`packages/files`) | https://github.com/unjs/uqr |
-| [bwip-js](https://github.com/metafloor/bwip-js) (`bwip-js`) | 4.11.4 | MIT | © 2011-2026 Mark Warren | Barcodes and QR codes (`packages/graphics`; PDF Editor) | https://github.com/metafloor/bwip-js |
+| [bwip-js](https://github.com/metafloor/bwip-js) (`bwip-js`) | 4.11.4 | MIT | © 2011-2026 Mark Warren | Barcodes and QR codes (`packages/graphics`; PDF Editor, Screen Capture) | https://github.com/metafloor/bwip-js |
 | [CodeMirror](https://codemirror.net) (`@codemirror/*`, `@lezer/*`, `style-mod`, `crelt`, `w3c-keyname`, `@marijn/find-cluster-break`) | 6.x (exact versions in `package-lock.json`) | MIT | © 2016–2024 Marijn Haverbeke and others | Text Editor | https://github.com/codemirror |
 | [marked](https://marked.js.org) (`marked`) | 18.2.1 | MIT | © 2018+ MarkedJS, © 2011–2018 Christopher Jeffrey | Text Editor | https://github.com/markedjs/marked |
 | [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist`) | 6.5.438 | Apache-2.0 | © Mozilla Foundation | PDF Editor | https://github.com/mozilla/pdf.js |
@@ -29,10 +29,10 @@ the following third-party software. All of it is used unmodified. The full licen
 | PDF.js resources: Adobe CMaps | (with PDF.js) | BSD-3-Clause | © 1990–2009 Adobe Systems Incorporated | PDF Editor | https://github.com/adobe-type-tools/cmap-resources |
 | PDF.js resources: OpenJPEG decoder | (with PDF.js) | BSD-2-Clause | © 2002–2014 Université catholique de Louvain, © 2024 Mozilla Foundation and others | PDF Editor | https://github.com/uclouvain/openjpeg |
 | PDF.js resources: qcms | (with PDF.js) | MIT | © 2009–2024 Mozilla Corporation, © 1998–2007 Marti Maria | PDF Editor | https://github.com/FirefoxGraphics/qcms |
-| [sql.js](https://sql.js.org) (`sql.js`, with its WebAssembly build) | 1.15.2 | MIT | © 2017 sql.js authors | PDF Editor (JW Library playlists, `packages/jwl`) | https://github.com/sql-js/sql.js |
-| [SQLite](https://sqlite.org) (compiled into sql.js) | (with sql.js) | Public domain | – | PDF Editor (JW Library playlists) | https://sqlite.org/copyright.html |
-| [fflate](https://github.com/101arrowz/fflate) (`fflate`) | 0.8.3 | MIT | © 2026 Arjun Barrett | PDF Editor (exported pictures as ZIP, JW Library playlists) | https://github.com/101arrowz/fflate |
-| [noble-hashes](https://github.com/paulmillr/noble-hashes) (`@noble/hashes`) | 2.4.0 | MIT | © 2022 Paul Miller | PDF Editor (JW Library playlists) | https://github.com/paulmillr/noble-hashes |
+| [sql.js](https://sql.js.org) (`sql.js`, with its WebAssembly build) | 1.15.2 | MIT | © 2017 sql.js authors | PDF Editor, Screen Capture (JW Library playlists, `packages/jwl`) | https://github.com/sql-js/sql.js |
+| [SQLite](https://sqlite.org) (compiled into sql.js) | (with sql.js) | Public domain | – | PDF Editor, Screen Capture (JW Library playlists) | https://sqlite.org/copyright.html |
+| [fflate](https://github.com/101arrowz/fflate) (`fflate`) | 0.8.3 | MIT | © 2026 Arjun Barrett | PDF Editor (exported pictures as ZIP); JW Library playlists (PDF Editor, Screen Capture) | https://github.com/101arrowz/fflate |
+| [noble-hashes](https://github.com/paulmillr/noble-hashes) (`@noble/hashes`) | 2.4.0 | MIT | © 2022 Paul Miller | PDF Editor, Screen Capture (JW Library playlists) | https://github.com/paulmillr/noble-hashes |
 | PDF.js resources: QuickJS | (with PDF.js) | MIT | © 2017–2021 Fabrice Bellard, Charlie Gordon; © 2026 Mozilla Foundation | PDF Editor (form scripts) | https://bellard.org/quickjs/ |
 | [pdf-lib](https://pdf-lib.js.org) (`pdf-lib`, `@pdf-lib/standard-fonts`) | 1.17.1 | MIT | © 2018–2019 Andrew Dillon | PDF Editor | https://github.com/Hopding/pdf-lib |
 | [fontkit for pdf-lib](https://github.com/Hopding/fontkit) (`@pdf-lib/fontkit`) | 1.1.1 | MIT | Devon Govett, Andrew Dillon (authors in its package.json; the package ships no LICENSE file) | PDF Editor (fonts of text boxes, via pdf-lib) | https://github.com/Hopding/fontkit |
@@ -41,10 +41,10 @@ the following third-party software. All of it is used unmodified. The full licen
 | [tslib](https://github.com/microsoft/tslib) (`tslib`) | 1.14.1 | 0BSD | © Microsoft Corporation | PDF Editor (via pdf-lib) | https://github.com/microsoft/tslib |
 | [Mediabunny](https://mediabunny.dev) (`mediabunny`) | 1.66.0 | MPL-2.0 | © Vanilagy | Screen Capture | https://github.com/Vanilagy/mediabunny/tree/v1.66.0 |
 | [gifenc](https://github.com/mattdesl/gifenc) (`gifenc`) | 1.0.3 | MIT | © 2017 Matt DesLauriers | Screen Capture | https://github.com/mattdesl/gifenc |
-| [Inter](https://rsms.me/inter/) (font, `@fontsource/inter`) | 5.3.0 | OFL-1.1 | © 2016 The Inter Project Authors | Screen Capture | https://github.com/rsms/inter |
-| [Montserrat](https://github.com/JulietaUla/Montserrat) (font, `@fontsource/montserrat`) | 5.3.0 | OFL-1.1 | © 2011 The Montserrat Project Authors | Screen Capture | https://github.com/JulietaUla/Montserrat |
-| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (font, `@fontsource/jetbrains-mono`) | 5.3.0 | OFL-1.1 | © 2020 The JetBrains Mono Project Authors | Screen Capture | https://github.com/JetBrains/JetBrainsMono |
-| [Caveat](https://github.com/googlefonts/caveat) (font, `@fontsource/caveat`) | 5.3.0 | OFL-1.1 | © 2014 The Caveat Project Authors | Screen Capture | https://github.com/googlefonts/caveat |
+| [Inter](https://rsms.me/inter/) (font, `@fontsource/inter`) | 5.3.0 | OFL-1.1 | © 2016 The Inter Project Authors | Screen Capture (text, via `packages/graphics`) | https://github.com/rsms/inter |
+| [Montserrat](https://github.com/JulietaUla/Montserrat) (font, `@fontsource/montserrat`) | 5.3.0 | OFL-1.1 | © 2011 The Montserrat Project Authors | Screen Capture (text, via `packages/graphics`) | https://github.com/JulietaUla/Montserrat |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (font, `@fontsource/jetbrains-mono`) | 5.3.0 | OFL-1.1 | © 2020 The JetBrains Mono Project Authors | Screen Capture (text, via `packages/graphics`) | https://github.com/JetBrains/JetBrainsMono |
+| [Caveat](https://github.com/googlefonts/caveat) (font, `@fontsource/caveat`) | 5.3.0 | OFL-1.1 | © 2014 The Caveat Project Authors | Screen Capture (text, via `packages/graphics`) | https://github.com/googlefonts/caveat |
 | [Tinos](https://github.com/googlefonts/tinos) (font, `@fontsource/tinos`) | 5.3.0 | OFL-1.1 | © 2026 The Tinos Project Authors | PDF Editor (serif text in text boxes, via `packages/graphics`) | https://github.com/googlefonts/tinos |
 | [Cousine](https://github.com/googlefonts/cousine) (font, `@fontsource/cousine`) | 5.3.0 | OFL-1.1 | © 2026 The Cousine Project Authors | PDF Editor (monospace text in text boxes, via `packages/graphics`) | https://github.com/googlefonts/cousine |
 

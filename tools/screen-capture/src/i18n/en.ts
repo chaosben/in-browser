@@ -132,7 +132,17 @@ const en = {
 	export: {
 		title: 'Export',
 		format: 'Format',
-		formats: { mp4: 'MP4', webm: 'WebM', gif: 'GIF' },
+		formats: { mp4: 'MP4', webm: 'WebM', gif: 'GIF', picture: 'Picture', playlist: 'JW Library' },
+		pictureFormat: 'Picture format',
+		pictureFormats: { png: 'PNG', jpeg: 'JPEG', webp: 'WebP' },
+		noWebp: 'This browser can’t write WebP.',
+		pictureAt: 'Picture at',
+		pictureNote: 'The picture at the playhead, as the video shows it there (move the playhead to choose another).',
+		endAction: 'At the end',
+		endActions: { continue: 'Continue', stop: 'Stop', freeze: 'Freeze', repeat: 'Repeat' },
+		playlistNote: 'A JW Library playlist with the video (MP4) as its one item. In JW Library: “Playlists”, then add a playlist and import the file.',
+		renderingPicture: 'Drawing the picture …',
+		packing: 'Writing the playlist …',
 		resolution: 'Resolution',
 		width: 'Width',
 		original: (w: number, h: number) => `Original (${w}×${h})`,
@@ -174,7 +184,7 @@ const en = {
 	},
 
 	ribbon: {
-		tabs: { home: 'Home', insert: 'Insert', view: 'View', arrange: 'Arrange', clip: 'Clip' },
+		tabs: { home: 'Home', insert: 'Insert', view: 'View', arrange: 'Arrange', clip: 'Clip', textbox: 'Text box' },
 		groups: {
 			project: 'Project',
 			playback: 'Playback',
@@ -194,8 +204,21 @@ const en = {
 			link: 'Link',
 			crop: 'Crop',
 			placement: 'Placement',
-			audio: 'Audio'
+			audio: 'Audio',
+			paragraph: 'Paragraph',
+			sizing: 'Size'
 		}
+	},
+
+	textbox: {
+		label: 'Text of the text box',
+		edit: 'Edit text',
+		textColor: 'Text color',
+		sizeValue: (px: number) => `${px} px`,
+		alignLeft: 'Align text left',
+		alignCenter: 'Center text',
+		alignRight: 'Align text right',
+		justify: 'Justify'
 	},
 
 	editor: {
@@ -248,6 +271,9 @@ const en = {
 		shapes: 'Shapes',
 		insertTip: 'Insert at the playhead – or drag its tile from the panel onto the preview or the timeline',
 		iconTip: 'Opens the icons on the left: click one to insert it at the playhead',
+		barcode: 'Barcode …',
+		barcodeTip: 'Makes a QR code or a barcode of what you type and inserts it at the playhead',
+		editBarcode: 'Edit barcode …',
 		canvasSize: 'Canvas size',
 		properties: 'Properties …',
 		undo: 'Undo',
@@ -331,6 +357,7 @@ const en = {
 			canvas: 'Canvas'
 		},
 		text: 'Text',
+		style: 'Style',
 		fontSize: 'Font size',
 		align: 'Alignment',
 		alignLeft: 'Left',
@@ -452,7 +479,8 @@ const en = {
 		click: 'Click',
 		callout: 'Speech bubble',
 		image: 'Image',
-		icon: 'Icon'
+		icon: 'Icon',
+		barcode: 'Barcode'
 	},
 
 	fonts: {
@@ -534,7 +562,9 @@ const en = {
 		toFront: 'Bring to front',
 		forward: 'Bring forward one layer',
 		backward: 'Send back one layer',
-		toBack: 'Send to back'
+		toBack: 'Send to back',
+		duplicate: 'Duplicate',
+		duplicateTip: 'Copies the selected items right after them, in the same place in the picture'
 	},
 
 	errors: {

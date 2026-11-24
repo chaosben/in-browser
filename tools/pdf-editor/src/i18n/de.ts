@@ -160,16 +160,6 @@ const de: Messages = {
 		label: 'Text des Textfelds',
 		edit: 'Text bearbeiten',
 		size: 'Größe',
-		fontSize: 'Schriftgröße',
-		font: 'Schriftart',
-		fonts: { sans: 'Serifenlos', serif: 'Serifen', mono: 'Feste Breite' },
-		bold: 'Fett',
-		italic: 'Kursiv',
-		underline: 'Unterstrichen',
-		lineHeight: 'Zeilenabstand',
-		lineHeightValue: (n: number) => n.toLocaleString('de', { minimumFractionDigits: 1 }),
-		bulleted: 'Aufzählung',
-		numbered: 'Nummerierung',
 		textColor: 'Textfarbe',
 		sizeValue: (pt: number) => `${pt} pt`,
 		style: 'Hintergrund und Rahmen',
@@ -294,10 +284,7 @@ const de: Messages = {
 	barcode: {
 		command: 'Barcode …',
 		tip: 'Macht aus dem, was du eingibst, einen QR-Code oder Strichcode und setzt ihn als Bild auf die Seite',
-		title: 'Barcode',
-		insert: 'Einfügen',
 		edit: 'Barcode bearbeiten',
-		apply: 'Übernehmen'
 	},
 
 	pageSize: {
@@ -537,6 +524,9 @@ const de: Messages = {
 		endAction: 'Am Ende',
 		endActions: { continue: 'Weiter', stop: 'Stopp', freeze: 'Standbild', repeat: 'Wiederholen' },
 		itemLabel: (name, page) => `${name} – Seite ${page}`,
+		steps: 'Jeden Präsentationsschritt als Bild',
+		stepLabel: (name, page, n, total) => `${name} – Seite ${page} (${n}/${total})`,
+		preparingSteps: (n, total) => `Bild ${n} von ${total} wird exportiert …`,
 		download: 'Herunterladen',
 		save: 'Speichern …',
 		folderTitle: 'Bilder speichern in',

@@ -13,6 +13,7 @@
 	import { isCommented, isMarkup, pdfKit, type MarkKind, type MarkupItem } from '#lib/render/markup.js';
 	import type { CaretItem } from '#lib/render/caret.js';
 	import { isNote, NOTE_SIZE } from '#lib/render/note.js';
+	import { DOCUMENT_FONTS } from '@in-browser/graphics/rich-text.js';
 	import { loadFonts } from '@in-browser/graphics/fonts.js';
 	import { fontOf, isText, loadTextFont, minTextSize, roomOf, withText, type TextItem } from '#lib/render/textbox.js';
 	import { Stage, type StageElements } from '@in-browser/ink/render/stage.js';
@@ -864,7 +865,7 @@
 			el.root.addEventListener('pointerdown', press);
 			el.root.addEventListener('click', click);
 			// Text boxes drawn before their font was there: drawn again with it
-			void Promise.all([loadTextFont(), loadFonts()]).then(() => {
+			void Promise.all([loadTextFont(), loadFonts(DOCUMENT_FONTS)]).then(() => {
 				for (const page of pdf.pages) if (pdf.scene(page.id)?.items.some(isText)) s.contentChanged(page.id);
 			});
 			const detach = input.attach();

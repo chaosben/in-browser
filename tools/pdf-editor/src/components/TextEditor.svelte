@@ -6,7 +6,7 @@
 	// selection) writes the text as one step – its lines broken for the box's width; an emptied box is removed.
 	import { untrack } from 'svelte';
 	import RichTextEditor from '@in-browser/graphics/RichTextEditor.svelte';
-	import { fontFamilyCss } from '@in-browser/graphics/fonts.js';
+	import { fontFamilyCss, fontWeight } from '@in-browser/graphics/fonts.js';
 	import { plainOf, richOf, type RichText } from '@in-browser/graphics/rich-text.js';
 	import { m } from '#lib/i18n/index.js';
 	import type { PdfDocument } from '#lib/model/document.svelte.js';
@@ -112,7 +112,7 @@
 			class="outline-selection pointer-events-auto absolute z-10 box-border block overflow-hidden outline-2"
 			style="left: {left}px; top: {top}px; width: {along}px; min-height: {least}px; white-space: {auto ? 'pre' : 'pre-wrap'}; transform-origin: 0 0; transform: rotate({item.rot}deg); margin: 0;
 				border: {bw ? `${bw}px solid ${item.border}` : '0'}; background: {item.fill ?? '#ffffff'};
-				font-family: {fontFamilyCss(base.font)}; font-size: {base.size * zoom}px; font-weight: {base.bold ? 700 : 400}; font-style: {base.italic ? 'italic' : 'normal'}; text-decoration: {base.underline ? 'underline' : 'none'};
+				font-family: {fontFamilyCss(base.font)}; font-size: {base.size * zoom}px; font-weight: {fontWeight(base)}; font-style: {base.italic ? 'italic' : 'normal'}; text-decoration: {base.underline ? 'underline' : 'none'};
 				line-height: {item.lineHeight ?? LINE_HEIGHT}; text-align: {alignOf(item)}; padding: {TEXT_PAD * zoom}px; color: {item.color}"
 			oninput={(value) => (draft = value)}
 		/>

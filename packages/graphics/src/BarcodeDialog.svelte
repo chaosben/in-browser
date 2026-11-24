@@ -1,11 +1,15 @@
 <script lang="ts">
-	// "Barcode …" and "Edit barcode": a code of what is typed, placed on the page as a picture (vectors, so it stays
-	// sharp at every size). The fields are the suite's (`BarcodeFields` of `@in-browser/graphics`).
+	// "Barcode …" and "Edit barcode" of every tool: a code of what is typed, which the tool places as a picture
+	// (vectors, so it stays sharp at every size). The fields are `BarcodeFields`; the tool keeps the spec with what it
+	// placed, so it can be changed later.
 	import Modal from '@in-browser/brand/Modal.svelte';
+	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
 	import { loadJson, storeJson } from '@in-browser/brand/storage.js';
-	import BarcodeFields from '@in-browser/graphics/BarcodeFields.svelte';
-	import { barcodeSpec, type BarcodeDrawing, type BarcodeSpec } from '@in-browser/graphics/barcode.js';
-	import { m } from '#lib/i18n/index.js';
+	import BarcodeFields from './BarcodeFields.svelte';
+	import { barcodeSpec, type BarcodeDrawing, type BarcodeSpec } from './barcode.js';
+	import { graphicsMessages } from './i18n/index.svelte.js';
+
+	const t = $derived(graphicsMessages().barcode);
 
 	/** `spec`: the code to change; without it a new one is made */
 	let { spec, oninsert, onclose }: { spec?: BarcodeSpec; oninsert: (spec: BarcodeSpec) => Promise<void>; onclose: () => void } = $props();
@@ -38,14 +42,14 @@
 	<form class="modal-box flex max-w-md flex-col gap-3" onsubmit={insert}>
 		<h3 id="barcode-title" class="flex items-center gap-2 text-lg font-bold">
 			<span class="icon-[material-symbols-light--qr-code-2] size-6" aria-hidden="true"></span>
-			{editing ? m.barcode.edit : m.barcode.title}
+			{editing ? t.edit : t.title}
 		</h3>
 		<BarcodeFields bind:spec={choice} bind:drawing />
 		<div class="modal-action mt-0">
-			<button type="button" class="btn btn-ghost" onclick={onclose} disabled={busy}>{m.common.cancel}</button>
+			<button type="button" class="btn btn-ghost" onclick={onclose} disabled={busy}>{brandMessages().common.cancel}</button>
 			<button type="submit" class="btn btn-primary" disabled={busy || !drawing}>
 				{#if busy}<span class="loading loading-spinner loading-sm"></span>{/if}
-				{editing ? m.barcode.apply : m.barcode.insert}
+				{editing ? t.apply : t.insert}
 			</button>
 		</div>
 	</form>

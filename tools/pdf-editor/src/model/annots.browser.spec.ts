@@ -16,6 +16,7 @@ import { encodeImage, imageBitmap } from '@in-browser/pdf/write/image.js';
 import { pieceForm } from '@in-browser/pdf/write/piece.js';
 import { svgForm } from '@in-browser/pdf/write/svg.js';
 import type { NoteItem } from '#lib/render/note.js';
+import { DOCUMENT_FONTS } from '@in-browser/graphics/rich-text.js';
 import { loadFonts, measureStyled } from '@in-browser/graphics/fonts.js';
 import type { RichText } from '@in-browser/graphics/rich-text.js';
 import { loadTextFont, withRich, withText, type TextItem } from '#lib/render/textbox.js';
@@ -587,7 +588,7 @@ describe('annotations of drawn items', () => {
 	});
 
 	it('writes formatted text in the fonts of its parts, with the formats for other programs, and reads both back', async () => {
-		await Promise.all([loadTextFont(), loadFonts()]);
+		await Promise.all([loadTextFont(), loadFonts(DOCUMENT_FONTS)]);
 		const base = await sample();
 		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
 		const toPage = toShown(pageTransform([0, 0, 300, 400], 0));

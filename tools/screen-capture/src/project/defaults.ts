@@ -1,8 +1,11 @@
+import type { BarcodeSpec } from '@in-browser/graphics/barcode.js';
+import { DEFAULT_LINE_HEIGHT } from '@in-browser/graphics/rich-text.js';
 import { m } from '#lib/i18n/index.js';
 import {
 	newId,
 	type Annotation,
 	type AnnotationKind,
+	type BarcodeAnnotation,
 	type IconAnnotation,
 	type IconData,
 	type ImageAnnotation,
@@ -28,11 +31,12 @@ export const OVERLAY_KINDS: Record<AnnotationKind, { label: string; icon: string
 	text: { label: m.kinds.text, icon: 'icon-[material-symbols-light--title]' },
 	callout: { label: m.kinds.callout, icon: 'icon-[material-symbols-light--chat-bubble-outline]' },
 	image: { label: m.kinds.image, icon: 'icon-[material-symbols-light--image-outline]' },
-	icon: { label: m.kinds.icon, icon: 'icon-[material-symbols-light--interests-outline]' }
+	icon: { label: m.kinds.icon, icon: 'icon-[material-symbols-light--interests-outline]' },
+	barcode: { label: m.kinds.barcode, icon: 'icon-[material-symbols-light--qr-code-2]' }
 };
 
 /** Is `kind` an annotation that a tool tile creates (images and icons need their content)? */
-export const isToolKind = (kind: AnnotationKind): kind is ToolKind => kind !== 'image' && kind !== 'icon';
+export const isToolKind = (kind: AnnotationKind): kind is ToolKind => kind !== 'image' && kind !== 'icon' && kind !== 'barcode';
 
 export const ZOOM_ICON = 'icon-[material-symbols-light--zoom-in]';
 export const FREEZE_ICON = 'icon-[material-symbols-light--ac-unit]';
@@ -73,6 +77,10 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				size: 0.05,
 				color: '#ffffff',
 				font: 'system',
+				bold: false,
+				italic: false,
+				underline: false,
+				lineHeight: DEFAULT_LINE_HEIGHT,
 				align: 'left',
 				background: '#000000a6',
 				radius: 0.015,
@@ -90,6 +98,10 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				size: 0.04,
 				color: '#000000',
 				font: 'system',
+				bold: false,
+				italic: false,
+				underline: false,
+				lineHeight: DEFAULT_LINE_HEIGHT,
 				align: 'left',
 				background: '#ffffff',
 				radius: 0.012,
@@ -120,6 +132,20 @@ export function createIcon(icon: IconData, start: number, end: number, W: number
 	const h = 0.15;
 	const w = (h * H * (icon.width / icon.height)) / W;
 	return { ...overlayBase(start, end), kind: 'icon', rect: { x: (1 - w) / 2, y: (1 - h) / 2, w, h }, icon, color: '#ef4444' };
+}
+
+/** A code in the center: a square one a quarter of the canvas height, a wide one as wide as a third of it */
+export function createBarcode(spec: BarcodeSpec, drawing: { width: number; height: number; svg: string }, start: number, end: number, W: number, H: number): BarcodeAnnotation {
+	const ratio = drawing.width / drawing.height;
+	const h = ratio > 1.5 ? (W / 3 / ratio) / H : 0.25;
+	const w = (h * H * ratio) / W;
+	return { ...overlayBase(start, end), kind: 'barcode', rect: { x: (1 - w) / 2, y: (1 - h) / 2, w, h }, spec, svg: drawing.svg };
+}
+
+/** The code changed: middle and width stay, the height follows the new drawing */
+export function withBarcode(a: BarcodeAnnotation, spec: BarcodeSpec, drawing: { width: number; height: number; svg: string }, W: number, H: number): Partial<BarcodeAnnotation> {
+	const h = (a.rect.w * W * (drawing.height / drawing.width)) / H;
+	return { spec, svg: drawing.svg, rect: { ...a.rect, y: a.rect.y + a.rect.h / 2 - h / 2, h } };
 }
 
 /** New zoom segment: 2× on the center of the frame. `w === h` so the aspect ratio is preserved. */

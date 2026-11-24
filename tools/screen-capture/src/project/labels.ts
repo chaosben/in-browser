@@ -10,6 +10,7 @@ export function annotationLabel(a: Annotation, editor: Editor): string {
 	if (a.kind === 'step') return m.kinds.stepN(a.number);
 	if (a.kind === 'image') return editor.image(a.imageId)?.name ?? OVERLAY_KINDS.image.label;
 	if (a.kind === 'icon') return a.icon.name;
+	if (a.kind === 'barcode') return oneLine(a.spec.text) || OVERLAY_KINDS.barcode.label;
 	return OVERLAY_KINDS[a.kind].label;
 }
 

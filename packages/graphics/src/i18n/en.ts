@@ -46,7 +46,11 @@ const en = {
 			contrast: 'Little contrast: scanners may not read that.',
 			quiet: 'Without the quiet zone the code needs a light margin on the page.'
 		},
-		preview: (kind: string, text: string) => `${kind}: ${text}`
+		preview: (kind: string, text: string) => `${kind}: ${text}`,
+		title: 'Barcode',
+		insert: 'Insert',
+		edit: 'Edit barcode',
+		apply: 'Apply'
 	},
 	color: {
 		none: 'None',
@@ -56,6 +60,19 @@ const en = {
 		recent: 'Recent and project colors',
 		paletteHint: 'drag a color here to replace it',
 		resetPalette: 'Restore default colors'
+	},
+
+	text: {
+		font: 'Font',
+		fonts: { sans: 'Sans-serif', serif: 'Serif', mono: 'Monospace', system: 'System font', inter: 'Inter', montserrat: 'Montserrat', caveat: 'Caveat', 'jetbrains-mono': 'JetBrains Mono' },
+		fontSize: 'Font size',
+		bold: 'Bold',
+		italic: 'Italic',
+		underline: 'Underline',
+		lineHeight: 'Line spacing',
+		lineHeightValue: (n: number) => n.toLocaleString('en', { minimumFractionDigits: 1 }),
+		bulleted: 'Bullets',
+		numbered: 'Numbering'
 	},
 
 	icons: {

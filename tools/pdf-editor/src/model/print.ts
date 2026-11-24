@@ -5,7 +5,7 @@ import type { PrintPart } from '@in-browser/brand/ui/print.js';
 import { formatDateTime, m } from '#lib/i18n/index.js';
 import { stampsSharp } from '#lib/render/stamp.js';
 import { linkView } from '#lib/render/link.js';
-import { stepView } from '#lib/render/steps.js';
+import { shownAt, stepView } from '#lib/render/steps.js';
 import { commentList } from './comments.js';
 import { sourceOf, type PdfDocument, type PdfPage } from './document.svelte.js';
 
@@ -27,12 +27,13 @@ export async function printedPage(doc: PdfDocument, page: PdfPage, comments: boo
 /**
  * A page drawn at `scale` (pixels per point) as the screen shows it – form values, layers, rotation – with the
  * comments on it, or without anything commented (`comments` false). `background` lies under the page's content
- * (a CSS color, `rgba(0,0,0,0)` for none; white without it) unless the page has a color of its own. Free it with `freeCanvas` when done.
+ * (a CSS color, `rgba(0,0,0,0)` for none; white without it) unless the page has a color of its own. With `step` only the
+ * comments shown at that presentation step are drawn. Free it with `freeCanvas` when done.
  */
 export async function pageCanvas(
 	doc: PdfDocument,
 	page: PdfPage,
-	{ comments, scale, background }: { comments: boolean; scale: number; background?: string }
+	{ comments, scale, background, step }: { comments: boolean; scale: number; background?: string; step?: number }
 ): Promise<HTMLCanvasElement> {
 	background = page.background ?? background;
 	let canvas: HTMLCanvasElement;
@@ -50,9 +51,10 @@ export async function pageCanvas(
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 	}
 	const scene = comments ? doc.scene(page.id) : null;
-	if (scene?.items.length) {
+	const items = scene ? (step === undefined ? scene.items : shownAt(scene.items, step)) : [];
+	if (scene && items.length) {
 		// Vector stamps are drawn for the picture's resolution, not the screen's
-		await stampsSharp(scene.items, canvas.width / page.w);
+		await stampsSharp(items, canvas.width / page.w);
 		ctx.setTransform(canvas.width / page.w, 0, 0, canvas.height / page.h, 0, 0);
 		// The boxes of links and the steps are the editor's marks: never in a picture
 		const shown = linkView.shown;
@@ -60,7 +62,7 @@ export async function pageCanvas(
 		linkView.shown = false;
 		stepView.shown = false;
 		try {
-			scene.draw(ctx, scene.items);
+			scene.draw(ctx, items);
 		} finally {
 			linkView.shown = shown;
 			stepView.shown = steps;

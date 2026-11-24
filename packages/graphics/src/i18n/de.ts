@@ -52,7 +52,11 @@ const de: GraphicsMessages = {
 			contrast: 'Wenig Kontrast: Scanner lesen das womöglich nicht.',
 			quiet: 'Ohne Ruhezone braucht der Code einen hellen Rand auf der Seite.'
 		},
-		preview: (kind, text) => `${kind}: ${text}`
+		preview: (kind, text) => `${kind}: ${text}`,
+		title: 'Barcode',
+		insert: 'Einfügen',
+		edit: 'Barcode bearbeiten',
+		apply: 'Übernehmen'
 	},
 	color: {
 		none: 'Keine',
@@ -62,6 +66,19 @@ const de: GraphicsMessages = {
 		recent: 'Zuletzt genutzte und Projektfarben',
 		paletteHint: 'Farbe hierher ziehen, um sie zu ersetzen',
 		resetPalette: 'Standardfarben wiederherstellen'
+	},
+
+	text: {
+		font: 'Schriftart',
+		fonts: { sans: 'Serifenlos', serif: 'Serifen', mono: 'Feste Breite', system: 'Systemschrift', inter: 'Inter', montserrat: 'Montserrat', caveat: 'Caveat', 'jetbrains-mono': 'JetBrains Mono' },
+		fontSize: 'Schriftgröße',
+		bold: 'Fett',
+		italic: 'Kursiv',
+		underline: 'Unterstrichen',
+		lineHeight: 'Zeilenabstand',
+		lineHeightValue: (n) => n.toLocaleString('de', { minimumFractionDigits: 1 }),
+		bulleted: 'Aufzählung',
+		numbered: 'Nummerierung'
 	},
 
 	icons: {

@@ -11,8 +11,9 @@
 // are then laid out from the formatted text whenever they are needed (`richLines`, kept per item) – with the same
 // breaking, so a box without formats is exactly what it always was.
 
-import { fontCss, fontsEpoch, measureStyled, setSansFonts } from '@in-browser/graphics/fonts.js';
-import { DEFAULT_LINE_HEIGHT, isPlain, layoutRich, linesHeight, plainOf, richOf, scaleRich, tidy, type FontFamily, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
+import { fontsEpoch, measureStyled, setSansFonts } from '@in-browser/graphics/fonts.js';
+import { drawRichLines } from '@in-browser/graphics/rich-canvas.js';
+import { DEFAULT_LINE_HEIGHT, isPlain, layoutRich, linesHeight, plainOf, richOf, scaleRich, tidy, type DocumentFont, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
 import { handlePoint, resizeTextBox, TEXT_HANDLES, textBoxSize, wrapText, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Box } from '@in-browser/ink/geometry.js';
 import type { Ctx } from '@in-browser/ink/render/kit.js';
@@ -50,7 +51,7 @@ export interface TextItem {
 	/** The text with formats of its parts (`text` is it without them); missing: plain */
 	rich?: RichText;
 	/** The box's own style beyond size and color; missing: sans-serif, regular */
-	font?: FontFamily;
+	font?: DocumentFont;
 	bold?: boolean;
 	italic?: boolean;
 	underline?: boolean;
@@ -120,8 +121,7 @@ export const TEXT_PAD = 2;
 export const LINE_HEIGHT = 1.2;
 export const ASCENT = 0.947;
 
-/** Where an underline lies below the baseline and how thick it is (× font size) */
-export const UNDERLINE = { offset: 0.1, width: 0.06 };
+export { UNDERLINE } from '@in-browser/graphics/rich-canvas.js';
 
 /** Border widths to choose from (points) */
 export const BORDER_WIDTHS = [0.5, 1, 2, 3, 4];
@@ -471,16 +471,7 @@ export function drawText(ctx: Ctx, t: TextItem) {
 	}
 	ctx.textBaseline = 'alphabetic';
 	if (isFormatted(t)) {
-		for (const line of richLines(t)) {
-			for (const run of line.runs) {
-				const x = -w / 2 + pad + run.x;
-				const y = -h / 2 + pad + line.y + line.baseline;
-				ctx.font = fontCss(run.style, run.style.size);
-				ctx.fillStyle = run.style.color;
-				ctx.fillText(run.text, x, y);
-				if (run.style.underline && !run.marker) ctx.fillRect(x, y + run.style.size * UNDERLINE.offset, run.width, run.style.size * UNDERLINE.width);
-			}
-		}
+		drawRichLines(ctx, richLines(t), -w / 2 + pad, -h / 2 + pad);
 		ctx.restore();
 		return;
 	}

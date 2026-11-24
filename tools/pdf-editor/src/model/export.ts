@@ -4,13 +4,9 @@
 import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 import { uniqueName } from '@in-browser/files/path.js';
 import { DEFAULT_PICTURE_SECONDS, END_ACTIONS, type EndAction } from '@in-browser/jwl/playlist.js';
+import type { ImageFormat } from '@in-browser/graphics/image-formats.js';
 
-export const IMAGE_FORMATS = {
-	png: { type: 'image/png', ext: 'png' },
-	jpeg: { type: 'image/jpeg', ext: 'jpg' },
-	webp: { type: 'image/webp', ext: 'webp' }
-} as const;
-export type ImageFormat = keyof typeof IMAGE_FORMATS;
+export { canWriteWebp, IMAGE_FORMATS, type ImageFormat } from '@in-browser/graphics/image-formats.js';
 export type ExportFormat = ImageFormat | 'playlist';
 export const EXPORT_FORMATS: readonly ExportFormat[] = ['png', 'jpeg', 'webp', 'playlist'];
 
@@ -30,6 +26,8 @@ export interface ExportSettings {
 	/** 1–100, for JPEG, WebP and the playlist's pictures */
 	quality: number;
 	comments: boolean;
+	/** Playlist: every presentation step of a page as an item of its own (the page as it shows after each step) */
+	steps: boolean;
 	/** What lies under the pages' content: `#rrggbb[aa]`, `null` for nothing (see-through) */
 	background: string | null;
 	template: string;
@@ -43,6 +41,7 @@ export const DEFAULT_EXPORT: ExportSettings = {
 	dpi: 150,
 	quality: 90,
 	comments: true,
+	steps: false,
 	background: '#ffffff',
 	template: '{name}_{page}',
 	seconds: DEFAULT_PICTURE_SECONDS,
@@ -64,6 +63,7 @@ export function loadExportSettings(): ExportSettings {
 		dpi: within(s.dpi, DPI_MIN, DPI_MAX, d.dpi),
 		quality: within(s.quality, 1, 100, d.quality),
 		comments: typeof s.comments === 'boolean' ? s.comments : d.comments,
+		steps: typeof s.steps === 'boolean' ? s.steps : d.steps,
 		background: s.background === null || (typeof s.background === 'string' && COLOR.test(s.background)) ? (s.background as string | null) : d.background,
 		template: typeof s.template === 'string' && s.template.trim() ? s.template : d.template,
 		seconds: within(s.seconds, 1, 3600, d.seconds),
@@ -127,15 +127,4 @@ export function exportScale(w: number, h: number, dpi: number): { scale: number;
 	const scale = dpi / 72;
 	const most = Math.sqrt(MAX_PIXELS / (w * h));
 	return scale > most ? { scale: most, reduced: true } : { scale, reduced: false };
-}
-
-let webp: Promise<boolean> | null = null;
-/** Whether this browser writes WebP (others hand back PNG for it) */
-export function canWriteWebp(): Promise<boolean> {
-	webp ??= new Promise((resolve) => {
-		const canvas = document.createElement('canvas');
-		canvas.width = canvas.height = 1;
-		canvas.toBlob((blob) => resolve(blob?.type === 'image/webp'), 'image/webp');
-	});
-	return webp;
 }

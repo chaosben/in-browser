@@ -101,6 +101,19 @@ function loadIcon(icon: IconData, hex: string): Promise<void> {
 	return load(iconKey(icon, hex), icon.name, () => loadElement(new Blob([iconSvg(icon, hex)], { type: 'image/svg+xml' })));
 }
 
+const barcodeKey = (svg: string) => `barcode:${svg}`;
+
+function loadBarcode(svg: string): Promise<void> {
+	return load(barcodeKey(svg), 'Barcode', () => loadElement(new Blob([svg], { type: 'image/svg+xml' })));
+}
+
+/** Picture of a code (vectors, sharp at any size); starts loading it if needed */
+export function barcodePicture(svg: string): CanvasImageSource | undefined {
+	const picture = ready.get(barcodeKey(svg));
+	if (!picture) void loadBarcode(svg);
+	return picture;
+}
+
 /** Picture of an own image; starts loading it if needed */
 export function imagePicture(imageId: string): CanvasImageSource | undefined {
 	const key = imageAsset(imageId)?.key;
@@ -124,6 +137,7 @@ export function loadPictures(items: Item[]): Promise<void[]> {
 		annotations.flatMap((a) => {
 			if (a.kind === 'image') return [loadImage(a.imageId)];
 			if (a.kind === 'icon') return [loadIcon(a.icon, parseColor(a.color).hex)];
+			if (a.kind === 'barcode') return [loadBarcode(a.svg)];
 			return [];
 		})
 	);

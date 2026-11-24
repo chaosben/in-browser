@@ -46,7 +46,7 @@
 	import NoteEditor from '#lib/components/NoteEditor.svelte';
 	import NewPdfDialog from '#lib/components/NewPdfDialog.svelte';
 	import PageSizeDialog from '#lib/components/PageSizeDialog.svelte';
-	import BarcodeDialog from '#lib/components/BarcodeDialog.svelte';
+	import BarcodeDialog from '@in-browser/graphics/BarcodeDialog.svelte';
 	import { barcodeSpec, type BarcodeSpec } from '@in-browser/graphics/barcode.js';
 	import PrintDialog from '#lib/components/PrintDialog.svelte';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
@@ -59,8 +59,7 @@
 	import { offerRemote } from '#lib/show/remote-link.js';
 	import { presentSettings, type PresentMode } from '#lib/show/settings.svelte.js';
 	import { showUrl } from '#lib/brand.js';
-	import { canShare, openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
-	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
 	import PdfPageDialog from '#lib/components/PdfPageDialog.svelte';
 	import StampEditor from '#lib/components/StampEditor.svelte';
 	import LinkEditor from '#lib/components/LinkEditor.svelte';
@@ -820,17 +819,7 @@
 			enabled: () => !!ed.doc,
 			run: () => (exporting = 'all')
 		},
-share: {
-			id: 'share',
-			label: filesMessages().shareDialog.action,
-			tip: filesMessages().shareDialog.tip,
-			icon: 'icon-[material-symbols-light--share-outline]',
-			enabled: () => canShare(ed.doc?.path),
-			run: () => {
-				const path = ed.doc?.path;
-				if (path) openShareDialog({ path, single: true });
-			}
-		},
+share: shareCommand(() => ed.doc?.path),
 		showInFiles: { id: 'showInFiles', label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', enabled: () => !!ed.doc, run: () => showInFiles() },
 		undo: { id: 'undo', label: m.commands.undo, icon: 'icon-[material-symbols-light--undo]', shortcut: { key: 'z', ctrl: true }, enabled: () => !!ed.doc?.canUndo, run: () => changed(() => ed.doc?.undo()) },
 		redo: {

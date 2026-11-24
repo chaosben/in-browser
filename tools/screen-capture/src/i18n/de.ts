@@ -132,7 +132,17 @@ const de: Messages = {
 	export: {
 		title: 'Exportieren',
 		format: 'Format',
-		formats: { mp4: 'MP4', webm: 'WebM', gif: 'GIF' },
+		formats: { mp4: 'MP4', webm: 'WebM', gif: 'GIF', picture: 'Bild', playlist: 'JW Library' },
+		pictureFormat: 'Bildformat',
+		pictureFormats: { png: 'PNG', jpeg: 'JPEG', webp: 'WebP' },
+		noWebp: 'Dieser Browser kann kein WebP schreiben.',
+		pictureAt: 'Bild bei',
+		pictureNote: 'Das Bild am Abspielkopf, so wie das Video es dort zeigt (verschieb den Abspielkopf für ein anderes).',
+		endAction: 'Am Ende',
+		endActions: { continue: 'Weiter', stop: 'Stopp', freeze: 'Standbild', repeat: 'Wiederholen' },
+		playlistNote: 'Eine JW-Library-Playlist mit dem Video (MP4) als einzigem Element. In JW Library: „Playlists“, dann eine Playlist hinzufügen und die Datei importieren.',
+		renderingPicture: 'Bild wird gezeichnet …',
+		packing: 'Playlist wird geschrieben …',
 		resolution: 'Auflösung',
 		width: 'Breite',
 		original: (w, h) => `Original (${w}×${h})`,
@@ -174,7 +184,7 @@ const de: Messages = {
 	},
 
 	ribbon: {
-		tabs: { home: 'Start', insert: 'Einfügen', view: 'Ansicht', arrange: 'Anordnen', clip: 'Clip' },
+		tabs: { home: 'Start', insert: 'Einfügen', view: 'Ansicht', arrange: 'Anordnen', clip: 'Clip', textbox: 'Textfeld' },
 		groups: {
 			project: 'Projekt',
 			playback: 'Wiedergabe',
@@ -194,8 +204,21 @@ const de: Messages = {
 			link: 'Verknüpfen',
 			crop: 'Zuschneiden',
 			placement: 'Platzierung',
-			audio: 'Ton'
+			audio: 'Ton',
+			paragraph: 'Absatz',
+			sizing: 'Größe'
 		}
+	},
+
+	textbox: {
+		label: 'Text des Textfelds',
+		edit: 'Text bearbeiten',
+		textColor: 'Textfarbe',
+		sizeValue: (px) => `${px} px`,
+		alignLeft: 'Text linksbündig',
+		alignCenter: 'Text zentrieren',
+		alignRight: 'Text rechtsbündig',
+		justify: 'Blocksatz'
 	},
 
 	editor: {
@@ -248,6 +271,9 @@ const de: Messages = {
 		shapes: 'Formen',
 		insertTip: 'Am Abspielkopf einfügen – oder die Kachel aus dem Bereich links auf Vorschau oder Timeline ziehen',
 		iconTip: 'Öffnet die Icons links: Klick auf eines fügt es am Abspielkopf ein',
+		barcode: 'Barcode …',
+		barcodeTip: 'Macht aus dem, was du eingibst, einen QR-Code oder Strichcode und fügt ihn am Abspielkopf ein',
+		editBarcode: 'Barcode bearbeiten …',
 		canvasSize: 'Leinwandgröße',
 		properties: 'Eigenschaften …',
 		undo: 'Rückgängig',
@@ -331,6 +357,7 @@ const de: Messages = {
 			canvas: 'Leinwand'
 		},
 		text: 'Text',
+		style: 'Schriftschnitt',
 		fontSize: 'Schriftgröße',
 		align: 'Ausrichtung',
 		alignLeft: 'Links',
@@ -453,7 +480,8 @@ const de: Messages = {
 		click: 'Klick',
 		callout: 'Sprechblase',
 		image: 'Bild',
-		icon: 'Icon'
+		icon: 'Icon',
+		barcode: 'Barcode'
 	},
 
 	fonts: {
@@ -533,7 +561,9 @@ const de: Messages = {
 		toFront: 'Ganz nach vorne',
 		forward: 'Eine Ebene nach vorne',
 		backward: 'Eine Ebene nach hinten',
-		toBack: 'Ganz nach hinten'
+		toBack: 'Ganz nach hinten',
+		duplicate: 'Duplizieren',
+		duplicateTip: 'Kopiert die ausgewählten Elemente direkt hinter sie, an dieselbe Stelle im Bild'
 	},
 
 	errors: {

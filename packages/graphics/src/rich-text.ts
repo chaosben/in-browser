@@ -3,8 +3,17 @@
 // unit-free like `text-box.ts`: the tool measures and draws. Positions in a text count its characters with one for
 // each paragraph break – the positions of its plain text (`plainOf`).
 
-export type FontFamily = 'sans' | 'serif' | 'mono';
-export const FONT_FAMILIES: readonly FontFamily[] = ['sans', 'serif', 'mono'];
+/** The fonts of the suite (`fonts.ts`); each tool offers a set of them */
+export type FontFamily = DocumentFont | DisplayFont;
+/** Fonts every document viewer has (the metrics of Helvetica, Times and Courier): text in documents */
+export type DocumentFont = 'sans' | 'serif' | 'mono';
+export const DOCUMENT_FONTS: readonly DocumentFont[] = ['sans', 'serif', 'mono'];
+/** Fonts for what is seen as a picture (video, screenshots): the system's, and four bundled ones */
+export type DisplayFont = 'system' | 'inter' | 'montserrat' | 'caveat' | 'jetbrains-mono';
+export const DISPLAY_FONTS: readonly DisplayFont[] = ['system', 'inter', 'montserrat', 'caveat', 'jetbrains-mono'];
+export const FONT_FAMILIES: readonly FontFamily[] = [...DOCUMENT_FONTS, ...DISPLAY_FONTS];
+/** The document font standing for a family (a display font is written in the sans-serif one) */
+export const asDocumentFont = (font: FontFamily): DocumentFont => ((DOCUMENT_FONTS as readonly FontFamily[]).includes(font) ? (font as DocumentFont) : 'sans');
 
 /** What a span may set; a key left out takes the box's own style */
 export interface TextStyle {

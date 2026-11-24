@@ -1,8 +1,11 @@
 import type { AudioCodec, VideoCodec } from 'mediabunny';
 import { m } from '#lib/i18n/index.js';
 import { loadJson, storeJson } from '@in-browser/brand/storage.js';
+import { IMAGE_FORMAT_IDS, type ImageFormat } from '@in-browser/graphics/image-formats.js';
+import { END_ACTIONS, type EndAction } from '@in-browser/jwl/playlist.js';
 
-export type ExportFormat = 'mp4' | 'webm' | 'gif';
+/** Video, an animation, the picture at the playhead, or the video in a JW Library playlist (MP4) */
+export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'picture' | 'playlist';
 export type QualityPreset = 'low' | 'medium' | 'high' | 'very-high' | 'custom';
 
 export interface ExportSettings {
@@ -23,6 +26,10 @@ export interface ExportSettings {
 	gifScale: number;
 	gifFps: 10 | 15 | 20 | 25;
 	gifLoop: boolean;
+	/** Picture only: its format */
+	picture: ImageFormat;
+	/** Playlist only: what JW Library does at the video's end */
+	endAction: EndAction;
 }
 
 export const DEFAULT_SETTINGS: ExportSettings = {
@@ -36,21 +43,26 @@ export const DEFAULT_SETTINGS: ExportSettings = {
 	gifWidth: 800,
 	gifScale: 100,
 	gifFps: 15,
-	gifLoop: true
+	gifLoop: true,
+	picture: 'png',
+	endAction: 'freeze'
 };
 
-export const FORMATS: readonly ExportFormat[] = ['mp4', 'webm', 'gif'];
+export const FORMATS: readonly ExportFormat[] = ['mp4', 'webm', 'gif', 'picture', 'playlist'];
+
+/** Formats that are a video file (a playlist holds an MP4) */
+export const isVideo = (format: ExportFormat) => format === 'mp4' || format === 'webm' || format === 'playlist';
 export const SCALES = [75, 50, 25] as const;
 export const RESOLUTIONS = [2160, 1440, 1080, 720, 480] as const;
 export const GIF_WIDTHS = [1280, 1024, 800, 640, 480] as const;
 export const GIF_FRAME_RATES = [10, 15, 20, 25] as const;
 
 /** Codecs per container, in order of preference */
-export const VIDEO_CODECS: Record<Exclude<ExportFormat, 'gif'>, VideoCodec[]> = {
+export const VIDEO_CODECS: Record<'mp4' | 'webm', VideoCodec[]> = {
 	mp4: ['avc', 'vp9', 'av1'],
 	webm: ['vp9', 'av1', 'vp8']
 };
-export const AUDIO_CODECS: Record<Exclude<ExportFormat, 'gif'>, AudioCodec[]> = {
+export const AUDIO_CODECS: Record<'mp4' | 'webm', AudioCodec[]> = {
 	mp4: ['aac', 'opus'],
 	webm: ['opus', 'vorbis']
 };
@@ -135,7 +147,13 @@ export function estimateBytes(settings: ExportSettings, width: number, height: n
 const STORAGE_KEY = 'screen-capture:export-settings';
 
 export function loadSettings(): ExportSettings {
-	return { ...DEFAULT_SETTINGS, ...loadJson<Partial<ExportSettings>>(STORAGE_KEY, {}) };
+	const s = { ...DEFAULT_SETTINGS, ...loadJson<Partial<ExportSettings>>(STORAGE_KEY, {}) };
+	return {
+		...s,
+		format: FORMATS.includes(s.format) ? s.format : DEFAULT_SETTINGS.format,
+		picture: IMAGE_FORMAT_IDS.includes(s.picture) ? s.picture : DEFAULT_SETTINGS.picture,
+		endAction: END_ACTIONS.includes(s.endAction) ? s.endAction : DEFAULT_SETTINGS.endAction
+	};
 }
 
 export function storeSettings(settings: ExportSettings) {

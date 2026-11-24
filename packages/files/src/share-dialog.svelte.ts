@@ -1,6 +1,8 @@
 import { isConnected } from './path.js';
 import { p2pStatus } from './p2p/p2p.svelte.js';
 import { inScope } from './p2p/scope.js';
+import { filesMessages } from './i18n/index.svelte.js';
+import type { Command } from '@in-browser/brand/commands.js';
 
 // The share dialog and the dialog for opening a share by its words, one each in every tool (placed by
 // `ToolLayout`): a tool asks for them, the layout shows them.
@@ -24,4 +26,19 @@ export function openShareByWordsDialog() {
  * folder, not one this device leaves out of the sync), in a browser that shares at all */
 export function canShare(path: string | null | undefined): boolean {
 	return !!path && p2pStatus.supported && path !== '/' && !isConnected(path) && inScope(path, p2pStatus.view.scope);
+}
+
+/** The command “Share …” of a document tool (tab “File”): shares the open document (`path()`, null while none) as one file */
+export function shareCommand(path: () => string | null | undefined): Command {
+	return {
+		id: 'share',
+		label: filesMessages().shareDialog.action,
+		tip: filesMessages().shareDialog.tip,
+		icon: 'icon-[material-symbols-light--share-outline]',
+		enabled: () => canShare(path()),
+		run: () => {
+			const p = path();
+			if (p) openShareDialog({ path: p, single: true });
+		}
+	};
 }

@@ -13,7 +13,7 @@ import { inWinAnsi, num, winAnsi, type NewAnnotation, type Rgb } from '@in-brows
 import { UNICODE_FONT, unicodeText } from '@in-browser/pdf/write/unicode.js';
 import { isMarkup, markLine, squiggle, type Annotatable, type MarkupItem } from '#lib/render/markup.js';
 import { alignOf, ASCENT, baseStyle, borderOf, calloutColor, calloutHead, calloutLine, calloutWidth, isFormatted, isText, itemBounds, LINE_HEIGHT, lineRuns, padOf, richLines, richTextOf, textExtent, UNDERLINE, type TextItem } from '#lib/render/textbox.js';
-import type { FullStyle } from '@in-browser/graphics/rich-text.js';
+import { asDocumentFont, type FullStyle } from '@in-browser/graphics/rich-text.js';
 import { defaultStyleOf, richContentsOf } from './rich-pdf.js';
 import { CARET_LINE, caretPoints, isCaret, type CaretItem } from '#lib/render/caret.js';
 import { isLink, safeUrl, type LinkItem } from '#lib/render/link.js';
@@ -395,7 +395,7 @@ const STANDARD_FONTS = {
 } as const;
 const faceIndex = (style: Pick<FullStyle, 'bold' | 'italic'>) => (style.bold ? 1 : 0) + (style.italic ? 2 : 0);
 /** The name a style's font has in an appearance's resources (`Helv` as ever for the plain sans-serif one) */
-const fontName = (style: Pick<FullStyle, 'font' | 'bold' | 'italic'>) => (style.font === 'sans' && !faceIndex(style) ? 'Helv' : `F${style.font}${faceIndex(style)}`);
+const fontName = (style: Pick<FullStyle, 'font' | 'bold' | 'italic'>) => (asDocumentFont(style.font) === 'sans' && !faceIndex(style) ? 'Helv' : `F${asDocumentFont(style.font)}${faceIndex(style)}`);
 
 /** A text box: `/FreeText` with the text (`/Contents`), font and color (`/DA`) and no border; the appearance writes
  * the stored lines in Helvetica (characters it lacks become `?` there – `/Contents` keeps them) */
@@ -465,7 +465,7 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 				const plain = [...run.text].every(inWinAnsi);
 				unicode ||= !plain;
 				const name = fontName(run.style);
-				fonts[name] = STANDARD_FONTS[run.style.font][faceIndex(run.style)];
+				fonts[name] = STANDARD_FONTS[asDocumentFont(run.style.font)][faceIndex(run.style)];
 				const show = plain ? `/${name} ${num(run.style.size)} Tf ${winAnsi(run.text)}` : `/Uni ${num(run.style.size)} Tf ${unicodeText(run.text)}`;
 				const ink = rgbOps(rgbOf(run.style.color), false);
 				const drawn = [`BT ${ink} ${[a, b, c, d, ex, ey].map(num).join(' ')} Tm ${show} Tj ET`];

@@ -1,90 +1,42 @@
-// Bundled fonts for text annotations (Fontsource, weight 600, Latin + Latin Extended only). They are registered
-// via the FontFace API and loaded on first use; canvas text only uses fonts that are already loaded.
+// Fonts of text annotations: the suite's display fonts (`@in-browser/graphics/fonts.js` – the system font and four
+// bundled ones, each regular, bold and italic), loaded on first use; canvas text only uses fonts that are already
+// loaded. `fontState.version` counts arrivals, for what measures text outside the canvas loop.
 
-import interLatin from '@fontsource/inter/files/inter-latin-600-normal.woff2?url';
-import interLatinExt from '@fontsource/inter/files/inter-latin-ext-600-normal.woff2?url';
-import caveatLatin from '@fontsource/caveat/files/caveat-latin-600-normal.woff2?url';
-import caveatLatinExt from '@fontsource/caveat/files/caveat-latin-ext-600-normal.woff2?url';
-import monoLatin from '@fontsource/jetbrains-mono/files/jetbrains-mono-latin-600-normal.woff2?url';
-import monoLatinExt from '@fontsource/jetbrains-mono/files/jetbrains-mono-latin-ext-600-normal.woff2?url';
-import montserratLatin from '@fontsource/montserrat/files/montserrat-latin-600-normal.woff2?url';
-import montserratLatinExt from '@fontsource/montserrat/files/montserrat-latin-ext-600-normal.woff2?url';
-import type { FontId, Item } from '#lib/project/types.js';
-import { m } from '#lib/i18n/index.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { errorMessage } from '#lib/util/format.js';
+import { loadFonts } from '@in-browser/graphics/fonts.js';
+import { graphicsMessages } from '@in-browser/graphics/i18n/index.svelte.js';
+import { DISPLAY_FONTS, type DisplayFont } from '@in-browser/graphics/rich-text.js';
+import { m } from '#lib/i18n/index.js';
+import type { Item } from '#lib/project/types.js';
 
-// Unicode ranges of the Fontsource subsets (identical for all four fonts)
-const LATIN =
-	'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
-const LATIN_EXT =
-	'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF';
-
-const SYSTEM = 'system-ui, "Segoe UI", Roboto, sans-serif';
-
-interface FontInfo {
-	label: string;
-	/** CSS font family list */
-	family: string;
-	/** Own family name and files (Latin, Latin Extended) of bundled fonts */
-	bundled?: { name: string; files: [string, string] };
-}
-
-const bundled = (name: string, label: string, fallback: string, files: [string, string]): FontInfo => ({
-	label,
-	// Own name, so a locally installed font of the same name does not interfere
-	family: `"${name}", ${fallback}`,
-	bundled: { name, files }
-});
-
-export const FONTS: Record<FontId, FontInfo> = {
-	system: { label: m.fonts.system, family: SYSTEM },
-	inter: bundled('sc-inter', 'Inter', SYSTEM, [interLatin, interLatinExt]),
-	montserrat: bundled('sc-montserrat', 'Montserrat', SYSTEM, [montserratLatin, montserratLatinExt]),
-	caveat: bundled('sc-caveat', 'Caveat', 'cursive', [caveatLatin, caveatLatinExt]),
-	'jetbrains-mono': bundled('sc-jetbrains-mono', 'JetBrains Mono', 'monospace', [monoLatin, monoLatinExt])
-};
-
-export const FONT_IDS = Object.keys(FONTS) as FontId[];
+export const FONT_IDS = DISPLAY_FONTS;
 
 /** Counts loaded fonts – read it where text sizes are measured outside the canvas loop */
 export const fontState = $state({ version: 0 });
 
-const loading = new Map<FontId, Promise<void>>();
+if (typeof document !== 'undefined') document.fonts.addEventListener('loadingdone', () => void fontState.version++);
 
-/** Loads a bundled font once; resolves when it can be drawn (or failed – then the fallback is used). */
-export function loadFont(id: FontId): Promise<void> {
-	let promise = loading.get(id);
-	if (promise) return promise;
-	const info = FONTS[id] ?? FONTS.system;
-	if (!info.bundled || typeof document === 'undefined') promise = Promise.resolve();
-	else {
-		const { name, files } = info.bundled;
-		const faces = files.map(
-			(url, i) => new FontFace(name, `url(${url}) format('woff2')`, { weight: '600', unicodeRange: i ? LATIN_EXT : LATIN })
-		);
-		faces.forEach((face) => document.fonts.add(face));
-		promise = Promise.all(faces.map((face) => face.load())).then(
-			() => void fontState.version++,
-			(e) => {
-				console.error('[fonts]', e);
-				toast(m.errors.fontFailed(info.label, errorMessage(e)), 'error');
-			}
-		);
+/** Fonts whose failure was told already */
+const told = new Set<string>();
+
+/** Loads fonts once; resolves when they can be drawn (or failed – then the fallback is used, and a toast says so once) */
+export function loadFont(...ids: DisplayFont[]): Promise<void> {
+	return loadFonts(ids).then((failed) => {
+		for (const { font, error } of failed) {
+			if (told.has(font)) continue;
+			told.add(font);
+			toast(m.errors.fontFailed(graphicsMessages().text.fonts[font], error), 'error');
+		}
+	});
+}
+
+/** Fonts used by the annotations of a timeline: of the boxes and of parts of their text */
+export function fontsOf(items: Item[]): DisplayFont[] {
+	const ids = new Set<DisplayFont>();
+	for (const item of items) {
+		if (item.type !== 'annotation' || !('font' in item)) continue;
+		ids.add(item.font);
+		for (const p of item.rich ?? []) for (const s of p.spans) if (s.font) ids.add(s.font as DisplayFont);
 	}
-	loading.set(id, promise);
-	return promise;
-}
-
-/** Canvas font string; starts loading the font if needed (the preview redraws once it is there). */
-export function fontCss(id: FontId, px: number): string {
-	void loadFont(id);
-	return `600 ${px}px ${(FONTS[id] ?? FONTS.system).family}`;
-}
-
-/** Fonts used by the annotations of a timeline */
-export function fontsOf(items: Item[]): FontId[] {
-	const ids = new Set<FontId>();
-	for (const item of items) if (item.type === 'annotation' && 'font' in item) ids.add(item.font);
 	return [...ids];
 }

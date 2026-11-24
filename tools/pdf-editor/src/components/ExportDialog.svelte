@@ -101,20 +101,39 @@
 		});
 	}
 
-	/** The page at `place` as a canvas at the chosen resolution (free it when done) */
-	function render(place: number) {
+	/** Steps of the page at `place` (0: everything shows at once) – as the presentation counts them */
+	const stepsAt = (place: number) => ed.doc?.stepsOf(ed.doc.pages[place]?.id ?? '') ?? 0;
+	/** Whether a chosen page has presentation steps: only then can they be exported one by one */
+	const hasSteps = $derived(!!places?.some((place) => stepsAt(place) > 0));
+	const bySteps = $derived(playlist && s.comments && s.steps && hasSteps);
+
+	/** What is drawn: a picture per page, or with `bySteps` one per step of each page (`step` from 0, of `steps`) */
+	interface Shot {
+		place: number;
+		step?: number;
+		steps: number;
+	}
+	const shots = $derived<Shot[]>(
+		(places ?? []).flatMap((place) => {
+			const steps = bySteps ? stepsAt(place) : 0;
+			return bySteps ? Array.from({ length: steps + 1 }, (_, step) => ({ place, step, steps })) : [{ place, steps }];
+		})
+	);
+
+	/** A shot as a canvas at the chosen resolution (free it when done) */
+	function render({ place, step }: Shot) {
 		const doc = ed.doc!;
 		const page = doc.pages[place];
-		return pageCanvas(doc, page, { comments: s.comments, scale: exportScale(page.w, page.h, s.dpi).scale, background: backgroundOf(s) });
+		return pageCanvas(doc, page, { comments: s.comments, scale: exportScale(page.w, page.h, s.dpi).scale, background: backgroundOf(s), step });
 	}
 
-	/** Renders the pages one after the other; `use` takes each picture and its place */
-	async function eachPage(use: (canvas: HTMLCanvasElement, place: number, i: number) => Promise<void>): Promise<boolean> {
+	/** Renders the shots one after the other; `use` takes each picture and its shot */
+	async function eachPage(use: (canvas: HTMLCanvasElement, shot: Shot, i: number) => Promise<void>): Promise<boolean> {
 		progress = 0;
-		for (const [i, place] of (places ?? []).entries()) {
-			const canvas = await render(place);
+		for (const [i, shot] of shots.entries()) {
+			const canvas = await render(shot);
 			try {
-				await use(canvas, place, i);
+				await use(canvas, shot, i);
 			} finally {
 				freeCanvas(canvas);
 			}
@@ -180,12 +199,14 @@
 			if (!path) return;
 		}
 		const items: PlaylistItem[] = [];
-		const drawn = await eachPage(async (canvas, place) => {
+		const drawn = await eachPage(async (canvas, { place, step, steps }) => {
 			const number = place + 1;
+			const stepped = step !== undefined && steps > 0;
+			const pictureName = pictureNames('{name}_{page}', 'jpg', [number], { name: stem, pages: ed.pageCount, date: new Date() }, [])[0];
 			items.push({
-				label: m.export.itemLabel(stem, number),
+				label: stepped ? m.export.stepLabel(stem, number, step + 1, steps + 1) : m.export.itemLabel(stem, number),
 				media: await canvasBlob(canvas, 'image/jpeg', s.quality / 100),
-				name: pictureNames('{name}_{page}', 'jpg', [number], { name: stem, pages: ed.pageCount, date: new Date() }, [])[0],
+				name: stepped ? pictureName.replace(/\.jpg$/, `_${step + 1}.jpg`) : pictureName,
 				kind: 'image',
 				seconds: s.seconds,
 				endAction: s.endAction,
@@ -221,7 +242,7 @@
 		progress !== null
 			? progress < 0
 				? m.export.packing
-				: m.export.preparing(Math.min(progress + 1, places?.length ?? 0), places?.length ?? 0)
+				: (bySteps ? m.export.preparingSteps : m.export.preparing)(Math.min(progress + 1, shots.length), shots.length)
 			: (problem ?? [playlist || !example ? '' : m.export.example(example), size].filter(Boolean).join(' · '))
 	);
 </script>
@@ -255,7 +276,13 @@
 				</fieldset>
 			</div>
 			<div class="grid grid-cols-2 items-center gap-x-6">
-				<label class="flex items-center gap-2 text-xs"><input type="checkbox" class="checkbox checkbox-xs" bind:checked={s.comments} />{m.export.comments}</label>
+				<div class="flex flex-col gap-1.5">
+					<label class="flex items-center gap-2 text-xs"><input type="checkbox" class="checkbox checkbox-xs" bind:checked={s.comments} />{m.export.comments}</label>
+					<!-- Always there (the playlist's option): off where it means nothing -->
+					<label class={['flex items-center gap-2 text-xs', !(playlist && s.comments && hasSteps) && 'opacity-50']}>
+						<input type="checkbox" class="checkbox checkbox-xs" bind:checked={s.steps} disabled={!(playlist && s.comments && hasSteps)} />{m.export.steps}
+					</label>
+				</div>
 				<div class="flex items-center gap-1 text-xs">
 					<span class="min-w-0 flex-1 truncate opacity-70">{m.export.background}</span>
 					<!-- A swatch opening the suite's color field (palette, own colors, opacity) in the top layer -->

@@ -3,14 +3,17 @@
 	// the preview with its editing layer, the properties on the right and the timeline below. Every action is a
 	// `Command` (`ui/commands.ts`): ribbon, context menus and keys come from there. Changes save themselves; the save
 	// state, size, length and a running import sit in the footer. One tab per project.
-	import { canShare, openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
-	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
 	import InspectorPane from '@in-browser/brand/Inspector.svelte';
 	import { InspectorState } from '@in-browser/brand/inspector.svelte.js';
 	import PanelRail from '@in-browser/brand/PanelRail.svelte';
 	import { panelCommand } from '@in-browser/brand/panels.js';
 	import Ribbon from '@in-browser/brand/Ribbon.svelte';
-	import type { RibbonTab } from '@in-browser/brand/ribbon.js';
+	import RibbonPopover from '@in-browser/brand/RibbonPopover.svelte';
+	import type { GroupSize, RibbonTab } from '@in-browser/brand/ribbon.js';
+	import ColorField from '@in-browser/graphics/ColorField.svelte';
+	import { richEditing } from '@in-browser/graphics/rich-editing.svelte.js';
+	import { isTextLike, textCommands } from '#lib/ui/text-commands.js';
 	import { installCommandKeys, matches, type Command } from '@in-browser/brand/commands.js';
 	import { brandMessages } from '@in-browser/brand/i18n/index.svelte.js';
 	import { tick, untrack } from 'svelte';
@@ -32,7 +35,10 @@
 	import { importFile, isMediaFile, MEDIA_ACCEPT } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
 	import { Player } from '#lib/preview/player.svelte.js';
-	import { createIcon, createImage, createOverlay, createZoom, defaultDuration } from '#lib/project/defaults.js';
+	import { createBarcode, createIcon, createImage, createOverlay, createZoom, defaultDuration, withBarcode } from '#lib/project/defaults.js';
+	import BarcodeDialog from '@in-browser/graphics/BarcodeDialog.svelte';
+	import { barcodeSvg, type BarcodeSpec } from '@in-browser/graphics/barcode.js';
+	import type { BarcodeAnnotation } from '#lib/project/types.js';
 	import { applyStyle, loadStyle } from '#lib/project/styles.js';
 	import { Editor } from '#lib/project/editor.svelte.js';
 	import type { Annotation, IconData, ToolKind } from '#lib/project/types.js';
@@ -64,7 +70,7 @@
 		loadTimelineHeight,
 		storeTimelineHeight
 	} from '#lib/ui/timeline-height.js';
-	import { addItem, addZoom, nextStepNumber } from '#lib/timeline/ops.js';
+	import { addItem, addZoom, nextStepNumber, updateItem } from '#lib/timeline/ops.js';
 	import { contextMenu, openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { insertLibrary, saveToLibrary, sourcesAdded, transferLibrary } from '#lib/ui/library-actions.js';
 	import { editorCommands, itemMenuEntries, type EditorPage } from '#lib/ui/commands.js';
@@ -87,6 +93,8 @@
 	/** Opening failed because the browser doesn't allow access to the connected folder right now */
 	let loadAccess = $state<ReturnType<typeof accessAction>>(undefined);
 	let dialog = $state<'record' | 'export' | null>(null);
+	/** The barcode dialog: for a new code, or to change `edit` */
+	let barcoding = $state<{ edit?: BarcodeAnnotation } | null>(null);
 	let importing = $state<{ name: string; progress: number } | null>(null);
 	let fileInput = $state<HTMLInputElement>();
 	let timeline = $state<ReturnType<typeof Timeline>>();
@@ -283,6 +291,18 @@
 		if (image) placeAnnotation(applyStyle(createImage(image, start, start + 3, width, height), loadStyle('image')), at);
 	}
 
+	/** “Barcode …”: a new code at the playhead in the middle of the picture; or the code being changed (one step) */
+	async function placeBarcode(spec: BarcodeSpec) {
+		if (!editor || !player) return;
+		const drawing = await barcodeSvg(spec);
+		if ('problem' in drawing) return;
+		const { width, height } = editor.project;
+		const edit = barcoding?.edit;
+		if (edit) return editor.update((t) => updateItem(t, edit.id, withBarcode(edit, spec, drawing, width, height)));
+		const start = player.time;
+		placeAnnotation(applyStyle(createBarcode(spec, drawing, start, start + 3, width, height), loadStyle('barcode')), {});
+	}
+
 	/** Adds a new annotation, centered on the drop point if there is one, and selects it */
 	function placeAnnotation(overlay: Annotation, at: DropPlace) {
 		if (!editor || !player) return;
@@ -388,6 +408,7 @@
 			timelineZoom = z;
 		},
 		openPanel: (id) => (panelState.open = id),
+		barcode: (edit) => (barcoding = { edit }),
 		changeCanvas: async () => {
 			if (!editor) return;
 			editor.selection = null;
@@ -398,6 +419,15 @@
 		}
 	};
 	const { commands: c, keyOnly, frames } = editorCommands(commandPage);
+	/** The contextual tab “Text box”: formats of the selected text and callouts */
+	const tc = textCommands(
+		() => editor,
+		async () => {
+			inspector.show();
+			await tick();
+			properties?.focusText();
+		}
+	);
 	/** “Properties” (View → Panels, Alt+Enter) */
 	const propertiesCommand = inspector.command();
 	/** The properties of what a context menu was opened on: shown, never hidden */
@@ -408,17 +438,7 @@
 	// The project itself (tab “File”); it is named after its file – renamed in Files
 	const fileCommands = {
 		saveAs: { id: 'saveAs', label: m.editor.saveAs, icon: 'icon-[material-symbols-light--save-as-outline]', enabled: () => !!editor, run: () => void saveAs() },
-		share: {
-			id: 'share',
-			label: filesMessages().shareDialog.action,
-			tip: filesMessages().shareDialog.tip,
-			icon: 'icon-[material-symbols-light--share-outline]',
-			enabled: () => canShare(editor?.project.id),
-			run: () => {
-				const path = editor?.project.id;
-				if (path) openShareDialog({ path, single: true });
-			}
-		},
+		share: shareCommand(() => editor?.project.id),
 		showInFiles: {
 			id: 'showInFiles',
 			label: m.editor.showInFiles,
@@ -447,7 +467,7 @@
 			groups: [
 				{ id: 'playback', label: m.ribbon.groups.playback, items: [c.toStart, c.play, c.toEnd] },
 				{ id: 'edit', label: m.ribbon.groups.edit, items: [c.split, c.holdFrame, c.delete] },
-				{ id: 'clipboard', label: m.ribbon.groups.clipboard, items: [c.paste, c.cut, c.copy] },
+				{ id: 'clipboard', label: m.ribbon.groups.clipboard, items: [c.paste, c.cut, c.copy, c.duplicate] },
 				{ id: 'select', label: m.ribbon.groups.select, items: [c.selectAll, c.snap] }
 			]
 		},
@@ -458,7 +478,7 @@
 				{ id: 'media', label: m.ribbon.groups.media, items: [c.record, c.importMedia, c.importFromFiles] },
 				{ id: 'annotations', label: m.ribbon.groups.annotations, items: [c.shapes, c.highlight, c.spotlight, c.blur, c.step, c.click] },
 				{ id: 'text', label: m.ribbon.groups.text, items: [c.text, c.callout] },
-				{ id: 'icon', label: m.ribbon.groups.icon, items: [c.icon] },
+				{ id: 'icon', label: m.ribbon.groups.icon, items: [c.icon, c.barcode] },
 				{ id: 'zoom', label: m.ribbon.groups.zoom, items: [c.zoom] },
 				{ id: 'library', label: m.ribbon.groups.library, items: [c.saveToLibrary] }
 			]
@@ -473,6 +493,17 @@
 			]
 		},
 		// The selection's own tabs: commands that can't act stay, disabled
+		{
+			id: 'textbox',
+			label: m.ribbon.tabs.textbox,
+			contextual: true,
+			visible: () => isTextLike(editor?.selectedItem),
+			groups: [
+				{ id: 'text', label: m.ribbon.groups.text, items: [tc.editText, tc.fontFamily, tc.fontSize, tc.bold, tc.italic, tc.underline, { id: 'textColor', label: m.textbox.textColor, custom: textColor }] },
+				{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [tc.alignLeft, tc.alignCenter, tc.alignRight, tc.justify, tc.bulleted, tc.numbered, tc.lineHeight] },
+				{ id: 'sizing', label: m.ribbon.groups.sizing, items: [tc.autoWidth, tc.autoHeight, tc.fixedSize] }
+			]
+		},
 		{
 			id: 'arrange',
 			label: m.ribbon.tabs.arrange,
@@ -506,7 +537,7 @@
 		installCommandKeys(() => {
 			if (!editor || !player) return [];
 			const text = textSelected();
-			const all = [...Object.values(c), ...keyOnly];
+			const all = [...Object.values(c), ...keyOnly, tc.bold, tc.italic, tc.underline];
 			return all.filter((cmd) => !(cmd === c.selectAll && !inEditArea()) && !(text && (cmd === c.copy || cmd === c.cut)));
 		})
 	);
@@ -663,6 +694,16 @@
 	}
 </script>
 
+{#snippet textColor(size: GroupSize)}
+	<!-- The color of what is selected in the text typed into, else of the selected boxes -->
+	{@const value = richEditing.current?.marks.color ?? tc.marks().color}
+	<RibbonPopover id="textColor" label={m.textbox.textColor} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={value} disabled={!tc.texts().length}>
+		{#snippet children()}
+			<ColorField {value} onchange={(v, final) => v && final && void tc.format({ color: v })} />
+		{/snippet}
+	</RibbonPopover>
+{/snippet}
+
 {#snippet footerStatus()}
 	{#if editor && player}
 		<span class="flex items-center gap-3 px-1">
@@ -768,10 +809,13 @@
 		{/if}
 	</div>
 
+	{#if barcoding}
+		<BarcodeDialog spec={barcoding.edit?.spec} oninsert={placeBarcode} onclose={() => (barcoding = null)} />
+	{/if}
 	{#if dialog === 'record'}
 		<RecordDialog projectId={editor.project.id} ondone={recorded} oncancel={() => (dialog = null)} />
 	{:else if dialog === 'export'}
-		<ExportDialog project={editor.project} onclose={() => (dialog = null)} />
+		<ExportDialog project={editor.project} at={player?.time ?? 0} onclose={() => (dialog = null)} />
 	{:else if editor.canvasOffer}
 		<CanvasDialog
 			canvas={editor.project}

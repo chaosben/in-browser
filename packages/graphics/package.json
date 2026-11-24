@@ -15,7 +15,11 @@
 		"icons": "node scripts/icons.mjs"
 	},
 	"dependencies": {
+		"@fontsource/caveat": "5.3.0",
 		"@fontsource/cousine": "5.3.0",
+		"@fontsource/inter": "5.3.0",
+		"@fontsource/jetbrains-mono": "5.3.0",
+		"@fontsource/montserrat": "5.3.0",
 		"@fontsource/tinos": "5.3.0",
 		"@iconify-json/material-symbols": "1.2.100",
 		"@iconify-json/ph": "1.2.2",

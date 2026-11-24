@@ -33,6 +33,8 @@ import {
 	type ExportSettings
 } from './settings';
 import { m } from '#lib/i18n/index.js';
+import { IMAGE_FORMATS } from '@in-browser/graphics/image-formats.js';
+import { playlistThumbnail, writePlaylist } from '@in-browser/jwl/playlist.js';
 
 const SAMPLE_RATE = 48_000;
 const CHANNELS = 2;
@@ -53,10 +55,10 @@ export class ExportCanceledError extends Error {
 
 /** Checks up front whether the browser can encode these settings. Returns an error message or null. */
 export async function checkEncodable(project: Project, settings: ExportSettings): Promise<string | null> {
-	if (settings.format === 'gif') return null;
+	if (settings.format === 'gif' || settings.format === 'picture') return null;
 	const { width, height } = outputSize(settings, project.width, project.height);
 	const quality = new Quality({ bitrate: videoBitrate(settings, width, height) });
-	const codec = await getFirstEncodableVideoCodec(VIDEO_CODECS[settings.format], { width, height, quality });
+	const codec = await getFirstEncodableVideoCodec(VIDEO_CODECS[settings.format === 'webm' ? 'webm' : 'mp4'], { width, height, quality });
 	if (!codec) return m.export.cannotEncode(width, height);
 	if (!(await canEncodeVideo(codec, { width, height, quality, frameRate: settings.fps }))) {
 		return m.export.frameRateUnsupported(width, height);
@@ -65,14 +67,15 @@ export async function checkEncodable(project: Project, settings: ExportSettings)
 }
 
 /**
- * Renders the timeline frame-accurately into a video (MP4/WebM) or GIF file in the OPFS and
- * returns it.
+ * Renders the timeline frame-accurately into a video (MP4/WebM), GIF or JW Library playlist file in the OPFS – or
+ * the picture at `at` (seconds) – and returns it.
  */
 export async function exportProject(
 	project: Project,
 	settings: ExportSettings,
 	onProgress: (p: ExportProgress) => void,
-	signal: AbortSignal
+	signal: AbortSignal,
+	at = 0
 ): Promise<File> {
 	const total = duration(project.timeline);
 	if (total <= 0) throw new Error(m.export.emptyTimeline);
@@ -81,13 +84,15 @@ export async function exportProject(
 	};
 
 	// Canvas text only uses fonts that are already loaded
-	await Promise.all(fontsOf(project.timeline.items).map(loadFont));
+	await loadFont(...fontsOf(project.timeline.items));
 	// Likewise own images and icons
 	setImageProject(project.id, project.images);
 	await loadPictures(project.timeline.items);
 
 	const media = openMedia(project);
 	try {
+		if (settings.format === 'picture') return await exportPicture(project, settings, media, Math.min(at, total));
+		if (settings.format === 'playlist') return await exportPlaylist(project, settings, media, total, onProgress, checkAbort, signal);
 		return settings.format === 'gif'
 			? await exportGif(project, settings, media, onProgress, checkAbort)
 			: await exportVideo(project, settings, media, total, onProgress, checkAbort);
@@ -205,6 +210,72 @@ async function renderFrames(
 	} finally {
 		for (const stream of streams.values()) await stream.frames?.return(undefined);
 	}
+}
+
+/** Draws the timeline at `t` into `ctx` – what the video shows at that moment */
+async function renderStill(project: Project, media: Media, ctx: OffscreenCanvasRenderingContext2D, t: number) {
+	const { width, height } = ctx.canvas;
+	const timeline = project.timeline;
+	const frames = new Map<string, Frame>();
+	const active = clipsAt(timeline, t).filter((c) => sourceOf(project, c.sourceId)?.hasVideo && !trackState(timeline, c.track).hidden);
+	for (const clip of active) {
+		const src = sourceOf(project, clip.sourceId);
+		const crop = src?.crop ? sourceCrop(src) : undefined;
+		const sink = new CanvasSink(await media.videoTrack(clip.sourceId), { poolSize: 1, crop });
+		const wrapped = await sink.getCanvas(clip.type === 'freeze' ? clip.at : sourceTime(clip, t));
+		if (!wrapped) continue;
+		const frame: Frame = { image: wrapped.canvas, width: wrapped.canvas.width, height: wrapped.canvas.height };
+		const visible = src && visibleAt(src, sourceTime(clip, t));
+		frames.set(clip.id, visible ? { ...frame, visible, anchor: clip.anchor } : frame);
+	}
+	renderFrame(ctx, width, height, { t, timeline, background: project.background, frames });
+}
+
+/** The picture at `t` as PNG, JPEG or WebP, in the chosen resolution */
+async function exportPicture(project: Project, settings: ExportSettings, media: Media, t: number): Promise<File> {
+	const { width, height } = outputSize(settings, project.width, project.height);
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d', { alpha: false });
+	if (!ctx) throw new Error(m.export.noCanvas);
+	await renderStill(project, media, ctx, t);
+	const format = IMAGE_FORMATS[settings.picture];
+	const blob = await canvas.convertToBlob({ type: format.type, quality: settings.picture === 'png' ? undefined : 0.92 });
+	await clearExports();
+	const { writable, getFile } = await exportWritable(fileName(project, format.ext));
+	await writable.write(blob);
+	await writable.close();
+	return getFile();
+}
+
+/** The video as MP4 in a JW Library playlist of one item (its thumbnail: the first picture) */
+async function exportPlaylist(
+	project: Project,
+	settings: ExportSettings,
+	media: Media,
+	total: number,
+	onProgress: (p: ExportProgress) => void,
+	checkAbort: () => void,
+	signal: AbortSignal
+): Promise<File> {
+	// The video is most of the work; packing copies it once more
+	const video = await exportVideo(project, { ...settings, format: 'mp4' }, media, total, (p) => onProgress({ progress: p.progress * 0.8, phase: 'video' }), checkAbort);
+	const small = outputSize({ height: 0, scale: 25 }, project.width, project.height);
+	const canvas = new OffscreenCanvas(small.width, small.height);
+	const ctx = canvas.getContext('2d', { alpha: false });
+	if (!ctx) throw new Error(m.export.noCanvas);
+	await renderStill(project, media, ctx, 0);
+	const thumbnail = await playlistThumbnail(canvas, canvas.width, canvas.height, project.background);
+	checkAbort();
+	const { writable, getFile } = await exportWritable(fileName(project, 'jwlplaylist'));
+	await writePlaylist(
+		{
+			name: project.name,
+			items: [{ label: project.name, media: new File([video], video.name, { type: 'video/mp4' }), name: video.name, kind: 'video', seconds: total, endAction: settings.endAction, thumbnail }]
+		},
+		writable,
+		{ signal, onprogress: (done, all) => onProgress({ progress: 0.8 + (0.2 * done) / Math.max(all, 1), phase: 'finalizing' }) }
+	);
+	return getFile();
 }
 
 const frameCount = (project: Project, fps: number) => Math.max(1, Math.round(duration(project.timeline) * fps));

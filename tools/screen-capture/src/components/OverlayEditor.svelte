@@ -6,6 +6,7 @@
 		Annotation,
 		CalloutAnnotation,
 		Clip,
+		BarcodeAnnotation,
 		IconAnnotation,
 		ImageAnnotation,
 		Item,
@@ -19,7 +20,8 @@
 	import { m } from '#lib/i18n/index.js';
 	import { rememberStyle } from '#lib/project/styles.js';
 	import { fontState } from '#lib/render/fonts.svelte.js';
-	import { LINE_HEIGHT as TEXT_LINE_HEIGHT, moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
+	import { lineHeightOf, moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
+	import { scaleRich } from '@in-browser/graphics/rich-text.js';
 	import { resizeTextBox, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 	import { FULL, dragCrop, fullRect, type CropHandle } from '#lib/project/crop.js';
 	import {
@@ -313,7 +315,7 @@
 	}
 
 	/** Scales a clip, image or icon at a corner keeping its aspect ratio; the nearer edge snaps */
-	function resizeKeepingAspect(e: PointerEvent, item: Clip | ImageAnnotation | IconAnnotation, corner: Corner, min: number) {
+	function resizeKeepingAspect(e: PointerEvent, item: Clip | ImageAnnotation | IconAnnotation | BarcodeAnnotation, corner: Corner, min: number) {
 		const key = `resize-${item.id}-${e.timeStamp}`;
 		const r = item.rect;
 		const targets = targetsFor(item.id);
@@ -325,7 +327,7 @@
 	}
 
 	function resizeOverlay(e: PointerEvent, o: Annotation, corner: Corner) {
-		if (o.kind === 'image' || o.kind === 'icon') return resizeKeepingAspect(e, o, corner, 0.01);
+		if (o.kind === 'image' || o.kind === 'icon' || o.kind === 'barcode') return resizeKeepingAspect(e, o, corner, 0.01);
 		const key = `resize-${o.id}-${e.timeStamp}`;
 		const targets = targetsFor(o.id);
 		drag(e, (dx, dy, step) => {
@@ -382,7 +384,7 @@
 			scaleText: step.scaleText,
 			// About two characters wide, one line high
 			minW: 2 * o.size * H + 2 * pad,
-			minH: o.size * H * TEXT_LINE_HEIGHT + 2 * pad
+			minH: o.size * H * lineHeightOf(o) + 2 * pad
 		});
 		const box = {
 			boxWidth: r.sizing === 'auto-width' ? undefined : r.rect.w / W,
@@ -391,7 +393,7 @@
 		if (r.scale === 1) return patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box }, key);
 		const k = r.scale;
 		const size = o.size * k;
-		patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box, size, radius: o.radius * k, padding: o.padding * k }, key);
+		patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box, size, radius: o.radius * k, padding: o.padding * k, ...(o.rich && { rich: scaleRich(o.rich, k) }) }, key);
 		rememberStyle(o.kind, { size });
 	}
 

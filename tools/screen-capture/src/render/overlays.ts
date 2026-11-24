@@ -1,16 +1,37 @@
 import { hasShadow, isDrawable, type Annotation, type BlurAnnotation, type DrawableAnnotation, type CalloutAnnotation, type SpotlightAnnotation, type Point, type Rect, type TextAnnotation } from '#lib/project/types.js';
 import { fadeAlpha } from '#lib/timeline/ops.js';
 import { parseColor } from '@in-browser/graphics/color.js';
-import { textBoxSize, wrapText, type TextLine, type TextSizing } from '@in-browser/graphics/text-box.js';
+import { fontCss, fontsEpoch } from '@in-browser/graphics/fonts.js';
+import { drawRichLines } from '@in-browser/graphics/rich-canvas.js';
+import { layoutRich, linesHeight, richOf, scaleRich, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
+import { textBoxSize, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Ctx2D } from './compositor.js';
-import { fontCss } from './fonts.svelte.js';
-import { iconPicture, imagePicture } from './images.svelte.js';
+import { fontsOf, loadFont } from './fonts.svelte.js';
+import { barcodePicture, iconPicture, imagePicture } from './images.svelte.js';
 import { drawClick } from './click.js';
 import { arrowHead, arrowWings, partialStrokes, strokesOf } from './sketch.js';
 
 
-/** Line height of text boxes (× font size) */
-export const LINE_HEIGHT = 1.25;
+/** Line height of text made before it could be chosen (× font size); new text takes the suite's default */
+export const LEGACY_LINE_HEIGHT = 1.25;
+
+type TextLike = TextAnnotation | CalloutAnnotation;
+
+/** Line height of a text box (× font size) */
+export const lineHeightOf = (a: Pick<TextLike, 'lineHeight'>) => a.lineHeight ?? LEGACY_LINE_HEIGHT;
+
+/** The text of a box with the formats of its parts (a plain one's as it would be) */
+export const richTextOf = (a: Pick<TextLike, 'rich' | 'text'>): RichText => a.rich ?? richOf(a.text);
+
+/** The style the box's text has where a part of it doesn't say otherwise (sizes as fractions of the canvas height) */
+export const baseStyle = (a: Pick<TextLike, 'font' | 'bold' | 'italic' | 'underline' | 'size' | 'color'>): FullStyle => ({
+	font: a.font,
+	bold: !!a.bold,
+	italic: !!a.italic,
+	underline: !!a.underline,
+	size: a.size,
+	color: a.color
+});
 
 /** Copies the already drawn image, blurred by `radius` (content pixels), into the current clip */
 function blurCopy(ctx: Ctx2D, radius: number) {
@@ -223,6 +244,14 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 			ctx.drawImage(image, x, y, w, h);
 			break;
 		}
+		case 'barcode': {
+			const picture = barcodePicture(a.svg);
+			if (!picture) break;
+			const [x, y, w, h] = px(a.rect);
+			if (a.shadow) shadow(ctx, H);
+			ctx.drawImage(picture, x, y, w, h);
+			break;
+		}
 		case 'icon': {
 			const picture = iconPicture(a.icon, a.color);
 			if (!picture) break;
@@ -252,27 +281,7 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 				// The box carries the shadow, not the text on it
 				noShadow(ctx);
 			}
-			ctx.fillStyle = a.color;
-			ctx.textBaseline = 'top';
-			const { pad, inner, textX } = box;
-			box.lines.forEach((line, i) => {
-				const y = box.y + pad + i * box.font * LINE_HEIGHT + box.font * 0.1;
-				const words = line.text.split(' ');
-				if (a.align === 'justify' && !line.last && words.length > 1) {
-					// Canvas has no justified text: spread the remaining space over the gaps between the words
-					const widths = words.map((w) => ctx.measureText(w).width);
-					const gap = (inner - widths.reduce((sum, w) => sum + w, 0)) / (words.length - 1);
-					let x = textX;
-					words.forEach((word, j) => {
-						ctx.fillText(word, x, y);
-						x += widths[j] + gap;
-					});
-					return;
-				}
-				const free = inner - ctx.measureText(line.text).width;
-				const offset = a.align === 'center' ? free / 2 : a.align === 'right' ? free : 0;
-				ctx.fillText(line.text, textX + offset, y);
-			});
+			drawRichLines(ctx, box.lines, box.textX, box.y + box.pad);
 			break;
 		}
 	}
@@ -341,51 +350,72 @@ export function calloutTail(box: Rect, tip: Point): [Point, Point, Point] | null
 	return area > 0 ? [a, tip, b] : [b, tip, a];
 }
 
-/** How far the glyphs of the lines reach past their start and advance width (left-aligned) */
-function inkOverhang(ctx: Ctx2D, lines: TextLine[]) {
+/** How far the glyphs of the lines reach past their start and the end of their advance (swashes, e.g. in Caveat) */
+function inkOverhang(ctx: Ctx2D, lines: readonly RichLine[]) {
 	let left = 0;
 	let right = 0;
 	for (const line of lines) {
-		const metrics = ctx.measureText(line.text);
-		left = Math.max(left, metrics.actualBoundingBoxLeft);
+		const runs = line.runs.filter((run) => !run.marker && run.text);
+		const first = runs[0];
+		const last = runs.at(-1);
+		if (!first || !last) continue;
+		ctx.font = fontCss(first.style, first.style.size);
+		left = Math.max(left, ctx.measureText(first.text).actualBoundingBoxLeft);
+		ctx.font = fontCss(last.style, last.style.size);
+		const metrics = ctx.measureText(last.text);
 		right = Math.max(right, metrics.actualBoundingBoxRight - metrics.width);
 	}
 	return { left, right };
 }
 
-/** Dimensions of a text box in canvas pixels. Sets `ctx.font` along the way. */
-export function textBox(ctx: Ctx2D, a: TextAnnotation | CalloutAnnotation, W: number, H: number) {
-	const font = a.size * H;
-	ctx.font = fontCss(a.font, font);
-	ctx.textAlign = 'left';
+export interface TextBoxLayout {
+	x: number;
+	y: number;
+	w: number;
+	/** The box; text that doesn't fit a fixed size runs out below it */
+	h: number;
+	pad: number;
+	/** Start of the lines' room */
+	textX: number;
+	/** The lines, laid out in canvas pixels from the room's top left corner */
+	lines: RichLine[];
+}
+
+const laidOut = new WeakMap<TextLike, { W: number; H: number; epoch: number; box: TextBoxLayout }>();
+
+/** Dimensions and lines of a text box in canvas pixels (kept per item, canvas size and fonts) */
+export function textBox(ctx: Ctx2D, a: TextLike, W: number, H: number): TextBoxLayout {
+	const known = laidOut.get(a);
+	if (known && known.W === W && known.H === H && known.epoch === fontsEpoch.value) return known.box;
+	void loadFont(...fontsOf([a]));
 	const pad = a.background ? a.padding * H : 0;
 	const fixed = a.boxWidth === undefined ? undefined : a.boxWidth * W;
-	const measure = (s: string) => ctx.measureText(s).width;
-	const wrap = (ink: number) => wrapText(a.text || ' ', measure, fixed === undefined ? undefined : Math.max(fixed - 2 * pad - ink, 1));
-	let lines = wrap(0);
+	const base = { ...baseStyle(a), size: a.size * H };
+	const rich = scaleRich(richTextOf(a), H);
+	const measure = (text: string, style: FullStyle) => {
+		ctx.font = fontCss(style, style.size);
+		return ctx.measureText(text).width;
+	};
+	const lay = (ink: number) =>
+		layoutRich(rich, base, measure, {
+			maxWidth: fixed === undefined ? undefined : Math.max(fixed - 2 * pad - ink, 1),
+			lineHeight: lineHeightOf(a),
+			align: a.align
+		});
+	let lines = lay(0);
 	let ink = inkOverhang(ctx, lines);
 	if (fixed !== undefined && ink.left + ink.right > 0) {
-		// Glyphs reaching past their advance (e.g. swashes in Caveat) must stay inside the fixed width too
-		lines = wrap(ink.left + ink.right);
+		// Glyphs reaching past their advance must stay inside the fixed width too
+		lines = lay(ink.left + ink.right);
 		const again = inkOverhang(ctx, lines);
 		ink = { left: Math.max(ink.left, again.left), right: Math.max(ink.right, again.right) };
 	}
-	const content = { w: Math.max(...lines.map((l) => measure(l.text))) + ink.left + ink.right + 2 * pad, h: lines.length * font * LINE_HEIGHT + 2 * pad };
+	const content = { w: Math.max(0, ...lines.map((l) => l.width)) + ink.left + ink.right + 2 * pad, h: linesHeight(lines) + 2 * pad };
 	const sizing: TextSizing = fixed === undefined ? 'auto-width' : a.boxHeight === undefined ? 'auto-height' : 'fixed';
-	const { w: width, h: height } = textBoxSize(sizing, { w: fixed ?? 0, h: (a.boxHeight ?? 0) * H }, content);
-	return {
-		x: a.x * W,
-		y: a.y * H,
-		w: width,
-		/** The box; text that doesn't fit a fixed size runs out below it */
-		h: height,
-		font,
-		pad,
-		/** Start of the text and the width available to a line */
-		textX: a.x * W + pad + ink.left,
-		inner: Math.max(width - 2 * pad - ink.left - ink.right, 0),
-		lines
-	};
+	const { w, h } = textBoxSize(sizing, { w: fixed ?? 0, h: (a.boxHeight ?? 0) * H }, content);
+	const box = { x: a.x * W, y: a.y * H, w, h, pad, textX: a.x * W + pad + ink.left, lines };
+	laidOut.set(a, { W, H, epoch: fontsEpoch.value, box });
+	return box;
 }
 
 /** Change that moves an annotation by an offset in content coordinates */
@@ -427,7 +457,12 @@ export function fitTextToCanvas<T extends TextAnnotation | CalloutAnnotation>(a:
 		let lo = Math.min(MIN_FIT_SIZE, next.size);
 		let hi = next.size;
 		// Corners and padding shrink along, so the box keeps its shape
-		const scaled = (size: number) => ({ size, radius: next.radius * (size / next.size), padding: next.padding * (size / next.size) });
+		const scaled = (size: number) => ({
+			size,
+			radius: next.radius * (size / next.size),
+			padding: next.padding * (size / next.size),
+			...(next.rich && { rich: scaleRich(next.rich, size / next.size) })
+		});
 		for (let i = 0; i < 14; i++) {
 			const mid = (lo + hi) / 2;
 			if (bounds({ ...next, ...scaled(mid) }).h <= 1) lo = mid;

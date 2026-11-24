@@ -19,13 +19,18 @@
 		type AreaShape,
 		type ClickStyle,
 		type ClipShape,
-		type FontId,
 		type TextAlign,
 		type ZoomSegment
 	} from '#lib/project/types.js';
 	import { rememberDuration, rememberStyle } from '#lib/project/styles.js';
-	import { FONT_IDS, FONTS, loadFont } from '#lib/render/fonts.svelte.js';
-	import { fitTextToCanvas, overlayBounds } from '#lib/render/overlays.js';
+	import { FONT_IDS, loadFont } from '#lib/render/fonts.svelte.js';
+	import { baseStyle, fitTextToCanvas, lineHeightOf, overlayBounds, richTextOf } from '#lib/render/overlays.js';
+	import { richPatch, type TextLike } from '#lib/ui/text-commands.js';
+	import RichTextEditor from '@in-browser/graphics/RichTextEditor.svelte';
+	import { fontFamilyCss, fontWeight } from '@in-browser/graphics/fonts.js';
+	import { graphicsMessages } from '@in-browser/graphics/i18n/index.svelte.js';
+	import { LINE_HEIGHTS, styleAll, type FullStyle, type RichText, type TextStyle } from '@in-browser/graphics/rich-text.js';
+	import { untrack } from 'svelte';
 	import type { TextSizing } from '@in-browser/graphics/text-box.js';
 	import { ANCHORS } from '#lib/media/content.js';
 	import {
@@ -88,6 +93,48 @@
 		const changes = { ...patch, ...fit } as Partial<Annotation>;
 		editor.update((t) => updateItem(t, o.id, changes), `insp-${o.id}-${field}`);
 		rememberStyle(o.kind, patch);
+	}
+
+	/**
+	 * The box's own font, size, color, bold …: its parts no longer say otherwise (as the ribbon's format commands do);
+	 * kept within the canvas and remembered for the next text of that kind
+	 */
+	function setOwn(patch: TextStyle & { lineHeight?: number }, field: string) {
+		const o = overlay;
+		if (!o || (o.kind !== 'text' && o.kind !== 'callout')) return;
+		const cleared = Object.fromEntries(Object.keys(patch).map((key) => [key, undefined])) as TextStyle;
+		setTextBox({ ...patch, ...(o.rich && richPatch(styleAll(o.rich, cleared))) } as Partial<Annotation>, field);
+	}
+
+	// The “Text” field: typed into here (`RichTextEditor`), shown like the box (its font, colors and background) at a
+	// readable size. It is built anew only when the text changed elsewhere (undo, a format of the whole box).
+	const FIELD_PX = 15;
+	/** The text the field holds (JSON), and a counter building it anew */
+	let typed = '';
+	let textVersion = $state(0);
+	const shownText = $derived(overlay && (overlay.kind === 'text' || overlay.kind === 'callout') ? JSON.stringify(richTextOf(overlay)) : '');
+	$effect(() => {
+		const now = shownText;
+		untrack(() => {
+			if (now === typed) return;
+			typed = now;
+			textVersion++;
+		});
+	});
+	/** The box's style, the same object while it is the same (a new one would build the field anew while typing) */
+	const fieldBaseKey = $derived(overlay && (overlay.kind === 'text' || overlay.kind === 'callout') ? JSON.stringify(baseStyle(overlay)) : '');
+	const fieldBase = $derived<FullStyle | null>(fieldBaseKey ? JSON.parse(fieldBaseKey) : null);
+	let textField = $state<HTMLElement>();
+
+	function typeText(value: RichText) {
+		const patch = richPatch(value);
+		typed = JSON.stringify(richTextOf(patch as TextLike));
+		setTextBox(patch as Partial<Annotation>, 'text');
+	}
+
+	/** “Edit text” of the ribbon: the caret into the field */
+	export function focusText() {
+		textField?.querySelector<HTMLElement>('[contenteditable]')?.focus();
 	}
 
 	/** The three sizings: the box as wide as the longest line, a fixed width with the height following, or a fixed size */
@@ -327,20 +374,27 @@
 		{@const o = overlay}
 		{@render header(OVERLAY_KINDS[o.kind].icon, OVERLAY_KINDS[o.kind].label)}
 
-		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'click' || o.kind === 'image'}
+		{#if o.kind === 'text' || o.kind === 'callout' || o.kind === 'step' || o.kind === 'click' || o.kind === 'image' || o.kind === 'barcode'}
 			<InspectorSection id="content" title={m.inspector.sections.content}>
 				{#if o.kind === 'text' || o.kind === 'callout'}
 					<InspectorField label={m.inspector.text}>
-						<label class="flex flex-col gap-1">
+						<div class="flex flex-col gap-1" bind:this={textField} onfocusout={end}>
 							<span class="text-xs opacity-70">{m.inspector.text}</span>
-							<textarea
-								class="textarea textarea-sm"
-								rows="3"
-								value={o.text}
-								oninput={(e) => setTextBox({ text: e.currentTarget.value }, 'text')}
-								onchange={end}
-							></textarea>
-						</label>
+							{#if fieldBase}
+								{#key `${o.id}:${textVersion}`}
+									<RichTextEditor
+										value={richTextOf(o)}
+										base={fieldBase}
+										zoom={FIELD_PX / fieldBase.size}
+										label={m.textbox.label}
+										autofocus={false}
+										class="textarea textarea-sm block h-auto min-h-20 w-full whitespace-pre-wrap"
+										style="font-family: {fontFamilyCss(o.font)}; font-weight: {fontWeight(fieldBase)}; font-style: {o.italic ? 'italic' : 'normal'}; text-decoration: {o.underline ? 'underline' : 'none'}; font-size: {FIELD_PX}px; line-height: {lineHeightOf(o)}; text-align: {o.align}; color: {o.color}; background: {(o.background ?? editor.project.background).slice(0, 7)}"
+										oninput={typeText}
+									/>
+								{/key}
+							{/if}
+						</div>
 					</InspectorField>
 				{:else if o.kind === 'step'}
 					<InspectorField label={m.inspector.stepNumber}>
@@ -375,6 +429,13 @@
 							<p class="text-xs opacity-60">{m.inspector.clickHint}</p>
 						</div>
 					</InspectorField>
+				{:else if o.kind === 'barcode'}
+					<InspectorField label={commands.editBarcode.label}>
+						<button class="btn btn-sm w-full justify-start" onclick={() => commands.editBarcode.run?.()}>
+							<span class="{commands.editBarcode.icon} size-5" aria-hidden="true"></span>
+							{commands.editBarcode.label}
+						</button>
+					</InspectorField>
 				{:else if o.kind === 'image'}
 					{@const image = editor.image(o.imageId)}
 					{#if image}
@@ -395,19 +456,40 @@
 						<!-- Load all fonts once the list opens, so every option shows in its own font -->
 						<select
 							class="select select-sm"
-							style="font-family: {FONTS[o.font].family}"
+							style="font-family: {fontFamilyCss(o.font)}"
 							value={o.font}
-							onfocus={() => FONT_IDS.forEach(loadFont)}
+							onfocus={() => loadFont(...FONT_IDS)}
 							onchange={(e) => {
-								setTextBox({ font: e.currentTarget.value as FontId }, 'font');
+								setOwn({ font: e.currentTarget.value as (typeof FONT_IDS)[number] }, 'font');
 								end();
 							}}
 						>
-							{#each FONT_IDS as id (id)}<option value={id} style="font-family: {FONTS[id].family}">{FONTS[id].label}</option>{/each}
+							{#each FONT_IDS as id (id)}<option value={id} style="font-family: {fontFamilyCss(id)}">{graphicsMessages().text.fonts[id]}</option>{/each}
 						</select>
 					</label>
 				</InspectorField>
-				{@render pixels(m.inspector.fontSize, o.size, 4 / editor.project.height, 1, (v) => setOverlay({ size: v }, 'size'))}
+				{@render pixels(m.inspector.fontSize, o.size, 4 / editor.project.height, 1, (v) => setOwn({ size: v }, 'size'))}
+				<InspectorField label={m.inspector.style} keywords={[graphicsMessages().text.bold, graphicsMessages().text.italic, graphicsMessages().text.underline]}>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{m.inspector.style}</span>
+						<div class="join">
+							{#each [{ key: 'bold', icon: 'icon-[material-symbols-light--format-bold]' }, { key: 'italic', icon: 'icon-[material-symbols-light--format-italic]' }, { key: 'underline', icon: 'icon-[material-symbols-light--format-underlined]' }] as const as s (s.key)}
+								<button
+									class="btn btn-xs join-item {o[s.key] ? 'btn-active' : ''}"
+									onclick={() => {
+										setOwn({ [s.key]: !o[s.key] }, s.key);
+										end();
+									}}
+									title={graphicsMessages().text[s.key]}
+									aria-label={graphicsMessages().text[s.key]}
+									aria-pressed={!!o[s.key]}
+								>
+									<span class="{s.icon} size-4" aria-hidden="true"></span>
+								</button>
+							{/each}
+						</div>
+					</div>
+				</InspectorField>
 				<InspectorField label={m.inspector.align} keywords={ALIGNS.map((a) => a.label)}>
 					<div class="flex flex-col gap-1">
 						<span class="text-xs opacity-70">{m.inspector.align}</span>
@@ -428,6 +510,24 @@
 							{/each}
 						</div>
 					</div>
+				</InspectorField>
+				{@const lineHeight = lineHeightOf(o)}
+				<InspectorField label={graphicsMessages().text.lineHeight}>
+					<label class="flex flex-col gap-1">
+						<span class="text-xs opacity-70">{graphicsMessages().text.lineHeight}</span>
+						<select
+							class="select select-sm"
+							value={lineHeight}
+							onchange={(e) => {
+								setOwn({ lineHeight: Number(e.currentTarget.value) }, 'lineHeight');
+								end();
+							}}
+						>
+							{#each LINE_HEIGHTS.includes(lineHeight) ? LINE_HEIGHTS : [...LINE_HEIGHTS, lineHeight].sort((a, b) => a - b) as h (h)}
+								<option value={h}>{graphicsMessages().text.lineHeightValue(h)}</option>
+							{/each}
+						</select>
+					</label>
 				</InspectorField>
 				{@const sizing = o.boxWidth === undefined ? 'auto-width' : o.boxHeight === undefined ? 'auto-height' : 'fixed'}
 				<InspectorField label={m.inspector.boxSize} keywords={SIZINGS.map((z) => z.label)}>
@@ -451,7 +551,10 @@
 						</div>
 					</div>
 				</InspectorField>
-				{@render color(m.inspector.color, o.color, (v, final) => setColor('color', v ?? o.color, final))}
+				{@render color(m.inspector.color, o.color, (v, final) => {
+					setOwn({ color: v ?? o.color }, 'color');
+					if (final) end();
+				})}
 			</InspectorSection>
 		{/if}
 

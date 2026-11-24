@@ -1,4 +1,6 @@
 import type { IconData } from '@in-browser/graphics/icons/types.js';
+import type { BarcodeSpec } from '@in-browser/graphics/barcode.js';
+import type { DisplayFont, RichText } from '@in-browser/graphics/rich-text.js';
 import { FormatError, migrateFormat, type RawDocument } from '@in-browser/files/formats.js';
 
 export type { IconData };
@@ -110,10 +112,10 @@ interface AnnotationBase extends ItemBase {
 	fadeOut: number;
 }
 
-/** Bundled fonts for text annotations (see `render/fonts.svelte.ts`) */
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
 
-export type FontId = 'system' | 'inter' | 'caveat' | 'jetbrains-mono' | 'montserrat';
+/** Fonts of text annotations: the suite's display fonts (`@in-browser/graphics/fonts.js`) */
+export type FontId = DisplayFont;
 
 interface Shadowed {
 	/** Soft drop shadow */
@@ -223,10 +225,19 @@ interface TextBase extends AnnotationBase, Shadowed {
 	/** Top-left corner */
 	x: number;
 	y: number;
+	/** The text without its formats (labels, search); `rich` holds it with them */
 	text: string;
+	/** The text with formats of its parts – sizes as fractions of the canvas height like `size`; missing: plain */
+	rich?: RichText;
 	size: number;
 	color: string;
 	font: FontId;
+	/** The box's own style beyond font, size and color; missing: off */
+	bold?: boolean;
+	italic?: boolean;
+	underline?: boolean;
+	/** Line height × font size; missing: 1.25 (text made before there was a choice) */
+	lineHeight?: number;
 	align: TextAlign;
 	/** Fixed box width (fraction of the canvas width), the text wraps inside; without it the box fits the longest line
 	 * (auto width) */
@@ -269,6 +280,14 @@ export interface IconAnnotation extends AnnotationBase, Shadowed {
 	color: string;
 }
 
+/** A QR code or barcode: what it is made of (`spec`, so it can be changed later) and its drawing (an SVG of plain
+ * paths), kept at its aspect ratio */
+export interface BarcodeAnnotation extends AnnotationBase, Shadowed {
+	kind: 'barcode';
+	rect: Rect;
+	spec: BarcodeSpec;
+	svg: string;
+}
 
 export type Annotation =
 	| ArrowAnnotation
@@ -283,16 +302,17 @@ export type Annotation =
 	| TextAnnotation
 	| CalloutAnnotation
 	| ImageAnnotation
-	| IconAnnotation;
+	| IconAnnotation
+	| BarcodeAnnotation;
 
 export type AnnotationKind = Annotation['kind'];
 
-/** Annotations created from a tool tile (images and icons need their content) */
-export type ToolKind = Exclude<AnnotationKind, 'image' | 'icon'>;
+/** Annotations created from a tool tile (images, icons and codes need their content) */
+export type ToolKind = Exclude<AnnotationKind, 'image' | 'icon' | 'barcode'>;
 
 export type ShadowedAnnotation = Extract<Annotation, Shadowed>;
 
-const SHADOWED: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse', 'step', 'text', 'callout', 'image', 'icon']);
+const SHADOWED: ReadonlySet<AnnotationKind> = new Set(['arrow', 'line', 'rect', 'ellipse', 'step', 'text', 'callout', 'image', 'icon', 'barcode']);
 
 export type DrawableAnnotation = Extract<Annotation, Drawable>;
 

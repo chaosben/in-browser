@@ -60,12 +60,12 @@ describe('textBox', () => {
 	} as unknown as Ctx2D;
 	it('widens the box by glyphs reaching past the line', () => {
 		const b = textBox(ctx, text({ text: 'fab\nabf' }), 1000, 1000);
-		expect(b).toMatchObject({ w: 30 + 3 + 4 + 10, textX: 8, inner: 30 });
+		expect(b).toMatchObject({ w: 30 + 3 + 4 + 10, textX: 8 });
 	});
 	it('keeps the overhang inside a fixed width', () => {
 		const b = textBox(ctx, text({ text: 'fa fa fa', boxWidth: 0.07 }), 1000, 1000);
 		expect(b.w).toBe(70);
-		for (const line of b.lines) expect(line.text.length * 10).toBeLessThanOrEqual(b.inner);
-		expect(b.textX + b.inner).toBeLessThanOrEqual(b.w - 5);
+		// Every line with its overhang inside the box less its padding
+		for (const line of b.lines) expect(b.textX + line.width + 4).toBeLessThanOrEqual(b.w - 5);
 	});
 });

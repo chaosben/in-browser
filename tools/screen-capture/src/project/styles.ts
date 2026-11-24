@@ -24,9 +24,12 @@ const NOT_STYLE: ReadonlySet<string> = new Set([
 	'boxHeight',
 	'tip',
 	'text',
+	'rich',
 	'number',
 	'imageId',
-	'icon'
+	'icon',
+	'spec',
+	'svg'
 ]);
 
 /** Remembered settings of one type; `duration` in seconds */

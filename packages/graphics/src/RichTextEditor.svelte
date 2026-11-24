@@ -4,8 +4,10 @@
 	// with their style. Formats never come from the browser: its own commands (bold …) and what is pasted are turned
 	// into ours, pasted text is taken plain. Ctrl+B/I/U; in a list Enter goes on with it (on an empty item: out of it)
 	// and Tab / Shift+Tab change the level. The caller places and sizes the field and gets every change (`oninput`).
+	// A field over the box (typed into right away) is the one format commands act on while it is there; a field that
+	// stays in a panel (`autofocus` false) only while it has the focus, or lost it to a command, menu or popover.
 	import { untrack } from 'svelte';
-	import { fontCss } from './fonts.js';
+	import { fontCss, fontFamilyCss, fontWeight } from './fonts.js';
 	import { richEditing, type RichEditing } from './rich-editing.svelte.js';
 	import {
 		fullStyle,
@@ -38,10 +40,12 @@
 		/** CSS of the field itself (place, size, padding, background …) */
 		style?: string;
 		class?: string;
+		/** Focused (the caret at the end) when it comes; false: it waits to be clicked */
+		autofocus?: boolean;
 		oninput: (value: RichText) => void;
 	}
 
-	let { value, base, zoom, label, style = '', class: classes = '', oninput }: Props = $props();
+	let { value, base, zoom, label, style = '', class: classes = '', autofocus = true, oninput }: Props = $props();
 
 	let root = $state<HTMLDivElement | null>(null);
 	let model: RichText = untrack(() => tidy(value));
@@ -58,10 +62,10 @@
 
 	function spanCss(s: TextStyle): string {
 		const css: string[] = [];
-		if (s.bold !== undefined) css.push(`font-weight:${s.bold ? 700 : 400}`);
+		if (s.bold !== undefined || s.font) css.push(`font-weight:${fontWeight(fullStyle(s, base))}`);
 		if (s.italic !== undefined) css.push(`font-style:${s.italic ? 'italic' : 'normal'}`);
 		if (s.underline !== undefined) css.push(`text-decoration:${s.underline ? 'underline' : 'none'}`);
-		if (s.font) css.push(`font-family:${fontCss({ font: s.font, bold: false, italic: false }, 1).replace(/^1px /, '')}`);
+		if (s.font) css.push(`font-family:${fontFamilyCss(s.font)}`);
 		if (s.size) css.push(`font-size:${s.size * zoom}px`);
 		if (s.color) css.push(`color:${s.color}`);
 		return css.join(';');
@@ -364,6 +368,7 @@
 	$effect(() => {
 		if (!root) return;
 		untrack(() => {
+			if (!autofocus) return showMarks();
 			richEditing.current = editing;
 			root!.focus();
 			const end = plainOf(model).length;
@@ -372,6 +377,31 @@
 		});
 		return () => {
 			if (richEditing.current === editing) richEditing.current = null;
+		};
+	});
+
+	/** Where the focus may go while a field in a panel stays the one commands act on: a command, its menu or popover */
+	const COMMANDS = '[data-command], [popover], [role="menu"], [role="menuitem"]';
+	const toCommand = (target: EventTarget | null) => target instanceof Element && (root?.contains(target) || !!target.closest(COMMANDS));
+
+	$effect(() => {
+		if (autofocus || !root) return;
+		const field = root;
+		const onfocus = () => (richEditing.current = editing);
+		const leave = (target: EventTarget | null) => {
+			if (richEditing.current === editing && !toCommand(target)) richEditing.current = null;
+		};
+		const onpointerdown = (e: PointerEvent) => leave(e.target);
+		const onfocusout = (e: FocusEvent) => {
+			if (e.relatedTarget) leave(e.relatedTarget);
+		};
+		field.addEventListener('focus', onfocus);
+		field.addEventListener('focusout', onfocusout);
+		document.addEventListener('pointerdown', onpointerdown, true);
+		return () => {
+			field.removeEventListener('focus', onfocus);
+			field.removeEventListener('focusout', onfocusout);
+			document.removeEventListener('pointerdown', onpointerdown, true);
 		};
 	});
 </script>

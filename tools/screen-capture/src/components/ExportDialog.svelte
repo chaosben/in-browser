@@ -18,6 +18,9 @@
 		videoBitrate,
 		type QualityPreset
 	} from '#lib/export/settings.js';
+	import { canWriteWebp, IMAGE_FORMAT_IDS } from '@in-browser/graphics/image-formats.js';
+	import { END_ACTIONS } from '@in-browser/jwl/playlist.js';
+	import { onMount } from 'svelte';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { writable } from '@in-browser/files/fs.js';
@@ -31,10 +34,19 @@
 
 	interface Props {
 		project: Project;
+		/** The playhead: where “Picture” takes its picture */
+		at: number;
 		onclose: () => void;
 	}
 
-	let { project, onclose }: Props = $props();
+	let { project, at, onclose }: Props = $props();
+	let webp = $state(true);
+	onMount(() => {
+		void canWriteWebp().then((ok) => {
+			webp = ok;
+			if (!ok && settings.picture === 'webp') settings.picture = 'png';
+		});
+	});
 
 	// The dialog is opened for one project
 	// svelte-ignore state_referenced_locally
@@ -50,6 +62,8 @@
 
 	const total = $derived(duration(project.timeline));
 	const isGif = $derived(settings.format === 'gif');
+	const isPicture = $derived(settings.format === 'picture');
+	const isPlaylist = $derived(settings.format === 'playlist');
 	const size = $derived(
 		isGif ? gifSize(settings, project.width, project.height) : outputSize(settings, project.width, project.height)
 	);
@@ -109,7 +123,8 @@
 					progress = p.progress;
 					finalizing = p.phase === 'finalizing';
 				},
-				controller.signal
+				controller.signal,
+				at
 			);
 			if (result) URL.revokeObjectURL(result.url);
 			result = {
@@ -210,6 +225,34 @@
 						<input type="checkbox" class="checkbox checkbox-sm" bind:checked={settings.gifLoop} />
 						{m.export.loop}
 					</label>
+				{:else if isPicture}
+					<span class="label">{m.export.pictureFormat}</span>
+					<div class="join">
+						{#each IMAGE_FORMAT_IDS as format (format)}
+							<input
+								class="join-item btn btn-sm"
+								type="radio"
+								name="picture"
+								aria-label={m.export.pictureFormats[format]}
+								title={format === 'webp' && !webp ? m.export.noWebp : undefined}
+								value={format}
+								disabled={format === 'webp' && !webp}
+								bind:group={settings.picture}
+							/>
+						{/each}
+					</div>
+
+					<span class="label">{m.export.resolution}</span>
+					<select class="select select-sm" bind:value={() => sizeKey(settings.scale, settings.height), setResolution}>
+						<option value="0">{m.export.original(project.width, project.height)}</option>
+						{#each SCALES as scale (scale)}
+							{@const s = outputSize({ height: 0, scale }, project.width, project.height)}
+							<option value="{scale}%">{m.export.scale(scale, s.width, s.height)}</option>
+						{/each}
+						{#each resolutions as h (h)}
+							<option value={String(h)}>{h}p</option>
+						{/each}
+					</select>
 				{:else}
 					<span class="label">{m.export.resolution}</span>
 					<select class="select select-sm" bind:value={() => sizeKey(settings.scale, settings.height), setResolution}>
@@ -261,21 +304,39 @@
 						<option value={192}>192 kbit/s</option>
 						<option value={256}>256 kbit/s</option>
 					</select>
+
+					{#if isPlaylist}
+						<span class="label">{m.export.endAction}</span>
+						<select class="select select-sm" bind:value={settings.endAction}>
+							{#each END_ACTIONS as action (action)}
+								<option value={action}>{m.export.endActions[action]}</option>
+							{/each}
+						</select>
+					{/if}
 				{/if}
 			</fieldset>
 
 			<div class="bg-base-200 rounded-box mt-4 grid grid-cols-2 gap-1 p-3 text-sm">
 				<span class="opacity-70">{m.export.output}</span>
-				<span>{size.width}×{size.height}, {m.export.formats[settings.format]}</span>
-				<span class="opacity-70">{m.export.duration}</span>
-				<span>{formatTime(total)}</span>
-				{#if isGif}
+				<span>{size.width}×{size.height}, {isPicture ? m.export.pictureFormats[settings.picture] : m.export.formats[settings.format]}</span>
+				{#if isPicture}
+					<span class="opacity-70">{m.export.pictureAt}</span>
+					<span>{formatTime(Math.min(at, total))}</span>
+					<span class="col-span-2 mt-1 opacity-70">{m.export.pictureNote}</span>
+				{:else}
+					<span class="opacity-70">{m.export.duration}</span>
+					<span>{formatTime(total)}</span>
+				{/if}
+				{#if isPicture}
+					<!-- One picture: no bitrate or size estimate -->
+				{:else if isGif}
 					<span class="col-span-2 mt-1 opacity-70">{m.export.gifNote}</span>
 				{:else}
 					<span class="opacity-70">{m.export.videoBitrate}</span>
 					<span>{(bitrate / 1_000_000).toFixed(1)} Mbit/s</span>
 					<span class="opacity-70">{m.export.estimatedSize}</span>
 					<span class="font-semibold">≈ {formatSize(estimate, intlLocale)}</span>
+					{#if isPlaylist}<span class="col-span-2 mt-1 opacity-70">{m.export.playlistNote}</span>{/if}
 				{/if}
 			</div>
 
@@ -297,7 +358,7 @@
 			<div class="flex flex-col gap-3 py-6">
 				<progress class="progress progress-primary w-full" value={progress} max="1"></progress>
 				<div class="flex justify-between text-sm">
-					<span>{finalizing ? m.export.finalizing : isGif ? m.export.renderingGif : m.export.rendering}</span>
+					<span>{finalizing ? (isPlaylist ? m.export.packing : m.export.finalizing) : isGif ? m.export.renderingGif : isPicture ? m.export.renderingPicture : m.export.rendering}</span>
 					<span class="tabular-nums">{Math.round(progress * 100)} %</span>
 				</div>
 				<p class="text-xs opacity-60">{m.export.keepTabOpen}</p>

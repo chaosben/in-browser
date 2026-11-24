@@ -63,6 +63,7 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 				return { ...a, rect: rect(a.rect), blur: a.blur * sy, radius: a.radius * sy };
 			case 'highlight':
 			case 'icon':
+			case 'barcode':
 				return { ...a, rect: rect(a.rect) };
 			case 'image':
 				return { ...a, rect: rect(a.rect), radius: a.radius * sy };

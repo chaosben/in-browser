@@ -3,7 +3,7 @@
 	// top, the text and its view (table, tree, preview) below, position and encoding in the footer. Every action is a
 	// `Command` (ribbon, keys). Another file replaces this one in the same browser tab (saved first); one browser tab
 	// at a time edits a file (Web Lock).
-	import { canShare, openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
+	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { indentLess, indentMore, moveLineDown, moveLineUp, redo, selectAll, toggleComment, undo } from '@codemirror/commands';
@@ -432,17 +432,7 @@
 			enabled: () => !!file,
 			run: () => file && workspace.download(file)
 		},
-		share: {
-			id: 'share',
-			label: filesMessages().shareDialog.action,
-			tip: filesMessages().shareDialog.tip,
-			icon: 'icon-[material-symbols-light--share-outline]',
-			enabled: () => canShare(file?.path),
-			run: () => {
-				const path = file?.path;
-				if (path) openShareDialog({ path, single: true });
-			}
-		},
+		share: shareCommand(() => file?.path),
 		showInFiles: {
 			id: 'showInFiles',
 			label: m.actions.showInFiles,

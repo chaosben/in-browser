@@ -10,7 +10,7 @@ const help = {
 		items: {
 			layout: {
 				title: 'Layout',
-				text: 'At the top the ribbon with all commands in tabs: “File” (group “Project”: “Save as …”, “Share …” – the project for a guest, see the help page on sharing –, “Show in Files”, “Export”), “Home” (playback, cutting, clipboard, selection), “Insert” (recording, media, annotations, text, icon, zoom, library), “View” (timeline zoom, panels, canvas size); with a selection the tabs “Arrange” and “Clip” appear after them, and the ribbon switches to one by itself – to the one you used last – and back when the selection ends. The editor opens on “Home”; undo and redo sit left of the tabs. The top bar above only shows the project’s name. Left: the panels with everything you add (media, library, icons, annotations, text, zoom) – the icons on the narrow bar open and close them. Middle: the preview, below it the timeline. Right: the properties of the selected element – with nothing selected, those of the project. Size, playhead time and a running import are shown in the footer.'
+				text: 'At the top the ribbon with all commands in tabs: “File” (group “Project”: “Save as …”, “Share …” – the project for a guest, see the help page on sharing –, “Show in Files”, “Export”), “Home” (playback, cutting, clipboard, selection), “Insert” (recording, media, annotations, text, icon and barcode, zoom, library), “View” (timeline zoom, panels, canvas size); with a selection the tabs “Text box” (a text or speech bubble), “Arrange” and “Clip” appear after them, and the ribbon switches to one by itself – to the one you used last – and back when the selection ends. The editor opens on “Home”; undo and redo sit left of the tabs. The top bar above only shows the project’s name. Left: the panels with everything you add (media, library, icons, annotations, text, zoom) – the icons on the narrow bar open and close them. Middle: the preview, below it the timeline. Right: the properties of the selected element – with nothing selected, those of the project. Size, playhead time and a running import are shown in the footer.'
 			},
 			ribbon: {
 				title: 'Ribbon',
@@ -346,6 +346,7 @@ const help = {
 				text: 'Copies the selected elements – clips and annotations – and pastes them at the playhead: the earliest one starts there, the spacing between them stays, and they keep their place in the picture. The copy goes in front of everything it overlaps and is selected; one undo step. Linked copies are linked among themselves, never with the originals. Zoom segments are not copied.',
 				options: {
 					cut: { label: 'Cut', text: 'Copies and then deletes like Del – later elements move up. Elements on locked tracks stay.' },
+					duplicate: { label: 'Duplicate', text: '“Duplicate” (tab “Home”, group “Clipboard”, and the context menu) copies the selected elements right after the last of them, in the same place in the picture and in front of what lies there – without the clipboard. The copy is selected; one undo step.' },
 					other: { label: 'Other project', text: 'The clipboard is shared by all tabs and projects in this browser. Pasting into another project copies the videos, audio files and images it needs into that project’s media bin, so it works on its own afterwards. If a medium no longer exists (project or file deleted), its elements are left out with a message.' }
 				},
 				tip: 'To repeat an annotation later (e.g. the same arrow style for each step), copy it, move the playhead and paste. For the same element at the same time in another project, place the playhead there first.',
@@ -514,6 +515,11 @@ const help = {
 				title: 'Icon',
 				text: 'Icons from the “Icons” panel (“Icon” in the “Insert” tab opens it); the color including opacity is set in the properties.'
 			},
+			barcode: {
+				title: 'Barcode and QR code',
+				text: '“Barcode …” (tab “Insert”, next to “Icon”) makes a QR code or a barcode of what you type – plain text, a web address, Wi-Fi access, a contact and more – and places it in the middle of the picture at the playhead. The code is drawn as vectors, so it stays sharp at every size, and keeps its aspect ratio. Kind, colors and options are remembered for the next code, the content never. “Edit barcode …” (properties “Content”, context menu) opens the same dialog to change it; its middle and width stay.',
+				tip: 'Keep it dark on light with the quiet zone on, at least a fifth of the picture high, and on screen for a few seconds – long enough for a phone camera to read it from the video.'
+			},
 			shadow: {
 				title: 'Shadow',
 				text: 'A soft drop shadow that lifts the element off the picture. On by default; a text with a background starts without, and there the box carries the shadow.',
@@ -543,9 +549,15 @@ const help = {
 				tip: 'Change the font size with “Font size”, not by dragging – the box keeps its place and width. Pick auto height when the text should wrap within a column, fixed size only when the background must not change.',
 				keys: [['K']]
 			},
+			format: {
+				title: 'Formatting the text',
+				text: 'The text is typed in the field “Text” of the properties. Parts of it can be bold, italic, underlined, in another font, size or color, and paragraphs can be bullets or numbered: select words in the field and choose the format in the tab “Text box” (it appears while a text or speech bubble is selected), or press Ctrl+B, Ctrl+I, Ctrl+U. In a list, Enter starts the next item (on an empty one it ends the list), Tab and Shift+Tab change its level. With nothing selected in the field, a format applies to the whole box, and its parts lose their own value of it – the same as under Font. “Line spacing” is in the tab and under Font: 1.0 to 2.0 (texts made before keep 1.25).',
+				tip: 'Set font, size and color for the whole box; select single words only for an emphasis. A bullet list of three or four short points reads better in a video than running text.',
+				keys: [['Ctrl', 'B'], ['Ctrl', 'I'], ['Ctrl', 'U']]
+			},
 			font: {
 				title: 'Font',
-				text: 'Fonts are included in the app and work offline.',
+				text: 'Fonts are included in the app and work offline, each with bold and italic (Caveat has no italic of its own: it is slanted).',
 				options: {
 					system: { label: 'System font', text: 'The font of your operating system – neutral and familiar.' },
 					inter: { label: 'Inter', text: 'Very readable at small sizes; good for labels.' },
@@ -629,18 +641,20 @@ const help = {
 				options: {
 					mp4: { label: 'MP4 (default)', text: 'Video with sound that plays almost everywhere: browsers, phones, video platforms, presentation programs.' },
 					webm: { label: 'WebM', text: 'Open video format with sound (VP9 or AV1, Opus). Often a bit smaller at the same quality; plays in every browser, but not in every other program.' },
-					gif: { label: 'GIF', text: 'Animated picture without sound that plays everywhere right away and endlessly – also where videos don’t play automatically. Only 256 colors per frame and large files for longer clips.' }
+					gif: { label: 'GIF', text: 'Animated picture without sound that plays everywhere right away and endlessly – also where videos don’t play automatically. Only 256 colors per frame and large files for longer clips.' },
+					picture: { label: 'Picture', text: 'The picture at the playhead as PNG, JPEG or WebP, as the video shows it there (fades included). PNG is exact and the largest, JPEG small and readable everywhere, WebP smaller still but not opened by every program (off where the browser can’t write it).' },
+					playlist: { label: 'JW Library', text: 'The video as MP4 in a JW Library playlist (.jwlplaylist) with one item, named after the project, its thumbnail the first picture. In JW Library: “Playlists”, then add a playlist and import the file.' }
 				},
-				tip: 'Take MP4 for everything with sound or longer than half a minute. GIF suits short, silent demos for READMEs, tickets, wikis and chats. WebM if the video is meant for the web and should be as small as possible.'
+				tip: 'Take MP4 for everything with sound or longer than half a minute. GIF suits short, silent demos for READMEs, tickets, wikis and chats. WebM if the video is meant for the web and should be as small as possible. “Picture” for a screenshot of one moment, “JW Library” to show the video in a talk.'
 			},
 			resolution: {
 				title: 'Resolution',
-				text: 'MP4 and WebM. “Original” is the canvas size; 75 %, 50 % and 25 % shrink it proportionally, followed by fixed heights. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',
+				text: 'MP4, WebM, the picture and the playlist. “Original” is the canvas size; 75 %, 50 % and 25 % shrink it proportionally, followed by fixed heights. Only smaller sizes can be chosen – the video is never enlarged, because that would only make it bigger, not sharper.',
 				tip: 'Keep “Original” unless the file has to be smaller: 1080p is enough for almost every website, 720p for e-mail and chat.'
 			},
 			quality: {
 				title: 'Quality',
-				text: 'MP4 and WebM. The data rate of the video. The numbers are for 1080p at 30 fps; smaller resolutions need proportionally less.',
+				text: 'MP4, WebM and the playlist. The data rate of the video. The numbers are for 1080p at 30 fps; smaller resolutions need proportionally less.',
 				options: {
 					low: { label: 'Low', text: 'About 2.5 Mbit/s – small files, visible loss with movement and fine text.' },
 					medium: { label: 'Medium', text: 'About 4.4 Mbit/s – fine for slides and calm screen work.' },
@@ -652,13 +666,24 @@ const help = {
 			},
 			frameRate: {
 				title: 'Frame rate',
-				text: 'MP4 and WebM: 15, 24, 30 or 60 pictures per second. 60 fps needs about 1.5 times the data.',
+				text: 'MP4, WebM and the playlist: 15, 24, 30 or 60 pictures per second. 60 fps needs about 1.5 times the data.',
 				tip: 'Use the frame rate you recorded with (usually 30). 15 is enough for pure slide shows; 24 gives a film look.'
 			},
 			audio: {
 				title: 'Audio',
-				text: 'MP4 and WebM. Data rate of the sound, or “No audio”.',
+				text: 'MP4, WebM and the playlist. Data rate of the sound, or “No audio”.',
 				tip: '128 kbit/s is enough for speech, 192 (default) is safe for everything, 256 for music.'
+			},
+			endAction: {
+				title: 'JW Library: at the end',
+				text: 'What JW Library does when the video has played, as it names it; you can change it there later.',
+				options: {
+					continue: { label: 'Continue', text: 'Goes on to the next item of the playlist.' },
+					stop: { label: 'Stop', text: 'Goes back to the playlist.' },
+					freeze: { label: 'Freeze (default)', text: 'Keeps the last picture on screen until you go on.' },
+					repeat: { label: 'Repeat', text: 'Plays the video again.' }
+				},
+				tip: 'For a talk take “Freeze”: the screen doesn’t jump back to the list when the video ends.'
 			},
 			estimate: {
 				title: 'Estimated size',
@@ -709,6 +734,7 @@ const help = {
 			link: { title: 'Link / unlink', text: 'Selected elements', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
 			track: { title: 'Track', text: 'Forward / backward; with Shift to the front / back', keys: [['Ctrl', '↑'], ['Ctrl', '↓']] },
 			clipboard: { title: 'Copy / cut / paste', text: 'Selected elements; pasted at the playhead', keys: [['Ctrl', 'C'], ['Ctrl', 'X'], ['Ctrl', 'V']] },
+			format: { title: 'Bold / italic / underline', text: 'Selected text or speech bubble; while typing in the field “Text”: the selected words', keys: [['Ctrl', 'B'], ['Ctrl', 'I'], ['Ctrl', 'U']] },
 			nudge: { title: 'Nudge', text: 'In the preview: 1 px, with Shift 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
 			cycle: { title: 'Next element', text: 'In the preview: front to back under the playhead; with Shift backwards', keys: [['Tab'], ['Shift', 'Tab']] },
 			free: { title: 'Snapping', text: 'While dragging: the opposite of the “Snap” switch', keys: [['Alt']] },

@@ -12,13 +12,14 @@ import { clipboard } from '#lib/project/clipboard.svelte.js';
 import { croppedSize, FULL } from '#lib/project/crop.js';
 import { FREEZE_ICON, fitRect, OVERLAY_KINDS, ZOOM_ICON } from '#lib/project/defaults.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
-import type { Clip, Timeline, ToolKind } from '#lib/project/types.js';
+import type { BarcodeAnnotation, Clip, Timeline, ToolKind } from '#lib/project/types.js';
 import {
 	bringForward,
 	bringToFront,
 	clipsAt,
 	insertFreeze,
 	itemEnd,
+	pasteItems,
 	remove,
 	removeZoom,
 	sendBackward,
@@ -55,6 +56,8 @@ export interface EditorPage {
 	openPanel(id: string): void;
 	/** Shows the project's properties with the canvas size open */
 	changeCanvas(): void;
+	/** Opens the barcode dialog: for a new code, or to change `edit` */
+	barcode(edit?: BarcodeAnnotation): void;
 }
 
 /** Selected items on unlocked tracks */
@@ -290,6 +293,21 @@ export function editorCommands(page: EditorPage) {
 			enabled: () => ready() && !clipboard.empty,
 			run: withEditor((editor, player) => pasteClipboard(editor, player))
 		},
+		duplicate: {
+			id: 'duplicate',
+			label: m.menu.duplicate,
+			tip: m.menu.duplicateTip,
+			icon: 'icon-[material-symbols-light--content-copy-outline]',
+			enabled: () => !!page.editor && editableItems(page.editor).length > 0,
+			run: withEditor((editor) => {
+				// Right after the selection, where it is in the frame; in front of what lies there
+				const items = editableItems(editor);
+				const at = Math.max(...items.map(itemEnd));
+				const { timeline, ids } = pasteItems(editor.project.timeline, items, at);
+				editor.update(() => timeline);
+				editor.selectItems(ids);
+			})
+		},
 
 		// Selection
 		selectAll: {
@@ -463,6 +481,24 @@ export function editorCommands(page: EditorPage) {
 			enabled: ready,
 			run: () => page.openPanel('icons')
 		},
+		barcode: {
+			id: 'barcode',
+			label: m.editor.barcode,
+			tip: m.editor.barcodeTip,
+			icon: OVERLAY_KINDS.barcode.icon,
+			enabled: ready,
+			run: () => page.barcode()
+		},
+		editBarcode: {
+			id: 'editBarcode',
+			label: m.editor.editBarcode,
+			icon: 'icon-[material-symbols-light--edit-outline]',
+			enabled: () => page.editor?.selectedOverlay?.kind === 'barcode',
+			run: () => {
+				const a = page.editor?.selectedOverlay;
+				if (a?.kind === 'barcode') page.barcode(a);
+			}
+		},
 		zoom: {
 			id: 'zoom',
 			label: m.editor.zoomSegment,
@@ -538,6 +574,7 @@ export function itemMenuEntries(c: EditorCommands, properties: Command, extra: M
 		asEntry(c.cut),
 		asEntry(c.copy),
 		asEntry(c.paste),
+		asEntry(c.duplicate),
 		asEntry(c.delete),
 		asEntry(c.deleteGap),
 		{ separator: true },
@@ -557,6 +594,7 @@ export function itemMenuEntries(c: EditorCommands, properties: Command, extra: M
 		asEntry(c.fit),
 		asEntry(c.fill),
 		asEntry(c.fitCanvas),
+		asEntry(c.editBarcode),
 		{ separator: true },
 		asEntry(c.saveToLibrary),
 		asEntry(c.selectAll),

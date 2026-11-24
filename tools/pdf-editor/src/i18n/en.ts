@@ -161,16 +161,6 @@ const en = {
 		label: 'Text of the text box',
 		edit: 'Edit text',
 		size: 'Size',
-		fontSize: 'Font size',
-		font: 'Font',
-		fonts: { sans: 'Sans-serif', serif: 'Serif', mono: 'Monospace' },
-		bold: 'Bold',
-		italic: 'Italic',
-		underline: 'Underline',
-		lineHeight: 'Line spacing',
-		lineHeightValue: (n: number) => n.toLocaleString('en', { minimumFractionDigits: 1 }),
-		bulleted: 'Bullets',
-		numbered: 'Numbering',
 		textColor: 'Text color',
 		sizeValue: (pt: number) => `${pt} pt`,
 		style: 'Background and border',
@@ -295,10 +285,7 @@ const en = {
 	barcode: {
 		command: 'Barcode …',
 		tip: 'Makes a QR code or a barcode of what you type and places it on the page as a picture',
-		title: 'Barcode',
-		insert: 'Insert',
 		edit: 'Edit barcode',
-		apply: 'Apply'
 	},
 
 	pageSize: {
@@ -538,6 +525,9 @@ const en = {
 		endAction: 'At the end',
 		endActions: { continue: 'Continue', stop: 'Stop', freeze: 'Freeze', repeat: 'Repeat' },
 		itemLabel: (name: string, page: number) => `${name} – page ${page}`,
+		steps: 'Each presentation step as a picture',
+		stepLabel: (name: string, page: number, n: number, total: number) => `${name} – page ${page} (${n}/${total})`,
+		preparingSteps: (n: number, total: number) => `Exporting picture ${n} of ${total} …`,
 		download: 'Download',
 		save: 'Save …',
 		folderTitle: 'Save the pictures in',

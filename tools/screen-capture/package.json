@@ -16,13 +16,10 @@
 		"#lib/*": "./src/*"
 	},
 	"dependencies": {
-		"@fontsource/caveat": "5.3.0",
-		"@fontsource/inter": "5.3.0",
-		"@fontsource/jetbrains-mono": "5.3.0",
-		"@fontsource/montserrat": "5.3.0",
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
 		"@in-browser/graphics": "*",
+		"@in-browser/jwl": "*",
 		"gifenc": "1.0.3",
 		"mediabunny": "1.66.0"
 	}

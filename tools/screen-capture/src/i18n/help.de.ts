@@ -6,7 +6,7 @@ const help: typeof enHelp = {
 		items: {
 			layout: {
 				title: 'Aufbau',
-				text: 'Oben das Menüband mit allen Befehlen in Registerkarten: „Datei“ (Gruppe „Projekt“: „Speichern unter …“, „Freigeben …“ – das Projekt für einen Gast, siehe die Hilfeseite zum Freigeben –, „In Dateien zeigen“, „Exportieren“), „Start“ (Wiedergabe, Schneiden, Zwischenablage, Auswahl), „Einfügen“ (Aufnahme, Medien, Markierungen, Text, Icon, Zoom, Bibliothek), „Ansicht“ (Timeline-Zoom, Bereiche, Leinwandgröße); mit einer Auswahl erscheinen dahinter „Anordnen“ und „Clip“, und das Menüband wechselt von selbst zu einer davon – zu der, die du zuletzt benutzt hast – und zurück, wenn die Auswahl endet. Der Editor öffnet mit „Start“; Rückgängig und Wiederholen stehen links der Registerkarten. Die obere Leiste darüber zeigt nur den Namen des Projekts. Links die Bereiche mit allem, was du hinzufügst (Medien, Bibliothek, Icons, Markierungen, Text, Zoom) – die Symbole der schmalen Leiste öffnen und schließen sie. In der Mitte die Vorschau, darunter die Timeline. Rechts die Eigenschaften des ausgewählten Elements – ist nichts ausgewählt, die des Projekts. Größe, Zeit des Abspielkopfs und ein laufender Import stehen in der Fußzeile.'
+				text: 'Oben das Menüband mit allen Befehlen in Registerkarten: „Datei“ (Gruppe „Projekt“: „Speichern unter …“, „Freigeben …“ – das Projekt für einen Gast, siehe die Hilfeseite zum Freigeben –, „In Dateien zeigen“, „Exportieren“), „Start“ (Wiedergabe, Schneiden, Zwischenablage, Auswahl), „Einfügen“ (Aufnahme, Medien, Markierungen, Text, Icon und Barcode, Zoom, Bibliothek), „Ansicht“ (Timeline-Zoom, Bereiche, Leinwandgröße); mit einer Auswahl erscheinen dahinter „Textfeld“ (ein Text oder eine Sprechblase), „Anordnen“ und „Clip“, und das Menüband wechselt von selbst zu einer davon – zu der, die du zuletzt benutzt hast – und zurück, wenn die Auswahl endet. Der Editor öffnet mit „Start“; Rückgängig und Wiederholen stehen links der Registerkarten. Die obere Leiste darüber zeigt nur den Namen des Projekts. Links die Bereiche mit allem, was du hinzufügst (Medien, Bibliothek, Icons, Markierungen, Text, Zoom) – die Symbole der schmalen Leiste öffnen und schließen sie. In der Mitte die Vorschau, darunter die Timeline. Rechts die Eigenschaften des ausgewählten Elements – ist nichts ausgewählt, die des Projekts. Größe, Zeit des Abspielkopfs und ein laufender Import stehen in der Fußzeile.'
 			},
 			ribbon: {
 				title: 'Menüband',
@@ -342,6 +342,7 @@ const help: typeof enHelp = {
 				text: 'Kopiert die ausgewählten Elemente – Clips und Markierungen – und fügt sie am Abspielkopf ein: Das früheste beginnt dort, die Abstände untereinander bleiben, und alle behalten ihren Platz im Bild. Die Kopie kommt vor alles, womit sie sich überschneidet, und ist ausgewählt; ein Rückgängig-Schritt. Verknüpfte Kopien sind untereinander verknüpft, nie mit den Originalen. Zoom-Abschnitte werden nicht kopiert.',
 				options: {
 					cut: { label: 'Ausschneiden', text: 'Kopiert und löscht dann wie Entf – spätere Elemente rücken nach. Elemente auf gesperrten Spuren bleiben.' },
+					duplicate: { label: 'Duplizieren', text: '„Duplizieren“ (Registerkarte „Start“, Gruppe „Zwischenablage“, und das Kontextmenü) kopiert die ausgewählten Elemente direkt hinter das letzte von ihnen, an dieselbe Stelle im Bild und vor das, was dort liegt – ohne die Zwischenablage. Die Kopie ist ausgewählt; ein Rückgängig-Schritt.' },
 					other: { label: 'Anderes Projekt', text: 'Die Zwischenablage teilen sich alle Tabs und Projekte in diesem Browser. Fügst du in ein anderes Projekt ein, werden die nötigen Videos, Tondateien und Bilder in dessen Medienablage kopiert, sodass es danach eigenständig funktioniert. Gibt es ein Medium nicht mehr (Projekt oder Datei gelöscht), werden seine Elemente mit Hinweis ausgelassen.' }
 				},
 				tip: 'Um eine Markierung später zu wiederholen (z. B. denselben Pfeil für jeden Schritt), kopiere sie, setz den Abspielkopf weiter und füge ein. Für dasselbe Element zur selben Zeit in einem anderen Projekt setz dort zuerst den Abspielkopf an die Stelle.',
@@ -510,6 +511,11 @@ const help: typeof enHelp = {
 				title: 'Icon',
 				text: 'Icons aus dem Bereich „Icons“ („Icon“ in der Registerkarte „Einfügen“ öffnet ihn); Farbe samt Deckkraft stellst du in den Eigenschaften ein.'
 			},
+			barcode: {
+				title: 'Barcode und QR-Code',
+				text: '„Barcode …“ (Registerkarte „Einfügen“, neben „Icon“) macht aus dem, was du eingibst – einfacher Text, eine Webadresse, ein WLAN-Zugang, ein Kontakt und mehr –, einen QR-Code oder Strichcode und setzt ihn am Abspielkopf in die Bildmitte. Der Code wird als Vektoren gezeichnet, bleibt also in jeder Größe scharf, und behält sein Seitenverhältnis. Art, Farben und Optionen werden für den nächsten Code gemerkt, der Inhalt nie. „Barcode bearbeiten …“ (Eigenschaften „Inhalt“, Kontextmenü) öffnet denselben Dialog zum Ändern; Mitte und Breite bleiben.',
+				tip: 'Lass ihn dunkel auf hell mit Ruhezone, mindestens ein Fünftel der Bildhöhe groß und ein paar Sekunden im Bild – lange genug, dass eine Handykamera ihn aus dem Video lesen kann.'
+			},
 			shadow: {
 				title: 'Schatten',
 				text: 'Ein weicher Schlagschatten, der das Element vom Bild abhebt. Standardmäßig an; Text mit Hintergrund startet ohne, und dort trägt die Box den Schatten.',
@@ -539,9 +545,15 @@ const help: typeof enHelp = {
 				tip: 'Die Schriftgröße änderst du mit „Schriftgröße“, nicht durch Ziehen – die Box behält Platz und Breite. Nimm automatische Höhe, wenn der Text in einer Spalte umbrechen soll, feste Größe nur, wenn sich der Hintergrund nicht ändern darf.',
 				keys: [['K']]
 			},
+			format: {
+				title: 'Text formatieren',
+				text: 'Den Text tippst du im Feld „Text“ der Eigenschaften. Teile davon können fett, kursiv, unterstrichen, in einer anderen Schrift, Größe oder Farbe sein, und Absätze können Aufzählungen oder nummeriert sein: Markiere Wörter im Feld und wähle das Format in der Registerkarte „Textfeld“ (sie erscheint, solange ein Text oder eine Sprechblase ausgewählt ist), oder drück Strg+B, Strg+I, Strg+U. In einer Liste beginnt Enter den nächsten Punkt (auf einem leeren beendet es die Liste), Tab und Umschalt+Tab ändern die Ebene. Ist im Feld nichts markiert, gilt ein Format für die ganze Box, und ihre Teile verlieren ihren eigenen Wert dafür – wie unter Schrift. „Zeilenabstand“ steht in der Registerkarte und unter Schrift: 1,0 bis 2,0 (Texte von früher behalten 1,25).',
+				tip: 'Schrift, Größe und Farbe stellst du für die ganze Box ein; markiere einzelne Wörter nur zum Hervorheben. Drei, vier kurze Punkte als Aufzählung lesen sich im Video besser als Fließtext.',
+				keys: [['Strg', 'B'], ['Strg', 'I'], ['Strg', 'U']]
+			},
 			font: {
 				title: 'Schrift',
-				text: 'Die Schriften sind in der App enthalten und funktionieren offline.',
+				text: 'Die Schriften sind in der App enthalten und funktionieren offline, jede mit fett und kursiv (Caveat hat kein eigenes Kursiv: es wird schräg gestellt).',
 				options: {
 					system: { label: 'Systemschrift', text: 'Die Schrift deines Betriebssystems – neutral und vertraut.' },
 					inter: { label: 'Inter', text: 'Auch klein sehr gut lesbar; gut für Beschriftungen.' },
@@ -625,18 +637,20 @@ const help: typeof enHelp = {
 				options: {
 					mp4: { label: 'MP4 (Standard)', text: 'Video mit Ton, das fast überall läuft: Browser, Smartphones, Videoplattformen, Präsentationsprogramme.' },
 					webm: { label: 'WebM', text: 'Offenes Videoformat mit Ton (VP9 oder AV1, Opus). Bei gleicher Qualität oft etwas kleiner; läuft in jedem Browser, aber nicht in jedem anderen Programm.' },
-					gif: { label: 'GIF', text: 'Bewegtes Bild ohne Ton, das überall sofort und endlos abspielt – auch dort, wo Videos nicht von selbst starten. Nur 256 Farben pro Bild und große Dateien bei längeren Ausschnitten.' }
+					gif: { label: 'GIF', text: 'Bewegtes Bild ohne Ton, das überall sofort und endlos abspielt – auch dort, wo Videos nicht von selbst starten. Nur 256 Farben pro Bild und große Dateien bei längeren Ausschnitten.' },
+					picture: { label: 'Bild', text: 'Das Bild am Abspielkopf als PNG, JPEG oder WebP, so wie das Video es dort zeigt (Blenden eingeschlossen). PNG ist genau und am größten, JPEG klein und überall lesbar, WebP noch kleiner, öffnet aber nicht jedes Programm (aus, wo der Browser es nicht schreiben kann).' },
+					playlist: { label: 'JW Library', text: 'Das Video als MP4 in einer JW-Library-Playlist (.jwlplaylist) mit einem Element, benannt nach dem Projekt, als Vorschaubild das erste Bild. In JW Library: „Playlists“, dann eine Playlist hinzufügen und die Datei importieren.' }
 				},
-				tip: 'Nimm MP4 für alles mit Ton oder länger als eine halbe Minute. GIF passt für kurze, stumme Demos in READMEs, Tickets, Wikis und Chats. WebM, wenn das Video fürs Web gedacht ist und möglichst klein sein soll.'
+				tip: 'Nimm MP4 für alles mit Ton oder länger als eine halbe Minute. GIF passt für kurze, stumme Demos in READMEs, Tickets, Wikis und Chats. WebM, wenn das Video fürs Web gedacht ist und möglichst klein sein soll. „Bild“ für einen Screenshot eines Moments, „JW Library“, um das Video in einem Vortrag zu zeigen.'
 			},
 			resolution: {
 				title: 'Auflösung',
-				text: 'MP4 und WebM. „Original“ ist die Leinwandgröße; 75 %, 50 % und 25 % verkleinern sie im gleichen Verhältnis, danach folgen feste Höhen. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',
+				text: 'MP4, WebM, das Bild und die Playlist. „Original“ ist die Leinwandgröße; 75 %, 50 % und 25 % verkleinern sie im gleichen Verhältnis, danach folgen feste Höhen. Wählbar sind nur kleinere Größen – das Video wird nie vergrößert, denn das macht es nur größer, nicht schärfer.',
 				tip: 'Bleib bei „Original“, außer die Datei soll kleiner werden: 1080p reicht für fast jede Website, 720p für E-Mail und Chat.'
 			},
 			quality: {
 				title: 'Qualität',
-				text: 'MP4 und WebM. Die Datenrate des Videos. Die Werte gelten für 1080p bei 30 fps; kleinere Auflösungen brauchen entsprechend weniger.',
+				text: 'MP4, WebM und die Playlist. Die Datenrate des Videos. Die Werte gelten für 1080p bei 30 fps; kleinere Auflösungen brauchen entsprechend weniger.',
 				options: {
 					low: { label: 'Niedrig', text: 'Etwa 2,5 Mbit/s – kleine Dateien, sichtbarer Verlust bei Bewegung und feiner Schrift.' },
 					medium: { label: 'Mittel', text: 'Etwa 4,4 Mbit/s – gut für Folien und ruhige Bildschirmarbeit.' },
@@ -648,13 +662,24 @@ const help: typeof enHelp = {
 			},
 			frameRate: {
 				title: 'Bildrate',
-				text: 'MP4 und WebM: 15, 24, 30 oder 60 Bilder pro Sekunde. 60 fps brauchen etwa 1,5-mal so viele Daten.',
+				text: 'MP4, WebM und die Playlist: 15, 24, 30 oder 60 Bilder pro Sekunde. 60 fps brauchen etwa 1,5-mal so viele Daten.',
 				tip: 'Nimm die Bildrate, mit der du aufgenommen hast (meist 30). 15 genügt für reine Folienvideos; 24 wirkt wie Kino.'
 			},
 			audio: {
 				title: 'Ton',
-				text: 'MP4 und WebM. Datenrate des Tons oder „Ohne Ton“.',
+				text: 'MP4, WebM und die Playlist. Datenrate des Tons oder „Ohne Ton“.',
 				tip: '128 kbit/s reichen für Sprache, 192 (Standard) ist für alles sicher, 256 für Musik.'
+			},
+			endAction: {
+				title: 'JW Library: am Ende',
+				text: 'Was JW Library tut, wenn das Video abgespielt ist, so wie es dort heißt; du kannst es dort später ändern.',
+				options: {
+					continue: { label: 'Weiter', text: 'Geht zum nächsten Element der Playlist.' },
+					stop: { label: 'Stopp', text: 'Geht zurück zur Playlist.' },
+					freeze: { label: 'Standbild (Standard)', text: 'Lässt das letzte Bild stehen, bis du weitergehst.' },
+					repeat: { label: 'Wiederholen', text: 'Spielt das Video noch einmal.' }
+				},
+				tip: 'Für einen Vortrag nimm „Standbild“: Der Bildschirm springt am Ende des Videos nicht zurück zur Liste.'
 			},
 			estimate: {
 				title: 'Geschätzte Größe',
@@ -705,6 +730,7 @@ const help: typeof enHelp = {
 			link: { title: 'Verknüpfen / lösen', text: 'Ausgewählte Elemente', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
 			track: { title: 'Spur', text: 'Nach vorne / hinten; mit Umschalt ganz nach vorne / hinten', keys: [['Strg', '↑'], ['Strg', '↓']] },
 			clipboard: { title: 'Kopieren / Ausschneiden / Einfügen', text: 'Ausgewählte Elemente; eingefügt am Abspielkopf', keys: [['Strg', 'C'], ['Strg', 'X'], ['Strg', 'V']] },
+			format: { title: 'Fett / kursiv / unterstrichen', text: 'Ausgewählter Text oder ausgewählte Sprechblase; beim Tippen im Feld „Text“: die markierten Wörter', keys: [['Strg', 'B'], ['Strg', 'I'], ['Strg', 'U']] },
 			nudge: { title: 'Pixelweise verschieben', text: 'In der Vorschau: 1 px, mit Umschalt 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
 			cycle: { title: 'Nächstes Element', text: 'In der Vorschau: von vorne nach hinten unter dem Abspielkopf; mit Umschalt rückwärts', keys: [['Tab'], ['Umschalt', 'Tab']] },
 			free: { title: 'Einrasten', text: 'Beim Ziehen: das Gegenteil des Schalters „Einrasten“', keys: [['Alt']] },

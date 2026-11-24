@@ -14,7 +14,7 @@ that serves the overview site and every tool on a single origin, so the tools ca
 | `packages/files` | `@in-browser/files`: shared file system (OPFS) with connected sources (`/:c/<id>`: folders on disk, WebDAV, S3), live access to other devices, guest shares (synced into the guest's browser), media in pieces, file dialog, formats, folder and device sync | – |
 | `packages/ink` | `@in-browser/ink`: ink core of the drawing tools – strokes, shapes and pictures on pages, pen math (pressure, smoothing, outlines, shape recognition, snapping) | – |
 | `packages/pdf` | `@in-browser/pdf`: PDF.js and pdf-lib loaded on demand, PDF pages rendered in blocks for tiles, changes written as incremental updates, form scripts in a QuickJS sandbox | – |
-| `packages/graphics` | `@in-browser/graphics`: colors, icons, shapes and fields of the drawing tools | – |
+| `packages/graphics` | `@in-browser/graphics`: colors, icons, shapes, fields, formatted text with its fonts and commands, barcodes of the drawing tools | – |
 | `packages/jwl` | `@in-browser/jwl`: writes JW Library playlists (`.jwlplaylist`) of pictures and videos – the database with sql.js in a worker, streamed as a ZIP | – |
 | `packages/p2p-node` | `@in-browser/p2p-node`: always-on device for the device sync, runs in Node ([README](packages/p2p-node/README.md), [user guide](https://in-browser.org/help/p2p-node)) | https://in-browser.org/p2p-node/install.sh |
 
