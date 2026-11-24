@@ -613,7 +613,35 @@ const help = {
 						},
 						which: {
 							title: 'The whole suite or one tool',
-							text: 'Installed from the overview, you get in-browser with all tools. Each tool can also be installed on its own – then it opens straight into that tool.'
+							text: 'Installed from the overview, you get in-browser with all tools. Each tool can also be installed on its own – then it opens straight into that tool.',
+							tip: 'Install the whole suite: only the app “in-browser” appears in the share menu and under “Open with” of your device. An app of a single tool doesn’t.'
+						}
+					}
+				},
+				system: {
+					title: 'With the other apps of your device',
+					items: {
+						share: {
+							title: 'Share to in-browser',
+							text: 'On Android, the installed app “in-browser” appears in the share menu of other apps. Share a PDF and it opens in the PDF Editor, a text file or a text in the Text Editor; other files land in Files. Before it is kept, you choose where – the file is copied into your files, nothing is uploaded.',
+							options: {
+								where: { label: 'Where it works', text: 'Chrome and Samsung Internet on Android, with in-browser installed. Not on iPhone and iPad – there, save the file and upload it in Files.' }
+							}
+						},
+						openWith: {
+							title: 'Open with in-browser',
+							text: 'On a computer, “Open with” → “in-browser” opens PDFs in the PDF Editor and text files in the Text Editor – also from the download bar of the browser, and as the default app if you choose it. A PDF is copied into your files first (you choose where), a text opens as a new text that you save where you like. The file on your computer stays as it was.',
+							options: {
+								where: { label: 'Where it works', text: 'Chrome and Edge on a computer, with in-browser installed. The first time, the browser asks whether in-browser may open such files.' }
+							}
+						},
+						send: {
+							title: 'Send to another app',
+							text: '“Send …” in the tab “File” of the PDF Editor and the Text Editor, in Files (tab “Share”, the menu of files) and in the PDF Editor’s “Export …” gives files to another app of your device – mail, a messenger, JW Library. Unlike “Share …”, which opens a file for a guest in their browser, the app gets a copy.',
+							options: {
+								where: { label: 'Where it works', text: 'On phones and tablets, on Windows and on the Mac. Each browser sends only the types it allows – Chrome e.g. pictures, videos, sound, PDFs and plain text, but no playlists; for those “Send …” stays disabled.' }
+							},
+							tip: 'After a longer export, the browser no longer counts your click: a message “… ready to send” then offers “Send”.'
 						}
 					}
 				},

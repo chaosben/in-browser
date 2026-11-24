@@ -191,6 +191,16 @@ const help = {
 				tip: '“View only” to hand over files; “Edit” when the guest should save or upload into the folder. Keep in-browser open here while they use it.',
 				link: { href: '/help/connected#share', label: 'Sharing with a guest' }
 			},
+			send: {
+				title: 'Sending to another app',
+				text: '“Send …” in the “Share” tab, in the “Selection” tab and in the menu of files gives the selected files to another app on this device – mail, a messenger, JW Library. The app gets a copy; nothing stays connected. It works for files only (not for folders) and only for the types your browser sends – otherwise it is greyed out.',
+				link: { href: '/help/install#system', label: 'With the other apps of your device' }
+			},
+			receive: {
+				title: 'Files from other apps',
+				text: 'Shared from another app to the installed in-browser (Android), files arrive here: you choose a folder, and they are copied into it. A single PDF or text file opens in its tool instead.',
+				link: { href: '/help/install#system', label: 'With the other apps of your device' }
+			},
 			guest: {
 				title: 'Opening a share',
 				text: 'A link someone shared with you opens Files with the folder in the panel “Folders” below My files, named after it and who shares it – the name from their settings, else their device’s (a lock means view only); a single shared file opens right away in its tool. Without the link: “Connect …” (below My files in the panel “Folders”, or the tab “Connect”) → “A share by four words …” asks for the four words the sharing device shows. Your browser remembers the share until it ends, runs out or you choose “Disconnect”; until then it lies as a synced copy in this browser. If another browser is in it right now, Files says so and tries again by itself. Copy files into My files to keep them. When the share ends, Files says so at once; “Remove” takes it out of the panel.',

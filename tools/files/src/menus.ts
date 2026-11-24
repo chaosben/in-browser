@@ -3,7 +3,8 @@ import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
-import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
+import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+import { canSend, sendPaths } from '@in-browser/files/send.js';
 import { basename, isConnected, isInside, parent } from '@in-browser/files/path.js';
 import { allowAccess, disconnect, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
 import { endShare, includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
@@ -21,6 +22,9 @@ import { clipboard, type Manager } from '#lib/manager.svelte.js';
 // so the BrandBar menu rebuilds when it changes. Entries that can't act right now are disabled, never left out.
 
 /** What the menus need from the page */
+/** Whether these entries can go to another app: files only, of types the browser sends */
+export const sendable = (items: Item[]) => items.length > 0 && items.every((i) => i.kind === 'file') && canSend(items.map((i) => i.name));
+
 export interface MenuContext {
 	manager: Manager;
 	navigate(path: string): void;
@@ -175,6 +179,8 @@ export function itemEntries(ctx: MenuContext, items: Item[], rename: (item: Item
 			icon: one?.kind === 'file' ? 'icon-[material-symbols-light--download]' : 'icon-[material-symbols-light--folder-zip-outline]',
 			run: () => ctx.download(items)
 		},
+		// To another app of the device (files only, of types the browser sends)
+		{ label: filesMessages().send.action, icon: 'icon-[material-symbols-light--send-outline]', disabled: !sendable(items), run: () => void sendPaths(items.map((i) => i.path)) },
 		{ separator: true },
 		{ label: m.menu.copy, icon: 'icon-[material-symbols-light--content-copy]', keys: keyLabel(KEYS.copy), run: () => toClipboard(items, 'copy') },
 		{ label: m.menu.cut, icon: 'icon-[material-symbols-light--content-cut]', keys: keyLabel(KEYS.cut), disabled: locked, run: () => toClipboard(items, 'cut') },

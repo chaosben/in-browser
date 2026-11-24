@@ -3,6 +3,7 @@
 	// top, the text and its view (table, tree, preview) below, position and encoding in the footer. Every action is a
 	// `Command` (ribbon, keys). Another file replaces this one in the same browser tab (saved first); one browser tab
 	// at a time edits a file (Web Lock).
+	import { sendCommand } from '@in-browser/files/send.js';
 	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -433,6 +434,7 @@
 			run: () => file && workspace.download(file)
 		},
 		share: shareCommand(() => file?.path),
+		send: sendCommand(() => file?.path, { name: () => file?.suggestedName, file: async () => workspace.blob(file!) }),
 		showInFiles: {
 			id: 'showInFiles',
 			label: m.actions.showInFiles,
@@ -462,7 +464,7 @@
 			label: brandMessages().ribbon.file,
 			groups: [
 				{ id: 'new', label: g.new, items: [commands.new, commands.open] },
-				{ id: 'file', label: g.file, items: [commands.save, commands.saveAs, commands.download, commands.share, commands.showInFiles, commands.close] }
+				{ id: 'file', label: g.file, items: [commands.save, commands.saveAs, commands.download, commands.share, commands.send, commands.showInFiles, commands.close] }
 			]
 		},
 		{

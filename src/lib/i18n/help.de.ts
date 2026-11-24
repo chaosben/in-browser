@@ -609,7 +609,35 @@ const help: typeof enHelp = {
 						},
 						which: {
 							title: 'Die ganze Suite oder ein Tool',
-							text: 'Installierst du von der Übersicht aus, bekommst du in-browser mit allen Tools. Jedes Tool lässt sich auch einzeln installieren – dann öffnet es direkt dieses Tool.'
+							text: 'Installierst du von der Übersicht aus, bekommst du in-browser mit allen Tools. Jedes Tool lässt sich auch einzeln installieren – dann öffnet es direkt dieses Tool.',
+							tip: 'Installiere die ganze Suite: Nur die App „in-browser“ erscheint im Teilen-Menü und unter „Öffnen mit“ deines Geräts. Die App eines einzelnen Tools nicht.'
+						}
+					}
+				},
+				system: {
+					title: 'Mit den anderen Apps deines Geräts',
+					items: {
+						share: {
+							title: 'An in-browser teilen',
+							text: 'Unter Android erscheint die installierte App „in-browser“ im Teilen-Menü anderer Apps. Teilst du eine PDF, öffnet sie sich im PDF-Editor, eine Textdatei oder einen Text im Texteditor; andere Dateien landen in Dateien. Bevor etwas abgelegt wird, wählst du, wo – die Datei wird in deine Dateien kopiert, nichts wird hochgeladen.',
+							options: {
+								where: { label: 'Wo es geht', text: 'Chrome und Samsung Internet unter Android, mit installiertem in-browser. Nicht auf iPhone und iPad – dort speicherst du die Datei und lädst sie in Dateien hoch.' }
+							}
+						},
+						openWith: {
+							title: 'Mit in-browser öffnen',
+							text: 'Am Computer öffnet „Öffnen mit“ → „in-browser“ PDFs im PDF-Editor und Textdateien im Texteditor – auch aus der Download-Leiste des Browsers und als Standard-App, wenn du es so einstellst. Eine PDF wird zuerst in deine Dateien kopiert (du wählst, wohin), ein Text öffnet sich als neuer Text, den du speicherst, wo du willst. Die Datei auf deinem Computer bleibt, wie sie ist.',
+							options: {
+								where: { label: 'Wo es geht', text: 'Chrome und Edge am Computer, mit installiertem in-browser. Beim ersten Mal fragt der Browser, ob in-browser solche Dateien öffnen darf.' }
+							}
+						},
+						send: {
+							title: 'An eine andere App senden',
+							text: '„Senden …“ im Tab „Datei“ von PDF-Editor und Texteditor, in Dateien (Tab „Freigeben“, das Menü von Dateien) und in „Exportieren …“ des PDF-Editors gibt Dateien an eine andere App deines Geräts – Mail, einen Messenger, JW Library. Anders als „Freigeben …“, das eine Datei für einen Gast in seinem Browser öffnet, bekommt die App eine Kopie.',
+							options: {
+								where: { label: 'Wo es geht', text: 'Auf Handys und Tablets, unter Windows und auf dem Mac. Jeder Browser sendet nur die Arten, die er zulässt – Chrome z. B. Bilder, Videos, Ton, PDFs und reinen Text, aber keine Playlists; dafür bleibt „Senden …“ ausgegraut.' }
+							},
+							tip: 'Nach einem längeren Export zählt der Browser deinen Klick nicht mehr: Eine Meldung „… bereit zum Senden“ bietet dann „Senden“ an.'
 						}
 					}
 				},

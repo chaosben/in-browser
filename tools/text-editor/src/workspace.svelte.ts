@@ -384,9 +384,14 @@ export class Workspace {
 		else this.#scheduleDraft(tab);
 	}
 
-	download(tab: Tab) {
+	/** The text as it is now (also unsaved), in its encoding and line endings – what a download or “Send …” gives */
+	blob(tab: Tab): Blob {
 		const { bytes } = encode(tab.state.doc.sliceString(0, tab.state.doc.length, tab.eol), tab.encoding);
-		downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), tab.suggestedName);
+		return new Blob([bytes], { type: 'application/octet-stream' });
+	}
+
+	download(tab: Tab) {
+		downloadBlob(this.blob(tab), tab.suggestedName);
 	}
 
 	showInFiles(tab: Tab) {

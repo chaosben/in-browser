@@ -41,6 +41,7 @@
 	import { connectEntries, connectUi, editConnection } from '#lib/connections.svelte.js';
 	import ConnectDialog from '#lib/components/ConnectDialog.svelte';
 	import { openShareDialog } from '@in-browser/files/share-dialog.svelte.js';
+	import { sendPaths } from '@in-browser/files/send.js';
 	import FileList from '#lib/components/FileList.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
 	import PropertiesDialog from '#lib/components/PropertiesDialog.svelte';
@@ -66,6 +67,7 @@
 		sortEntries,
 		uploadEntries,
 		disconnectConnection,
+		sendable,
 		type MenuContext
 	} from '#lib/menus.js';
 	import { toItem, type Item } from '#lib/items.js';
@@ -316,6 +318,14 @@
 			tip: m.commands.downloadTip,
 			run: () => void downloadItems(selected.length ? selected : [current])
 		},
+		send: {
+			id: 'send',
+			label: filesMessages().send.action,
+			icon: 'icon-[material-symbols-light--send-outline]',
+			tip: filesMessages().send.tip,
+			enabled: () => sendable(selected),
+			run: () => void sendPaths(selected.map((i) => i.path))
+		},
 		properties: {
 			id: 'properties',
 			label: m.menu.properties,
@@ -523,7 +533,7 @@
 			id: 'share',
 			label: m.ribbon.tabs.share,
 			groups: [
-				{ id: 'share', label: m.ribbon.groups.share, items: [commands.share] },
+				{ id: 'share', label: m.ribbon.groups.share, items: [commands.share, commands.send] },
 				{ id: 'download', label: m.ribbon.groups.download, items: [commands.download] }
 			]
 		},
@@ -556,7 +566,7 @@
 			contextual: true,
 			visible: () => selected.length > 0,
 			groups: [
-				{ id: 'open', label: m.ribbon.groups.open, items: [commands.open, commands.openWith, commands.preview, commands.download] },
+				{ id: 'open', label: m.ribbon.groups.open, items: [commands.open, commands.openWith, commands.preview, commands.download, commands.send] },
 				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.rename, commands.moveTo, commands.delete, commands.properties] },
 				{ id: 'select', label: m.ribbon.groups.select, items: [commands.selectAll, commands.clearSelection] }
 			]

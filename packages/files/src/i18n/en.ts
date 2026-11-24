@@ -248,6 +248,22 @@ const en = {
 		}
 	},
 
+	/** “Send …”: a file to another app of the device (not a guest share) */
+	send: {
+		action: 'Send …',
+		tip: 'Gives the file to another app on this device – mail, a messenger …',
+		failed: 'The file could not be sent.',
+		ready: (n: number) => (n === 1 ? 'The file is ready to send.' : `The ${n} files are ready to send.`),
+		now: 'Send'
+	},
+
+	/** Files another app shared with in-browser or opened with it */
+	receive: {
+		saveTitle: 'Where should the file be kept?',
+		folderTitle: (n: number) => `Where should the ${n} files be kept?`,
+		notSaved: 'Not kept – nothing was saved.'
+	},
+
 	/** Why a name is not allowed (shown while typing) */
 	names: {
 		empty: 'Enter a name.',

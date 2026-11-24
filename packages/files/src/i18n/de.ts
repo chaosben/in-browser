@@ -228,6 +228,20 @@ const de: FilesMessages = {
 		}
 	},
 
+	send: {
+		action: 'Senden …',
+		tip: 'Gibt die Datei an eine andere App auf diesem Gerät – Mail, einen Messenger …',
+		failed: 'Die Datei konnte nicht gesendet werden.',
+		ready: (n) => (n === 1 ? 'Die Datei ist bereit zum Senden.' : `Die ${n} Dateien sind bereit zum Senden.`),
+		now: 'Senden'
+	},
+
+	receive: {
+		saveTitle: 'Wo soll die Datei liegen?',
+		folderTitle: (n) => `Wo sollen die ${n} Dateien liegen?`,
+		notSaved: 'Nicht abgelegt – es wurde nichts gespeichert.'
+	},
+
 	names: {
 		empty: 'Gib einen Namen ein.',
 		dots: '„.“ und „..“ sind nicht erlaubt.',

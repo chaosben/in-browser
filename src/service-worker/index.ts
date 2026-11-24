@@ -84,6 +84,10 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
 	const { request } = event;
 	const url = new URL(request.url);
+	if (request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/files' && url.searchParams.has('share-target')) {
+		event.respondWith(receiveShare(request));
+		return;
+	}
 	if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
 	if (url.pathname.startsWith('/_live/')) {
@@ -217,4 +221,35 @@ async function live(event: FetchEvent, request: Request, url: URL): Promise<Resp
 		}
 	});
 	return new Response(body, { status: 200, headers: { ...headers, 'Content-Length': String(size) } });
+}
+
+// --- Share target: another app of the device shared with the installed suite (`share_target` of
+// `static/manifest.webmanifest`). What arrives is kept where pages find it – the layout of
+// `packages/files/src/incoming.ts`: `cache/files/incoming/<id>/` with the files as `0`, `1` … and `meta.json` – and the
+// page is told by its address (`/files?received=<id>`). Nothing leaves the device.
+
+async function receiveShare(request: Request): Promise<Response> {
+	try {
+		const form = await request.formData();
+		const files = form.getAll('files').filter((f): f is File => f instanceof File && f.name !== '');
+		const field = (name: string) => {
+			const value = form.get(name);
+			return typeof value === 'string' ? value : undefined;
+		};
+		const id = crypto.randomUUID();
+		let dir = await navigator.storage.getDirectory();
+		for (const name of ['cache', 'files', 'incoming', id]) dir = await dir.getDirectoryHandle(name, { create: true });
+		for (const [i, file] of files.entries()) {
+			const out = await (await dir.getFileHandle(String(i), { create: true })).createWritable();
+			await file.stream().pipeTo(out);
+		}
+		const meta = { title: field('title'), text: field('text'), url: field('url'), files: files.map((f) => ({ name: f.name, type: f.type })), at: Date.now() };
+		const out = await (await dir.getFileHandle('meta.json', { create: true })).createWritable();
+		await out.write(JSON.stringify(meta));
+		await out.close();
+		return Response.redirect(`/files?received=${id}`, 303);
+	} catch (e) {
+		console.error('[service worker] share target', e);
+		return Response.redirect('/files', 303);
+	}
 }

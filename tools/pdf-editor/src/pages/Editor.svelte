@@ -59,6 +59,7 @@
 	import { offerRemote } from '#lib/show/remote-link.js';
 	import { presentSettings, type PresentMode } from '#lib/show/settings.svelte.js';
 	import { showUrl } from '#lib/brand.js';
+	import { sendCommand } from '@in-browser/files/send.js';
 	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
 	import PdfPageDialog from '#lib/components/PdfPageDialog.svelte';
 	import StampEditor from '#lib/components/StampEditor.svelte';
@@ -820,6 +821,7 @@
 			run: () => (exporting = 'all')
 		},
 share: shareCommand(() => ed.doc?.path),
+		send: sendCommand(() => ed.doc?.path),
 		showInFiles: { id: 'showInFiles', label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', enabled: () => !!ed.doc, run: () => showInFiles() },
 		undo: { id: 'undo', label: m.commands.undo, icon: 'icon-[material-symbols-light--undo]', shortcut: { key: 'z', ctrl: true }, enabled: () => !!ed.doc?.canUndo, run: () => changed(() => ed.doc?.undo()) },
 		redo: {
@@ -1434,7 +1436,7 @@ share: shareCommand(() => ed.doc?.path),
 			id: 'file',
 			label: brandMessages().ribbon.file,
 			groups: [
-				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.exportPages, commands.print, commands.share, commands.showInFiles] },
+				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.exportPages, commands.print, commands.share, commands.send, commands.showInFiles] },
 				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
 			]
 		},

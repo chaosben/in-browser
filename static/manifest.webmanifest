@@ -8,6 +8,21 @@
 	"scope": "/",
 	"display": "standalone",
 	"launch_handler": { "client_mode": "focus-existing" },
+	"share_target": {
+		"action": "/files?share-target",
+		"method": "POST",
+		"enctype": "multipart/form-data",
+		"params": { "title": "title", "text": "text", "url": "url", "files": [{ "name": "files", "accept": ["*/*"] }] }
+	},
+	"file_handlers": [
+		{ "action": "/pdf-editor?open-with", "accept": { "application/pdf": [".pdf"] } },
+		{
+			"action": "/text-editor?open-with",
+			"accept": {
+				"text/plain": [".txt", ".md", ".markdown", ".json", ".jsonl", ".ndjson", ".csv", ".tsv", ".log", ".xml", ".yml", ".yaml", ".ini", ".cfg", ".conf", ".properties", ".toml", ".html", ".htm", ".css", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".svelte", ".py", ".sh", ".bash", ".zsh"]
+			}
+		}
+	],
 	"categories": ["productivity", "utilities"],
 	"background_color": "#1c1f25",
 	"theme_color": "#1c1f25",

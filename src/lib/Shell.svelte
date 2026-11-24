@@ -47,9 +47,12 @@
 		void Promise.all([
 			import('@in-browser/files/sync/sync.svelte.js'),
 			import('@in-browser/files/suite-settings.svelte.js'),
-			import('@in-browser/files/SyncIndicator.svelte')
-		]).then(([sync, settings, indicator]) => {
+			import('@in-browser/files/SyncIndicator.svelte'),
+			import('@in-browser/files/receive.svelte.js')
+		]).then(([sync, settings, indicator, receive]) => {
 			sync.startSync();
+			// “Open with in-browser” while the suite's window shows the overview
+			receive.installLaunchHandler();
 			void settings.suiteSettings.load();
 			SyncIndicator = indicator.default;
 		});

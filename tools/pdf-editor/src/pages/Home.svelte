@@ -6,7 +6,8 @@
 	import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
-	import { stat, supported, watchSettled, write } from '@in-browser/files/fs.js';
+	import { stat, supported, watchSettled } from '@in-browser/files/fs.js';
+	import { keepFile } from '@in-browser/files/receive.svelte.js';
 	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
 	import { editorUrl } from '#lib/brand.js';
@@ -57,12 +58,10 @@
 		const file = e.currentTarget.files?.[0];
 		e.currentTarget.value = '';
 		if (!file) return;
-		const path = await chooseFile({ mode: 'save', folder: recent.lastFolder(), accept: ['.pdf'], name: file.name, title: m.home.saveTitle });
-		if (!path) return;
 		copying = true;
 		try {
-			await write(path, file);
-			await open(path);
+			const path = await keepFile(file, { title: m.home.saveTitle });
+			if (path) await open(path);
 		} catch (e) {
 			toast(m.home.failed(filesErrorText(e)), 'error', 8000);
 		} finally {

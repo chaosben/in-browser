@@ -189,6 +189,16 @@ const help: typeof enHelp = {
 				tip: '„Nur ansehen“, um Dateien weiterzugeben; „Bearbeiten“, wenn der Gast im Ordner speichern oder hochladen soll. Lass in-browser hier offen, solange er sie nutzt.',
 				link: { href: '/help/connected#share', label: 'Für einen Gast freigeben' }
 			},
+			send: {
+				title: 'An eine andere App senden',
+				text: '„Senden …“ in der Registerkarte „Freigeben“, in „Auswahl“ und im Menü von Dateien gibt die ausgewählten Dateien an eine andere App dieses Geräts – Mail, einen Messenger, JW Library. Die App bekommt eine Kopie; danach bleibt nichts verbunden. Es geht nur für Dateien (nicht für Ordner) und nur für Arten, die dein Browser sendet – sonst ist es ausgegraut.',
+				link: { href: '/help/install#system', label: 'Mit den anderen Apps deines Geräts' }
+			},
+			receive: {
+				title: 'Dateien aus anderen Apps',
+				text: 'Teilst du aus einer anderen App an das installierte in-browser (Android), kommen die Dateien hier an: Du wählst einen Ordner, und sie werden hineinkopiert. Eine einzelne PDF oder Textdatei öffnet sich stattdessen in ihrem Tool.',
+				link: { href: '/help/install#system', label: 'Mit den anderen Apps deines Geräts' }
+			},
 			guest: {
 				title: 'Eine Freigabe öffnen',
 				text: 'Ein Link, den jemand für dich freigegeben hat, öffnet Dateien mit dem Ordner in der Seitenleiste „Ordner“ unter Meine Dateien, benannt nach ihm und dem, der ihn freigibt – dem Namen aus dessen Einstellungen, sonst dem seines Geräts (ein Schloss heißt nur ansehen); eine einzelne freigegebene Datei öffnet sich gleich in ihrem Tool. Ohne Link: „Verbinden …“ (unter Meine Dateien in der Seitenleiste „Ordner“ oder die Registerkarte „Verbinden“) → „Freigabe mit vier Wörtern …“ fragt nach den vier Wörtern, die das freigebende Gerät zeigt. Dein Browser merkt sich die Freigabe, bis sie endet, abläuft oder du „Trennen“ wählst; bis dahin liegt sie als abgeglichene Kopie in diesem Browser. Ist gerade ein anderer Browser drin, sagt Dateien das und versucht es selbst wieder. Kopiere Dateien nach Meine Dateien, um sie zu behalten. Endet die Freigabe, sagt Dateien das sofort; „Entfernen“ nimmt sie aus der Seitenleiste.',

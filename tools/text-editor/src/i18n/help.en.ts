@@ -19,7 +19,7 @@ const help = {
 			},
 			fileMenu: {
 				title: 'The tab “File”',
-				text: 'The top bar only shows where you are: the name of the shown file stands after “Text Editor”. What you do to the file itself is in the first tab of the ribbon, “File”: the group “New” with “New” and “Open” (“Open from Files …”, “Open from computer …”), the group “File” with “Save”, “Save as …”, “Download”, “Share …” (the file for a guest – a link, a QR code or four words; see the help page on sharing), “Show in Files” and “Close”. What doesn’t work for this file is greyed out – a text without a place can’t be shown in Files yet. The editor opens on the tab “Home”, where you work on the text. A file is named after its file in the browser storage; to rename it, rename it in Files.'
+				text: 'The top bar only shows where you are: the name of the shown file stands after “Text Editor”. What you do to the file itself is in the first tab of the ribbon, “File”: the group “New” with “New” and “Open” (“Open from Files …”, “Open from computer …”), the group “File” with “Save”, “Save as …”, “Download”, “Share …” (the file for a guest – a link, a QR code or four words; see the help page on sharing), “Send …” (a copy for another app on this device – mail, a messenger; greyed out for types the browser doesn’t send), “Show in Files” and “Close”. What doesn’t work for this file is greyed out – a text without a place can’t be shown in Files yet. The editor opens on the tab “Home”, where you work on the text. A file is named after its file in the browser storage; to rename it, rename it in Files.'
 			},
 			ribbon: {
 				title: 'The ribbon',
@@ -54,7 +54,8 @@ const help = {
 		items: {
 			open: {
 				title: 'Opening files',
-				text: '“Open” in the tab “File” has two ways: “Open from Files …” chooses a file in the browser storage – it opens with its place, so every change is saved there. “Open from computer …” (or dragging a file onto the page) reads a copy of the file: it opens as a new text without a place, and nothing is written until you save it. One file opens at a time: of several dragged files only the first opens, dragged folders are skipped. The file replaces the shown one in this browser tab (which is saved first). Files larger than 20 MB and files that are not text (pictures, programs) are not opened.',
+				text: '“Open” in the tab “File” has two ways: “Open from Files …” chooses a file in the browser storage – it opens with its place, so every change is saved there. “Open from computer …” (or dragging a file onto the page) reads a copy of the file: it opens as a new text without a place, and nothing is written until you save it. One file opens at a time: of several dragged files only the first opens, dragged folders are skipped. The file replaces the shown one in this browser tab (which is saved first). Files larger than 20 MB and files that are not text (pictures, programs) are not opened. A text file or text shared from another app to the installed in-browser, or a file opened with it on your computer, opens the same way: as a new text without a place.',
+				link: { href: '/help/install#system', label: 'With the other apps of your device' },
 				tip: 'Want to keep editing a file from your computer here, also on other devices? Open it from the computer and save it once with “Save” – from then on it saves itself. If you only need a quick change, edit it and use “Download”.'
 			},
 			autosave: {

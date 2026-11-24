@@ -1,17 +1,19 @@
 <script lang="ts">
 	// The start page (`ui.md` “Start page”): new, open from Files, open from the computer and “Recently opened”. Each
 	// file opens on the editor page (`/text-editor/editor`), one file per page.
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { installCommandKeys, type Command } from '@in-browser/brand/commands.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 	import { formatDateTime } from '@in-browser/brand/i18n/tool.js';
 	import { type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { stat, supported } from '@in-browser/files/fs.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
-	import { normalize } from '@in-browser/files/path.js';
+	import { normalize, safeName } from '@in-browser/files/path.js';
+	import { setReceiver } from '@in-browser/files/receive.svelte.js';
 	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
 	import { draftUrl, editorUrl } from '#lib/brand.js';
 	import { droppedFile, hasFiles } from '#lib/drop.js';
@@ -53,6 +55,16 @@
 			else void refresh();
 		});
 	});
+
+	// Shared with the installed suite or opened with it (`ToolLayout` hands it over): a text file, or shared text
+	// and links as a new text – a draft without a place, like a file from the computer (decided by the user)
+	onDestroy(
+		setReceiver(async ({ files, title, text, url }) => {
+			const file = files[0] ?? new File([[text, url].filter(Boolean).join('\n')], `${safeName(title ?? '', 'Text')}.txt`, { type: 'text/plain' });
+			if (files.length > 1) toast(m.toasts.onlyFirst(file.name));
+			await openFromComputer(file);
+		})
+	);
 
 	async function openFromComputer(file: File | null) {
 		const id = file && (await draftFromComputer(file));

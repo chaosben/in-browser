@@ -2,7 +2,7 @@
 	// The frame of every tool (its `pages/Layout.svelte` wraps the app's route in it): language, PWA, “Recently
 	// used”, the sync with the folder on disk, head tags, BrandBar, BrandFooter with the sync indicator, help
 	// window and keys, the settings, and the overlays every tool uses. Addresses come from the tool (`resolve`/`asset` of the app).
-	import { untrack, type Snippet } from 'svelte';
+	import { onMount, untrack, type Snippet } from 'svelte';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import BrandFooter from '@in-browser/brand/BrandFooter.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
@@ -20,6 +20,8 @@
 	import OpenShareDialog from './OpenShareDialog.svelte';
 	import ShareDialog from './ShareDialog.svelte';
 	import { shareDialog } from './share-dialog.svelte.js';
+	import { pruneIncoming } from './incoming.js';
+	import { installLaunchHandler, takeReceived } from './receive.svelte.js';
 	import SettingsDialog from './SettingsDialog.svelte';
 	import { openSettings, suiteSettings } from './suite-settings.svelte.js';
 	import SyncIndicator from './SyncIndicator.svelte';
@@ -61,6 +63,12 @@
 	startSync();
 	// The suite settings (author name …) as the tool's pages read them
 	void suiteSettings.load();
+	// Files from other apps: shared to the installed suite (`?received=<id>`, after the pages registered their
+	// receivers) or opened with it
+	onMount(() => {
+		installLaunchHandler();
+		void takeReceived(slug).then(() => pruneIncoming().catch(() => {}));
+	});
 	// Help window (BrandBar button, F1, ?)
 	$effect(() => installHelpKeys(help));
 

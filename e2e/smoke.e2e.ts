@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures.js';
+import { formPdf } from './pdf.js';
 
 // Every page loads without errors and shows its header; unknown paths get the 404 page
 
@@ -70,4 +71,43 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 	expect(response?.status()).toBe(404);
 	// The browser logs the intended 404 itself
 	problems.splice(0, problems.length, ...problems.filter((p) => !p.includes('status of 404')));
+});
+
+// Another app shares with the installed suite (Android): the Service Worker takes the POST, the file opens in its
+// tool once the user said where to keep it, shared text becomes a new text
+test('files and text shared to the suite arrive in their tool', async ({ page }) => {
+	await page.goto('/files');
+	await page.evaluate(async () => {
+		await navigator.serviceWorker.ready;
+		if (!navigator.serviceWorker.controller) await new Promise((r) => navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }));
+	});
+	const share = async (fill: (form: import('@playwright/test').Locator) => Promise<void>) => {
+		await page.evaluate(() => {
+			const form = document.createElement('form');
+			form.method = 'post';
+			form.action = '/files?share-target';
+			form.enctype = 'multipart/form-data';
+			form.id = 'share';
+			for (const [name, type] of [['files', 'file'], ['text', 'text']]) {
+				const input = document.createElement('input');
+				input.name = name;
+				input.type = type;
+				form.append(input);
+			}
+			document.body.append(form);
+		});
+		await fill(page.locator('#share'));
+		await page.locator('#share').evaluate((form: HTMLFormElement) => form.submit());
+	};
+
+	const pdf = await formPdf();
+	await share((form) => form.locator('input[type=file]').setInputFiles({ name: 'Shared.pdf', mimeType: 'application/pdf', buffer: pdf }));
+	await expect(page.getByRole('dialog').getByText('Where should the file be kept?')).toBeVisible();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(/\/pdf-editor\/editor\?path=%2FShared\.pdf$/);
+
+	await page.goto('/files');
+	await share((form) => form.locator('input[name=text]').fill('Shared words'));
+	await expect(page).toHaveURL(/\/text-editor\/editor\?draft=/);
+	await expect(page.locator('.cm-content')).toHaveText('Shared words');
 });

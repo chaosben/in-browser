@@ -14,6 +14,7 @@
 	import { list, write, writable } from '@in-browser/files/fs.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, join, nameProblem, parent } from '@in-browser/files/path.js';
+	import { canSend, sendWhenReady } from '@in-browser/files/send.js';
 	import { END_ACTIONS, playlistBlob, playlistThumbnail, writePlaylist, type PlaylistItem } from '@in-browser/jwl/playlist.js';
 	import { m } from '#lib/i18n/index.js';
 	import type { EditorState } from '#lib/model/editor.svelte.js';
@@ -71,8 +72,11 @@
 	});
 
 	const playlist = $derived(s.format === 'playlist');
+	type Target = 'save' | 'download' | 'send';
 	const stem = $derived((ed.doc?.name ?? 'PDF').replace(/\.pdf$/i, ''));
 	const ext = $derived(playlist ? 'jpg' : IMAGE_FORMATS[s.format as keyof typeof IMAGE_FORMATS].ext);
+	/** “Send …” to another app: only types this browser hands over (Chromium: pictures yes, playlists no) */
+	const sendable = $derived(canSend([`x.${playlist ? 'jwlplaylist' : ext}`]));
 	const first = $derived(places?.length && ed.doc ? ed.doc.pages[places[0]] : null);
 	const size = $derived.by(() => {
 		if (!first) return '';
@@ -143,7 +147,7 @@
 		return true;
 	}
 
-	async function run(target: 'save' | 'download') {
+	async function run(target: Target) {
 		const doc = ed.doc;
 		if (!doc || !places?.length || !ready) return;
 		storeExportSettings($state.snapshot(s));
@@ -159,7 +163,7 @@
 		}
 	}
 
-	async function exportPictures(target: 'save' | 'download') {
+	async function exportPictures(target: Target) {
 		const doc = ed.doc!;
 		const format = IMAGE_FORMATS[s.format as keyof typeof IMAGE_FORMATS];
 		const quality = s.format === 'png' ? undefined : s.quality / 100;
@@ -181,7 +185,11 @@
 		const names = pictureNames(s.template, format.ext, pages, values, []);
 		const blobs: Blob[] = [];
 		if (!(await eachPage(async (canvas) => void blobs.push(await canvasBlob(canvas, format.type, quality))))) return;
-		if (blobs.length === 1) downloadBlob(blobs[0], names[0]);
+		if (target === 'send') {
+			onclose();
+			return sendWhenReady(blobs, names);
+		}
+		else if (blobs.length === 1) downloadBlob(blobs[0], names[0]);
 		else {
 			// Pictures are compressed already: stored as they are
 			const files = Object.fromEntries(await Promise.all(blobs.map(async (b, i) => [names[i], new Uint8Array(await b.arrayBuffer())] as const)));
@@ -190,7 +198,7 @@
 		onclose();
 	}
 
-	async function exportPlaylist(target: 'save' | 'download') {
+	async function exportPlaylist(target: Target) {
 		const doc = ed.doc!;
 		const name = `${stem}.jwlplaylist`;
 		let path: string | null = null;
@@ -223,8 +231,10 @@
 			const saved = path;
 			toast(m.export.savedPlaylist(basename(saved)), 'success', 8000, { label: m.editor.showInFiles, run: () => void window.open(filesUrl(saved), '_blank') });
 		} else {
-			downloadBlob(await playlistBlob(playlist, { signal: abort.signal }), name);
+			const blob = await playlistBlob(playlist, { signal: abort.signal });
 			onclose();
+			if (target === 'send') await sendWhenReady([blob], [name]);
+			else downloadBlob(blob, name);
 		}
 	}
 
@@ -353,6 +363,10 @@
 			<button type="button" class="btn" disabled={!ready} onclick={() => void run('download')}>
 				<span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span>
 				{m.export.download}
+			</button>
+			<button type="button" class="btn" disabled={!ready || !sendable} onclick={() => void run('send')}>
+				<span class="icon-[material-symbols-light--send-outline] size-5" aria-hidden="true"></span>
+				{filesMessages().send.action}
 			</button>
 			<button type="submit" class="btn btn-primary" disabled={!ready}>
 				{#if progress !== null}<span class="loading loading-spinner loading-sm"></span>{/if}
