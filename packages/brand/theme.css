@@ -240,6 +240,16 @@ body {
 	}
 }
 
+/*
+ * Fields show their focus by the darker border only – no ring around them (decided by the user). Unlayered, so it
+ * beats daisyUI's layer; with forced colors its own ring stays.
+ */
+@media (forced-colors: none) {
+	:is(.input, .select, .textarea):is(:focus, :focus-within) {
+		outline: none;
+	}
+}
+
 /* Notch / home indicator in the installed app (`viewport-fit=cover`) */
 body {
 	padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
