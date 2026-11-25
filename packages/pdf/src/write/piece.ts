@@ -10,7 +10,7 @@ import { IncrementalPdf } from './incremental.js';
 
 export interface Piece {
 	/** The page whose content lies below: its PDF and index (none: only the annotations) */
-	page?: { pdf: Uint8Array; index: number };
+	page?: { pdf: Uint8Array; index: number; password?: string };
 	/** Drawn on top, in the page's user space */
 	annotations?: readonly NewAnnotation[];
 	/** What to take, in user space: x0, y0, x1, y1 */
@@ -24,7 +24,7 @@ export async function pieceForm({ page, annotations = [], box, rotate = 0 }: Pie
 	const [x0, y0, x1, y1] = box;
 	let doc = await PDFDocument.create();
 	if (page) {
-		const loaded = await loadPdf(page.pdf);
+		const loaded = await loadPdf(page.pdf, false, page.password);
 		if (loaded.locked) throw new PdfError('password');
 		const source = loaded.doc.getPage(page.index);
 		// The same user space as the page's: its content where it was

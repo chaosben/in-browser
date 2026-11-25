@@ -3,7 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
 import { formPdf, getFile, putFile, shot } from './pdf.js';
 
-// Files, Text Editor and the PDF Editor on a phone (project `mobile`: Pixel 7, touch only): everything without
+// Files, Text Editor, Fonts and the PDF Editor on a phone (project `mobile`: Pixel 7, touch only): everything without
 // right-click, double-click, keyboard shortcuts or dragging.
 
 /** Holds a finger on the element (real touch events, so the page sees `pointerType: 'touch'`) */
@@ -217,4 +217,21 @@ test('PDF Editor: fill in a field, draw with a finger, pinch with two, pick page
 	// Out of the selection mode a tap goes to the page (and closes the sheet)
 	await pages.getByRole('button', { name: 'Page 2', exact: true }).tap();
 	await expect(page.getByRole('dialog')).toBeHidden();
+});
+
+test('Fonts: font files from the phone become one font with its faces, opened by a tap, deleted from its ⋯', async ({ page }) => {
+	await page.goto('/fonts');
+	await expect(page.getByText('You have no fonts of your own yet.', { exact: false })).toBeVisible();
+	const dir = 'node_modules/pdfjs-dist/standard_fonts';
+	await page.locator('input[type="file"]').setInputFiles([`${dir}/LiberationSans-Regular.ttf`, `${dir}/LiberationSans-Bold.ttf`]);
+	const card = page.getByRole('link', { name: /Liberation Sans/ });
+	await expect(card).toBeVisible();
+	await expect(card).toContainText('2 files');
+	await shot(page, 'fonts');
+	await card.tap();
+	await expect(page.getByText('Bold – Bold')).toBeVisible();
+	await page.goBack();
+	await page.getByRole('button', { name: /Liberation Sans/ }).tap();
+	await page.getByRole('menuitem', { name: 'Delete' }).tap();
+	await expect(page.getByText('You have no fonts of your own yet.', { exact: false })).toBeVisible();
 });

@@ -6,6 +6,7 @@
 	import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 	import { showError } from '@in-browser/files/errors.js';
 	import { write } from '@in-browser/files/fs.js';
+	import { suiteSettings } from '@in-browser/files/suite-settings.svelte.js';
 	import { PAPERS, paperPdf, type Paper } from '@in-browser/pdf/write/paper-page.js';
 	import { m } from '#lib/i18n/index.js';
 	import PageFormatFields, { pageFormatChoice, pageSizeOf } from './PageFormatFields.svelte';
@@ -35,7 +36,7 @@
 		busy = true;
 		try {
 			storeJson(STORE, { ...choice, paper });
-			await write(path, new Blob([(await paperPdf({ width: size.w, height: size.h, paper })) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' }));
+			await write(path, new Blob([(await paperPdf({ width: size.w, height: size.h, paper, author: suiteSettings.values.profile.name })) as Uint8Array<ArrayBuffer>], { type: 'application/pdf' }));
 			oncreated(path);
 		} catch (error) {
 			showError(error, { context: '[pdf-editor] new' });

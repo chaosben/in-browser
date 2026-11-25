@@ -11,7 +11,8 @@ import type { TextSizing } from '@in-browser/graphics/text-box.js';
 import { m } from '#lib/i18n/index.js';
 import type { Editor } from '#lib/project/editor.svelte.js';
 import { rememberStyle } from '#lib/project/styles.js';
-import type { CalloutAnnotation, Item, TextAlign, TextAnnotation } from '#lib/project/types.js';
+import type { CalloutAnnotation, FontId, Item, TextAlign, TextAnnotation } from '#lib/project/types.js';
+import { resolve } from '$app/paths';
 import { fontsOf, FONT_IDS, loadFont } from '#lib/render/fonts.svelte.js';
 import { baseStyle, fitTextToCanvas, lineHeightOf, overlayBounds, richTextOf } from '#lib/render/overlays.js';
 import { updateItem } from '#lib/timeline/ops.js';
@@ -21,7 +22,7 @@ export type TextLike = TextAnnotation | CalloutAnnotation;
 export const isTextLike = (item: Item | null | undefined): item is TextLike => item?.type === 'annotation' && (item.kind === 'text' || item.kind === 'callout');
 
 /** Font sizes offered in canvas pixels */
-const SIZES_PX = [16, 20, 24, 32, 40, 48, 64, 80, 96, 128];
+const SIZES_PX = [12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 160, 200];
 
 /** The formatted text as a box keeps it: plain text drops `rich` */
 export const richPatch = (rich: RichText): Partial<TextLike> => {
@@ -58,8 +59,11 @@ export function textCommands(editor: () => Editor | null, edit: () => void) {
 
 	const rich = richTextCommands({
 		fonts: FONT_IDS,
+		userFonts: { page: resolve('/fonts') },
 		sizes: () => SIZES_PX.map((px) => px / (editor()?.project.height || 1080)),
 		sizeLabel: (size) => m.textbox.sizeValue(Math.round(size * (editor()?.project.height || 1080))),
+		// Any size from 1 to 400 canvas pixels, kept as a share of the canvas height
+		sizeField: { unit: 'px', min: 1, max: 400, step: 1, decimals: 0, shown: (size) => size * (editor()?.project.height || 1080), stored: (px) => px / (editor()?.project.height || 1080) },
 		formats: () => texts().length > 0,
 		style: () => {
 			const [a] = texts();
@@ -77,7 +81,7 @@ export function textCommands(editor: () => Editor | null, edit: () => void) {
 			return a ? lineHeightOf(a) : 1.2;
 		},
 		setLineHeight: (lineHeight) => change(() => ({ lineHeight }), { lineHeight }),
-		ready: () => loadFont(...fontsOf(texts()))
+		ready: (fonts) => loadFont(...fontsOf(texts()), ...((fonts ?? []) as FontId[]))
 	});
 
 	const align = (to: TextAlign, label: string, icon: string): Command => ({

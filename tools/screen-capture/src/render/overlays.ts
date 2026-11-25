@@ -4,7 +4,7 @@ import { parseColor } from '@in-browser/graphics/color.js';
 import { fontCss, fontsEpoch } from '@in-browser/graphics/fonts.js';
 import { drawRichLines } from '@in-browser/graphics/rich-canvas.js';
 import { layoutRich, linesHeight, richOf, scaleRich, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
-import { textBoxSize, type TextSizing } from '@in-browser/graphics/text-box.js';
+import { evenInsets, insetsX, insetsY, scaleInsets, textBoxSize, type Insets, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Ctx2D } from './compositor.js';
 import { fontsOf, loadFont } from './fonts.svelte.js';
 import { barcodePicture, iconPicture, imagePicture } from './images.svelte.js';
@@ -19,6 +19,10 @@ type TextLike = TextAnnotation | CalloutAnnotation;
 
 /** Line height of a text box (× font size) */
 export const lineHeightOf = (a: Pick<TextLike, 'lineHeight'>) => a.lineHeight ?? LEGACY_LINE_HEIGHT;
+
+/** The text or callout typed into on the preview right now: its text is the field's, not drawn (never in an export –
+ * nothing is typed then) */
+export const typingText = { id: '' };
 
 /** The text of a box with the formats of its parts (a plain one's as it would be) */
 export const richTextOf = (a: Pick<TextLike, 'rich' | 'text'>): RichText => a.rich ?? richOf(a.text);
@@ -281,7 +285,8 @@ export function drawOverlay(ctx: Ctx2D, a: Annotation, W: number, H: number, alp
 				// The box carries the shadow, not the text on it
 				noShadow(ctx);
 			}
-			drawRichLines(ctx, box.lines, box.textX, box.y + box.pad);
+			// Typed into on the preview: the field shows the text (background and tail stay the canvas's)
+			if (typingText.id !== a.id) drawRichLines(ctx, box.lines, box.textX, box.y + box.pad.top);
 			break;
 		}
 	}
@@ -374,7 +379,8 @@ export interface TextBoxLayout {
 	w: number;
 	/** The box; text that doesn't fit a fixed size runs out below it */
 	h: number;
-	pad: number;
+	/** Space between the box's edge and the text per side (canvas pixels; none without a background) */
+	pad: Insets;
 	/** Start of the lines' room */
 	textX: number;
 	/** The lines, laid out in canvas pixels from the room's top left corner */
@@ -388,7 +394,7 @@ export function textBox(ctx: Ctx2D, a: TextLike, W: number, H: number): TextBoxL
 	const known = laidOut.get(a);
 	if (known && known.W === W && known.H === H && known.epoch === fontsEpoch.value) return known.box;
 	void loadFont(...fontsOf([a]));
-	const pad = a.background ? a.padding * H : 0;
+	const pad = a.background ? scaleInsets(a.padding, H) : evenInsets(0);
 	const fixed = a.boxWidth === undefined ? undefined : a.boxWidth * W;
 	const base = { ...baseStyle(a), size: a.size * H };
 	const rich = scaleRich(richTextOf(a), H);
@@ -398,7 +404,7 @@ export function textBox(ctx: Ctx2D, a: TextLike, W: number, H: number): TextBoxL
 	};
 	const lay = (ink: number) =>
 		layoutRich(rich, base, measure, {
-			maxWidth: fixed === undefined ? undefined : Math.max(fixed - 2 * pad - ink, 1),
+			maxWidth: fixed === undefined ? undefined : Math.max(fixed - insetsX(pad) - ink, 1),
 			lineHeight: lineHeightOf(a),
 			align: a.align
 		});
@@ -410,10 +416,10 @@ export function textBox(ctx: Ctx2D, a: TextLike, W: number, H: number): TextBoxL
 		const again = inkOverhang(ctx, lines);
 		ink = { left: Math.max(ink.left, again.left), right: Math.max(ink.right, again.right) };
 	}
-	const content = { w: Math.max(0, ...lines.map((l) => l.width)) + ink.left + ink.right + 2 * pad, h: linesHeight(lines) + 2 * pad };
+	const content = { w: Math.max(0, ...lines.map((l) => l.width)) + ink.left + ink.right + insetsX(pad), h: linesHeight(lines) + insetsY(pad) };
 	const sizing: TextSizing = fixed === undefined ? 'auto-width' : a.boxHeight === undefined ? 'auto-height' : 'fixed';
 	const { w, h } = textBoxSize(sizing, { w: fixed ?? 0, h: (a.boxHeight ?? 0) * H }, content);
-	const box = { x: a.x * W, y: a.y * H, w, h, pad, textX: a.x * W + pad + ink.left, lines };
+	const box = { x: a.x * W, y: a.y * H, w, h, pad, textX: a.x * W + pad.left + ink.left, lines };
 	laidOut.set(a, { W, H, epoch: fontsEpoch.value, box });
 	return box;
 }
@@ -460,7 +466,7 @@ export function fitTextToCanvas<T extends TextAnnotation | CalloutAnnotation>(a:
 		const scaled = (size: number) => ({
 			size,
 			radius: next.radius * (size / next.size),
-			padding: next.padding * (size / next.size),
+			padding: scaleInsets(next.padding, size / next.size),
 			...(next.rich && { rich: scaleRich(next.rich, size / next.size) })
 		});
 		for (let i = 0; i < 14; i++) {

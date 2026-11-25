@@ -118,6 +118,22 @@ export function textString(s: string): string {
 	return `<${hex}>`;
 }
 
+/**
+ * An XML text (`/RC`) as a plain ASCII string: other characters as character references (`&#xE4;`), which every XML
+ * reader resolves. As a UTF-16 text string it is valid too, but PDF.js hands its bytes to its XML parser as they are
+ * and fails on them.
+ */
+export function xmlString(xml: string): string {
+	let out = '';
+	for (const char of xml) {
+		const code = char.codePointAt(0)!;
+		if (code > 0x7e || (code < 0x20 && code !== 0x0a && code !== 0x0d && code !== 0x09)) out += `&#x${code.toString(16).toUpperCase()};`;
+		else if (char === '(' || char === ')' || char === '\\') out += `\\${char}`;
+		else out += char;
+	}
+	return `(${out})`;
+}
+
 /** Unicode → WinAnsiEncoding of the code points 0x80…0x9F (the rest of 0x20…0xFF is Latin-1) */
 const WIN_ANSI: Record<number, number> = {
 	0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02c6: 0x88, 0x2030: 0x89,
@@ -303,7 +319,7 @@ export function annotationObjects(a: NewAnnotation, appearance: number, pageRef:
 	if (a.open !== undefined) entries.push(`/Open ${a.open}`);
 	if (a.defaultAppearance) entries.push(`/DA (${a.defaultAppearance.replace(/[()\\]/g, '\\$&')})`);
 	if (a.quadding) entries.push(`/Q ${a.quadding}`);
-	if (a.richContents) entries.push(`/RC ${textString(a.richContents)}`);
+	if (a.richContents) entries.push(`/RC ${xmlString(a.richContents)}`);
 	if (a.defaultStyle) entries.push(`/DS ${textString(a.defaultStyle)}`);
 	if (a.intent && NAME.test(a.intent)) entries.push(`/IT /${a.intent}`);
 	if (a.callout?.length === 4 || a.callout?.length === 6) entries.push(`/CL ${arr(a.callout)} /LE /OpenArrow`);

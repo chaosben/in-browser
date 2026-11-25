@@ -2,7 +2,7 @@
 
 Made with MuPDF (`npm install mupdf@1.26.4` in a scratch folder, not a dependency): one page with the text
 “Protected page” and a note by “Ada” saying “Hello encrypted”, saved with the owner password `owner`, no user
-password and permissions `-3904` (no printing, copying, changing):
+password and permissions `-3904` (no printing, copying, changing) – the `user-*` files with a user password too:
 
 | File | `saveToBuffer` options |
 |---|---|
@@ -11,6 +11,10 @@ password and permissions `-3904` (no printing, copying, changing):
 | `aes-128.pdf` | `encrypt=aes-128,owner-password=owner,permissions=-3904,objstms,compress` |
 | `aes-256.pdf` | `encrypt=aes-256,owner-password=owner,permissions=-3904,objstms,compress` |
 | `user-password.pdf` | `encrypt=aes-128,owner-password=owner,user-password=secret` |
+| `user-rc4-40.pdf` | `encrypt=rc4-40,owner-password=owner,user-password=secret` |
+| `user-rc4-128.pdf` | `encrypt=rc4-128,owner-password=owner,user-password=secret` |
+| `user-aes-256.pdf` | `encrypt=aes-256,owner-password=owner,user-password=secret,objstms,compress` |
+| `user-aes-256-umlaut.pdf` | `encrypt=aes-256,owner-password=owner,user-password=Grüße,objstms,compress` |
 
 ```js
 import * as mupdf from 'mupdf';

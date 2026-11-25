@@ -184,9 +184,10 @@ const en = {
 	},
 
 	ribbon: {
-		tabs: { home: 'Home', insert: 'Insert', view: 'View', arrange: 'Arrange', clip: 'Clip', textbox: 'Text box' },
+		tabs: { home: 'Home', insert: 'Insert', view: 'View', arrange: 'Arrange', clip: 'Clip', textbox: 'Text box', properties: 'Properties' },
 		groups: {
 			project: 'Project',
+			properties: 'Properties',
 			playback: 'Playback',
 			edit: 'Edit',
 			clipboard: 'Clipboard',
@@ -274,8 +275,7 @@ const en = {
 		barcode: 'Barcode …',
 		barcodeTip: 'Makes a QR code or a barcode of what you type and inserts it at the playhead',
 		editBarcode: 'Edit barcode …',
-		canvasSize: 'Canvas size',
-		properties: 'Properties …',
+		canvasSize: 'Canvas size …',
 		undo: 'Undo',
 		redo: 'Redo',
 		dropToImport: 'Drop to import',
@@ -375,7 +375,7 @@ const en = {
 		color: 'Color',
 		lineWidth: 'Line width',
 		radius: 'Corner radius',
-		padding: 'Padding',
+		padding: 'Inner margin',
 		strength: 'Strength',
 		spotlightBlur: 'Blur',
 		start: 'Start',

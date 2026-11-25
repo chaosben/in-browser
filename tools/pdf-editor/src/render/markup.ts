@@ -5,20 +5,23 @@
 
 import { scaleRich } from '@in-browser/graphics/rich-text.js';
 import type { Box } from '@in-browser/ink/geometry.js';
-import { isInk, type Ink, type Item } from '@in-browser/ink/items.js';
+import { isInk, isShape, type Ink, type Item } from '@in-browser/ink/items.js';
 import { pointInPolygon, rotateItem, type Transform } from '@in-browser/ink/lasso.js';
 import { inkKit } from '@in-browser/ink/render/ink-kit.js';
-import type { Ctx, ItemKit } from '@in-browser/ink/render/kit.js';
+import type { Ctx, ItemKit, ItemMark } from '@in-browser/ink/render/kit.js';
+import { snapTargets } from '@in-browser/graphics/snap.js';
+import { m } from '#lib/i18n/index.js';
 import type { MarkKind } from '@in-browser/pdf/text-layer.js';
 import { drawNote, isNote, noteBounds, NOTE_SIZE, type NoteItem } from './note.js';
 import { caretBounds, drawCaret, isCaret, markBounds, type CaretItem } from './caret.js';
-import { drawLink, isLink, linkBounds, type LinkItem } from './link.js';
+import { drawLink, isLink, linkBounds, linkView, type LinkItem } from './link.js';
 import { drawMeasure, isMeasured, labelBox } from './measure.js';
 
 const unionBox = (a: Box, b: Box): Box => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) });
 import { drawStamp, isStamp, recolorIcon, stampBounds, type StampItem } from './stamp.js';
 import { drawStepMark, flipsOf, stepLabel, stepView, withFlips } from './steps.js';
-import { drawCallout, drawText, hitsText, isText, itemBounds, moveTextHandle, textHandles, withText, type TextItem } from './textbox.js';
+import { drawCallout, drawText, hitsText, isText, itemBounds, moveTextHandle, paddingOf, roundInsets, textHandles, withText, type TextItem } from './textbox.js';
+import { scaleInsets } from '@in-browser/graphics/text-box.js';
 
 export type { MarkKind };
 
@@ -182,7 +185,7 @@ function transformBox(item: TextItem, t: Transform): TextItem {
 	// Scaled with its font (its lines stay as they are) only with K; otherwise only its box, now of fixed size
 	if (!t.scaleText) return withText({ ...item, x, y, w: item.w * t.scale, h: item.h * t.scale, sizing: 'fixed' }, item.text);
 	const round = (v: number) => Math.round(v * t.scale * 100) / 100;
-	return { ...item, x, y, w: item.w * t.scale, h: item.h * t.scale, size: round(item.size), ...(item.borderWidth ? { borderWidth: round(item.borderWidth) } : {}), ...(item.rich ? { rich: scaleRich(item.rich, t.scale) } : {}) };
+	return { ...item, x, y, w: item.w * t.scale, h: item.h * t.scale, size: round(item.size), ...(item.borderWidth ? { borderWidth: round(item.borderWidth) } : {}), ...(item.rich ? { rich: scaleRich(item.rich, t.scale) } : {}), padding: roundInsets(scaleInsets(paddingOf(item), t.scale)) };
 }
 
 function transformStamp<T extends StampItem | LinkItem>(item: T, t: Transform): T {
@@ -191,6 +194,19 @@ function transformStamp<T extends StampItem | LinkItem>(item: T, t: Transform): 
 
 /** The editor's own items (the ink core's are strokes, shapes and pictures) */
 type Own = MarkupItem | NoteItem | TextItem | StampItem | CaretItem | LinkItem;
+/** The comments of our own kinds that other items snap to */
+const snapsTo = (item: Own) => isText(item) || isStamp(item) || isNote(item) || (isLink(item) && linkView.shown) || (isMarkup(item) && !!item.area);
+
+/** How a snap guide names one of our own items */
+function ownMark(item: Own): ItemMark {
+	if (isNote(item) && item.file) return { name: m.attach.kind, icon: 'icon-[material-symbols-light--attach-file]' };
+	if (isNote(item)) return { name: m.commands.note, icon: 'icon-[material-symbols-light--sticky-note-2-outline]' };
+	if (isText(item)) return { name: item.callout ? m.commands.callout : m.commands.textbox, icon: 'icon-[material-symbols-light--text-fields]' };
+	if (isStamp(item)) return { name: m.commands.stamp, icon: 'icon-[material-symbols-light--approval-outline]' };
+	if (isLink(item)) return { name: m.commands.link, icon: 'icon-[material-symbols-light--link]' };
+	return { name: m.commands.area, icon: 'icon-[material-symbols-light--highlight-outline]' };
+}
+
 const isOwn = (item: PdfItem): item is Own => isMarkup(item) || isNote(item) || isText(item) || isStamp(item) || isCaret(item) || isLink(item);
 const ownBounds = (item: Own): Box => (isMarkup(item) ? markupBounds(item) : isNote(item) ? noteBounds(item) : isStamp(item) ? stampBounds(item) : isCaret(item) ? caretBounds(item) : isLink(item) ? linkBounds(item) : itemBounds(item));
 const ownHit = (item: Own, x: number, y: number, r: number) =>
@@ -242,9 +258,13 @@ export const pdfKit: ItemKit<PdfItem> = {
 		const b = ownBounds(item);
 		return { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0 };
 	},
-	targets: (items, exclude, w, h) => inkKit.targets(items.filter((i): i is Item => !isOwn(i)), exclude, w, h),
-	// Only ink items are snapped to (`targets`)
-	mark: (item) => inkKit.mark!(item as Item),
+	// Snapped to: the page, shapes and the comments that are boxes – text boxes, stamps, notes, highlighted areas and
+	// links while their boxes show; not handwriting and not marked text or insertion marks (they belong to the text)
+	targets(items, exclude, w, h) {
+		const snapping = items.filter((i) => !exclude.has(i.id) && (isOwn(i) ? snapsTo(i) : isShape(i)));
+		return snapTargets(snapping.map((i) => pdfKit.snapBox(i)), { x: 0, y: 0, w, h }, snapping.map((i) => i.id));
+	},
+	mark: (item) => (isOwn(item) ? ownMark(item) : inkKit.mark!(item)),
 	// A picture has no color to set
 	color: (item) => ((isStamp(item) && item.image && !item.icon) || isLink(item) ? null : isOwn(item) ? item.color : inkKit.color(item)),
 	// An icon is drawn anew in its new color

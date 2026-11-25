@@ -11,7 +11,8 @@
 		icon: string;
 		size: GroupSize;
 		disabled?: boolean;
-		/** A color shown as a bar under the icon (e.g. the pen's color) */
+		/** A color shown as a strip under the icon (e.g. the pen's color): see-through ones over a checkerboard, `null`
+		 * an empty strip (“None”); left out, the button has no strip */
 		swatch?: string | null;
 		/** The panel's content; `close` closes it */
 		children: Snippet<[close: () => void]>;
@@ -19,7 +20,7 @@
 		id?: string;
 	}
 
-	let { label, icon, size, disabled = false, swatch = null, children, id }: Props = $props();
+	let { label, icon, size, disabled = false, swatch, children, id }: Props = $props();
 
 	let button = $state<HTMLButtonElement>();
 	let panel = $state<HTMLDivElement>();
@@ -54,10 +55,20 @@
 	data-command={id}
 	onclick={toggle}
 >
-	<span class="relative flex shrink-0 flex-col items-center">
-		<span class={[icon, 'size-5']} aria-hidden="true"></span>
-		{#if swatch}<span class="border-base-content/20 -mt-0.5 h-1 w-full rounded-sm border" style="background: {swatch}" aria-hidden="true"></span>{/if}
-	</span>
+	{#if swatch === undefined}
+		<span class={[icon, 'size-5 shrink-0']} aria-hidden="true"></span>
+	{:else}
+		<!-- The icon as large as its neighbours, the color as a strip of its own below it (never over the icon):
+		     20 + 1 + 3 px fill a row of the ribbon exactly -->
+		<span class="flex shrink-0 flex-col items-center gap-px">
+			<span class={[icon, 'size-5']} aria-hidden="true"></span>
+			<span
+				class="border-base-content/40 h-[3px] w-5 rounded-[1px] border-[0.5px]"
+				style:background={swatch ? `linear-gradient(${swatch}, ${swatch}), repeating-conic-gradient(#bbb 0 25%, #fff 0 50%) 0 0 / 4px 4px` : 'transparent'}
+				aria-hidden="true"
+			></span>
+		</span>
+	{/if}
 	{#if !iconOnly}<span class="truncate">{label}</span><span class="icon-[material-symbols-light--arrow-drop-down] -ml-1 size-4 shrink-0" aria-hidden="true"></span>{/if}
 </button>
 <div

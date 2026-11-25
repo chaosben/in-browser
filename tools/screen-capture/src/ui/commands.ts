@@ -569,7 +569,7 @@ export function editorCommands(page: EditorPage) {
 export type EditorCommands = ReturnType<typeof editorCommands>['commands'];
 
 /** The context menu of the selection (preview and timeline): every action on items, disabled where it can't act */
-export function itemMenuEntries(c: EditorCommands, properties: Command, extra: MenuEntry[] = []): MenuEntry[] {
+export function itemMenuEntries(c: EditorCommands, extra: MenuEntry[] = []): MenuEntry[] {
 	return [
 		asEntry(c.cut),
 		asEntry(c.copy),
@@ -598,7 +598,6 @@ export function itemMenuEntries(c: EditorCommands, properties: Command, extra: M
 		{ separator: true },
 		asEntry(c.saveToLibrary),
 		asEntry(c.selectAll),
-		asEntry(properties, m.editor.properties),
 		...(extra.length ? [{ separator: true } as const, ...extra] : [])
 	];
 }

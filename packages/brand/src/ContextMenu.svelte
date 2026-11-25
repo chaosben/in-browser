@@ -134,7 +134,8 @@
 						{:else}
 							<span class="{entry.icon ?? ''} size-4 shrink-0" aria-hidden="true"></span>
 						{/if}
-						<span class="min-w-0 flex-1 truncate">{entry.label}</span>
+						<span class="min-w-0 flex-1 truncate" title={entry.note}>{entry.label}</span>
+						{#if entry.note}<span class="icon-[material-symbols-light--priority-high] size-4 shrink-0" title={entry.note} role="img" aria-label={entry.note}></span>{/if}
 						{#if entry.checked}<span class="icon-[material-symbols-light--check] size-4 shrink-0" aria-hidden="true"></span>{/if}
 						{#if entry.keys}<kbd class="kbd kbd-xs pointer-coarse:hidden">{entry.keys}</kbd>{/if}
 					</button>

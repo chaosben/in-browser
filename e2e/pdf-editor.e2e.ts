@@ -482,13 +482,16 @@ test('text boxes take formats for parts of their text, lists and a font – save
 		const annots = doc.getPage(0).node.Annots();
 		for (let i = 0; i < (annots?.size() ?? 0); i++) {
 			const a = doc.context.lookup(annots!.get(i));
-			if (a instanceof PDFDict && a.lookup(PDFName.of('Subtype'))?.toString() === '/FreeText') return (a.lookupMaybe(PDFName.of(key), PDFHexString) ?? a.lookup(PDFName.of(key)))?.toString() ?? '';
+			if (a instanceof PDFDict && a.lookup(PDFName.of('Subtype'))?.toString() === '/FreeText') return a.lookup(PDFName.of(key))?.toString() ?? '';
 		}
 		return '';
 	};
 	const decoded = async (key: string) => {
 		const raw = await saved(key);
-		return /^<[0-9A-Fa-f]*>$/.test(raw) ? PDFHexString.of(raw.slice(1, -1)).decodeText() : raw;
+		if (/^<[0-9A-Fa-f]*>$/.test(raw)) return PDFHexString.of(raw.slice(1, -1)).decodeText();
+		// `/RC` is plain ASCII with character references (PDF.js reads only that)
+		if (raw.startsWith('(')) return raw.slice(1, -1).replace(/\\([()\\])/g, '$1').replace(/&#x([0-9A-F]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)));
+		return raw;
 	};
 
 	// Typed with a part in bold (Ctrl+B switches it for what comes next), then a second line as a list item
@@ -531,4 +534,61 @@ test('text boxes take formats for parts of their text, lists and a font – save
 	await page.keyboard.press('l');
 	await page.mouse.dblclick(surface.x + 520, surface.y + 305);
 	await expect(page.getByRole('textbox', { name: 'Text of the text box' }).locator('span', { hasText: /^bold$/ })).toHaveCSS('font-weight', '700');
+});
+
+test('bookmarks are added, named and nested; a password protects the PDF and opens it again', async ({ page }) => {
+	test.setTimeout(60_000);
+	await page.setViewportSize({ width: 1400, height: 900 });
+	await page.goto('/pdf-editor');
+	await putFile(page, 'Book.pdf', await pdf());
+	await page.goto('/pdf-editor/editor?path=%2FBook.pdf');
+	await expect(page.getByTestId('surface')).toBeVisible();
+
+	// The panel “Bookmarks” is there in a PDF that can be changed; its tab comes with it
+	await page.locator('[data-panel="outline"]').first().click();
+	const panel = page.getByTestId('panel');
+	await expect(panel.getByText('This PDF has no bookmarks yet.', { exact: false })).toBeVisible();
+	await page.locator('[data-command="addBookmark"]:visible').first().click();
+	await panel.getByLabel('Name of the bookmark').fill('Chapter one');
+	await page.keyboard.press('Enter');
+	await page.locator('[data-command="addBookmark"]:visible').first().click();
+	await panel.getByLabel('Name of the bookmark').fill('Section');
+	await page.keyboard.press('Enter');
+	await page.locator('[data-command="indentBookmarks"]:visible').first().click();
+	await expect(panel.getByRole('treeitem', { name: 'Chapter one' })).toHaveAttribute('aria-expanded', 'true');
+	await shot(page, 'bookmarks');
+	await expect(page.locator('[data-save="saved"]')).toBeVisible({ timeout: 10_000 });
+	const outline = async () => {
+		const saved = await PDFDocument.load(await getFile(page, 'Book.pdf'));
+		const first = saved.catalog.lookup(PDFName.of('Outlines'), PDFDict).lookup(PDFName.of('First'), PDFDict);
+		const inner = first.lookup(PDFName.of('First'), PDFDict);
+		const title = (d: PDFDict) => (d.lookup(PDFName.of('Title')) as PDFHexString).decodeText();
+		return [title(first), title(inner)];
+	};
+	await expect.poll(outline, { timeout: 10_000 }).toEqual(['Chapter one', 'Section']);
+
+	// “Password and permissions …”: written anew with a password to open; opened again only with it
+	await page.getByRole('tab', { name: 'File' }).click();
+	await page.locator('[data-command="protectPdf"]:visible').first().click();
+	const protect = page.getByRole('dialog').filter({ hasText: 'Password and permissions' });
+	await protect.getByText('Require a password to open').click();
+	await protect.getByLabel('Password', { exact: true }).fill('Grüße 1');
+	await protect.getByLabel('Repeat password').first().fill('Grüße 1');
+	await shot(page, 'protect');
+	await protect.getByRole('button', { name: 'Apply', exact: true }).click();
+	await expect(page.getByText('The PDF is protected.')).toBeVisible({ timeout: 15_000 });
+	const protectedFile = await getFile(page, 'Book.pdf');
+	expect(protectedFile.toString('latin1')).toContain('/Encrypt');
+	expect(protectedFile.toString('latin1')).not.toContain('Chapter one');
+
+	await page.reload();
+	const ask = page.getByRole('dialog').filter({ hasText: 'is protected by a password' });
+	await ask.getByLabel('Password', { exact: true }).fill('wrong');
+	await ask.getByRole('button', { name: 'Open' }).click();
+	await expect(ask.getByRole('alert')).toHaveText('This password doesn’t open the PDF.');
+	await ask.getByLabel('Password', { exact: true }).fill('Grüße 1');
+	await ask.getByRole('button', { name: 'Open' }).click();
+	await expect(page.getByTestId('surface')).toBeVisible();
+	// (the panel stays open across the reload)
+	await expect(page.getByTestId('panel').getByRole('treeitem', { name: 'Chapter one' })).toBeVisible();
 });

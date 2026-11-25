@@ -441,6 +441,8 @@ const en = {
 
 	scope: {
 		empty: 'No folders yet.',
+		asking: 'Asking your other devices …',
+		failed: (error: string) => `The folders could not be read: ${error}`,
 		title: 'Choose folders',
 		hint: 'Folders you deselect stay on the other devices and keep syncing there – only this device doesn’t get them.',
 		always: 'Always synced (tool data)',

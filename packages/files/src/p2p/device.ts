@@ -44,6 +44,8 @@ import type { P2pState, Store } from './store.js';
 /** Old rooms are visited this long after a removal, so devices that were offline learn about it */
 const OLD_ROOMS_FOR = 30 * 24 * 60 * 60 * 1000;
 const HELLO_TIMEOUT = 10_000;
+/** Choosing folders waits this long for another device's sizes */
+const SIZES_WAIT = 10_000;
 /** A device leaving its group waits this long for the others to take note */
 const LEAVE_WAIT = 2000;
 const INTERVAL = 60_000;
@@ -1082,12 +1084,22 @@ export class Device {
 		}
 	}
 
-	private async folderSizes(folder: string): Promise<Record<string, number>> {
+	/** Sizes of the subfolders of `folder` (for choosing folders): a file directly in it is no subfolder – it was shown
+	 * as one, and leaving it out would have excluded a file */
+	async folderSizes(folder: string): Promise<Record<string, number>> {
 		const sizes: Record<string, number> = {};
+		const prefix = folder === '/' ? '/' : folder + '/';
 		for (const [path, state] of await this.options.tree.scan()) {
-			if (state.kind !== 'file' || !isInside(path, folder) || path === folder) continue;
-			const child = folder === '/' ? '/' + path.split('/')[1] : folder + '/' + path.slice(folder.length + 1).split('/')[0];
-			sizes[child] = (sizes[child] ?? 0) + state.size;
+			if (!path.startsWith(prefix) || path === folder) continue;
+			const rest = path.slice(prefix.length);
+			const slash = rest.indexOf('/');
+			const child = prefix + (slash < 0 ? rest : rest.slice(0, slash));
+			if (slash < 0) {
+				// The subfolder itself (also an empty one); a file here belongs to no subfolder
+				if (state.kind === 'directory') sizes[child] ??= 0;
+				continue;
+			}
+			if (state.kind === 'file') sizes[child] = (sizes[child] ?? 0) + state.size;
 		}
 		return sizes;
 	}
@@ -1169,8 +1181,13 @@ export class Device {
 	async remoteSizes(folder: string): Promise<Record<string, Record<string, number>>> {
 		const out: Record<string, Record<string, number>> = {};
 		await Promise.all(
+			// A device that doesn't answer in time is left out: choosing folders must never wait for it (it did, forever)
 			[...this.peers.values()].map(async (peer) => {
-				out[peer.id] = (await peer.rpc.call('sizes', folder).catch(() => ({}))) as Record<string, number>;
+				let timer: ReturnType<typeof setTimeout> | undefined;
+				const late = new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), SIZES_WAIT)));
+				const sizes = await Promise.race([peer.rpc.call('sizes', folder).catch(() => null), late]);
+				clearTimeout(timer);
+				if (sizes) out[peer.id] = sizes as Record<string, number>;
 			})
 		);
 		out[this.identity.id] = await this.folderSizes(folder);

@@ -17,7 +17,7 @@ import { allowShareSync, beginShare, codeFromWords, endShareSession, onShareSync
 import type { ShareSyncState } from './share-sync.js';
 import { parseWords, wordLists } from '../p2p/words.js';
 import { syncedFolder } from '../sync/sync.svelte.js';
-import { diskFoldersSupported } from '../handles.js';
+import { diskFoldersSupported, folderAccess } from '../handles.js';
 
 // Connections for the UI (“Connected” in Files, the file dialog): list with access state, connect, rename,
 // disconnect, allow access again, connect and edit servers (WebDAV, S3). Each tab watches its connected folders itself
@@ -99,11 +99,7 @@ function noticeRemote() {
 }
 
 async function accessOf(handle: FileSystemDirectoryHandle): Promise<PermissionState> {
-	try {
-		return (await handle.queryPermission?.({ mode: 'readwrite' })) ?? 'granted';
-	} catch {
-		return 'denied';
-	}
+	return folderAccess(handle);
 }
 
 /** Reads the connections and their access state again */

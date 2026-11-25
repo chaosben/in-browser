@@ -17,7 +17,9 @@ import { pieceForm } from '@in-browser/pdf/write/piece.js';
 import { svgForm } from '@in-browser/pdf/write/svg.js';
 import type { NoteItem } from '#lib/render/note.js';
 import { DOCUMENT_FONTS } from '@in-browser/graphics/rich-text.js';
-import { loadFonts, measureStyled } from '@in-browser/graphics/fonts.js';
+import { loadFonts, measureStyled, registerFamily } from '@in-browser/graphics/fonts.js';
+import { describeFont } from '@in-browser/graphics/user-fonts.svelte.js';
+import { standardFontUrl } from '@in-browser/pdf/pdfjs.js';
 import type { RichText } from '@in-browser/graphics/rich-text.js';
 import { loadTextFont, withRich, withText, type TextItem } from '#lib/render/textbox.js';
 import { annotationOf, partsOf } from './annots.js';
@@ -587,6 +589,42 @@ describe('annotations of drawn items', () => {
 		expect(plain).toMatchObject({ type: 'text', size: 20, color: '#000000', lines: box.lines, rot: 0 });
 	});
 
+	it('embeds a font of the user as a subset of what is written in it; characters it lacks fall back', async () => {
+		// Liberation Sans Bold stands in for a font the user added (any TrueType file)
+		const url = standardFontUrl('LiberationSans-Bold.ttf')!;
+		const bytes = await (await fetch(url)).arrayBuffer();
+		const parsed = await describeFont(new Uint8Array(bytes), 'Own.ttf', 0);
+		// Measured before the family is known (a PDF's boxes are laid out before the user's fonts are read): once it
+		// is registered, it is loaded and measured in itself, not in the stand-in (regression)
+		const style = { font: 'user:Own', bold: false, italic: false, underline: false, size: 20, color: '#000000' } as const;
+		const before = measureStyled('Grüße', style);
+		await loadFonts(['user:Own']);
+		registerFamily('user:Own', { label: 'Own', faces: { regular: async () => bytes }, has: (_, cp) => parsed!.font.hasGlyphForCodePoint(cp) });
+		await Promise.all([loadTextFont(), loadFonts(['user:Own'])]);
+		expect(measureStyled('Grüße', style)).not.toBeCloseTo(before, 1);
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const empty: TextItem = { id: 'own', type: 'text', x: 20, y: 100, w: 0, h: 0, rot: 0, size: 20, color: '#000000', text: '', lines: [], sizing: 'auto-width', font: 'user:Own' };
+		const box = withText(empty, 'Grüße 漢');
+		const date = new Date();
+		const written = annotationOf(box, toUser, undefined, date);
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [withData(written, box, date, 0, 300, 400)]]]) });
+		const raw = new TextDecoder('latin1').decode(out);
+		// Embedded as a subset (a TrueType program, named by pdf-lib with a number); the character it lacks falls back
+		expect(raw).toMatch(/\/BaseFont \/LiberationSans-Bold-\d+/);
+		expect(raw).toMatch(/\/FontFile2/);
+		expect(written.richContents).toContain("font-family:'Own',Helvetica");
+		const pdf = await openPdf(out.slice());
+		const [annotation] = await (await pdf.getPage(1)).getAnnotations();
+		expect(annotation).toMatchObject({ subtype: 'FreeText', contentsObj: { str: 'Grüße 漢' } });
+		await pdf.loadingTask.destroy();
+		expect(await darkIn(out, 22, 102, 70, 124)).toBeGreaterThan(20);
+		// Read back with its font; and the embedded subset is one of the file's fonts (for a device without the file)
+		const reread = await IncrementalPdf.open(out);
+		const [found] = reread.annotations(0);
+		expect(itemsOf(found, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x')[0]).toMatchObject({ font: 'user:Own', text: 'Grüße 漢' });
+		expect(reread.fonts()).toContainEqual(expect.objectContaining({ name: 'LiberationSans-Bold', kind: 'truetype' }));
+	});
+
 	it('writes formatted text in the fonts of its parts, with the formats for other programs, and reads both back', async () => {
 		await Promise.all([loadTextFont(), loadFonts(DOCUMENT_FONTS)]);
 		const base = await sample();
@@ -620,6 +658,9 @@ describe('annotations of drawn items', () => {
 		canvas.width = Math.ceil(viewport.width);
 		canvas.height = Math.ceil(viewport.height);
 		await (await pdf.getPage(1)).render({ canvas, viewport }).promise;
+		// PDF.js reads `/RC` too (written as UTF-16 it failed on it: its XML parser gets the raw bytes – regression)
+		const [read] = await (await pdf.getPage(1)).getAnnotations();
+		expect(read.richText?.str).toContain('big');
 		await pdf.loadingTask.destroy();
 		const shown = canvas.getContext('2d')!;
 		const red = (x0: number, x1: number) => {
@@ -679,6 +720,25 @@ describe('annotations of drawn items', () => {
 		expect(found.quadding).toBe(2);
 		const [plain] = itemsOf({ ...found, data: undefined }, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x');
 		expect(plain).toMatchObject({ type: 'text', align: 'right' });
+	});
+
+	it('writes a text box with an inner margin of its own per side where the screen has it, and reads it back', async () => {
+		await loadTextFont();
+		const toUser = toUserSpace(pageTransform([0, 0, 300, 400], 0));
+		const padding = { top: 30, right: 2, bottom: 10, left: 60 };
+		const empty: TextItem = { id: 't7', type: 'text', x: 40, y: 100, w: 200, h: 0, rot: 0, size: 20, color: '#000000', text: '', lines: [], sizing: 'auto-height', padding };
+		const box = withText(empty, 'Hi');
+		// The margins are part of the box: one line high plus top and bottom
+		expect(box.h).toBeCloseTo(20 * 1.2 + 40);
+		const date = new Date();
+		const out = await (await IncrementalPdf.open(await sample())).update({ annotations: new Map([[0, [withData(annotationOf(box, toUser, undefined, date), box, date, 0, 300, 400)]]]) });
+		// The text starts after 60 pt from the left and 30 pt from the top; nothing in the margins
+		expect(await darkIn(out, 101, 134, 125, 150)).toBeGreaterThan(10);
+		expect(await darkIn(out, 42, 100, 98, 164)).toBe(0);
+		expect(await darkIn(out, 42, 100, 238, 128)).toBe(0);
+		const [found] = (await IncrementalPdf.open(out)).annotations(0);
+		const [back] = itemsOf(found, toShown(pageTransform([0, 0, 300, 400], 0)), 0, (w) => w ?? 'x');
+		expect(back).toMatchObject({ type: 'text', padding });
 	});
 
 	it('justifies all but the last line of a paragraph, without /Q (other programs know no justified text)', async () => {

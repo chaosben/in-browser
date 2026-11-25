@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { pdfLib } from '../pdf-lib.js';
 import { pageTransform } from '../geometry.js';
-import { openPdf } from '../pdfjs.js';
+import { openPdf, standardFontUrl } from '../pdfjs.js';
 import type { NewAnnotation } from './annotations.js';
-import { IncrementalPdf, readTail } from './incremental.js';
+import { IncrementalPdf, readTail, type FileBookmark, type NewBookmark } from './incremental.js';
+import { pdfProducer } from '../producer.js';
 
 // Incremental updates in real Chromium: written with our writer, read back by PDF.js (what the editor shows) and by
 // pdf-lib (a second, independent parser).
@@ -303,6 +304,128 @@ describe('IncrementalPdf', () => {
 		const again = await IncrementalPdf.open(out);
 		expect(again.pageCount).toBe(3);
 		expect(again.annotations(1).map((a) => a.name)).toEqual(['q']);
+	});
+
+	it('writes bookmarks with their style and places, keeps targets of the file, and drops those on deleted pages', async () => {
+		const base = await sample(false);
+		const pdf = await IncrementalPdf.open(base);
+		expect(pdf.outline()).toEqual([]);
+		const out = await pdf.update({
+			outline: [
+				{ title: 'Überblick', bold: true, color: [1, 0, 0], open: true, target: { page: 1, top: 300 }, items: [{ title: 'Inner', target: { page: 2, top: null }, items: [] }] },
+				{ title: 'Last', italic: true, target: null, items: [{ title: 'Closed', target: { page: 0, top: 100 }, items: [] }] }
+			]
+		});
+		expect(prefix(out, base)).toBe(true);
+		// PDF.js reads them as viewers show them
+		const shown = await openPdf(out.slice());
+		const outline = await shown.getOutline();
+		expect(outline.map((o) => [o.title, o.bold, o.italic, o.count])).toEqual([
+			['Überblick', true, false, 1],
+			['Last', false, true, -1]
+		]);
+		expect(await shown.getPageIndex((outline[0].dest as [{ num: number; gen: number }])[0])).toBe(1);
+		await shown.loadingTask.destroy();
+		// And so do we: the file's bookmarks with their pages and tops
+		const read = (await IncrementalPdf.open(out)).outline();
+		expect(read).toMatchObject([
+			{ title: 'Überblick', bold: true, open: true, color: [1, 0, 0], page: 1, top: 300, items: [{ title: 'Inner', page: 2, top: null }] },
+			{ title: 'Last', italic: true, open: false, page: null, items: [{ title: 'Closed', page: 0, top: 100 }] }
+		]);
+		// Written again with their targets kept and the second page deleted: the bookmark to it leads nowhere
+		const again = await IncrementalPdf.open(out);
+		const keep = (b: FileBookmark): NewBookmark => ({ title: b.title, target: { keep: b.ref }, items: b.items.map(keep) });
+		const second = await again.update({ pages: [{ base: 0 }, { base: 2 }], outline: read.map(keep) });
+		const after = (await IncrementalPdf.open(second)).outline();
+		expect(after.map((b) => [b.title, b.page, b.items.map((i) => i.page)])).toEqual([
+			['Überblick', null, [1]],
+			['Last', null, [0]]
+		]);
+		// Taken away altogether
+		const none = await (await IncrementalPdf.open(second)).update({ outline: [] });
+		expect((await IncrementalPdf.open(none)).outline()).toEqual([]);
+	});
+
+	it('changes the properties in /Info and in the XMP metadata, and reads them back', async () => {
+		const { PDFDocument } = await pdfLib();
+		const made = await PDFDocument.create();
+		made.addPage([300, 400]);
+		made.setTitle('Old title');
+		made.setAuthor('Ada');
+		const xmp = '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Old title</rdf:li></rdf:Alt></dc:title></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>';
+		made.catalog.set(made.context.obj('Metadata') as never, made.context.register(made.context.stream(xmp, { Type: 'Metadata', Subtype: 'XML' })));
+		const base = await made.save({ useObjectStreams: false });
+		const pdf = await IncrementalPdf.open(base);
+		expect(pdf.info()).toMatchObject({ title: 'Old title', author: 'Ada' });
+		const out = await pdf.update({ info: { title: 'Neuer Titel – 1', author: '', keywords: 'a, b' } });
+		expect(prefix(out, base)).toBe(true);
+		const shown = await openPdf(out.slice());
+		const meta = await shown.getMetadata();
+		expect(meta.info).toMatchObject({ Title: 'Neuer Titel – 1', Keywords: 'a, b' });
+		expect((meta.info as { Author?: string }).Author).toBeUndefined();
+		expect(meta.metadata?.get('dc:title')).toBe('Neuer Titel – 1');
+		// Written here: the producer is the suite at this address; the program that made the file stays its creator
+		expect(meta.info).toMatchObject({ Producer: pdfProducer(), Creator: expect.stringContaining('pdf-lib') });
+		expect(pdfProducer()).toBe(`in-browser (${location.origin})`);
+		expect(meta.metadata?.get('pdf:producer')).toBe(pdfProducer());
+		await shown.loadingTask.destroy();
+		expect((await IncrementalPdf.open(out)).info()).toMatchObject({ title: 'Neuer Titel – 1', keywords: 'a, b' });
+		// Any change names the producer; a file made here (extracted, merged) names the suite as its creator too
+		const annotated = await (await IncrementalPdf.open(base)).update({ rotate: new Map([[0, 90]]) });
+		const created = await (await IncrementalPdf.open(base)).update({ created: true, info: { author: 'Bea' } });
+		for (const [bytes, creator] of [
+			[annotated, expect.stringContaining('pdf-lib')],
+			[created, pdfProducer()]
+		] as const) {
+			const doc = await openPdf(bytes.slice());
+			expect((await doc.getMetadata()).info).toMatchObject({ Producer: pdfProducer(), Creator: creator });
+			await doc.loadingTask.destroy();
+		}
+	});
+
+	it('sanitizes: metadata, embedded files, scripts, bookmarks and earlier versions are gone from the bytes', async () => {
+		const { PDFDocument, StandardFonts } = await pdfLib();
+		const made = await PDFDocument.create();
+		made.setAuthor('Ada Secretname');
+		const font = await made.embedFont(StandardFonts.Helvetica);
+		made.addPage([300, 400]).drawText('Kept text', { x: 20, y: 360, size: 18, font });
+		await made.attach(new TextEncoder().encode('ATTACHEDSECRET'), 'secret.txt', { mimeType: 'text/plain' });
+		made.addJavaScript('hello', 'app.alert("SCRIPTSECRET")');
+		const base = await made.save({ useObjectStreams: false });
+		// One earlier version appended, with a bookmark
+		const updated = await (await IncrementalPdf.open(base)).update({ outline: [{ title: 'Chapter', target: { page: 0, top: null }, items: [] }], rotate: new Map([[0, 90]]) });
+		const pdf = await IncrementalPdf.open(updated);
+		expect(pdf.inspect()).toMatchObject({ attachments: 1, scripts: 1, bookmarks: 1, versions: 1 });
+		expect(pdf.inspect().metadata).toBeGreaterThan(0);
+		const out = await pdf.sanitize({ metadata: true, attachments: true, scripts: true, bookmarks: true });
+		const raw = text(out);
+		for (const secret of ['Secretname', 'ATTACHEDSECRET', 'SCRIPTSECRET', 'Chapter']) expect(raw).not.toContain(secret);
+		expect(raw.match(/startxref/g)).toHaveLength(1);
+		expect(await rotations(out)).toEqual([90]);
+		const shown = await openPdf(out.slice());
+		expect((await (await shown.getPage(1)).getTextContent()).items.map((i) => ('str' in i ? i.str : '')).join('')).toBe('Kept text');
+		await shown.loadingTask.destroy();
+		expect((await IncrementalPdf.open(out)).inspect()).toEqual({ metadata: 0, attachments: 0, scripts: 0, bookmarks: 0, versions: 0 });
+	});
+
+	it('lists the fonts the pages use with their programs: complete, a subset, or only named', async () => {
+		const { PDFDocument, StandardFonts } = await pdfLib();
+		const fontkit = (await import('@pdf-lib/fontkit')).default;
+		const bytes = new Uint8Array(await (await fetch(standardFontUrl('LiberationSans-Regular.ttf')!)).arrayBuffer());
+		const made = await PDFDocument.create();
+		made.registerFontkit(fontkit);
+		const page = made.addPage([300, 400]);
+		page.drawText('Whole', { font: await made.embedFont(bytes, { subset: false }), size: 12, x: 10, y: 300 });
+		page.drawText('Part', { font: await made.embedFont(await (await fetch(standardFontUrl('LiberationSans-Bold.ttf')!)).arrayBuffer(), { subset: true }), size: 12, x: 10, y: 200 });
+		page.drawText('Std', { font: await made.embedFont(StandardFonts.Courier), size: 12, x: 10, y: 100 });
+		const fonts = (await IncrementalPdf.open(await made.save())).fonts();
+		const by = (name: string) => fonts.find((f) => f.name === name);
+		expect(by('LiberationSans')).toMatchObject({ subset: false, kind: 'truetype' });
+		expect(by('LiberationSans')!.bytes!.length).toBe(bytes.length);
+		// pdf-lib doesn't mark its subsets by name: the program is just smaller
+		expect(by('LiberationSans-Bold')).toMatchObject({ kind: 'truetype' });
+		expect(by('LiberationSans-Bold')!.bytes!.length).toBeLessThan(bytes.length / 2);
+		expect(by('Courier')).toMatchObject({ kind: 'none', bytes: null });
 	});
 
 	it('copies pages of another PDF in, with everything they use, and draws on them', async () => {

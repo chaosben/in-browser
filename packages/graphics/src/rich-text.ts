@@ -3,8 +3,11 @@
 // unit-free like `text-box.ts`: the tool measures and draws. Positions in a text count its characters with one for
 // each paragraph break – the positions of its plain text (`plainOf`).
 
-/** The fonts of the suite (`fonts.ts`); each tool offers a set of them */
-export type FontFamily = DocumentFont | DisplayFont;
+/** The fonts of the suite (`fonts.ts`); each tool offers a set of them. Besides the bundled ones: the user's own
+ * (`user:<family>`, `user-fonts.svelte.ts`) and those a document brings (`pdf:<name>`), registered when known */
+export type FontFamily = DocumentFont | DisplayFont | CustomFont;
+export type CustomFont = `user:${string}` | `pdf:${string}`;
+export const isCustomFont = (font: string): font is CustomFont => font.startsWith('user:') || font.startsWith('pdf:');
 /** Fonts every document viewer has (the metrics of Helvetica, Times and Courier): text in documents */
 export type DocumentFont = 'sans' | 'serif' | 'mono';
 export const DOCUMENT_FONTS: readonly DocumentFont[] = ['sans', 'serif', 'mono'];

@@ -40,6 +40,12 @@
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
+# Fonts: font files previewed from blob:; the catalog of free fonts (Fontsource: its API and the files on jsDelivr) is
+# reached only from these pages, and only when the user searches it
+/fonts*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' wss: https://api.fontsource.org https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
 # p2p-node (packages/p2p-node): the starters fetch version.json to find updates, people pipe the install scripts
 # into a shell – always fresh, scripts as text
 /p2p-node/*

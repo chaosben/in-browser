@@ -1,3 +1,4 @@
+import { evenInsets, type Insets } from '@in-browser/graphics/text-box.js';
 import { describe, expect, it } from 'vitest';
 import { FORMAT, migrate, parseProject, VERSION, type Annotation, type Clip, type Item, type Timeline, type VideoClip, type ZoomSegment } from '#lib/project/types.js';
 import {
@@ -46,7 +47,7 @@ function text(id: string, start: number, end: number, track = 1): Annotation {
 		align: 'left',
 		background: null,
 		radius: 0.015,
-		padding: 0.02,
+		padding: evenInsets(0.02),
 		shadow: true
 	};
 }
@@ -287,7 +288,7 @@ describe('parseProject', () => {
 		expect(boxed).toMatchObject({ font: 'system', align: 'left', shadow: false });
 		// Corners and padding were fixed shares of the font size
 		expect(boxed.radius).toBeCloseTo(0.03);
-		expect(boxed.padding).toBeCloseTo(0.04);
+		expect((boxed.padding as Insets).left).toBeCloseTo(0.04);
 		expect(plain).toMatchObject({ font: 'system', shadow: true });
 		expect(arrow).toMatchObject({ shadow: true });
 		expect(arrow.font).toBeUndefined();
@@ -303,17 +304,24 @@ describe('parseProject', () => {
 		expect(p).toMatchObject({ format: FORMAT, version: VERSION, images: [] });
 		expect(p.timeline).toEqual({ items: [], tracks: [], zoom: [] });
 		expect(p.sources[0].hasVideo).toBe(true);
-		expect(migrate({ version: 1 })).toEqual({ version: 2, format: 'screen-capture' });
+		expect(migrate({ version: 1 })).toEqual({ version: 3, format: 'screen-capture' });
 		const images = [{ id: 'i', file: 'i.png', name: 'Logo', width: 10, height: 10 }];
 		expect(parseProject({ version: 1, id: 'x', sources: [], timeline: { items: [] }, images }).images).toEqual(images);
 	});
+	it('migrates version 2: one padding for all sides becomes one per side, in the timeline and the library', () => {
+		const text = { id: 't', type: 'annotation', kind: 'text', start: 0, end: 1, track: 0, size: 0.1, padding: 0.03 };
+		const p = parseProject({ format: 'screen-capture', version: 2, id: 'x', sources: [], timeline: { items: [text] }, library: [{ id: 'l', name: 'L', items: [text], sources: [], images: [] }] });
+		expect(p.version).toBe(3);
+		expect(p.timeline.items[0]).toMatchObject({ padding: evenInsets(0.03) });
+		expect(p.library[0].items[0]).toMatchObject({ padding: evenInsets(0.03) });
+	});
 	it('accepts the current version as is', () => {
-		const p = parseProject({ format: 'screen-capture', version: 2, id: 'x', sources: [], timeline: { items: [] } });
-		expect(p.version).toBe(2);
+		const p = parseProject({ format: 'screen-capture', version: 3, id: 'x', sources: [], timeline: { items: [] } });
+		expect(p.version).toBe(3);
 	});
 	it('rejects unknown data, other tools and newer versions', () => {
 		expect(() => parseProject({ foo: 1 })).toThrow();
-		expect(() => parseProject({ version: 3, format: 'screen-capture', sources: [], timeline: { items: [] } })).toThrow(/newer/);
+		expect(() => parseProject({ version: 4, format: 'screen-capture', sources: [], timeline: { items: [] } })).toThrow(/newer/);
 		// Version 2 without the format name: not a Screen Capture project
 		expect(() => parseProject({ version: 2, sources: [], timeline: { items: [] } })).toThrow();
 		expect(() => parseProject({ version: 2, format: 'other-tool', sources: [], timeline: { items: [] } })).toThrow();

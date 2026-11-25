@@ -192,8 +192,8 @@ export function storageValue(
  * update – fields with `/V`, widgets with `/AS` or a new appearance in the form's font, `/NeedAppearances` where the
  * font can't write a value. A document of its own, so nothing else a tool keeps in its storage is saved.
  */
-export async function filledForm(base: Uint8Array, values: ReadonlyMap<string, ReturnType<typeof storageValue>>): Promise<Uint8Array> {
-	const pdf = await openPdf(base.slice());
+export async function filledForm(base: Uint8Array, values: ReadonlyMap<string, ReturnType<typeof storageValue>>, password?: string): Promise<Uint8Array> {
+	const pdf = await openPdf(base.slice(), password);
 	try {
 		for (const [id, value] of values) pdf.annotationStorage.setValue(id, value);
 		return await pdf.saveDocument();
@@ -203,9 +203,9 @@ export async function filledForm(base: Uint8Array, values: ReadonlyMap<string, R
 }
 
 /** The form's fonts by their name in `/DR` → `/BaseFont` (without a subset prefix), to show typing in a like font */
-export async function formFonts(bytes: Uint8Array): Promise<Map<string, string>> {
+export async function formFonts(bytes: Uint8Array, password?: string): Promise<Map<string, string>> {
 	const { PDFDict, PDFName } = await pdfLib();
-	const { doc } = await loadPdf(bytes, true);
+	const { doc } = await loadPdf(bytes, true, password);
 	const out = new Map<string, string>();
 	const form = doc.catalog.lookup(PDFName.of('AcroForm'));
 	const dr = form instanceof PDFDict ? form.lookup(PDFName.of('DR')) : undefined;

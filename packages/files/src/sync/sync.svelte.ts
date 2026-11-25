@@ -1,7 +1,7 @@
 import { startConnections } from '../sources/connections.svelte.js';
 import { watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
-import { diskFoldersSupported } from '../handles.js';
+import { diskFoldersSupported, folderAccess } from '../handles.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
 import { runSync } from './apply.js';
 import { treeSide } from './tree-ops.js';
@@ -225,6 +225,8 @@ function onRequest(request: Request) {
 let log: LogFn = () => {};
 
 function lead() {
+	// The folder at once (other tabs ask for the status right away – before the first run it said “none”)
+	void idbGet<FileSystemDirectoryHandle>(HANDLE).then((h) => h && !syncStatus.folder && publish({ folder: h.name }));
 	void journal('folder').then((l) => (log = l.add));
 	watch((paths) => {
 		if (applying) return;
@@ -264,7 +266,9 @@ async function run(): Promise<void> {
 	try {
 		const folder = await idbGet<FileSystemDirectoryHandle>(HANDLE);
 		if (!folder) return publish({ folder: null, state: 'off' });
-		if ((await folder.queryPermission?.({ mode: 'readwrite' })) !== 'granted') {
+		// (unanswered counts as not allowed: the folder shows as paused, and “Allow access” asks again with a click)
+		const permission = await folderAccess(folder);
+		if (permission !== 'granted') {
 			log('folder.paused', { folder: folder.name, reason: 'no permission' });
 			return publish({ folder: folder.name, state: 'paused' });
 		}

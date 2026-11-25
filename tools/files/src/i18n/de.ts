@@ -430,6 +430,8 @@ const de: Messages = {
 
 	scope: {
 		empty: 'Noch keine Ordner.',
+		asking: 'Frage deine anderen Geräte …',
+		failed: (error: string) => `Die Ordner konnten nicht gelesen werden: ${error}`,
 		title: 'Ordner auswählen',
 		hint: 'Abgewählte Ordner bleiben auf den anderen Geräten und werden dort weiter synchronisiert – nur dieses Gerät bekommt sie nicht.',
 		always: 'Immer synchronisiert (Daten der Tools)',

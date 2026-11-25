@@ -36,6 +36,111 @@ const de: Messages = {
 		showInFiles: 'In Dateien zeigen'
 	},
 
+	password: {
+		title: 'Passwort',
+		hint: (name: string) => `„${name}“ ist durch ein Passwort geschützt. Gib es ein, um die PDF zu öffnen.`,
+		field: 'Passwort',
+		show: 'Passwort anzeigen',
+		remember: 'Auf diesem Gerät merken',
+		rememberHint: 'Nur in diesem Browser, verschlüsselt; es reist nie mit den Dateien.',
+		wrong: 'Dieses Passwort öffnet die PDF nicht.',
+		open: 'Öffnen',
+		enter: 'Passwort eingeben …'
+	},
+
+	protect: {
+		command: 'Passwort und Berechtigungen …',
+		commandTip: 'Die PDF mit einem Passwort schützen, es ändern oder entfernen, einschränken, was andere Programme erlauben',
+		title: 'Passwort und Berechtigungen',
+		state: {
+			none: 'Diese PDF ist nicht geschützt.',
+			open: (method: string) => `Geschützt mit ${method}: Zum Öffnen ist ein Passwort nötig.`,
+			restricted: (method: string) => `Geschützt mit ${method}: Sie öffnet ohne Passwort, schränkt aber ein, was andere Programme erlauben.`
+		},
+		methods: { 'rc4-40': 'RC4 40 Bit', 'rc4-128': 'RC4 128 Bit', 'aes-128': 'AES 128 Bit', 'aes-256': 'AES 256 Bit', other: 'einem anderen Verfahren' } as Record<string, string>,
+		openPassword: 'Zum Öffnen ein Passwort verlangen',
+		password: 'Passwort',
+		repeat: 'Passwort wiederholen',
+		restrict: 'Einschränken, was andere Programme erlauben',
+		ownerPassword: 'Passwort zum Aufheben der Einschränkungen',
+		allowed: 'Ohne dieses Passwort erlaubt',
+		permissions: {
+			print: 'Drucken',
+			printHigh: 'In hoher Qualität drucken',
+			modify: 'Inhalt ändern',
+			copy: 'Text und Bilder kopieren',
+			annotate: 'Kommentieren',
+			fillForms: 'Formulare ausfüllen',
+			assemble: 'Seiten einfügen, löschen und drehen'
+		} as Record<string, string>,
+		hint: 'Nur das Passwort zum Öffnen schützt den Inhalt. Einschränkungen sind eine Bitte an andere PDF-Programme; in-browser hält sich nicht daran. Ein vergessenes Passwort zum Öffnen lässt sich nicht wiederherstellen.',
+		mismatch: 'Die Passwörter stimmen nicht überein.',
+		same: 'Die beiden Passwörter müssen sich unterscheiden.',
+		empty: 'Gib ein Passwort ein.',
+		remember: 'Das neue Passwort auf diesem Gerät merken',
+		forget: 'Gemerktes Passwort vergessen',
+		unchanged: 'Unverändert',
+		outcome: {
+			none: 'Übernehmen speichert die PDF ohne Schutz.',
+			open: 'Übernehmen schützt die PDF mit einem Passwort zum Öffnen.',
+			restricted: 'Übernehmen lässt die PDF ohne Passwort öffnen, mit Einschränkungen.',
+			both: 'Übernehmen schützt die PDF mit einem Passwort zum Öffnen und mit Einschränkungen.',
+			same: 'Noch ist nichts geändert.'
+		},
+		apply: 'Übernehmen',
+		done: 'Die PDF ist geschützt.',
+		removed: 'Der Schutz ist entfernt.',
+		undo: 'Rückgängig'
+	},
+
+	properties: {
+		command: 'Eigenschaften …',
+		commandTip: 'Titel, Autor, Thema und Stichwörter der PDF und was sie über sich sagt',
+		title: 'Eigenschaften',
+		fields: { title: 'Titel', author: 'Autor', subject: 'Thema', keywords: 'Stichwörter' },
+		facts: {
+			creator: 'Erstellt mit',
+			producer: 'PDF erzeugt von',
+			created: 'Erstellt',
+			modified: 'Geändert',
+			version: 'PDF-Version',
+			pages: 'Seiten',
+			pageSize: 'Seitengröße',
+			fileSize: 'Dateigröße',
+			protection: 'Schutz',
+			signed: 'Signaturen'
+		},
+		none: '–',
+		signed: 'Signiert',
+		unsigned: 'Keine',
+		protectedOpen: 'Passwort zum Öffnen',
+		protectedRestricted: 'Nur Einschränkungen',
+		unprotected: 'Keiner',
+		apply: 'Übernehmen'
+	},
+
+	sanitize: {
+		command: 'Bereinigen …',
+		commandTip: 'Herausnehmen, was in der PDF verborgen ist: Metadaten, eingebettete Dateien, Skripte, frühere Fassungen',
+		title: 'Bereinigen',
+		hint: 'Die PDF wird ohne das, was du auswählst, neu geschrieben. Frühere Fassungen in der Datei und Objekte, die nichts mehr nutzt, gehen immer. Kommentare, Vortragsnotizen und ausgefüllte Felder bleiben.',
+		metadata: (n: number) => `Metadaten (${n}): Titel, Autor, Programme, Daten, Vorschaubilder`,
+		attachments: (n: number) => (n === 1 ? 'Eine eingebettete Datei' : `Eingebettete Dateien (${n})`),
+		scripts: (n: number) => (n === 1 ? 'Ein Skript oder eine Aktion' : `Skripte und Aktionen (${n})`),
+		scriptsHint: 'Formulare rechnen und prüfen ihre Werte danach nicht mehr.',
+		bookmarks: (n: number) => (n === 1 ? 'Ein Lesezeichen' : `Lesezeichen (${n})`),
+		versions: (n: number) => (n === 0 ? 'Keine früheren Fassungen in der Datei' : n === 1 ? 'Eine frühere Fassung in der Datei (wird immer herausgenommen)' : `${n} frühere Fassungen in der Datei (werden immer herausgenommen)`),
+		checking: 'Die PDF wird durchgesehen …',
+		apply: 'Bereinigen',
+		done: 'Die PDF ist bereinigt.',
+		undo: 'Rückgängig'
+	},
+
+	fonts: {
+		subset: 'Darin sind nur die Zeichen, die diese PDF verwendet; andere erscheinen in der Ersatzschrift.',
+		cannotUse: 'Diese Schrift lässt sich nicht verwenden: Die PDF enthält sie in einer Form, mit der der Browser nicht zeichnen kann.'
+	},
+
 	notice: {
 		readonly: 'Diese PDF wurde dir zum Ansehen freigegeben: Du kannst sie lesen und präsentieren, aber nicht ändern.',
 		encrypted: 'Diese PDF ist auf eine Weise geschützt, die sich hier nicht ändern lässt: Du kannst sie lesen, aber Änderungen lassen sich nicht speichern.',
@@ -62,6 +167,11 @@ const de: Messages = {
 			title: 'Seiten einer signierten PDF ändern?',
 			message: 'Die Signaturen bleiben für die signierte Version gültig, aber Programme melden womöglich, dass sich Seiten nach dem Signieren geändert haben.',
 			confirm: 'Seiten ändern'
+		},
+		signedRewrite: {
+			title: 'Die signierte PDF neu schreiben?',
+			message: 'Dabei wird die Datei neu geschrieben. Ihre Signaturen sind danach nicht mehr gültig.',
+			confirm: 'Neu schreiben'
 		}
 	},
 
@@ -81,6 +191,7 @@ const de: Messages = {
 			link: 'Link',
 			drawing: 'Zeichnung',
 			selection: 'Auswahl',
+			bookmarks: 'Lesezeichen',
 			arrange: 'Anordnen'
 		},
 		groups: {
@@ -106,6 +217,7 @@ const de: Messages = {
 			organize: 'Organisieren',
 			page: 'Seite',
 			insert: 'Einfügen',
+			protection: 'Schutz',
 			newFile: 'Neue PDF',
 			fields: 'Felder',
 			visibility: 'Ein- und Ausblenden',
@@ -161,12 +273,13 @@ const de: Messages = {
 		edit: 'Text bearbeiten',
 		size: 'Größe',
 		textColor: 'Textfarbe',
-		sizeValue: (pt: number) => `${pt} pt`,
+		sizeValue: (pt: number) => `${String(pt).replace('.', ',')} pt`,
 		style: 'Hintergrund und Rahmen',
 		fill: 'Hintergrund',
 		border: 'Rahmen',
 		borderWidth: 'Stärke',
 		borderWidthValue: (pt: number) => `${String(pt).replace('.', ',')} pt`,
+		padding: 'Innenabstand',
 		none: 'Keiner',
 		autoWidth: 'Automatische Breite',
 		autoWidthTip: 'So breit wie die längste Zeile; neue Zeilen nur, wo du Enter drückst',
@@ -274,7 +387,7 @@ const de: Messages = {
 		saved: (name) => `Gespeichert als „${name}“.`,
 		openNew: 'Öffnen',
 		failed: (error) => `Das hat nicht geklappt: ${error}`,
-		protected: 'Diese PDF ist mit einem Passwort geschützt; ihre Seiten lassen sich nicht kopieren.',
+		protected: 'Diese PDF ist auf eine Weise geschützt, die sich hier nicht öffnen lässt.',
 		highlightFields: 'Felder hervorheben',
 		highlightFieldsTip: 'Tönt die auszufüllenden Felder und rahmt die Pflichtfelder ein',
 		clearForm: 'Formular leeren',
@@ -612,6 +725,30 @@ const de: Messages = {
 		otherVersion: 'Die Folien zeigen noch eine andere Fassung dieser PDF – Vorschau und Notizen hier passen dann vielleicht nicht. Sie kommt an, sobald sich die beiden Geräte erreichen; lass in-browser auf beiden offen.',
 		remoteEnded: 'Die Folien wurden geschlossen. Werden sie wieder geöffnet, funktionieren ihre Tasten dort weiter.',
 		close: 'Schließen'
+	},
+
+	bookmarks: {
+		add: 'Lesezeichen hinzufügen',
+		addTip: 'Ein Lesezeichen zum oberen Rand der Ansicht, nach dem aktuellen; benannt nach dem markierten Text oder der Seite',
+		rename: 'Umbenennen',
+		target: 'Ziel hierher setzen',
+		targetTip: 'Das Lesezeichen führt zum oberen Rand der Ansicht',
+		remove: 'Lesezeichen löschen',
+		up: 'Nach oben',
+		down: 'Nach unten',
+		indent: 'Einrücken',
+		outdent: 'Ausrücken',
+		bold: 'Fett',
+		italic: 'Kursiv',
+		color: 'Farbe',
+		expandAll: 'Alle aufklappen',
+		collapseAll: 'Alle zuklappen',
+		groups: { bookmark: 'Lesezeichen', order: 'Anordnen', style: 'Stil', view: 'Ansicht' },
+		page: (n: number) => `Seite ${n}`,
+		noTarget: 'Führt nirgendwohin: Seine Seite ist weg. Setz ein Ziel mit „Ziel hierher setzen“.',
+		webAddress: (url: string) => `Öffnet ${url}`,
+		name: 'Name des Lesezeichens',
+		emptyEditable: 'Diese PDF hat noch keine Lesezeichen. „Lesezeichen hinzufügen“ legt eines für die Stelle in der Ansicht an.'
 	},
 
 	panels: {

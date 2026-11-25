@@ -5,7 +5,10 @@
 	// file saved meanwhile (in the editor, or arriving through a share's sync) is read anew, the place stays.
 	import { page as route } from '$app/state';
 	import { watch } from '@in-browser/files/fs.js';
-	import { normalize } from '@in-browser/files/path.js';
+	import { basename, normalize } from '@in-browser/files/path.js';
+	import { PdfError } from '@in-browser/pdf/pdfjs.js';
+	import PasswordDialog from '#lib/components/PasswordDialog.svelte';
+	import { withPassword } from '#lib/model/password.svelte.js';
 	import { m } from '#lib/i18n/index.js';
 	import { PdfDocument } from '#lib/model/document.svelte.js';
 	import { DisplayController } from '#lib/show/display.svelte.js';
@@ -55,7 +58,9 @@
 
 		(async () => {
 			try {
-				const next = await PdfDocument.open(path);
+				// Protected by a password: told by the editor of this browser presenting it, else remembered or asked
+				const next = await withPassword(basename(path), path, (typed) => PdfDocument.open(path, typed));
+				if (!next) throw new PdfError('password');
 				if (disposed) return next.destroy();
 				opened = next;
 				await checked(next);
@@ -92,7 +97,7 @@
 					if (reading || disposed) return;
 					reading = true;
 					try {
-						const newer = await PdfDocument.open(path);
+						const newer = await PdfDocument.open(path, next.password);
 						await checked(newer);
 						if (disposed) return newer.destroy();
 						const old = opened;
@@ -152,3 +157,5 @@
 		{/if}
 	</div>
 {/if}
+
+<PasswordDialog />

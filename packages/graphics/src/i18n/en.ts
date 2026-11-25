@@ -72,7 +72,19 @@ const en = {
 		lineHeight: 'Line spacing',
 		lineHeightValue: (n: number) => n.toLocaleString('en', { minimumFractionDigits: 1 }),
 		bulleted: 'Bullets',
-		numbered: 'Numbering'
+		numbered: 'Numbering',
+		myFonts: 'My fonts',
+		documentFonts: 'Fonts of this PDF',
+		manageFonts: 'Manage fonts …',
+		missingFont: (name: string) => `${name} (not on this device)`
+	},
+
+	insets: {
+		same: 'Same on all sides',
+		top: 'Top',
+		right: 'Right',
+		bottom: 'Bottom',
+		left: 'Left'
 	},
 
 	icons: {

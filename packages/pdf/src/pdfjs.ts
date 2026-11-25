@@ -56,18 +56,21 @@ export function pdfjs(): Promise<PdfJs> {
 export class PdfError extends Error {
 	constructor(
 		readonly reason: 'password' | 'invalid',
-		cause?: unknown
+		cause?: unknown,
+		/** A password was given and it doesn't open the file */
+		readonly wrong = false
 	) {
 		super(reason === 'password' ? 'the PDF is protected by a password' : 'not a readable PDF', { cause });
 	}
 }
 
-/** Opens a PDF (its bytes are handed over to the worker) */
-export async function openPdf(data: Uint8Array): Promise<PDFDocumentProxy> {
+/** Opens a PDF (its bytes are handed over to the worker); `password` for one that needs it */
+export async function openPdf(data: Uint8Array, password?: string): Promise<PDFDocumentProxy> {
 	const pdf = await pdfjs();
 	try {
 		return await pdf.getDocument({
 			data,
+			...(password && { password }),
 			BinaryDataFactory: AssetData,
 			useWorkerFetch: false,
 			cMapPacked: true,
@@ -80,7 +83,7 @@ export async function openPdf(data: Uint8Array): Promise<PDFDocumentProxy> {
 		} as Parameters<PdfJs['getDocument']>[0]).promise;
 	} catch (e) {
 		const name = (e as { name?: string }).name;
-		if (name === 'PasswordException') throw new PdfError('password', e);
+		if (name === 'PasswordException') throw new PdfError('password', e, !!password);
 		if (name === 'InvalidPDFException') throw new PdfError('invalid', e);
 		// Anything else (worker didn't start, …) is no fault of the file
 		throw e;

@@ -1,8 +1,8 @@
-// A PDF parsed by pdf-lib, decrypted when it is protected without a password (`crypt.ts`): every string and stream
+// A PDF parsed by pdf-lib, decrypted when it is protected without a password or the password is given (`crypt.ts`): every string and stream
 // of the parsed objects is plain afterwards. pdf-lib can't read encrypted object streams itself (it would inflate
 // the encrypted bytes), so those are decrypted after a first parse and the file is parsed again with them.
 
-import { standardCrypt, type EncryptEntries, type PdfCrypt } from './crypt.js';
+import { passwordRole, standardCrypt, type EncryptEntries, type PdfCrypt } from './crypt.js';
 import { pdfLib } from './pdf-lib.js';
 import type { PDFContext, PDFDict, PDFDocument, PDFObject, PDFRef } from './pdf-lib.js';
 
@@ -14,22 +14,32 @@ export interface LoadedPdf {
 	encrypt: PDFRef | PDFDict | null;
 	/** Encrypted in a way we can't open without a password (or by another handler): its strings and streams are as stored */
 	locked: boolean;
+	/** Its `/Encrypt` entries (null when it isn't encrypted or they can't be read) */
+	entries: EncryptEntries | null;
+	/** It opened only with the password given (a user or owner password is needed to open it) */
+	needsPassword: boolean;
+	/** What the password given was (the user's or the owner's); null without one */
+	role?: 'user' | 'owner' | null;
 }
 
 type Lib = typeof import('pdf-lib');
 
-/** Parses a PDF; protection without a password is taken off (see above) */
-export async function loadPdf(bytes: Uint8Array, fast = false): Promise<LoadedPdf> {
+/** Parses a PDF; protection without a password is taken off (see above), one with a password when `password` opens
+ * it (as the user's or the owner's) */
+export async function loadPdf(bytes: Uint8Array, fast = false, password = ''): Promise<LoadedPdf> {
 	const lib = await pdfLib();
 	const options = { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false, ...(fast ? { parseSpeed: lib.ParseSpeeds.Fast } : {}) };
 	let doc = await lib.PDFDocument.load(bytes, options);
-	if (!doc.isEncrypted) return { doc, crypt: null, encrypt: null, locked: false };
+	if (!doc.isEncrypted) return { doc, crypt: null, encrypt: null, locked: false, entries: null, needsPassword: false };
 	const encrypt = doc.context.trailerInfo.Encrypt as PDFRef | PDFDict;
 	const entries = encryptEntries(lib, doc.context, encrypt);
 	const id = doc.context.trailerInfo.ID;
 	const id0 = id instanceof lib.PDFArray && id.size() > 0 ? bytesOfString(lib, id.get(0)) : new Uint8Array();
-	const crypt = entries && (await standardCrypt(entries, id0));
-	if (!crypt) return { doc, crypt: null, encrypt, locked: true };
+	const open = entries && (await standardCrypt(entries, id0));
+	const crypt = open ?? (entries && password ? await standardCrypt(entries, id0, password, false) : null);
+	if (!crypt) return { doc, crypt: null, encrypt, locked: true, entries, needsPassword: true };
+	const needsPassword = !open;
+	const role = entries && password ? await passwordRole(entries, id0, password) : null;
 
 	// Object streams: pdf-lib kept them as invalid objects; decrypted, the file is parsed again with them
 	const streams = new Map<number, ObjStm>();
@@ -52,7 +62,7 @@ export async function loadPdf(bytes: Uint8Array, fast = false): Promise<LoadedPd
 		const plain = await transform(lib, crypt, object, ref.objectNumber, ref.generationNumber, false);
 		if (plain !== object) doc.context.assign(ref, plain);
 	}
-	return { doc, crypt, encrypt, locked: false };
+	return { doc, crypt, encrypt, locked: false, entries, needsPassword, role };
 }
 
 /** Encrypts the strings and streams of an object to be written as object `num` `gen` (in place: a parsed copy) */

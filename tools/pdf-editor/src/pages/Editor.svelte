@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { loadUserFonts, watchUserFonts } from '@in-browser/graphics/user-fonts.svelte.js';
 	import { filesUrl } from '@in-browser/files/formats.js';
 	// Editor page of a PDF (`?path=`): ribbon on top, side panels on the left, the pages on the
 	// shared ink core; page navigation and zoom in the footer. Changes save themselves
@@ -32,6 +33,12 @@
 	import { imagePdf } from '@in-browser/pdf/write/image-page.js';
 	import { editorUrl } from '#lib/brand.js';
 	import ColorField from '@in-browser/graphics/ColorField.svelte';
+	import InsetFields from '@in-browser/graphics/InsetFields.svelte';
+	import FontSizeButton from '@in-browser/graphics/FontSizeButton.svelte';
+	import { bookmarkCommands } from '#lib/model/bookmark-commands.js';
+	import { graphicsMessages } from '@in-browser/graphics/i18n/index.svelte.js';
+	import type { Insets } from '@in-browser/graphics/text-box.js';
+	import { MAX_PADDING } from '#lib/render/textbox.js';
 	import { richEditing } from '@in-browser/graphics/rich-editing.svelte.js';
 	import { inkMessages } from '@in-browser/ink/i18n/index.svelte.js';
 	import type { Tool } from '@in-browser/ink/input/controller.js';
@@ -49,6 +56,13 @@
 	import BarcodeDialog from '@in-browser/graphics/BarcodeDialog.svelte';
 	import { barcodeSpec, type BarcodeSpec } from '@in-browser/graphics/barcode.js';
 	import PrintDialog from '#lib/components/PrintDialog.svelte';
+	import PasswordDialog from '#lib/components/PasswordDialog.svelte';
+	import { forgetPassword, hasRememberedPassword, rememberPassword, sharePassword, withPassword } from '#lib/model/password.svelte.js';
+	import ProtectDialog from '#lib/components/ProtectDialog.svelte';
+	import DocumentPropertiesDialog from '#lib/components/DocumentPropertiesDialog.svelte';
+	import SanitizeDialog from '#lib/components/SanitizeDialog.svelte';
+	import type { NewProtection } from '@in-browser/pdf/crypt.js';
+	import type { IncrementalPdf, Sanitize } from '@in-browser/pdf/write/incremental.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
 	import Display from '#lib/show/Display.svelte';
 	import Presenter from '#lib/show/Presenter.svelte';
@@ -73,7 +87,7 @@
 	import { choosePdfPage, stampDialogs } from '#lib/model/stamp-dialogs.svelte.js';
 	import { chosenWord, wordText } from '#lib/model/stamp-words.js';
 	import { PAPERS, paperPdf, type Paper } from '@in-browser/pdf/write/paper-page.js';
-	import { barcodePicture, customStamps, iconPicture, loadStamps, loadWords, pictureSource, STAMP_TYPES, stampPicture, stampTool, stampWords, type StampPicture } from '#lib/model/stamps.svelte.js';
+	import { barcodePicture, customStamps, iconPicture, loadStamps, loadWords, pictureSource, STAMP_TYPES, stampPicture, stampTool, stampWords, usablePicture, type StampPicture } from '#lib/model/stamps.svelte.js';
 	import { isStamp, pictureStamp, type StampItem } from '#lib/render/stamp.js';
 	import IconPicker from '@in-browser/graphics/IconPicker.svelte';
 	import type { IconData } from '@in-browser/graphics/icons/types.js';
@@ -100,7 +114,7 @@
 	let access = $state<ReturnType<typeof accessAction>>(undefined);
 	let pageInput = $state('');
 	/** Opens the file again (another version arrived); null while nothing is open */
-	let reload: ((quiet: boolean) => Promise<void>) | null = null;
+	let reload: ((quiet: boolean, password?: string) => Promise<void>) | null = null;
 	/** The notice about signatures was closed */
 	let signedSeen = $state(false);
 	/** Asked once whether pages of a signed PDF may change */
@@ -126,11 +140,20 @@
 		let release: (() => void) | null = null;
 		let opened: PdfDocument | null = null;
 		let stopWatch: (() => void) | null = null;
+		let stopSharing: (() => void) | null = null;
 		error = null;
 
 		/** Replaces the open document by the file as it is now (the lock stays held) */
-		const reopen = async (quiet: boolean) => {
-			const next = await PdfDocument.open(path);
+		/** The password that opened it, for opening it again ('' for none) */
+		let password = '';
+		const reopen = async (quiet: boolean, nextPassword = password) => {
+			const next = await PdfDocument.open(path, nextPassword);
+			// Another password (protected anew, or no longer): other windows get that one
+			if (nextPassword !== password) {
+				password = nextPassword;
+				stopSharing?.();
+				stopSharing = sharePassword(path, password);
+			}
 			if (disposed) return next.destroy();
 			const old = opened;
 			ed.stage = null;
@@ -151,8 +174,18 @@
 					error = m.editor.openElsewhere;
 					return;
 				}
-				const next = await PdfDocument.open(path);
+				// A PDF that needs a password: the remembered one, else asked for (cancelled: the error page offers it again)
+				const next = await withPassword(basename(path), path, (typed) => PdfDocument.open(path, typed));
+				if (!next) {
+					if (!disposed) {
+						error = m.editor.password;
+						access = { label: m.password.enter, run: async () => location.reload() };
+					}
+					return;
+				}
+				password = next.password;
 				if (disposed) return next.destroy();
+				stopSharing = sharePassword(path, password);
 				opened = ed.doc = next;
 				// Messages of the form's scripts (`app.alert`) – never a browser dialog
 				next.onScriptMessage = (text) => toast(text, 'info', 8000);
@@ -185,6 +218,7 @@
 			disposed = true;
 			reload = null;
 			stopWatch?.();
+			stopSharing?.();
 			stopFlush();
 			opened?.flush();
 			ed.doc = null;
@@ -269,6 +303,56 @@
 		}
 	}
 
+	// --- The file written anew: protection, sanitizing ---
+	let protecting = $state(false);
+	let showingProperties = $state(false);
+	let sanitizing = $state(false);
+
+	/**
+	 * Writes the file anew (`make`), reads it again (with `password` from then on) and offers to put it back. A signed
+	 * PDF asks first (its signatures don't survive).
+	 */
+	async function rewriteFile(make: (writer: IncrementalPdf) => Promise<Uint8Array>, password: string, done: string) {
+		const doc = ed.doc;
+		if (!doc || doc.editable !== 'yes' || !reload) return;
+		if (doc.signed && !(await ask(m.questions.signedRewrite))) return;
+		const old = doc.password;
+		ed.selection?.clear();
+		try {
+			const before = await doc.rewrite(make);
+			await reload(true, password);
+			toast(done, 'success', 10_000, {
+				label: m.protect.undo,
+				run: async () => {
+					await ed.doc?.restore(before);
+					await reload?.(true, old);
+				}
+			});
+		} catch (e) {
+			showError(e, { context: '[pdf-editor] rewrite' });
+		}
+	}
+
+	async function protect(protection: NewProtection | null, remember: boolean) {
+		const doc = ed.doc;
+		if (!doc) return;
+		protecting = false;
+		// Opened from now on with the new password to open (none: without)
+		await rewriteFile((w) => w.protect(protection), protection?.user ?? '', protection ? m.protect.done : m.protect.removed);
+		if (remember && protection?.user) await rememberPassword(doc.path, protection.user).catch((e) => console.warn('[pdf-editor] password not kept', e));
+		else if (await hasRememberedPassword(doc.path)) {
+			// A remembered one that no longer fits goes; a new one replaces it
+			if (protection?.user) await rememberPassword(doc.path, protection.user);
+			else await forgetPassword(doc.path);
+		}
+	}
+
+	async function sanitize(what: Sanitize) {
+		sanitizing = false;
+		const doc = ed.doc;
+		if (doc) await rewriteFile((w) => w.sanitize(what), doc.password, m.sanitize.done);
+	}
+
 	/** The color under the pages to change (the first one's), and setting it – a dragged color once it is let go */
 	const pageBackground = () => {
 		const ids = ed.pagesToChange();
@@ -311,8 +395,9 @@
 			const bytes = kind === 'pdf' ? new Uint8Array(await file.arrayBuffer()) : await imagePdf(file);
 			const at = ed.current + 1;
 			ed.selection?.clear();
-			await doc.insertPdf(at, bytes);
-			ed.goTo(at);
+			// A PDF protected by a password: asked for (cancelled: nothing inserted)
+			const done = await withPassword(basename(path), path, (password) => doc.insertPdf(at, bytes, password).then(() => true));
+			if (done) ed.goTo(at);
 		} catch (e) {
 			failed(e);
 		}
@@ -358,8 +443,20 @@
 		if (!doc) return;
 		const paths = await chooseFiles({ mode: 'open', folder: parent(doc.path), accept: ['.pdf'], multiple: true, title: m.commands.mergeTitle });
 		if (!paths?.length) return;
+		// PDFs protected by a password are opened with it (asked for one after the other); cancelled: nothing is merged
+		const others: Uint8Array[] = [];
+		try {
+			for (const p of paths) {
+				const bytes = new Uint8Array(await (await read(p)).arrayBuffer());
+				const usable = await withPassword(basename(p), p, (password) => PdfDocument.unlocked(bytes, password));
+				if (!usable) return;
+				others.push(usable);
+			}
+		} catch (e) {
+			return failed(e);
+		}
 		await saveNew(
-			async (d) => d.merged(await Promise.all(paths.map(async (p) => new Uint8Array(await (await read(p)).arrayBuffer())))),
+			async (d) => d.merged(others),
 			m.commands.mergeName(stem()),
 			m.commands.mergeSaveTitle
 		);
@@ -402,9 +499,12 @@
 	}
 	async function stampFromImage() {
 		const doc = ed.doc;
-		const path = await chooseFile({ mode: 'open', folder: doc ? parent(doc.path) : '/', accept: STAMP_TYPES, title: m.stamps.imageTitle });
-		if (!path) return;
+		const picked = await chooseFile({ mode: 'open', folder: doc ? parent(doc.path) : '/', accept: STAMP_TYPES, title: m.stamps.imageTitle });
+		if (!picked) return;
 		try {
+			// A PDF protected by a password: kept without it in "My stamps" (asked for once)
+			const path = await usablePicture(picked);
+			if (!path) return;
 			const which = await choosePdfPage(path);
 			if (which) pickStamp({ custom: path, page: which.page });
 		} catch (e) {
@@ -796,7 +896,9 @@
 	}
 
 	// The selection's commands (the shared ones of the ink core plus the PDF's own kinds)
-	const sc = selectionCommands(ed, edit);
+	const sc = selectionCommands(ed, edit, resolve('/fonts'));
+	const bc = bookmarkCommands(ed);
+	ed.bookmarkCommands = bc;
 
 	const commands = {
 		// The PDF itself (tab “File”); it is named after its file – renamed in Files
@@ -822,6 +924,30 @@
 		},
 share: shareCommand(() => ed.doc?.path),
 		send: sendCommand(() => ed.doc?.path),
+		protectPdf: {
+			id: 'protectPdf',
+			label: m.protect.command,
+			tip: m.protect.commandTip,
+			icon: 'icon-[material-symbols-light--shield-lock-outline]',
+			enabled: () => ed.doc?.editable === 'yes',
+			run: () => (protecting = true)
+		},
+		properties: {
+			id: 'properties',
+			label: m.properties.command,
+			tip: m.properties.commandTip,
+			icon: 'icon-[material-symbols-light--info-outline]',
+			enabled: () => !!ed.doc,
+			run: () => (showingProperties = true)
+		},
+		sanitize: {
+			id: 'sanitize',
+			label: m.sanitize.command,
+			tip: m.sanitize.commandTip,
+			icon: 'icon-[material-symbols-light--cleaning-services-outline]',
+			enabled: () => ed.doc?.editable === 'yes',
+			run: () => (sanitizing = true)
+		},
 		showInFiles: { id: 'showInFiles', label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--folder-open-outline]', enabled: () => !!ed.doc, run: () => showInFiles() },
 		undo: { id: 'undo', label: m.commands.undo, icon: 'icon-[material-symbols-light--undo]', shortcut: { key: 'z', ctrl: true }, enabled: () => !!ed.doc?.canUndo, run: () => changed(() => ed.doc?.undo()) },
 		redo: {
@@ -1340,7 +1466,8 @@ share: shareCommand(() => ed.doc?.path),
 			id: 'outline',
 			icon: 'icon-[material-symbols-light--bookmarks-outline]',
 			label: m.panels.outline,
-			available: () => !!ed.doc?.outline.length,
+			// Always where bookmarks can be added; elsewhere only when the PDF has some
+			available: () => !!ed.doc && (ed.doc.bookmarks.length > 0 || ed.doc.canEditBookmarks),
 			load: async () => (await import('#lib/panels/OutlinePanel.svelte')).default
 		},
 		{
@@ -1396,6 +1523,8 @@ share: shareCommand(() => ed.doc?.path),
 		void ed.selection?.items;
 		return {};
 	});
+	/** Inner margins of the selected text boxes while a change goes on (applied as one step at its end) */
+	let paddingDraft = $state<Insets | null>(null);
 	/** Background or border of text boxes: the selection's applied once at the end (shown meanwhile), the new ones' at once */
 	function draftOr<T extends string | null>(key: 'fill' | 'border', value: T): T {
 		return key in drafts ? (drafts[key] as T) : value;
@@ -1437,7 +1566,8 @@ share: shareCommand(() => ed.doc?.path),
 			label: brandMessages().ribbon.file,
 			groups: [
 				{ id: 'pdf', label: m.ribbon.groups.pdf, items: [commands.newPdf, commands.download, commands.exportPages, commands.print, commands.share, commands.send, commands.showInFiles] },
-				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] }
+				{ id: 'newFile', label: m.ribbon.groups.newFile, items: [commands.extract, commands.merge] },
+				{ id: 'protection', label: m.ribbon.groups.protection, items: [commands.protectPdf, commands.properties, commands.sanitize] }
 			]
 		},
 		{
@@ -1503,12 +1633,12 @@ share: shareCommand(() => ed.doc?.path),
 		},
 		// The format of what is selected or what the chosen tool draws, and how a selection is arranged
 		formatTab('text', m.ribbon.tabs.textbox, [
-			{ id: 'text', label: m.ribbon.groups.text, items: [sc.editText, sc.fontFamily, sc.fontSize, sc.bold, sc.italic, sc.underline, { id: 'textColor', label: m.textbox.textColor, custom: formatColor }] },
+			{ id: 'text', label: m.ribbon.groups.text, items: [sc.editText, sc.fontFamily, { id: 'fontSize', label: graphicsMessages().text.fontSize, custom: fontSizeButton }, sc.bold, sc.italic, sc.underline, { id: 'textColor', label: m.textbox.textColor, custom: formatColor }] },
 			{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [sc.alignLeft, sc.alignCenter, sc.alignRight, sc.justify, sc.bulleted, sc.numbered, sc.lineHeight] },
 			{
 				id: 'box',
 				label: m.ribbon.groups.box,
-				items: [{ id: 'fill', label: m.textbox.fill, custom: fillButton }, { id: 'border', label: m.textbox.border, custom: borderButton }, sc.borderWidth]
+				items: [{ id: 'fill', label: m.textbox.fill, custom: fillButton }, { id: 'border', label: m.textbox.border, custom: borderButton }, sc.borderWidth, { id: 'padding', label: m.textbox.padding, custom: paddingButton }]
 			},
 			{ id: 'sizing', label: m.ribbon.groups.sizing, items: [sc.autoWidth, sc.autoHeight, sc.fixedSize] }
 		]),
@@ -1527,6 +1657,20 @@ share: shareCommand(() => ed.doc?.path),
 			// Only for a selection (its commands work on one)
 			visible: () => !!sc.sel(),
 			groups: arrangeGroups(sc)
+		},
+		{
+			id: 'bookmarks',
+			label: m.ribbon.tabs.bookmarks,
+			contextual: true,
+			// While their panel is open; it comes forward when the panel opens (that is what it was opened for)
+			visible: () => ed.panel === 'outline' && !!ed.doc?.canEditBookmarks,
+			follow: () => true,
+			groups: [
+				{ id: 'bookmark', label: m.bookmarks.groups.bookmark, items: [bc.addBookmark, bc.renameBookmark, bc.bookmarkTarget, bc.removeBookmarks] },
+				{ id: 'order', label: m.bookmarks.groups.order, items: [bc.bookmarkUp, bc.bookmarkDown, bc.indentBookmarks, bc.outdentBookmarks] },
+				{ id: 'style', label: m.bookmarks.groups.style, items: [bc.bookmarkBold, bc.bookmarkItalic, { id: 'bookmarkColor', label: m.bookmarks.color, custom: bookmarkColor }] },
+				{ id: 'view', label: m.bookmarks.groups.view, items: [bc.expandBookmarks, bc.collapseBookmarks] }
+			]
 		}
 	];
 
@@ -1615,6 +1759,12 @@ share: shareCommand(() => ed.doc?.path),
 	}
 
 	$effect(() => setBrandFooter({ status: footerStatus, save: ed.doc ? saveStateOf(ed.doc) : null }));
+
+	// The user's own fonts (“My fonts”): read now, and again when the font folder changes
+	$effect(() => {
+		void loadUserFonts();
+		return watchUserFonts();
+	});
 </script>
 
 <svelte:head>
@@ -1624,7 +1774,7 @@ share: shareCommand(() => ed.doc?.path),
 <!-- Format tabs: the color of the selection, else of what the chosen tool draws next – every one with its opacity -->
 {#snippet pageBackgroundButton(size: GroupSize)}
 	{@const color = backgroundDraft ? backgroundDraft.value : pageBackground()}
-	<RibbonPopover id="pageBackground" label={m.pageSize.background} icon="icon-[material-symbols-light--format-color-fill]" {size} swatch={color} disabled={!editable()}>
+	<RibbonPopover id="pageBackground" label={m.pageSize.background} icon="icon-[material-symbols-light--colors]" {size} swatch={color ?? null} disabled={!editable()}>
 		{#snippet children()}
 			<ColorField value={color} allowNone opaque onchange={setPageBackground} />
 		{/snippet}
@@ -1636,7 +1786,7 @@ share: shareCommand(() => ed.doc?.path),
 	{#if kind === 'text' && richEditing.current}
 		<!-- While a text box is typed into: the color of what is selected in it -->
 		{@const typed = richEditing.current.marks.color}
-		<RibbonPopover id="formatColor" label={m.textbox.textColor} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={typed}>
+		<RibbonPopover id="formatColor" label={m.textbox.textColor} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={typed ?? null}>
 			{#snippet children()}
 				<ColorField value={typed} onchange={(v, final) => v && final && void sc.formatText({ color: v })} />
 			{/snippet}
@@ -1679,7 +1829,7 @@ share: shareCommand(() => ed.doc?.path),
 <!-- Format tab "Text box": background and border (with their opacity; "None") -->
 {#snippet fillButton(size: GroupSize)}
 	{@const fill = draftOr('fill', sc.boxStyle().fill)}
-	<RibbonPopover id="fill" label={m.textbox.fill} icon="icon-[material-symbols-light--format-paint-outline]" {size} swatch={fill} disabled={kind !== 'text'}>
+	<RibbonPopover id="fill" label={m.textbox.fill} icon="icon-[material-symbols-light--colors]" {size} swatch={fill ?? null} disabled={kind !== 'text'}>
 		{#snippet children()}
 			<ColorField value={fill} allowNone onchange={(v, final) => colorChange('fill', v, final, (c) => sc.styleTexts({ fill: c }))} />
 		{/snippet}
@@ -1688,9 +1838,44 @@ share: shareCommand(() => ed.doc?.path),
 
 {#snippet borderButton(size: GroupSize)}
 	{@const border = draftOr('border', sc.boxStyle().border)}
-	<RibbonPopover id="border" label={m.textbox.border} icon="icon-[material-symbols-light--border-outer]" {size} swatch={border} disabled={kind !== 'text'}>
+	<RibbonPopover id="border" label={m.textbox.border} icon="icon-[material-symbols-light--border-outer]" {size} swatch={border ?? null} disabled={kind !== 'text'}>
 		{#snippet children()}
 			<ColorField value={border} allowNone onchange={(v, final) => colorChange('border', v, final, (c) => sc.styleTexts({ border: c }))} />
+		{/snippet}
+	</RibbonPopover>
+{/snippet}
+
+<!-- Contextual tab "Bookmarks": the color of the picked ones ("None": the viewer's own) -->
+{#snippet bookmarkColor(size: GroupSize)}
+	{@const value = bc.color()}
+	<RibbonPopover id="bookmarkColor" label={m.bookmarks.color} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={value ?? null} disabled={!bc.bookmarkBold.enabled()}>
+		{#snippet children()}
+			<ColorField {value} allowNone opaque onchange={(v, final) => final && bc.setColor(v)} />
+		{/snippet}
+	</RibbonPopover>
+{/snippet}
+
+<!-- Format tab "Text box": the font size, any or one of the list -->
+{#snippet fontSizeButton(size: GroupSize)}
+	<FontSizeButton commands={sc.rich} {size} />
+{/snippet}
+
+<!-- Format tab "Text box": inner margins per side; the selection's applied as one step when a change ends -->
+{#snippet paddingButton(size: GroupSize)}
+	<RibbonPopover id="padding" label={m.textbox.padding} icon="icon-[material-symbols-light--padding-outline]" {size} disabled={kind !== 'text'}>
+		{#snippet children()}
+			<InsetFields
+				value={paddingDraft ?? sc.boxStyle().padding}
+				unit="pt"
+				max={MAX_PADDING}
+				step={0.5}
+				decimals={1}
+				oninput={(v) => (sc.sel() ? (paddingDraft = v) : sc.styleTexts({ padding: v }))}
+				oncommit={() => {
+					if (paddingDraft) sc.styleTexts({ padding: paddingDraft });
+					paddingDraft = null;
+				}}
+			/>
 		{/snippet}
 	</RibbonPopover>
 {/snippet}
@@ -1847,6 +2032,9 @@ share: shareCommand(() => ed.doc?.path),
 	</div>
 	{#if creating}<NewPdfDialog folder={parent(doc.path)} oncreated={(path) => location.assign(editorUrl(path))} onclose={() => (creating = false)} />{/if}
 	{#if printing}<PrintDialog {ed} which={printing} onclose={() => (printing = null)} />{/if}
+	{#if protecting}<ProtectDialog {doc} onapply={(p, remember) => void protect(p, remember)} onclose={() => (protecting = false)} />{/if}
+	{#if showingProperties}<DocumentPropertiesDialog {doc} size={doc.size} onclose={() => (showingProperties = false)} />{/if}
+	{#if sanitizing}<SanitizeDialog {doc} onapply={(what) => void sanitize(what)} onclose={() => (sanitizing = false)} />{/if}
 	{#if barcoding}<BarcodeDialog spec={barcoding.edit?.spec} oninsert={insertBarcode} onclose={() => (barcoding = null)} />{/if}
 	{#if sizing}<PageSizeDialog pages={doc.pages} picked={ed.pagesToChange()} onapply={resizePages} onclose={() => (sizing = false)} />{/if}
 	{#if exporting}<ExportDialog {ed} which={exporting} onclose={() => (exporting = null)} />{/if}
@@ -1877,3 +2065,6 @@ share: shareCommand(() => ed.doc?.path),
 		<span class="loading loading-spinner opacity-60"></span>
 	</div>
 {/if}
+
+<!-- The password of a PDF that needs one: opening it, inserting from one, a stamp of one -->
+<PasswordDialog />

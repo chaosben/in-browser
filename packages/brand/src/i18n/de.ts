@@ -10,7 +10,8 @@ const de: BrandMessages = {
 		files: 'Dateien',
 		'text-editor': 'Texteditor',
 		'screen-capture': 'Bildschirmaufnahme',
-		'pdf-editor': 'PDF-Editor'
+		'pdf-editor': 'PDF-Editor',
+		fonts: 'Schriften'
 	},
 
 	brand: {

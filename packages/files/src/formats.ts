@@ -58,6 +58,19 @@ export const FORMATS: readonly Format[] = [
 		tool: 'screen-capture',
 		open: '/screen-capture/editor'
 	},
+	// A font file opens in the tool Fonts (shown, and added to the user's fonts)
+	{
+		ext: '.ttf',
+		kind: 'file',
+		tool: 'fonts',
+		open: '/fonts/file'
+	},
+	{
+		ext: '.otf',
+		kind: 'file',
+		tool: 'fonts',
+		open: '/fonts/file'
+	},
 	// A PDF opens in the PDF Editor (changed in place)
 	{
 		ext: '.pdf',

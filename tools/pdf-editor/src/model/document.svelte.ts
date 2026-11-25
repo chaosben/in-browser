@@ -23,7 +23,12 @@ import type { PageText } from '@in-browser/pdf/text.js';
 import { readPageText } from '@in-browser/pdf/text-layer.js';
 import { parsePdfDate, type NewAnnotation, type ReviewState, type Rgb } from '@in-browser/pdf/write/annotations.js';
 import type { PdfForm } from '@in-browser/pdf/write/form.js';
-import { IncrementalPdf, type PdfEdits } from '@in-browser/pdf/write/incremental.js';
+import { IncrementalPdf, type DocumentFacts, type DocumentInfo, type FileBookmark, type NewBookmark, type PdfEdits } from '@in-browser/pdf/write/incremental.js';
+import { walk, type Bookmark, type BookmarkTarget } from './outline.js';
+import { customLabel, registerFamily } from '@in-browser/graphics/fonts.js';
+import type { CustomFont } from '@in-browser/graphics/rich-text.js';
+import { describeFont } from '@in-browser/graphics/user-fonts.svelte.js';
+import { m } from '#lib/i18n/index.js';
 import { pieceForm } from '@in-browser/pdf/write/piece.js';
 import { filledForm, formFonts, readFields, storageValue, type FieldValue, type FormField, type FormWidget } from '@in-browser/pdf/forms.js';
 import { startScripts, type FormScripts, type SandboxEvent, type ScriptChange } from '@in-browser/pdf/scripting.js';
@@ -127,12 +132,16 @@ export interface ItemListener {
 	backdrop?(pageId: string): void;
 }
 
-/** An entry of the PDF's bookmarks (outline) */
-export interface OutlineEntry {
+/** An entry of the outline as PDF.js reads it */
+interface PdfJsOutline {
 	title: string;
-	/** Named destination or explicit one (PDF.js format); null: no place in this document */
+	bold?: boolean;
+	italic?: boolean;
+	color?: Uint8ClampedArray | number[] | null;
+	count?: number;
+	url?: string | null;
 	dest: string | unknown[] | null;
-	items: OutlineEntry[];
+	items: PdfJsOutline[];
 }
 
 /** A reply to a comment (a `/Text` note answering it in the file) */
@@ -187,8 +196,15 @@ export class PdfDocument {
 	 * needs it while the pointer moves) */
 	private readonly text = new Map<string, Promise<PageText>>();
 	private readonly textNow = new Map<string, PageText>();
+	/** The bookmarks (`model/outline.ts`): as PDF.js read them until the file is parsed for writing, then as the file
+	 * has them (`fileBookmarks`, kept to see what changed); which are open (by id; `fileOpen` as the file says) */
+	bookmarks = $state.raw<readonly Bookmark[]>([]);
+	bookmarksOpen = $state.raw<ReadonlySet<string>>(new Set());
+	private fileBookmarks: readonly Bookmark[] = [];
+	private fileOpen: ReadonlySet<string> = new Set();
+	/** The bookmarks are the file's (it is parsed for writing) */
+	private bookmarksRead = $state(false);
 	/** What the PDF brings along (read once when opened) */
-	outline: OutlineEntry[] = [];
 	attachments: Attachment[] = [];
 	hasLayers = false;
 	private readonly scenes = new Map<string, PageScene<PdfItem>>();
@@ -217,7 +233,7 @@ export class PdfDocument {
 	/** The file as last written (or as opened) */
 	private latest: Uint8Array;
 	/** PDFs pages were inserted from (by key): their bytes (copied into the file when it is saved) and PDF.js's document */
-	private readonly inserted = new Map<string, { bytes: Uint8Array; pdf: PDFDocumentProxy }>();
+	private readonly inserted = new Map<string, { bytes: Uint8Array; pdf: PDFDocumentProxy; password?: string }>();
 	/** Subjects of comments and replies (their ids); as read from the file (`fileSubjects`), to see what changed */
 	subjects = $state.raw<ReadonlyMap<string, string>>(new Map());
 	private readonly fileSubjects = new Map<string, string>();
@@ -275,7 +291,9 @@ export class PdfDocument {
 		pages: PdfPage[],
 		/** The file as opened (never changed: updates are appended to it) */
 		private readonly base: Uint8Array,
-		stamp: Stamp
+		stamp: Stamp,
+		/** The password that opened it ('' for none): everything that reads the file again needs it */
+		readonly password = ''
 	) {
 		this.path = path;
 		this.pages = pages;
@@ -323,12 +341,17 @@ export class PdfDocument {
 		return basename(this.path);
 	}
 
-	/** Reads and opens a PDF; throws `PdfError` when the file can't be read as one */
-	static async open(path: string): Promise<PdfDocument> {
+	/** Bytes of the file as last written (or opened) */
+	get size(): number {
+		return this.latest.length;
+	}
+
+	/** Reads and opens a PDF; throws `PdfError` when the file can't be read as one (`password` for one that needs it) */
+	static async open(path: string, password = ''): Promise<PdfDocument> {
 		const file = await read(path);
 		const base = new Uint8Array(await file.arrayBuffer());
 		// PDF.js may take the buffer to its worker: it gets a copy
-		const pdf = await openPdf(base.slice());
+		const pdf = await openPdf(base.slice(), password);
 		if (!pdf.numPages) throw new PdfError('invalid');
 		const pages: PdfPage[] = [];
 		for (let n = 1; n <= pdf.numPages; n++) {
@@ -336,12 +359,13 @@ export class PdfDocument {
 			const viewport = page.getViewport({ scale: 1 });
 			pages.push({ id: `p${n}`, w: viewport.width, h: viewport.height, number: n, rotate: viewport.rotation, rev: 0, view: page.view });
 		}
-		const doc = new PdfDocument(path, pdf, pages, base, { size: file.size, modified: file.lastModified });
+		const doc = new PdfDocument(path, pdf, pages, base, { size: file.size, modified: file.lastModified }, password);
 		doc.fingerprint = await fingerprintOf(base);
 		doc.check(await canWrite(path).catch(() => true));
 		void doc.loadFields();
 		const [outline, attachments, layers] = await Promise.all([pdf.getOutline().catch(() => null), pdf.getAttachments().catch(() => null), doc.layers().catch(() => null)]);
-		doc.outline = (outline ?? []) as OutlineEntry[];
+		// Shown as PDF.js reads them until the file is parsed for writing
+		if (!doc.bookmarksRead) doc.showOutline((outline ?? []) as PdfJsOutline[]);
 		doc.attachments = [...(attachments?.entries() ?? [])].map(([id, a]) => ({ id, name: a.filename, description: a.description }));
 		doc.hasLayers = !!layers && [...layers].length > 0;
 		return doc;
@@ -349,7 +373,7 @@ export class PdfDocument {
 
 	/** Parses the file for writing (in the background): encrypted or unreadable files are only shown */
 	private check(writable: boolean) {
-		this.writer = IncrementalPdf.open(this.base);
+		this.writer = IncrementalPdf.open(this.base, this.password);
 		this.writer.then(
 			(writer) => {
 				this.signed = writer.signed;
@@ -357,6 +381,18 @@ export class PdfDocument {
 				// Only for reading where it lies: shown like an editable one (comments, steps, notes), never changed
 				if (fine) this.takeAnnotations(writer);
 				if (fine) this.takeBackgrounds(writer);
+				if (fine) this.takeBookmarks(writer);
+				if (fine) void this.takeFonts(writer).catch((e) => console.warn('[pdf-editor] fonts of the PDF', e));
+				this.protection = writer.protection;
+				if (fine) {
+					try {
+						const facts = writer.info();
+						this.facts = facts;
+						this.fileInfo = this.info = { title: facts.title, author: facts.author, subject: facts.subject, keywords: facts.keywords };
+					} catch (e) {
+						console.warn('[pdf-editor] properties', e);
+					}
+				}
 				this.editable = writer.locked ? 'encrypted' : !fine ? 'failed' : writable ? 'yes' : 'readonly';
 			},
 			(e) => {
@@ -364,6 +400,231 @@ export class PdfDocument {
 				this.editable = 'failed';
 			}
 		);
+	}
+
+	/** The bookmarks as PDF.js reads them: only shown (`dest`), with their style */
+	private showOutline(outline: readonly PdfJsOutline[]) {
+		let n = 0;
+		const open = new Set<string>();
+		const convert = (list: readonly PdfJsOutline[]): Bookmark[] =>
+			list.map((o) => {
+				const id = `o${++n}`;
+				if ((o.count ?? 0) > 0) open.add(id);
+				const color = o.color && o.color.length === 3 && [...o.color].some((c) => c > 0) ? hexOf([...o.color].map((c) => c / 255) as Rgb) : undefined;
+				return {
+					id,
+					title: o.title,
+					...(o.bold && { bold: true }),
+					...(o.italic && { italic: true }),
+					...(color && { color }),
+					target: o.url ? { kind: 'file', ref: '', number: null, top: null, uri: o.url } : o.dest ? { kind: 'dest', dest: o.dest } : null,
+					items: convert(o.items ?? [])
+				};
+			});
+		this.bookmarks = convert(outline);
+		this.bookmarksOpen = open;
+	}
+
+	/** The bookmarks as the file has them (once it is parsed for writing): changed from here on */
+	private takeBookmarks(writer: IncrementalPdf) {
+		let n = 0;
+		const open = new Set<string>();
+		const convert = (list: readonly FileBookmark[]): Bookmark[] =>
+			list.map((b) => {
+				const id = `b${++n}`;
+				if (b.open) open.add(id);
+				return {
+					id,
+					title: b.title,
+					...(b.bold && { bold: true }),
+					...(b.italic && { italic: true }),
+					...(b.color && { color: hexOf(b.color) }),
+					target: { kind: 'file', ref: b.ref, number: b.page === null ? null : b.page + 1, top: b.top, ...(b.uri && { uri: b.uri }) },
+					items: convert(b.items)
+				};
+			});
+		try {
+			this.fileBookmarks = convert(writer.outline());
+		} catch (e) {
+			console.warn('[pdf-editor] bookmarks', e);
+			return;
+		}
+		this.fileOpen = open;
+		this.bookmarksRead = true;
+		this.bookmarks = this.fileBookmarks;
+		this.bookmarksOpen = open;
+	}
+
+	/** The document's properties (`info`, as changed; `fileInfo` as the file has them) and what it says about itself
+	 * (`facts`), once the file is parsed for writing */
+	info = $state.raw<DocumentInfo>({});
+	private fileInfo: DocumentInfo = {};
+	facts = $state.raw<DocumentFacts | null>(null);
+	/** How the file is protected (once parsed): method, permissions, whether it needs a password to open */
+	protection = $state.raw<IncrementalPdf['protection']>(null);
+
+	/** Changes the properties (one undo step) */
+	setInfo(next: DocumentInfo) {
+		const before = this.info;
+		const keys = ['title', 'author', 'subject', 'keywords'] as const;
+		if (this.editable !== 'yes' || keys.every((k) => (next[k] ?? '') === (before[k] ?? ''))) return;
+		const set = (info: DocumentInfo) => (this.info = info);
+		set(next);
+		this.pushStep({ undo: () => set(before), redo: () => set(next) });
+	}
+
+	/** The properties to write, when they differ from the file's (each changed one; '' takes it away) */
+	private infoEdit(): DocumentInfo | undefined {
+		const keys = ['title', 'author', 'subject', 'keywords'] as const;
+		const changed = keys.filter((k) => (this.info[k] ?? '') !== (this.fileInfo[k] ?? ''));
+		return changed.length ? Object.fromEntries(changed.map((k) => [k, this.info[k] ?? ''])) : undefined;
+	}
+
+	/**
+	 * The file written anew by `make` from the PDF as it is now (saved first): protected, unprotected, sanitized. It is
+	 * no step to undo – the editor reads the file again and offers to put back the bytes from before (returned).
+	 */
+	async rewrite(make: (writer: IncrementalPdf) => Promise<Uint8Array>): Promise<Uint8Array> {
+		const before = await this.current();
+		const writer = await IncrementalPdf.open(before, this.password);
+		await this.restore(await make(writer));
+		return before;
+	}
+
+	/** What the PDF as it is now holds that “Sanitize” can take out */
+	async hiddenData() {
+		return (await IncrementalPdf.open(await this.current(), this.password)).inspect();
+	}
+
+	/** The fonts the PDF brings that text boxes can use (registered as `pdf:<name>`; a subset says so in menus), and
+	 * those that can't be, with the reason */
+	documentFonts = $state.raw<(CustomFont | { label: string; reason: string })[]>([]);
+
+	private async takeFonts(writer: IncrementalPdf) {
+		const out: (CustomFont | { label: string; reason: string })[] = [];
+		for (const p of writer.fonts()) {
+			// The standard fonts are ours already; Type 1, Type 3 and bare CFF programs aren't fonts a browser takes
+			if (p.kind === 'none') continue;
+			const usable = p.bytes && (p.kind === 'truetype' || p.kind === 'opentype') ? await describeFont(p.bytes, p.name, 0) : null;
+			const font = usable?.font;
+			// fontkit throws on programs without a character map (common in subsets): such a font can't be used, the
+			// others still can
+			let characters = 0;
+			try {
+				characters = font ? ((font as { characterSet?: number[] }).characterSet?.length ?? 0) : 0;
+			} catch {
+				characters = 0;
+			}
+			if (!p.bytes || !font || !characters) {
+				out.push({ label: p.name, reason: m.fonts.cannotUse });
+				continue;
+			}
+			const id: CustomFont = `pdf:${p.name}`;
+			const bytes = p.bytes;
+			registerFamily(id, {
+				label: p.name,
+				faces: { regular: async () => bytes.slice().buffer },
+				has: (_, codePoint) => {
+					try {
+						return font.hasGlyphForCodePoint(codePoint);
+					} catch {
+						return false;
+					}
+				},
+				// A subset by its name, or by holding few characters (programs like pdf-lib don't mark theirs)
+				...((p.subset || characters < 120) && { note: m.fonts.subset })
+			});
+			out.push(id);
+		}
+		this.documentFonts = out.sort((a, b) => (typeof a === 'string' ? customLabel(a) : a.label).localeCompare(typeof b === 'string' ? customLabel(b) : b.label));
+	}
+
+	/** The bookmarks can be changed: the file is parsed for writing and can be written */
+	get canEditBookmarks(): boolean {
+		return this.editable === 'yes' && this.bookmarksRead;
+	}
+
+	/** The last step that changed the bookmarks (a new one's name typed right after belongs to it) */
+	private bookmarkStep: (Step & { after: readonly Bookmark[] }) | null = null;
+
+	/** The bookmarks changed as one step to undo; `amend`: part of the step just before, if it changed them */
+	changeBookmarks(next: readonly Bookmark[] | null, amend = false) {
+		const before = this.bookmarks;
+		if (this.editable !== 'yes' || !next || next === before) return;
+		const set = (tree: readonly Bookmark[]) => (this.bookmarks = tree);
+		set(next);
+		const last = this.bookmarkStep;
+		if (amend && last && this.history.last === last) {
+			last.after = next;
+			return this.markChanged();
+		}
+		const step = { after: next, undo: () => set(before), redo: () => set(step.after) };
+		this.bookmarkStep = step;
+		this.pushStep(step);
+	}
+
+	/** Opens or closes bookmarks (no step to undo – it is how they are shown; saved with the file where it can be) */
+	setBookmarksOpen(open: ReadonlySet<string>) {
+		this.bookmarksOpen = open;
+		if (this.editable !== 'yes') return;
+		this.version++;
+		this.dirty = true;
+		this.scheduleSave();
+	}
+
+	/** Where a bookmark leads now: the page's place and its height there (page points from the top); null: nowhere
+	 * in this document */
+	async bookmarkPlace(target: BookmarkTarget | null): Promise<{ index: number; y: number } | null> {
+		if (!target) return null;
+		if (target.kind === 'dest') return this.destination(target.dest);
+		if (target.kind === 'page') {
+			const index = this.pages.findIndex((p) => p.id === target.page);
+			return index < 0 ? null : { index, y: target.y };
+		}
+		if (target.number === null) return null;
+		const index = this.pages.findIndex((p) => isOwnPage(p) && p.number === target.number);
+		if (index < 0) return null;
+		const page = this.pages[index];
+		if (target.top === null) return { index, y: 0 };
+		const [, y] = toShown(pageTransform(page.view, page.rotate))(page.view[0], target.top);
+		return { index, y: Math.max(0, y) };
+	}
+
+	/** Does a bookmark lead somewhere in this document as it is now (a web address counts too)? */
+	leadsSomewhere(target: BookmarkTarget | null): boolean {
+		if (!target) return false;
+		if (target.kind === 'dest') return true;
+		if (target.kind === 'page') return this.pages.some((p) => p.id === target.page);
+		return !!target.uri || (target.number !== null && this.pages.some((p) => isOwnPage(p) && p.number === target.number));
+	}
+
+	/** The bookmarks to write, when they differ from the file's: as changed, or the file's left without targets on
+	 * deleted pages; open ones as shown */
+	private outlineEdit(): NewBookmark[] | undefined {
+		const sameOpen = this.bookmarksOpen.size === this.fileOpen.size && [...this.fileOpen].every((id) => this.bookmarksOpen.has(id));
+		const deleted = this.fileBookmarks.length > 0 && [...walk(this.fileBookmarks)].some(({ bookmark: b }) => b.target?.kind === 'file' && b.target.number !== null && !this.leadsSomewhere(b.target));
+		if (this.bookmarks === this.fileBookmarks && sameOpen && !deleted) return undefined;
+		const convert = (list: readonly Bookmark[]): NewBookmark[] =>
+			list.map((b) => {
+				const t = b.target;
+				let target: NewBookmark['target'] = null;
+				if (t?.kind === 'file' && t.ref) target = { keep: t.ref };
+				else if (t?.kind === 'page') {
+					const index = this.pages.findIndex((p) => p.id === t.page);
+					const page = this.pages[index];
+					if (page) target = { page: index, top: Math.round(toUserSpace(pageTransform(page.view, page.rotate))(0, t.y)[1] * 100) / 100 };
+				}
+				return {
+					title: b.title,
+					...(b.bold && { bold: true }),
+					...(b.italic && { italic: true }),
+					...(b.color && { color: rgbOf(b.color) }),
+					open: this.bookmarksOpen.has(b.id),
+					target,
+					items: convert(b.items)
+				};
+			});
+		return convert(this.bookmarks);
 	}
 
 	/** The colors the file's pages lie on (written by us, `PdfEdits.background`) */
@@ -473,7 +734,7 @@ export class PdfDocument {
 			return [];
 		});
 		for (const f of fields) this.fileValues.set(f.name, f.value);
-		if (fields.length) this.fieldFonts = await formFonts(this.base).catch(() => new Map());
+		if (fields.length) this.fieldFonts = await formFonts(this.base, this.password).catch(() => new Map());
 		this.fields = fields;
 		this.values = new Map(this.fileValues);
 		if (fields.length) {
@@ -655,7 +916,7 @@ export class PdfDocument {
 		if (!values.size) return undefined;
 		const key = JSON.stringify([...values]);
 		if (this.filled?.key !== key) {
-			const filled = { key, bytes: filledForm(this.base, values) };
+			const filled = { key, bytes: filledForm(this.base, values, this.password) };
 			// A failed save is tried anew next time
 			filled.bytes.catch(() => this.filled === filled && (this.filled = null));
 			this.filled = filled;
@@ -919,17 +1180,17 @@ export class PdfDocument {
 	 * Inserts all pages of another PDF at `at` – one step to undo; throws `PdfError` when it can't be read (or is
 	 * protected: its pages couldn't be copied)
 	 */
-	async insertPdf(at: number, bytes: Uint8Array): Promise<void> {
+	async insertPdf(at: number, bytes: Uint8Array, password = ''): Promise<void> {
 		if (this.editable !== 'yes') return;
-		// Protection without a password is taken off (`loadPdf`); one with a password can't be copied from
-		const check = await loadPdf(bytes).catch((e: unknown) => {
+		// Protection without a password is taken off (`loadPdf`); one with a password needs it
+		const check = await loadPdf(bytes, false, password).catch((e: unknown) => {
 			throw new PdfError('invalid', e);
 		});
-		if (check.locked) throw new PdfError('password');
-		const pdf = await openPdf(bytes.slice());
+		if (check.locked) throw new PdfError('password', undefined, !!password);
+		const pdf = await openPdf(bytes.slice(), password);
 		if (!pdf.numPages) throw new PdfError('invalid');
 		const key = crypto.randomUUID();
-		this.inserted.set(key, { bytes, pdf });
+		this.inserted.set(key, { bytes, pdf, password });
 		const pages: PdfPage[] = [];
 		for (let n = 1; n <= pdf.numPages; n++) {
 			const page = await pdf.getPage(n);
@@ -951,19 +1212,38 @@ export class PdfDocument {
 	/** A new PDF of some of its pages (places, in this order) – with everything drawn on them, outline and form kept as
 	 * far as they concern these pages (PDF.js's `extractPages`) */
 	async extract(places: number[]): Promise<Uint8Array> {
-		const pdf = await openPdf((await this.current()).slice());
+		const current = await this.current();
+		const pdf = await openPdf(current.slice(), this.password);
 		try {
-			return await pdf.extractPages([{ document: null, includePages: places }]);
+			return await this.protectedLikeThis(current, await pdf.extractPages([{ document: null, includePages: places }]));
 		} finally {
 			await pdf.loadingTask.destroy();
 		}
 	}
 
+	/** A new PDF made of this one: made by the suite, by this file's author (else the user's name from the settings),
+	 * and protected as this one is (a protected file must not give its pages away unprotected) */
+	private async protectedLikeThis(current: Uint8Array, made: Uint8Array): Promise<Uint8Array> {
+		const author = this.info?.author || authorName() || undefined;
+		const stamped = await (await IncrementalPdf.open(made)).update({ created: true, info: { author } });
+		if (!this.protection) return stamped;
+		return (await IncrementalPdf.open(current, this.password)).protectLike(stamped);
+	}
+
+	/** Another PDF's bytes as PDF.js can merge them: one protected by a password opened with it (`password`) and
+	 * written without the protection – the merged file gets this one's */
+	static async unlocked(bytes: Uint8Array, password: string): Promise<Uint8Array> {
+		const opened = await IncrementalPdf.open(bytes, password);
+		if (opened.locked) throw new PdfError('password', undefined, !!password);
+		return opened.needsPassword ? opened.protect(null) : bytes;
+	}
+
 	/** A new PDF of this one followed by others (bytes) */
 	async merged(others: Uint8Array[]): Promise<Uint8Array> {
-		const pdf = await openPdf((await this.current()).slice());
+		const current = await this.current();
+		const pdf = await openPdf(current.slice(), this.password);
 		try {
-			return await pdf.extractPages([{ document: null }, ...others.map((document) => ({ document: document.slice() }))]);
+			return await this.protectedLikeThis(current, await pdf.extractPages([{ document: null }, ...others.map((document) => ({ document: document.slice() }))]));
 		} finally {
 			await pdf.loadingTask.destroy();
 		}
@@ -1113,7 +1393,7 @@ export class PdfDocument {
 			for (const object of objects) if (!ids.has(object.id)) edits.set(object.id, { remove: true });
 			const adds = (this.contentAdds.get(page.number) ?? []).filter((a) => ids.has(ADDED + a.key)).map(({ annotation, matrix, at }) => ({ annotation, matrix, at }));
 			const bytes = await writer.update({ content: new Map([[page.number - 1, edits]]), flatten: new Map([[page.number - 1, adds]]) });
-			const pdf = await openPdf(bytes.slice());
+			const pdf = await openPdf(bytes.slice(), this.password);
 			try {
 				const proxy = await pdf.getPage(page.number);
 				// At most about 8 megapixels
@@ -1267,7 +1547,7 @@ export class PdfDocument {
 			if (!writer) return;
 			const bytes = await this.contentBytes();
 			if (run !== this.shownRun) return;
-			const proxy = bytes === this.base ? this.pdf : await openPdf(bytes.slice());
+			const proxy = bytes === this.base ? this.pdf : await openPdf(bytes.slice(), this.password);
 			if (run !== this.shownRun) {
 				if (proxy !== this.pdf) void proxy.loadingTask.destroy();
 				return;
@@ -1397,7 +1677,8 @@ export class PdfDocument {
 		}
 		if (!(box[2] - box[0] >= 1 && box[3] - box[1] >= 1)) return null;
 		// The page's own content only for a box; a blank page has none
-		const source = 'ids' in what || !page.number ? undefined : { pdf: page.source ? this.inserted.get(page.source)!.bytes : await this.contentBytes(), index: page.number - 1 };
+		const inserted = page.source ? this.inserted.get(page.source) : undefined;
+		const source = 'ids' in what || !page.number ? undefined : { pdf: inserted ? inserted.bytes : await this.contentBytes(), index: page.number - 1, password: inserted ? inserted.password : this.password };
 		return pieceForm({ page: source, annotations, box, rotate: page.rotate });
 	}
 
@@ -1569,7 +1850,7 @@ export class PdfDocument {
 				!p.number
 					? { blank: { width: p.view[2], height: p.view[3] } }
 					: p.source
-						? { copy: { pdf: this.inserted.get(p.source)!.bytes, index: p.number - 1, ...(p.copy && { annotations: false as const }) } }
+						? { copy: { pdf: this.inserted.get(p.source)!.bytes, index: p.number - 1, password: this.inserted.get(p.source)!.password, ...(p.copy && { annotations: false as const }) } }
 						: p.copy
 							? { copy: { pdf: own!, index: p.number - 1, annotations: false as const } }
 							: { base: p.number - 1 }
@@ -1589,7 +1870,9 @@ export class PdfDocument {
 				form: await this.form(),
 				...this.contentFor((number) => places.get(number)),
 				background,
-				resize: this.resizes
+				resize: this.resizes,
+				outline: this.outlineEdit(),
+				info: this.infoEdit()
 			});
 			// Never replace a version saved elsewhere meanwhile without being told
 			const now = await stat(this.path);

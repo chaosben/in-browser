@@ -7,7 +7,10 @@
 	import { page as route } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { watch } from '@in-browser/files/fs.js';
-	import { normalize } from '@in-browser/files/path.js';
+	import { basename, normalize } from '@in-browser/files/path.js';
+	import { PdfError } from '@in-browser/pdf/pdfjs.js';
+	import PasswordDialog from '#lib/components/PasswordDialog.svelte';
+	import { withPassword } from '#lib/model/password.svelte.js';
 	import type { LiveEnd } from '@in-browser/files/p2p/live-ends.js';
 	import { m } from '#lib/i18n/index.js';
 	import { PdfDocument } from '#lib/model/document.svelte.js';
@@ -40,7 +43,9 @@
 		(async () => {
 			try {
 				const p2p = await import('@in-browser/files/p2p/p2p.svelte.js');
-				const [next] = await Promise.all([PdfDocument.open(path), p2p.takeLead()]);
+				// Protected by a password: remembered on this device, else asked
+				const [next] = await Promise.all([withPassword(basename(path), path, (typed) => PdfDocument.open(path, typed)), p2p.takeLead()]);
+				if (!next) throw new PdfError('password');
 				if (disposed) return next.destroy();
 				opened = next;
 				// The end of the connection the slides are on (it may still be coming)
@@ -70,7 +75,7 @@
 							if (reading || disposed) return;
 							reading = true;
 							try {
-								const newer = await PdfDocument.open(path);
+								const newer = await PdfDocument.open(path, next.password);
 								if (disposed) return newer.destroy();
 								const old = opened;
 								opened = newer;
@@ -122,3 +127,5 @@
 		{/if}
 	</div>
 {/if}
+
+<PasswordDialog />

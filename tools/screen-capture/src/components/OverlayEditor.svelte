@@ -22,7 +22,7 @@
 	import { fontState } from '#lib/render/fonts.svelte.js';
 	import { lineHeightOf, moveAnnotation, overlayBounds } from '#lib/render/overlays.js';
 	import { scaleRich } from '@in-browser/graphics/rich-text.js';
-	import { resizeTextBox, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
+	import { evenInsets, insetsX, insetsY, resizeTextBox, scaleInsets, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 	import { FULL, dragCrop, fullRect, type CropHandle } from '#lib/project/crop.js';
 	import {
 		clampZoomRect,
@@ -53,6 +53,9 @@
 	import SnapGuides from '@in-browser/graphics/SnapGuides.svelte';
 	import { FULL_VIEW, itemsAt, trackState, updateItem, updateZoom, viewAt, zoomAt } from '#lib/timeline/ops.js';
 	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
+	import { isTextLike } from '#lib/ui/text-commands.js';
+	import { inTextField } from '@in-browser/brand/ui/typing.js';
+	import TextInPlace from './TextInPlace.svelte';
 
 	interface Props {
 		editor: Editor;
@@ -67,6 +70,23 @@
 	const CLICK_PX = 3;
 
 	let layer: HTMLDivElement;
+	let layerHeight = $state(0);
+	/** The text or callout typed into on the preview */
+	let typingId = $state<string | null>(null);
+
+	/** Types into a text or callout on the preview: the one given, else the selected one (“Edit text”, Enter, F2,
+	 * a double click, a new text) */
+	export function editText(id?: string) {
+		const target = id ?? editor.selectedOverlay?.id;
+		const item = editor.project.timeline.items.find((i) => i.id === target);
+		if (!isTextLike(item) || trackState(editor.project.timeline, item.track).locked) return;
+		typingId = item.id;
+	}
+
+	// Another selection (or none) ends typing
+	$effect(() => {
+		if (typingId && editor.selectedOverlay?.id !== typingId) typingId = null;
+	});
 	/** Lines snapped to during a drag */
 	let guides = $state<Guides | null>(null);
 	/** Items the lines of the running drag come from (same order as `SnapTargets.boxes`) */
@@ -377,14 +397,14 @@
 			if (sy) dy = sy.value - (south ? b.y + b.h : b.y);
 			guides = { x: sx?.line ?? null, y: sy?.line ?? null, gaps: [] };
 		}
-		const pad = o.background ? o.padding * H : 0;
+		const pad = o.background ? scaleInsets(o.padding, H) : evenInsets(0);
 		const sizing: TextSizing = o.boxWidth === undefined ? 'auto-width' : o.boxHeight === undefined ? 'auto-height' : 'fixed';
 		const r = resizeTextBox({ x: b.x * W, y: b.y * H, w: b.w * W, h: b.h * H }, sizing, handle, dx * W, dy * H, {
 			keepAspect: step.lockAxis,
 			scaleText: step.scaleText,
 			// About two characters wide, one line high
-			minW: 2 * o.size * H + 2 * pad,
-			minH: o.size * H * lineHeightOf(o) + 2 * pad
+			minW: 2 * o.size * H + insetsX(pad),
+			minH: o.size * H * lineHeightOf(o) + insetsY(pad)
 		});
 		const box = {
 			boxWidth: r.sizing === 'auto-width' ? undefined : r.rect.w / W,
@@ -393,7 +413,7 @@
 		if (r.scale === 1) return patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box }, key);
 		const k = r.scale;
 		const size = o.size * k;
-		patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box, size, radius: o.radius * k, padding: o.padding * k, ...(o.rich && { rich: scaleRich(o.rich, k) }) }, key);
+		patchOverlay(o.id, { x: r.rect.x / W, y: r.rect.y / H, ...box, size, radius: o.radius * k, padding: scaleInsets(o.padding, k), ...(o.rich && { rich: scaleRich(o.rich, k) }) }, key);
 		rememberStyle(o.kind, { size });
 	}
 
@@ -525,9 +545,15 @@
 	}
 
 	function onKeyDown(e: KeyboardEvent) {
+		// Keys typed into the text on the preview are the text's
+		if (inTextField(e.target)) return;
 		if (e.key === 'Enter' && croppingClip) {
 			e.preventDefault();
 			return editor.endCrop();
+		}
+		if ((e.key === 'Enter' || e.key === 'F2') && !e.ctrlKey && !e.metaKey && !e.altKey && isTextLike(editor.selectedOverlay)) {
+			e.preventDefault();
+			return editText();
 		}
 		if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
 			e.preventDefault();
@@ -602,6 +628,7 @@
 
 <div
 	bind:this={layer}
+	bind:clientHeight={layerHeight}
 	class="absolute inset-0 overflow-hidden outline-none"
 	tabindex="-1"
 	onpointerdown={(e) => {
@@ -639,6 +666,7 @@
 					class="absolute cursor-move {frame}"
 					style={boxStyle(bounds(item), MIN_HIT)}
 					onpointerdown={(e) => moveItem(e, item)}
+					ondblclick={() => isTextLike(item) && editText(item.id)}
 					role="presentation"
 				></div>
 			{:else}
@@ -651,6 +679,13 @@
 				></div>
 			{/if}
 		{/each}
+
+		{#if typingId}
+			{@const typed = active.find((item) => item.id === typingId)}
+			{#if isTextLike(typed) && layerHeight}
+				<TextInPlace {editor} {player} item={typed} rect={bounds(typed)} {layerHeight} ondone={() => (typingId = null)} />
+			{/if}
+		{/if}
 
 		{@const lit = highlighted && active.find((item) => item.id === highlighted)}
 		{#if lit}

@@ -36,6 +36,111 @@ const en = {
 		showInFiles: 'Show in Files'
 	},
 
+	password: {
+		title: 'Password',
+		hint: (name: string) => `“${name}” is protected by a password. Enter it to open the PDF.`,
+		field: 'Password',
+		show: 'Show password',
+		remember: 'Remember on this device',
+		rememberHint: 'Kept only in this browser, encrypted; it never travels with the files.',
+		wrong: 'This password doesn’t open the PDF.',
+		open: 'Open',
+		enter: 'Enter password …'
+	},
+
+	protect: {
+		command: 'Password and permissions …',
+		commandTip: 'Protect the PDF with a password, change or remove it, restrict what other programs allow',
+		title: 'Password and permissions',
+		state: {
+			none: 'This PDF is not protected.',
+			open: (method: string) => `Protected with ${method}: it needs a password to open.`,
+			restricted: (method: string) => `Protected with ${method}: it opens without a password, but restricts what other programs allow.`
+		},
+		methods: { 'rc4-40': 'RC4 40-bit', 'rc4-128': 'RC4 128-bit', 'aes-128': 'AES 128-bit', 'aes-256': 'AES 256-bit', other: 'another method' } as Record<string, string>,
+		openPassword: 'Require a password to open',
+		password: 'Password',
+		repeat: 'Repeat password',
+		restrict: 'Restrict what other programs allow',
+		ownerPassword: 'Password to lift the restrictions',
+		allowed: 'Allowed without that password',
+		permissions: {
+			print: 'Print',
+			printHigh: 'Print in high quality',
+			modify: 'Change the content',
+			copy: 'Copy text and pictures',
+			annotate: 'Comment',
+			fillForms: 'Fill in forms',
+			assemble: 'Insert, delete and turn pages'
+		} as Record<string, string>,
+		hint: 'Only the password to open protects the content. Restrictions are a request to other PDF programs; in-browser doesn’t follow them. A forgotten password to open can’t be recovered.',
+		mismatch: 'The passwords don’t match.',
+		same: 'The two passwords must differ.',
+		empty: 'Enter a password.',
+		remember: 'Remember the new password on this device',
+		forget: 'Forget the remembered password',
+		unchanged: 'Unchanged',
+		outcome: {
+			none: 'Applying saves the PDF without protection.',
+			open: 'Applying protects the PDF with a password to open it.',
+			restricted: 'Applying lets the PDF open without a password, with restrictions.',
+			both: 'Applying protects the PDF with a password to open it and restrictions.',
+			same: 'Nothing is changed yet.'
+		},
+		apply: 'Apply',
+		done: 'The PDF is protected.',
+		removed: 'The protection is removed.',
+		undo: 'Undo'
+	},
+
+	properties: {
+		command: 'Properties …',
+		commandTip: 'Title, author, subject and keywords of the PDF, and what it says about itself',
+		title: 'Properties',
+		fields: { title: 'Title', author: 'Author', subject: 'Subject', keywords: 'Keywords' },
+		facts: {
+			creator: 'Created with',
+			producer: 'PDF made by',
+			created: 'Created',
+			modified: 'Modified',
+			version: 'PDF version',
+			pages: 'Pages',
+			pageSize: 'Page size',
+			fileSize: 'File size',
+			protection: 'Protection',
+			signed: 'Signatures'
+		},
+		none: '–',
+		signed: 'Signed',
+		unsigned: 'None',
+		protectedOpen: 'Password to open',
+		protectedRestricted: 'Restrictions only',
+		unprotected: 'None',
+		apply: 'Apply'
+	},
+
+	sanitize: {
+		command: 'Sanitize …',
+		commandTip: 'Take out what is hidden in the PDF: metadata, embedded files, scripts, earlier versions',
+		title: 'Sanitize',
+		hint: 'The PDF is written anew without what you pick. Earlier versions kept inside the file and objects nothing uses go always. Comments, speaker notes and filled-in fields stay.',
+		metadata: (n: number) => `Metadata (${n}): title, author, programs, dates, thumbnails`,
+		attachments: (n: number) => (n === 1 ? 'One embedded file' : `Embedded files (${n})`),
+		scripts: (n: number) => (n === 1 ? 'One script or action' : `Scripts and actions (${n})`),
+		scriptsHint: 'Forms no longer calculate or check their values afterwards.',
+		bookmarks: (n: number) => (n === 1 ? 'One bookmark' : `Bookmarks (${n})`),
+		versions: (n: number) => (n === 0 ? 'No earlier versions in the file' : n === 1 ? 'One earlier version in the file (always taken out)' : `${n} earlier versions in the file (always taken out)`),
+		checking: 'Looking through the PDF …',
+		apply: 'Sanitize',
+		done: 'The PDF is sanitized.',
+		undo: 'Undo'
+	},
+
+	fonts: {
+		subset: 'Only the characters this PDF uses are in it; others appear in the stand-in font.',
+		cannotUse: 'This font can’t be used: the PDF holds it in a form the browser can’t draw with.'
+	},
+
 	notice: {
 		encrypted: 'This PDF is protected in a way that can’t be changed here: you can read it, but changes can’t be saved.',
 		failed: 'This PDF can be read, but its structure is too damaged to save changes.',
@@ -62,6 +167,11 @@ const en = {
 			title: 'Change pages of a signed PDF?',
 			message: 'The signatures stay valid for the signed version, but programs may report that pages changed after signing.',
 			confirm: 'Change pages'
+		},
+		signedRewrite: {
+			title: 'Write the signed PDF anew?',
+			message: 'This writes the file anew. Its signatures are no longer valid afterwards.',
+			confirm: 'Write anew'
 		}
 	},
 
@@ -82,6 +192,7 @@ const en = {
 			link: 'Link',
 			drawing: 'Drawing',
 			selection: 'Selection',
+			bookmarks: 'Bookmarks',
 			arrange: 'Arrange'
 		},
 		groups: {
@@ -107,6 +218,7 @@ const en = {
 			organize: 'Organize',
 			page: 'Page',
 			insert: 'Insert',
+			protection: 'Protection',
 			newFile: 'New PDF',
 			fields: 'Fields',
 			visibility: 'Show and hide',
@@ -168,6 +280,7 @@ const en = {
 		border: 'Border',
 		borderWidth: 'Width',
 		borderWidthValue: (pt: number) => `${pt} pt`,
+		padding: 'Inner margin',
 		none: 'None',
 		autoWidth: 'Auto width',
 		autoWidthTip: 'As wide as the longest line; lines break only where you press Enter',
@@ -275,7 +388,7 @@ const en = {
 		saved: (name: string) => `Saved as “${name}”.`,
 		openNew: 'Open',
 		failed: (error: string) => `That didn’t work: ${error}`,
-		protected: 'This PDF is protected by a password; its pages can’t be copied.',
+		protected: 'This PDF is protected in a way that can’t be opened here.',
 		highlightFields: 'Highlight fields',
 		highlightFieldsTip: 'Tints the fields to fill in and frames the required ones',
 		clearForm: 'Clear form',
@@ -613,6 +726,30 @@ const en = {
 		otherVersion: 'The slides still show another version of this PDF – the previews and notes here may not match. It arrives once the two devices reach each other; keep in-browser open on both.',
 		remoteEnded: 'The slides were closed. Their keys still work on the other side if they are opened again.',
 		close: 'Close'
+	},
+
+	bookmarks: {
+		add: 'Add bookmark',
+		addTip: 'A bookmark to the top of the view, after the current one; named after the selected text or the page',
+		rename: 'Rename',
+		target: 'Set target here',
+		targetTip: 'The bookmark leads to the top of the view',
+		remove: 'Delete bookmark',
+		up: 'Move up',
+		down: 'Move down',
+		indent: 'Indent',
+		outdent: 'Outdent',
+		bold: 'Bold',
+		italic: 'Italic',
+		color: 'Color',
+		expandAll: 'Expand all',
+		collapseAll: 'Collapse all',
+		groups: { bookmark: 'Bookmark', order: 'Order', style: 'Style', view: 'View' },
+		page: (n: number) => `Page ${n}`,
+		noTarget: 'Leads nowhere: its page is gone. Set a target with “Set target here”.',
+		webAddress: (url: string) => `Opens ${url}`,
+		name: 'Name of the bookmark',
+		emptyEditable: 'This PDF has no bookmarks yet. “Add bookmark” adds one for the place in view.'
 	},
 
 	panels: {

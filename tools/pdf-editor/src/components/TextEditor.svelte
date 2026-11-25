@@ -12,7 +12,7 @@
 	import type { PdfDocument } from '#lib/model/document.svelte.js';
 	import { typing } from '#lib/render/markup.js';
 	import type { PdfSelection, PdfStage } from '#lib/render/surface.js';
-	import { alignOf, baseStyle, borderOf, isText, itemBounds, LINE_HEIGHT, richTextOf, roomOf, sizingOf, TEXT_PAD, textBounds, textExtent, withRich, type TextItem } from '#lib/render/textbox.js';
+	import { alignOf, baseStyle, borderOf, isText, itemBounds, LINE_HEIGHT, richTextOf, paddingOf, roomOf, sizingOf, textBounds, textExtent, withRich, type TextItem } from '#lib/render/textbox.js';
 
 	interface Props {
 		selection: PdfSelection;
@@ -99,6 +99,7 @@
 	{@const auto = sizingOf(item) === 'auto-width' && live.lines.length <= draft.length}
 	{@const least = sizingOf(item) === 'fixed' ? textExtent(item).h * zoom : 0}
 	{@const bw = borderOf(item) * zoom}
+	{@const pad = paddingOf(item)}
 	<!-- From the text's own top left corner, turned with it: it grows the way its lines go -->
 	{@const left = item.rot === 90 || item.rot === 180 ? rect.x + rect.w : rect.x}
 	{@const top = item.rot === 180 || item.rot === 270 ? rect.y + rect.h : rect.y}
@@ -113,7 +114,7 @@
 			style="left: {left}px; top: {top}px; width: {along}px; min-height: {least}px; white-space: {auto ? 'pre' : 'pre-wrap'}; transform-origin: 0 0; transform: rotate({item.rot}deg); margin: 0;
 				border: {bw ? `${bw}px solid ${item.border}` : '0'}; background: {item.fill ?? '#ffffff'};
 				font-family: {fontFamilyCss(base.font)}; font-size: {base.size * zoom}px; font-weight: {fontWeight(base)}; font-style: {base.italic ? 'italic' : 'normal'}; text-decoration: {base.underline ? 'underline' : 'none'};
-				line-height: {item.lineHeight ?? LINE_HEIGHT}; text-align: {alignOf(item)}; padding: {TEXT_PAD * zoom}px; color: {item.color}"
+				line-height: {item.lineHeight ?? LINE_HEIGHT}; text-align: {alignOf(item)}; padding: {pad.top * zoom}px {pad.right * zoom}px {pad.bottom * zoom}px {pad.left * zoom}px; color: {item.color}"
 			oninput={(value) => (draft = value)}
 		/>
 	{/key}

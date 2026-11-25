@@ -184,9 +184,10 @@ const de: Messages = {
 	},
 
 	ribbon: {
-		tabs: { home: 'Start', insert: 'Einfügen', view: 'Ansicht', arrange: 'Anordnen', clip: 'Clip', textbox: 'Textfeld' },
+		tabs: { home: 'Start', insert: 'Einfügen', view: 'Ansicht', arrange: 'Anordnen', clip: 'Clip', textbox: 'Textfeld', properties: 'Eigenschaften' },
 		groups: {
 			project: 'Projekt',
+			properties: 'Eigenschaften',
 			playback: 'Wiedergabe',
 			edit: 'Bearbeiten',
 			clipboard: 'Zwischenablage',
@@ -274,8 +275,7 @@ const de: Messages = {
 		barcode: 'Barcode …',
 		barcodeTip: 'Macht aus dem, was du eingibst, einen QR-Code oder Strichcode und fügt ihn am Abspielkopf ein',
 		editBarcode: 'Barcode bearbeiten …',
-		canvasSize: 'Leinwandgröße',
-		properties: 'Eigenschaften …',
+		canvasSize: 'Leinwandgröße …',
 		undo: 'Rückgängig',
 		redo: 'Wiederholen',
 		dropToImport: 'Zum Importieren loslassen',

@@ -1,5 +1,7 @@
 // What the editor page, its ribbon commands and its side panels share: the open PDF, the surface, where the view is.
 
+import { walk } from './outline.js';
+import type { BookmarkCommands } from './bookmark-commands.js';
 import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 import { findAll, type SearchHit } from '@in-browser/pdf/text.js';
@@ -55,6 +57,22 @@ export class EditorState {
 		const current = pages[this.current];
 		return current ? [current.id] : [];
 	}
+	/** Bookmarks picked in their panel (ids), the current one (the bookmark commands act on the picked ones, else on
+	 * it) and the one whose name is being typed (`fresh`: just added – its name belongs to that step) */
+	readonly bookmarkPick = new Picker<string>();
+	bookmarkCurrent = $state<string | null>(null);
+	bookmarkRename = $state<{ id: string; fresh: boolean } | null>(null);
+	/** The bookmark commands (set by the editor page; the panel uses them for its menu and keys) */
+	bookmarkCommands: BookmarkCommands | null = null;
+
+	/** The bookmarks the commands act on: the picked ones still there, else the current one */
+	bookmarksToChange(): Set<string> {
+		const all = new Set([...walk(this.doc?.bookmarks ?? [])].map((w) => w.bookmark.id));
+		const picked = [...this.bookmarkPick.selected].filter((id) => all.has(id));
+		if (picked.length) return new Set(picked);
+		return this.bookmarkCurrent && all.has(this.bookmarkCurrent) ? new Set([this.bookmarkCurrent]) : new Set();
+	}
+
 	zoom = $state(1);
 	/** The open side panel */
 	panel = $state<string | null>(null);

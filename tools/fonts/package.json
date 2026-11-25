@@ -1,0 +1,23 @@
+{
+	"name": "@in-browser/fonts",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "Fonts tool of in-browser: the user's own fonts for every tool (included as source code, route /fonts)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"imports": {
+		"#lib": "./src/index.js",
+		"#lib/*": "./src/*"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@in-browser/files": "*",
+		"@in-browser/graphics": "*"
+	}
+}

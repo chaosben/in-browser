@@ -6,7 +6,7 @@ const help: typeof enHelp = {
 		items: {
 			layout: {
 				title: 'Aufbau',
-				text: 'Oben das Menüband mit allen Befehlen in Registerkarten: „Datei“ (Gruppe „Projekt“: „Speichern unter …“, „Freigeben …“ – das Projekt für einen Gast, siehe die Hilfeseite zum Freigeben –, „In Dateien zeigen“, „Exportieren“), „Start“ (Wiedergabe, Schneiden, Zwischenablage, Auswahl), „Einfügen“ (Aufnahme, Medien, Markierungen, Text, Icon und Barcode, Zoom, Bibliothek), „Ansicht“ (Timeline-Zoom, Bereiche, Leinwandgröße); mit einer Auswahl erscheinen dahinter „Textfeld“ (ein Text oder eine Sprechblase), „Anordnen“ und „Clip“, und das Menüband wechselt von selbst zu einer davon – zu der, die du zuletzt benutzt hast – und zurück, wenn die Auswahl endet. Der Editor öffnet mit „Start“; Rückgängig und Wiederholen stehen links der Registerkarten. Die obere Leiste darüber zeigt nur den Namen des Projekts. Links die Bereiche mit allem, was du hinzufügst (Medien, Bibliothek, Icons, Markierungen, Text, Zoom) – die Symbole der schmalen Leiste öffnen und schließen sie. In der Mitte die Vorschau, darunter die Timeline. Rechts die Eigenschaften des ausgewählten Elements – ist nichts ausgewählt, die des Projekts. Größe, Zeit des Abspielkopfs und ein laufender Import stehen in der Fußzeile.'
+				text: 'Oben das Menüband mit allen Befehlen in Registerkarten: „Datei“ (Gruppe „Projekt“: „Speichern unter …“, „Freigeben …“ – das Projekt für einen Gast, siehe die Hilfeseite zum Freigeben –, „In Dateien zeigen“, „Exportieren“), „Start“ (Wiedergabe, Schneiden, Zwischenablage, Auswahl), „Einfügen“ (Aufnahme, Medien, Markierungen, Text, Icon und Barcode, Zoom, Bibliothek), „Ansicht“ (Timeline-Zoom, Bereiche, Leinwandgröße); mit einer Auswahl erscheinen dahinter „Eigenschaften“ (die Einstellungen des ausgewählten Elements), „Textfeld“ (ein Text oder eine Sprechblase), „Anordnen“ und „Clip“, und das Menüband wechselt von selbst zu einer davon – zu der, die du zuletzt benutzt hast – und zurück, wenn die Auswahl endet. Der Editor öffnet mit „Start“; Rückgängig und Wiederholen stehen links der Registerkarten. Die obere Leiste darüber zeigt nur den Namen des Projekts. Links die Bereiche mit allem, was du hinzufügst (Medien, Bibliothek, Icons, Markierungen, Text, Zoom) – die Symbole der schmalen Leiste öffnen und schließen sie. In der Mitte die Vorschau, darunter die Timeline. Größe, Zeit des Abspielkopfs und ein laufender Import stehen in der Fußzeile.'
 			},
 			ribbon: {
 				title: 'Menüband',
@@ -59,7 +59,7 @@ const help: typeof enHelp = {
 			flow: {
 				title: 'So läuft eine Aufnahme',
 				text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du freigibst. Danach zeigt der Dialog eine Vorschau davon; „Aufnahme starten“ startet den optionalen 3-Sekunden-Countdown – wechsle währenddessen zum Fenster, das du aufnimmst – und dann die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
-				tip: 'Gibst du ein einzelnes Fenster frei, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, gib den ganzen Bildschirm frei und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in den Eigenschaften des Clips).'
+				tip: 'Gibst du ein einzelnes Fenster frei, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, gib den ganzen Bildschirm frei und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in der Registerkarte „Clip“).'
 			},
 			screenQuality: {
 				title: 'Bildschirm – Qualität',
@@ -251,16 +251,16 @@ const help: typeof enHelp = {
 			},
 			change: {
 				title: 'Ändern',
-				text: 'Mit „Ändern“ in den Projekt-Eigenschaften (oder „Leinwandgröße“ in der Registerkarte „Ansicht“, die sie öffnet) setzt du eine neue Größe. Alles behält seine Größe in Pixeln und bleibt mittig; auf einer kleineren Leinwand kann Inhalt über den Rand ragen. Lässt sich rückgängig machen.'
+				text: '„Leinwandgröße …“ in der Registerkarte „Ansicht“ öffnet die Einstellungen der Leinwand mit offenem Größenfeld; mit „Ändern“ dort setzt du eine neue Größe. Alles behält seine Größe in Pixeln und bleibt mittig; auf einer kleineren Leinwand kann Inhalt über den Rand ragen. Lässt sich rückgängig machen.'
 			},
 			cropCanvas: {
 				title: 'Leinwandgröße des größten Clips',
-				text: '„Ändern“ in den Projekt-Eigenschaften bietet oben in der Größenliste „Größter Clip“ an, sobald der größte Clip mit Bild kleiner als die Leinwand ist; der Eintrag zeigt die neue Größe. Nach „Übernehmen“ bekommt die Leinwand genau die Größe dieses Clips (des Teils auf der Leinwand). Nichts wird skaliert – der Clip füllt die Leinwand danach 1:1, anderer Inhalt behält seine Pixelgröße und kann über den Rand ragen. Lässt sich rückgängig machen.',
+				text: '„Ändern“ unter „Leinwandgröße …“ bietet oben in der Größenliste „Größter Clip“ an, sobald der größte Clip mit Bild kleiner als die Leinwand ist; der Eintrag zeigt die neue Größe. Nach „Übernehmen“ bekommt die Leinwand genau die Größe dieses Clips (des Teils auf der Leinwand). Nichts wird skaliert – der Clip füllt die Leinwand danach 1:1, anderer Inhalt behält seine Pixelgröße und kann über den Rand ragen. Lässt sich rückgängig machen.',
 				tip: 'Nimm es, nachdem du eine Bildschirmaufnahme auf ein Fenster zugeschnitten hast: Der Export hat dann die Größe des Fensters statt des ganzen Bildschirms – kleinere Dateien, kein leerer Rand.'
 			},
 			fitToClip: {
 				title: 'Leinwand an Clip anpassen',
-				text: '„Leinwand an Clip anpassen“ in den Eigenschaften eines Clips mit Bild (auch in seinem Kontextmenü und in der Registerkarte „Clip“) gibt der Leinwand die Originalgröße des sichtbaren Teils des Clips – ein Zuschnitt zählt. Unter dem Knopf steht die neue Größe; passt die Leinwand schon zum Clip, ist er ausgegraut. Der Clip füllt die Leinwand danach 1:1; alles andere behält seine Pixelgröße rund um die Mitte des Clips, Webcams an ihrem Standardplatz wandern in die neue Ecke. Die Leinwand kann kleiner oder größer werden. Lässt sich rückgängig machen.',
+				text: '„Leinwand an Clip anpassen“ in der Registerkarte „Clip“ eines Clips mit Bild (auch in seinem Kontextmenü und unter „Inhalt“ in der Registerkarte „Eigenschaften“) gibt der Leinwand die Originalgröße des sichtbaren Teils des Clips – ein Zuschnitt zählt. Unter dem Knopf steht die neue Größe; passt die Leinwand schon zum Clip, ist er ausgegraut. Der Clip füllt die Leinwand danach 1:1; alles andere behält seine Pixelgröße rund um die Mitte des Clips, Webcams an ihrem Standardplatz wandern in die neue Ecke. Die Leinwand kann kleiner oder größer werden. Lässt sich rückgängig machen.',
 				tip: 'Nimm es, wenn eine Aufnahme verkleinert angezeigt wird und scharf in ihrer eigenen Auflösung exportiert werden soll, oder um genau einen Clip zu exportieren. Anders als „Größter Clip“ nimmt es die Originalgröße des gewählten Clips, nicht den Rahmen, den er gerade auf der Leinwand hat.'
 			},
 			enlarge: {
@@ -270,11 +270,11 @@ const help: typeof enHelp = {
 					grow: { label: 'Leinwand vergrößern', text: 'Das neue Material erscheint 1:1 und scharf; der bisherige Inhalt behält seine Größe und rückt in die Mitte. Der Export wird größer.' },
 					keep: { label: 'Größe beibehalten', text: 'Die Ausgabegröße bleibt; das neue Material bleibt verkleinert.' }
 				},
-				tip: 'Vergrößere, wenn das neue Material dein Hauptinhalt ist, etwa eine Aufnahme auf einem größeren Bildschirm. Behalte die Größe, wenn das Video in ein festes Format passen muss oder das Material nur Beiwerk ist. In den Projekt-Eigenschaften kannst du die Leinwand später noch vergrößern (ausgegraut, solange jeder Clip schon 1:1 erscheint).'
+				tip: 'Vergrößere, wenn das neue Material dein Hauptinhalt ist, etwa eine Aufnahme auf einem größeren Bildschirm. Behalte die Größe, wenn das Video in ein festes Format passen muss oder das Material nur Beiwerk ist. Über „Leinwandgröße …“ in der Registerkarte „Ansicht“ kannst du die Leinwand später noch vergrößern („Leinwand vergrößern“) (ausgegraut, solange jeder Clip schon 1:1 erscheint).'
 			},
 			background: {
 				title: 'Hintergrundfarbe',
-				text: 'Zu sehen, wo nichts die Leinwand bedeckt: in Lücken, um Bild-im-Bild-Clips herum und während Blenden. Du stellst sie in den Projekt-Eigenschaften ein (nichts ausgewählt); eine Änderung lässt sich wie jede andere rückgängig machen.'
+				text: 'Zu sehen, wo nichts die Leinwand bedeckt: in Lücken, um Bild-im-Bild-Clips herum und während Blenden. Du stellst sie unter „Leinwandgröße …“ in der Registerkarte „Ansicht“ ein; eine Änderung lässt sich wie jede andere rückgängig machen.'
 			}
 		}
 	},
@@ -334,7 +334,7 @@ const help: typeof enHelp = {
 			},
 			link: {
 				title: 'Verknüpfen',
-				text: '„Verknüpfen“ (Registerkarte „Anordnen“, Eigenschaften, Kontextmenü) verknüpft die ausgewählten Elemente, sodass ein Klick sie gemeinsam auswählt, verschiebt und löscht; „Verknüpfung lösen“ trennt sie. Ausgegraut, wenn es nichts zu verknüpfen oder zu lösen gibt.',
+				text: '„Verknüpfen“ (Registerkarte „Anordnen“, Kontextmenü) verknüpft die ausgewählten Elemente, sodass ein Klick sie gemeinsam auswählt, verschiebt und löscht; „Verknüpfung lösen“ trennt sie. Ausgegraut, wenn es nichts zu verknüpfen oder zu lösen gibt.',
 				keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']]
 			},
 			clipboard: {
@@ -360,7 +360,7 @@ const help: typeof enHelp = {
 			},
 			menu: {
 				title: 'Kontextmenü',
-				text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und listet alles, was du damit tun kannst: Ausschneiden, Kopieren, Einfügen, Löschen (auch mit Lücke), Teilen, Frame halten, Ebene ändern, Verknüpfen und Lösen, Zuschneiden, Zuschnitt entfernen, Einpassen, Füllen, Leinwand an Clip anpassen, zur Bibliothek hinzufügen, Alles auswählen und „Eigenschaften …“. Was auf die Auswahl nicht wirken kann, ist ausgegraut. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
+				text: 'Ein Rechtsklick auf ein Element – in der Timeline oder der Vorschau – wählt es aus (falls es das nicht schon ist) und listet alles, was du damit tun kannst: Ausschneiden, Kopieren, Einfügen, Löschen (auch mit Lücke), Teilen, Frame halten, Ebene ändern, Verknüpfen und Lösen, Zuschneiden, Zuschnitt entfernen, Einpassen, Füllen, Leinwand an Clip anpassen, Barcode bearbeiten, zur Bibliothek hinzufügen und Alles auswählen. Was auf die Auswahl nicht wirken kann, ist ausgegraut. Auf einer freien Stelle der Timeline setzt er den Abspielkopf dorthin, sodass „Einfügen“ genau dort einfügt.'
 			},
 			view: {
 				title: 'Timeline-Zoom und Höhe',
@@ -417,8 +417,8 @@ const help: typeof enHelp = {
 			},
 			crop: {
 				title: 'Zuschneiden',
-				text: '„Zuschneiden“ in den Eigenschaften des Clips (auch in der Registerkarte „Clip“, im Kontextmenü, oder Doppelklick auf den Clip in der Vorschau) zeigt den Umriss des ganzen Bildes gestrichelt; zieh die Kanten oder Ecken, um wegzuschneiden, was du nicht zeigen willst. Das Bild bleibt dabei stehen, nur sein Rahmen wird kleiner, und die Kanten rasten ein wie alles andere. Die Felder Links, Oben, Rechts und Unten legen den Schnitt in Pixeln der Aufnahme fest. Ein weiterer Klick auf „Zuschneiden“ (es bleibt beim Zuschneiden gedrückt), Esc oder Enter beendet das Zuschneiden; „Zuschnitt entfernen“ zeigt wieder das ganze Bild (ohne Zuschnitt ausgegraut). „Einpassen“ und „Füllen“ richten sich dann nach dem zugeschnittenen Teil.',
-				tip: 'Um ein Programm mit seinen Dialogen und Menüs zu zeigen, nimm den ganzen Bildschirm auf und schneide auf den Bereich des Programmfensters zu. Danach verkleinert „Größter Clip“ in der Größenliste der Projekt-Eigenschaften die Leinwand darauf. Gehaltene Frames und geteilte Clips behalten den Zuschnitt.',
+				text: '„Zuschneiden“ in der Registerkarte „Clip“ (auch unter „Inhalt“ in der Registerkarte „Eigenschaften“, im Kontextmenü, oder Doppelklick auf den Clip in der Vorschau) zeigt den Umriss des ganzen Bildes gestrichelt; zieh die Kanten oder Ecken, um wegzuschneiden, was du nicht zeigen willst. Das Bild bleibt dabei stehen, nur sein Rahmen wird kleiner, und die Kanten rasten ein wie alles andere. Die Felder Links, Oben, Rechts und Unten legen den Schnitt in Pixeln der Aufnahme fest. Ein weiterer Klick auf „Zuschneiden“ (es bleibt beim Zuschneiden gedrückt), Esc oder Enter beendet das Zuschneiden; „Zuschnitt entfernen“ zeigt wieder das ganze Bild (ohne Zuschnitt ausgegraut). „Einpassen“ und „Füllen“ richten sich dann nach dem zugeschnittenen Teil.',
+				tip: 'Um ein Programm mit seinen Dialogen und Menüs zu zeigen, nimm den ganzen Bildschirm auf und schneide auf den Bereich des Programmfensters zu. Danach verkleinert „Größter Clip“ in der Größenliste unter „Leinwandgröße …“ die Leinwand darauf. Gehaltene Frames und geteilte Clips behalten den Zuschnitt.',
 				keys: [['Esc'], ['Enter']]
 			},
 			shape: {
@@ -455,7 +455,7 @@ const help: typeof enHelp = {
 			},
 			shapes: {
 				title: 'Pfeil, Linie, Rahmen, Ellipse',
-				text: 'Zeigen auf etwas oder markieren es. Farbe und Linienstärke (1 px bis zu einem Zehntel der Leinwandhöhe; die Pfeilspitze wächst mit) stellst du in den Eigenschaften ein; eine Linie kann gestrichelt sein, ein Rahmen abgerundete Ecken bekommen.'
+				text: 'Zeigen auf etwas oder markieren es. Farbe und Linienstärke (1 px bis zu einem Zehntel der Leinwandhöhe; die Pfeilspitze wächst mit) stellst du unter „Aussehen“ in der Registerkarte „Eigenschaften“ ein; eine Linie kann gestrichelt sein, ein Rahmen abgerundete Ecken bekommen.'
 			},
 			pen: {
 				title: 'Handgezeichnet und selbst zeichnend',
@@ -509,11 +509,11 @@ const help: typeof enHelp = {
 			},
 			icon: {
 				title: 'Icon',
-				text: 'Icons aus dem Bereich „Icons“ („Icon“ in der Registerkarte „Einfügen“ öffnet ihn); Farbe samt Deckkraft stellst du in den Eigenschaften ein.'
+				text: 'Icons aus dem Bereich „Icons“ („Icon“ in der Registerkarte „Einfügen“ öffnet ihn); Farbe samt Deckkraft stellst du unter „Aussehen“ in der Registerkarte „Eigenschaften“ ein.'
 			},
 			barcode: {
 				title: 'Barcode und QR-Code',
-				text: '„Barcode …“ (Registerkarte „Einfügen“, neben „Icon“) macht aus dem, was du eingibst – einfacher Text, eine Webadresse, ein WLAN-Zugang, ein Kontakt und mehr –, einen QR-Code oder Strichcode und setzt ihn am Abspielkopf in die Bildmitte. Der Code wird als Vektoren gezeichnet, bleibt also in jeder Größe scharf, und behält sein Seitenverhältnis. Art, Farben und Optionen werden für den nächsten Code gemerkt, der Inhalt nie. „Barcode bearbeiten …“ (Eigenschaften „Inhalt“, Kontextmenü) öffnet denselben Dialog zum Ändern; Mitte und Breite bleiben.',
+				text: '„Barcode …“ (Registerkarte „Einfügen“, neben „Icon“) macht aus dem, was du eingibst – einfacher Text, eine Webadresse, ein WLAN-Zugang, ein Kontakt und mehr –, einen QR-Code oder Strichcode und setzt ihn am Abspielkopf in die Bildmitte. Der Code wird als Vektoren gezeichnet, bleibt also in jeder Größe scharf, und behält sein Seitenverhältnis. Art, Farben und Optionen werden für den nächsten Code gemerkt, der Inhalt nie. „Barcode bearbeiten …“ („Inhalt“ in der Registerkarte „Eigenschaften“, Kontextmenü) öffnet denselben Dialog zum Ändern; Mitte und Breite bleiben.',
 				tip: 'Lass ihn dunkel auf hell mit Ruhezone, mindestens ein Fünftel der Bildhöhe groß und ein paar Sekunden im Bild – lange genug, dass eine Handykamera ihn aus dem Video lesen kann.'
 			},
 			shadow: {
@@ -527,16 +527,21 @@ const help: typeof enHelp = {
 			},
 			styles: {
 				title: 'Gemerkte Einstellungen',
-				text: 'Was du in den Eigenschaften einstellst – Farbe, Schrift, Größe, Linienstärke, Schatten, Blenden, Dauer – und an der Ecke gezogene Größen gelten für das nächste neue Element desselben Typs, in allen Projekten. Position, Text und Schritt-Nummer werden nicht gemerkt.'
+				text: 'Was du in den Registerkarten „Eigenschaften“ und „Textfeld“ einstellst – Farbe, Schrift, Größe, Linienstärke, Schatten, Blenden, Dauer – und an der Ecke gezogene Größen gelten für das nächste neue Element desselben Typs, in allen Projekten. Position, Text und Schritt-Nummer werden nicht gemerkt.'
 			}
 		}
 	},
 	text: {
 		title: 'Text & Sprechblase',
 		items: {
+			typing: {
+				title: 'Text tippen',
+				text: 'Du tippst direkt auf der Vorschau: In einen neuen Text oder eine neue Sprechblase kannst du sofort schreiben. Um den Text später zu ändern, doppelklicke ihn, oder wähle ihn aus und drück Enter oder F2, oder wähle „Text bearbeiten“ in der Registerkarte „Textfeld“. Das Feld liegt über der Box, in ihrer Schrift, Größe, Ausrichtung und Farbe. Ein Klick woandershin behält, was du getippt hast – als ein Schritt zum Rückgängigmachen –, Esc stellt wieder her, was dort stand.',
+				keys: [['Eingabe'], ['F2'], ['Esc']]
+			},
 			box: {
 				title: 'Textbox',
-				text: 'Die Anfasser ändern nur die Box, nie die Schrift: Die linke und rechte Seite legen die Breite fest (der Text bricht um, die Höhe folgt ihm), Ober- und Unterkante und die Ecken eine feste Größe (Umschalt hält bei einer Ecke das Seitenverhältnis); Text, der nicht in eine feste Größe passt, ragt unten aus der Box heraus. Drück K, während du einen Anfasser ziehst, um die Schrift mit der Box zu skalieren. „Größe der Box“ unter Schrift wechselt zwischen den dreien. Würde eine Box größer als die Leinwand, bricht sie auf Leinwandbreite um und bekommt bei Bedarf eine kleinere Schrift.',
+				text: 'Die Anfasser ändern nur die Box, nie die Schrift: Die linke und rechte Seite legen die Breite fest (der Text bricht um, die Höhe folgt ihm), Ober- und Unterkante und die Ecken eine feste Größe (Umschalt hält bei einer Ecke das Seitenverhältnis); Text, der nicht in eine feste Größe passt, ragt unten aus der Box heraus. Drück K, während du einen Anfasser ziehst, um die Schrift mit der Box zu skalieren. Die Gruppe „Größe“ der Registerkarte „Textfeld“ wechselt zwischen den dreien. Würde eine Box größer als die Leinwand, bricht sie auf Leinwandbreite um und bekommt bei Bedarf eine kleinere Schrift.',
 				options: {
 					autoWidth: { label: 'Automatische Breite (Standard)', text: 'So breit wie die längste Zeile; neue Zeilen nur, wo du Enter drückst. Für Beschriftungen und Titel.' },
 					autoHeight: { label: 'Automatische Höhe', text: 'Behält ihre Breite; die Zeilen brechen um und die Box wächst mit dem Text. Für längere Texte.' },
@@ -547,13 +552,16 @@ const help: typeof enHelp = {
 			},
 			format: {
 				title: 'Text formatieren',
-				text: 'Den Text tippst du im Feld „Text“ der Eigenschaften. Teile davon können fett, kursiv, unterstrichen, in einer anderen Schrift, Größe oder Farbe sein, und Absätze können Aufzählungen oder nummeriert sein: Markiere Wörter im Feld und wähle das Format in der Registerkarte „Textfeld“ (sie erscheint, solange ein Text oder eine Sprechblase ausgewählt ist), oder drück Strg+B, Strg+I, Strg+U. In einer Liste beginnt Enter den nächsten Punkt (auf einem leeren beendet es die Liste), Tab und Umschalt+Tab ändern die Ebene. Ist im Feld nichts markiert, gilt ein Format für die ganze Box, und ihre Teile verlieren ihren eigenen Wert dafür – wie unter Schrift. „Zeilenabstand“ steht in der Registerkarte und unter Schrift: 1,0 bis 2,0 (Texte von früher behalten 1,25).',
+				text: 'Teile des Textes können fett, kursiv, unterstrichen, in einer anderen Schrift, Größe oder Farbe sein, und Absätze können Aufzählungen oder nummeriert sein: Markiere beim Tippen in der Box Wörter und wähle das Format in der Registerkarte „Textfeld“ (sie erscheint, solange ein Text oder eine Sprechblase ausgewählt ist), oder drück Strg+B, Strg+I, Strg+U. In einer Liste beginnt Enter den nächsten Punkt (auf einem leeren beendet es die Liste), Tab und Umschalt+Tab ändern die Ebene. Ist in der Box nichts markiert oder ist sie nur ausgewählt und du tippst nicht darin, gilt ein Format für die ganze Box, und ihre Teile verlieren ihren eigenen Wert dafür. „Zeilenabstand“ steht in derselben Registerkarte: 1,0 bis 2,0 (Texte von früher behalten 1,25).',
+				options: {
+					size: { label: '„Schriftgröße“', text: 'Öffnet ein Feld für jede Größe von 1 bis 400 Leinwand-Pixeln – tippe sie ein und drücke Enter, nimm ↑/↓, zieh den Namen des Feldes zur Seite oder dreh das Mausrad darüber – und darunter die üblichen Größen von 12 bis 200 Pixeln.' }
+				},
 				tip: 'Schrift, Größe und Farbe stellst du für die ganze Box ein; markiere einzelne Wörter nur zum Hervorheben. Drei, vier kurze Punkte als Aufzählung lesen sich im Video besser als Fließtext.',
 				keys: [['Strg', 'B'], ['Strg', 'I'], ['Strg', 'U']]
 			},
 			font: {
 				title: 'Schrift',
-				text: 'Die Schriften sind in der App enthalten und funktionieren offline, jede mit fett und kursiv (Caveat hat kein eigenes Kursiv: es wird schräg gestellt).',
+				text: 'Die Schriften sind in der App enthalten und funktionieren offline, jede mit fett und kursiv (Caveat hat kein eigenes Kursiv: es wird schräg gestellt). Darunter zeigt das Menü „Schriftart“ „Meine Schriften“ – die, die du im Tool Schriften hinzugefügt hast („Schriften verwalten …“ an seinem Ende öffnet es); ein Schnitt, den so eine Schrift nicht hat, wird im normalen gezeichnet.',
 				options: {
 					system: { label: 'Systemschrift', text: 'Die Schrift deines Betriebssystems – neutral und vertraut.' },
 					inter: { label: 'Inter', text: 'Auch klein sehr gut lesbar; gut für Beschriftungen.' },
@@ -569,7 +577,7 @@ const help: typeof enHelp = {
 			},
 			background: {
 				title: 'Hintergrundfarbe, Eckenradius, Innenabstand',
-				text: 'Eine Box hinter dem Text macht ihn auf jedem Bild lesbar. Der Eckenradius rundet die Box ab, der Innenabstand bestimmt den Platz zwischen Boxrand und Text. Text kommt auch ohne Hintergrund aus, eine Sprechblase hat immer einen.',
+				text: 'Eine Box hinter dem Text macht ihn auf jedem Bild lesbar („Hintergrund“ in der Registerkarte „Eigenschaften“). Der Eckenradius rundet die Box ab; der „Innenabstand“ bestimmt den Platz zwischen Boxrand und Text für jede Seite eigens („Oben“, „Rechts“, „Unten“, „Links“, in Leinwand-Pixeln) – mit „Alle Seiten gleich“ setzt ein Feld alle vier. Text kommt auch ohne Hintergrund aus, eine Sprechblase hat immer einen.',
 				tip: 'Eine dunkle Box mit etwa 65 % Deckkraft (der Standard) hält weißen Text auf jedem Inhalt lesbar. Ohne Hintergrund schalte den Schatten ein.'
 			},
 			callout: {
@@ -587,7 +595,7 @@ const help: typeof enHelp = {
 			},
 			level: {
 				title: 'Zoomstufe',
-				text: 'Wie stark der Bereich vergrößert wird: 1,1× bis 6× in den Eigenschaften, bis 10×, wenn du die Ecken in der Vorschau ziehst. Der Bereich behält immer das Seitenverhältnis der Leinwand.',
+				text: 'Wie stark der Bereich vergrößert wird: 1,1× bis 6× unter „Inhalt“ in der Registerkarte „Eigenschaften“, bis 10×, wenn du die Ecken in der Vorschau ziehst. Der Bereich behält immer das Seitenverhältnis der Leinwand.',
 				tip: '1,5–2,5× reicht meist, um kleine Schrift lesbar zu machen. Höhere Stufen vergrößern die aufgenommenen Pixel – das Bild wird weich, außer du hast mit „Sehr hoch“ auf einem großen Bildschirm aufgenommen.'
 			},
 			transition: {
@@ -600,18 +608,14 @@ const help: typeof enHelp = {
 	properties: {
 		title: 'Eigenschaften',
 		items: {
-			show: {
-				title: 'Ein- und ausblenden',
-				text: 'Die Eigenschaften stehen rechts. „Eigenschaften“ in der Registerkarte „Ansicht“ oder Alt + Eingabe blendet sie ein oder aus; „Eigenschaften …“ im Kontextmenü eines Elements zeigt sie. Zieh ihren linken Rand, um sie breiter zu machen. Ist nichts ausgewählt, zeigen sie das Projekt (Leinwand, Hintergrund) und eine Liste der wichtigsten Tasten.',
-				keys: [['Alt', 'Eingabe']]
-			},
-			sections: {
-				title: 'Abschnitte',
-				text: 'Die Eigenschaften stehen in Abschnitten, die du zuklappen kannst; zugeklappte Abschnitte bleiben für alle Elemente zu. Das Suchfeld zeigt dir nur passende Eigenschaften. Knöpfe, die auf das Element nicht wirken können (z. B. „Zuschnitt entfernen“ ohne Zuschnitt), bleiben an ihrem Platz und sind ausgegraut.'
+			tab: {
+				title: 'Die Registerkarte „Eigenschaften“',
+				text: 'Solange ein Element oder ein Zoom-Abschnitt ausgewählt ist, zeigt das Menüband die Registerkarte „Eigenschaften“. Ihre fünf Knöpfe öffnen darunter jeweils die Einstellungen einer Art: „Inhalt“ (Schritt-Nummer, Klick-Stil, „Einpassen“ und „Füllen“ eines Bildes, Barcode, Zoomstufe, bei Clips die Quelle, „Einpassen“ und „Füllen“, Zuschnitt, Fensterposition und „Leinwand an Clip anpassen“), „Aussehen“ (Farbe, Linienstärke, Schatten, Form – Markierungen und Clips mit Bild), „Hintergrund“ (Texte und Sprechblasen), „Ton“ (Clips mit Ton) und „Zeit“ (Dauer und Blenden – jedes Element). Ein Knopf, der zur Auswahl nicht passt, ist ausgegraut. Schrift, Größe und Formate eines Textes stehen in der Registerkarte „Textfeld“; die Leinwand und die Hintergrundfarbe des Projekts unter „Leinwandgröße …“ in der Registerkarte „Ansicht“.',
+				tip: 'Ändere eine Sache und schau auf die Vorschau: Jede Änderung zeigt sich sofort und lässt sich Schritt für Schritt rückgängig machen. Knöpfe darin (z. B. „Zuschnitt entfernen“ ohne Zuschnitt) sind ausgegraut, wo sie nicht wirken können, nie versteckt.'
 			},
 			numbers: {
 				title: 'Zahlenfelder',
-				text: 'Tippe einen Wert (Komma oder Punkt), nutze ↑/↓ (Umschalt: ×10) oder zieh die Beschriftung nach links oder rechts (Umschalt: ×10, Alt: ×0,1). Größen sind in Pixeln der Leinwand.'
+				text: 'Tippe einen Wert (Komma oder Punkt), nutze ↑/↓ (Umschalt: ×10), zieh die Beschriftung nach links oder rechts (Umschalt: ×10, Alt: ×0,1) oder dreh das Mausrad über der Beschriftung oder dem Feld mit dem Fokus (eine Raste, ein Schritt; Umschalt ×10, Alt ×0,1). Größen sind in Pixeln der Leinwand.'
 			},
 			colors: {
 				title: 'Farben',
@@ -730,14 +734,14 @@ const help: typeof enHelp = {
 			link: { title: 'Verknüpfen / lösen', text: 'Ausgewählte Elemente', keys: [['Strg', 'G'], ['Strg', 'Umschalt', 'G']] },
 			track: { title: 'Spur', text: 'Nach vorne / hinten; mit Umschalt ganz nach vorne / hinten', keys: [['Strg', '↑'], ['Strg', '↓']] },
 			clipboard: { title: 'Kopieren / Ausschneiden / Einfügen', text: 'Ausgewählte Elemente; eingefügt am Abspielkopf', keys: [['Strg', 'C'], ['Strg', 'X'], ['Strg', 'V']] },
-			format: { title: 'Fett / kursiv / unterstrichen', text: 'Ausgewählter Text oder ausgewählte Sprechblase; beim Tippen im Feld „Text“: die markierten Wörter', keys: [['Strg', 'B'], ['Strg', 'I'], ['Strg', 'U']] },
+			format: { title: 'Fett / kursiv / unterstrichen', text: 'Ausgewählter Text oder ausgewählte Sprechblase; beim Tippen darin: die markierten Wörter', keys: [['Strg', 'B'], ['Strg', 'I'], ['Strg', 'U']] },
 			nudge: { title: 'Pixelweise verschieben', text: 'In der Vorschau: 1 px, mit Umschalt 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
 			cycle: { title: 'Nächstes Element', text: 'In der Vorschau: von vorne nach hinten unter dem Abspielkopf; mit Umschalt rückwärts', keys: [['Tab'], ['Umschalt', 'Tab']] },
 			free: { title: 'Einrasten', text: 'Beim Ziehen: das Gegenteil des Schalters „Einrasten“', keys: [['Alt']] },
 			axis: { title: 'Eine Richtung', text: 'Beim Verschieben in der Vorschau; an einer Ecke: Seitenverhältnis halten', keys: [['Umschalt']] },
 			scaleText: { title: 'Schrift skalieren', text: 'Während du einen Anfasser einer Textbox oder Sprechblase ziehst', keys: [['K']] },
 			zoom: { title: 'Timeline-Zoom', text: 'In der Timeline', keys: [['Strg', 'Mausrad']] },
-			properties: { title: 'Eigenschaften', text: 'Ein- oder ausblenden', keys: [['Alt', 'Eingabe']] },
+			editText: { title: 'Text bearbeiten', text: 'In den ausgewählten Text oder die Sprechblase auf der Vorschau tippen; Esc stellt wieder her, was dort stand', keys: [['Eingabe'], ['F2']] },
 			ribbon: { title: 'Menüband', text: 'Menüband zusammen- oder aufklappen; Alt oder F10 zeigen seine Zugriffstasten', keys: [['Strg', 'F1'], ['Alt'], ['F10']] },
 			entries: { title: 'Medienablage und Bibliothek', text: 'Ausgewählte Einträge einfügen, einen Eintrag umbenennen, sie löschen oder entfernen', keys: [['Eingabe'], ['F2'], ['Entf']] }
 		}

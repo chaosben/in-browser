@@ -15,7 +15,7 @@
 	import { stampFromSelection } from '#lib/model/stamp-actions.js';
 	import { choosePdfPage, editWord } from '#lib/model/stamp-dialogs.svelte.js';
 	import { defaultWords, wordText, type StampWord } from '#lib/model/stamp-words.js';
-	import { addStamp, customStamps, loadStamps, loadWords, removeStamp, saveWords, STAMP_TYPES, stampThumbnail, stampWords } from '#lib/model/stamps.svelte.js';
+	import { addStamp, customStamps, loadStamps, loadWords, removeStamp, saveWords, STAMP_TYPES, stampThumbnail, stampWords, usablePicture } from '#lib/model/stamps.svelte.js';
 	import { choose, setStamp, stampChoice, tools } from '#lib/model/tools.svelte.js';
 
 	let { context, close }: PanelProps<EditorState> = $props();
@@ -66,12 +66,15 @@
 
 	/** A file becomes a stamp of "My stamps" and is the one placed next */
 	async function add() {
-		const from = await chooseFile({ mode: 'open', folder: '/', accept: STAMP_TYPES, title: m.stamps.addTitle });
-		if (!from) return;
+		const picked = await chooseFile({ mode: 'open', folder: '/', accept: STAMP_TYPES, title: m.stamps.addTitle });
+		if (!picked) return;
 		try {
+			// A PDF protected by a password: kept without it in "My stamps" already (asked for once)
+			const from = await usablePicture(picked);
+			if (!from) return;
 			const which = await choosePdfPage(from);
 			if (!which) return;
-			const path = await addStamp(from, which.page, which.pages);
+			const path = from !== picked && which.pages <= 1 ? from : await addStamp(from, which.page, which.pages);
 			if (editable) pick({ custom: path });
 		} catch (e) {
 			showError(e, { context: '[pdf-editor] stamp' });

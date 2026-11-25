@@ -58,10 +58,13 @@ export class InspectorState {
 	readonly search = new InspectorSearch();
 	readonly #collapsed: SvelteSet<string>;
 	readonly #key: string;
+	/** Fields shown elsewhere (a ribbon popover with one section): sections without their foldable title, always open */
+	readonly plain: boolean;
 
-	constructor(storage: string) {
+	constructor(storage: string, options: { plain?: boolean } = {}) {
+		this.plain = !!options.plain;
 		this.#key = `${storage}:inspector`;
-		const stored = loadJson<{ open?: unknown; width?: unknown; collapsed?: unknown }>(this.#key, {});
+		const stored = this.plain ? {} : loadJson<{ open?: unknown; width?: unknown; collapsed?: unknown }>(this.#key, {});
 		this.open = stored.open !== false;
 		if (typeof stored.width === 'number') this.width = Math.max(MIN_WIDTH, stored.width);
 		this.#collapsed = new SvelteSet(Array.isArray(stored.collapsed) ? stored.collapsed.filter((id): id is string => typeof id === 'string') : []);

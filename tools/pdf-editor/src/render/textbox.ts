@@ -11,10 +11,10 @@
 // are then laid out from the formatted text whenever they are needed (`richLines`, kept per item) – with the same
 // breaking, so a box without formats is exactly what it always was.
 
-import { fontsEpoch, measureStyled, setSansFonts } from '@in-browser/graphics/fonts.js';
+import { faceOf, fontHas, fontsEpoch, knownFont, measureStyled, setSansFonts } from '@in-browser/graphics/fonts.js';
 import { drawRichLines } from '@in-browser/graphics/rich-canvas.js';
-import { DEFAULT_LINE_HEIGHT, isPlain, layoutRich, linesHeight, plainOf, richOf, scaleRich, tidy, type DocumentFont, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
-import { handlePoint, resizeTextBox, TEXT_HANDLES, textBoxSize, wrapText, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
+import { DEFAULT_LINE_HEIGHT, isCustomFont, isPlain, layoutRich, linesHeight, plainOf, richOf, scaleRich, tidy, type FontFamily, type FullStyle, type RichLine, type RichText } from '@in-browser/graphics/rich-text.js';
+import { evenInsets, growInsets, handlePoint, insetsX, insetsY, resizeTextBox, scaleInsets, TEXT_HANDLES, textBoxSize, wrapText, type Insets, type TextHandle, type TextSizing } from '@in-browser/graphics/text-box.js';
 import type { Box } from '@in-browser/ink/geometry.js';
 import type { Ctx } from '@in-browser/ink/render/kit.js';
 import { standardFontUrl } from '@in-browser/pdf/pdfjs.js';
@@ -42,6 +42,9 @@ export interface TextItem {
 	/** Border color (`#rrggbb[aa]`) and width (points); no border when the color is missing */
 	border?: string | null;
 	borderWidth?: number;
+	/** Space between the border (else the box's edge) and the text per side, in the text's own direction (points);
+	 * missing: `TEXT_PAD` on every side */
+	padding?: Insets;
 	/** How the box follows the text; missing: auto height (boxes written before there was a choice) */
 	sizing?: TextSizing;
 	/** How its lines are aligned in the box; missing: left */
@@ -50,8 +53,9 @@ export interface TextItem {
 	callout?: [number, number];
 	/** The text with formats of its parts (`text` is it without them); missing: plain */
 	rich?: RichText;
-	/** The box's own style beyond size and color; missing: sans-serif, regular */
-	font?: DocumentFont;
+	/** The box's own style beyond size and color; missing: sans-serif, regular. A user's or the PDF's own font
+	 * (`user:`, `pdf:`) is embedded when written */
+	font?: FontFamily;
 	bold?: boolean;
 	italic?: boolean;
 	underline?: boolean;
@@ -86,7 +90,11 @@ setSansFonts({
  * The style a character is written in: the standard fonts of a PDF hold Western European characters only – others
  * are written in the embedded sans-serif font, regular (bold and italic of it aren't embedded yet)
  */
-export const shownStyle = (char: string, style: FullStyle): FullStyle => (inWinAnsi(char) ? style : style.font === 'sans' && !style.bold && !style.italic ? style : { ...style, font: 'sans', bold: false, italic: false });
+export const shownStyle = (char: string, style: FullStyle): FullStyle => {
+	// A user's or the PDF's own font is embedded: it shows what it has a glyph for, the rest falls back
+	if (isCustomFont(style.font) && knownFont(style.font)) return fontHas(style.font, faceOf(style), char) ? style : { ...style, font: 'sans', bold: false, italic: false };
+	return inWinAnsi(char) ? style : style.font === 'sans' && !style.bold && !style.italic ? style : { ...style, font: 'sans', bold: false, italic: false };
+};
 
 const laidOut = new WeakMap<TextItem, { epoch: number; lines: RichLine[] }>();
 
@@ -96,7 +104,7 @@ export function richLines(t: TextItem): RichLine[] {
 	if (known && known.epoch === fontsEpoch.value) return known.lines;
 	const lines = layoutRich(richTextOf(t), baseStyle(t), measureStyled, {
 		// A hair more than the box holds: its width was rounded up from these very lines
-		maxWidth: textExtent(t).w - 2 * padOf(t) + 0.01,
+		maxWidth: textExtent(t).w - insetsX(padOf(t)) + 0.01,
 		lineHeight: t.lineHeight,
 		align: alignOf(t),
 		fallback: shownStyle
@@ -129,8 +137,14 @@ export const BORDER_WIDTHS = [0.5, 1, 2, 3, 4];
 /** Width of the box's border (0 without one) */
 export const borderOf = (t: Pick<TextItem, 'border' | 'borderWidth'>) => (t.border ? (t.borderWidth ?? 1) : 0);
 
+/** Inner margins to choose from: at most this many points */
+export const MAX_PADDING = 72;
+
+/** The inner margins of a box (without its border) */
+export const paddingOf = (t: Pick<TextItem, 'padding'>): Insets => t.padding ?? evenInsets(TEXT_PAD);
+
 /** Space between the box's edge and its text: the border lies inside the box, the text inside the border */
-export const padOf = (t: Pick<TextItem, 'border' | 'borderWidth'>) => TEXT_PAD + borderOf(t);
+export const padOf = (t: Pick<TextItem, 'border' | 'borderWidth' | 'padding'>): Insets => growInsets(paddingOf(t), borderOf(t));
 
 /** The family canvases draw text boxes in */
 const FAMILY = 'PdfEditorSans';
@@ -153,7 +167,7 @@ export const fontOf = (size: number) => `${size}px ${FAMILY}, Arial, Helvetica, 
 export const textExtent = (t: TextItem) => (t.rot % 180 ? { w: t.h, h: t.w } : { w: t.w, h: t.h });
 
 /** Height of a box holding `lines` lines */
-export const textHeight = (lines: number, size: number, pad = TEXT_PAD) => 2 * pad + Math.max(1, lines) * size * LINE_HEIGHT;
+export const textHeight = (lines: number, size: number, pad: Insets = evenInsets(TEXT_PAD)) => insetsY(pad) + Math.max(1, lines) * size * LINE_HEIGHT;
 
 let measurer: CanvasRenderingContext2D | null = null;
 
@@ -172,13 +186,13 @@ export const textWidth = (s: string, size: number) => measureWith(size)(s);
  * Breaks text into lines no wider than `width` (points, the box's padding included): at spaces, words longer than a
  * line at characters; an infinite width breaks only at Enter
  */
-export function layoutText(text: string, size: number, width: number, pad = TEXT_PAD): string[] {
+export function layoutText(text: string, size: number, width: number, pad: Insets = evenInsets(TEXT_PAD)): string[] {
 	const measure = measureWith(size);
-	return wrapText(text, measure, Number.isFinite(width) ? Math.max(size, width - 2 * pad) : undefined).map((l) => l.text);
+	return wrapText(text, measure, Number.isFinite(width) ? Math.max(size, width - insetsX(pad)) : undefined).map((l) => l.text);
 }
 
 /** Smallest box: about two characters wide, one line high */
-export const minTextSize = (t: Pick<TextItem, 'size' | 'border' | 'borderWidth'>) => ({ w: 2 * t.size + 2 * padOf(t), h: textHeight(1, t.size, padOf(t)) });
+export const minTextSize = (t: Pick<TextItem, 'size' | 'border' | 'borderWidth' | 'padding'>) => ({ w: 2 * t.size + insetsX(padOf(t)), h: textHeight(1, t.size, padOf(t)) });
 
 /** Room for the text from where it starts to the page's edge in its direction (points), for auto width */
 export function roomOf(t: TextItem, page: { w: number; h: number }): number {
@@ -209,7 +223,7 @@ export function withText(t: TextItem, text: string, room = Infinity): TextItem {
 	const width = sizing === 'auto-width' ? room : extent.w;
 	const lines = layoutText(text, t.size, width, pad);
 	const measure = measureWith(t.size);
-	const widest = Math.max(...lines.map(measure), 0) + 2 * pad;
+	const widest = Math.max(...lines.map(measure), 0) + insetsX(pad);
 	const content = { w: Math.max(min.w, Math.min(Math.ceil(widest * 100) / 100, room)), h: textHeight(lines.length, t.size, pad) };
 	const { w: along, h: across } = textBoxSize(sizing, extent, content);
 	const box = t.rot % 180 ? { w: across, h: along } : { w: along, h: across };
@@ -236,12 +250,12 @@ export function withRich(t: TextItem, rich: RichText, room = Infinity): TextItem
 	const min = minTextSize(next);
 	const width = sizing === 'auto-width' ? room : extent.w;
 	const lines = layoutRich(tidied, baseStyle(next), measureStyled, {
-		maxWidth: Number.isFinite(width) ? Math.max(next.size, width - 2 * pad) : undefined,
+		maxWidth: Number.isFinite(width) ? Math.max(next.size, width - insetsX(pad)) : undefined,
 		lineHeight: next.lineHeight,
 		fallback: shownStyle
 	});
-	const widest = Math.max(...lines.map((l) => l.width), 0) + 2 * pad;
-	const content = { w: Math.max(min.w, Math.min(Math.ceil(widest * 100) / 100, room)), h: Math.max(min.h, 2 * pad + linesHeight(lines)) };
+	const widest = Math.max(...lines.map((l) => l.width), 0) + insetsX(pad);
+	const content = { w: Math.max(min.w, Math.min(Math.ceil(widest * 100) / 100, room)), h: Math.max(min.h, insetsY(pad) + linesHeight(lines)) };
 	const { w: along, h: across } = textBoxSize(sizing, extent, content);
 	const box = next.rot % 180 ? { w: across, h: along } : { w: along, h: across };
 	const x = next.rot === 90 || next.rot === 180 ? next.x + next.w - box.w : next.x;
@@ -250,7 +264,7 @@ export function withRich(t: TextItem, rich: RichText, room = Infinity): TextItem
 }
 
 /** How far the text runs out of a box of fixed size (points, across its lines) */
-export const overflowOf = (t: TextItem) => Math.max(0, (isFormatted(t) ? 2 * padOf(t) + linesHeight(richLines(t)) : textHeight(t.lines.length, t.size, padOf(t))) - textExtent(t).h);
+export const overflowOf = (t: TextItem) => Math.max(0, (isFormatted(t) ? insetsY(padOf(t)) + linesHeight(richLines(t)) : textHeight(t.lines.length, t.size, padOf(t))) - textExtent(t).h);
 
 /** The compass directions clockwise, to turn handles with the text */
 const COMPASS: TextHandle[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
@@ -327,9 +341,17 @@ export function moveTextHandle(t: TextItem, index: number, x: number, y: number,
 	const scaled =
 		r.scale === 1
 			? {}
-			: { size: round(t.size * r.scale), ...(t.borderWidth ? { borderWidth: round(t.borderWidth * r.scale) } : {}), ...(t.rich ? { rich: scaleRich(t.rich, r.scale) } : {}) };
+			: {
+					size: round(t.size * r.scale),
+					...(t.borderWidth ? { borderWidth: round(t.borderWidth * r.scale) } : {}),
+					...(t.rich ? { rich: scaleRich(t.rich, r.scale) } : {}),
+					padding: roundInsets(scaleInsets(paddingOf(t), r.scale))
+				};
 	return withText({ ...t, ...scaled, sizing: r.sizing, x: mx - box.w / 2, y: my - box.h / 2, ...box }, t.text, room);
 }
+
+/** Insets to hundredths of a point */
+export const roundInsets = (i: Insets): Insets => ({ top: Math.round(i.top * 100) / 100, right: Math.round(i.right * 100) / 100, bottom: Math.round(i.bottom * 100) / 100, left: Math.round(i.left * 100) / 100 });
 
 /** Which lines end a paragraph (by index): found again in the text, since the lines keep only their words */
 const ends = new WeakMap<TextItem, Set<number>>();
@@ -369,7 +391,7 @@ export function lineRuns(t: TextItem, i: number): LineRun[] {
 	const line = t.lines[i] ?? '';
 	const align = alignOf(t);
 	if (align === 'left' || !line) return [{ text: line, at: 0 }];
-	const inner = textExtent(t).w - 2 * padOf(t);
+	const inner = textExtent(t).w - insetsX(padOf(t));
 	const room = inner - textWidth(line, t.size);
 	if (align !== 'justify') return [{ text: line, at: Math.max(0, align === 'center' ? room / 2 : room) }];
 	const words = line.split(/ +/).filter(Boolean);
@@ -454,7 +476,7 @@ export function drawCallout(ctx: Ctx, t: TextItem) {
 export function drawText(ctx: Ctx, t: TextItem) {
 	const { w, h } = textExtent(t);
 	const bw = borderOf(t);
-	const pad = TEXT_PAD + bw;
+	const pad = padOf(t);
 	drawCallout(ctx, t);
 	ctx.save();
 	ctx.translate(t.x + t.w / 2, t.y + t.h / 2);
@@ -471,13 +493,13 @@ export function drawText(ctx: Ctx, t: TextItem) {
 	}
 	ctx.textBaseline = 'alphabetic';
 	if (isFormatted(t)) {
-		drawRichLines(ctx, richLines(t), -w / 2 + pad, -h / 2 + pad);
+		drawRichLines(ctx, richLines(t), -w / 2 + pad.left, -h / 2 + pad.top);
 		ctx.restore();
 		return;
 	}
 	ctx.font = fontOf(t.size);
 	ctx.fillStyle = t.color;
 	for (let i = 0; i < t.lines.length; i++)
-		for (const run of lineRuns(t, i)) ctx.fillText(run.text, -w / 2 + pad + run.at, -h / 2 + pad + t.size * (ASCENT + i * LINE_HEIGHT));
+		for (const run of lineRuns(t, i)) ctx.fillText(run.text, -w / 2 + pad.left + run.at, -h / 2 + pad.top + t.size * (ASCENT + i * LINE_HEIGHT));
 	ctx.restore();
 }

@@ -1,3 +1,5 @@
+import { evenInsets } from '@in-browser/graphics/text-box.js';
+import { linesHeight } from '@in-browser/graphics/rich-text.js';
 import { describe, expect, it } from 'vitest';
 import { calloutTail, moveAnnotation, textBox } from './overlays';
 import type { Ctx2D } from './compositor';
@@ -46,7 +48,7 @@ describe('textBox', () => {
 		x: 0,
 		y: 0,
 		size: 0.01,
-		padding: 0.005,
+		padding: evenInsets(0.005),
 		background: '#000000',
 		...fields
 	});
@@ -61,6 +63,10 @@ describe('textBox', () => {
 	it('widens the box by glyphs reaching past the line', () => {
 		const b = textBox(ctx, text({ text: 'fab\nabf' }), 1000, 1000);
 		expect(b).toMatchObject({ w: 30 + 3 + 4 + 10, textX: 8 });
+		// Each side its own padding
+		const sides = textBox(ctx, text({ text: 'ab', padding: { top: 0.001, right: 0.002, bottom: 0.003, left: 0.004 } }), 1000, 1000);
+		expect(sides).toMatchObject({ w: 20 + 2 + 4, textX: 4 });
+		expect(sides.h - linesHeight(sides.lines)).toBeCloseTo(4);
 	});
 	it('keeps the overhang inside a fixed width', () => {
 		const b = textBox(ctx, text({ text: 'fa fa fa', boxWidth: 0.07 }), 1000, 1000);

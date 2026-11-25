@@ -10,7 +10,7 @@ import { inkSelectionCommands } from '@in-browser/ink/ui/selection-commands.js';
 import { m } from '#lib/i18n/index.js';
 import type { EditorState } from '#lib/model/editor.svelte.js';
 import type { PdfPage } from '#lib/model/document.svelte.js';
-import { isCaretTool, isMarkTool, isTextTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextFormat, setTextSize, TEXT_SIZES, textStyle, tools } from '#lib/model/tools.svelte.js';
+import { isCaretTool, isMarkTool, isTextTool, noteIcon, setNoteIcon, setTextAlign, setTextBoxStyle, setTextFormat, setTextSize, TEXT_SIZES, MIN_TEXT_SIZE, MAX_TEXT_SIZE, textStyle, tools } from '#lib/model/tools.svelte.js';
 import { loadFonts } from '@in-browser/graphics/fonts.js';
 import { richTextCommands } from '@in-browser/graphics/rich-commands.js';
 import { DEFAULT_LINE_HEIGHT, DOCUMENT_FONTS, styleAll, type TextStyle } from '@in-browser/graphics/rich-text.js';
@@ -20,7 +20,7 @@ import { isLink } from '#lib/render/link.js';
 import { isStamp } from '#lib/render/stamp.js';
 import { isNote, NOTE_ICONS, noteGlyph, noteIconOf, type NoteItem } from '#lib/render/note.js';
 import type { TextSizing } from '@in-browser/graphics/text-box.js';
-import { alignOf, baseStyle, BORDER_WIDTHS, isText, richTextOf, roomOf, sizingOf, withRich, withText, type TextAlign, type TextItem } from '#lib/render/textbox.js';
+import { alignOf, baseStyle, BORDER_WIDTHS, isText, paddingOf, richTextOf, roomOf, sizingOf, withRich, withText, type TextAlign, type TextItem } from '#lib/render/textbox.js';
 
 /** What a format tab is for: one kind of item, or several kinds */
 export type FormatKind = 'text' | 'note' | 'markup' | 'drawing' | 'stamp' | 'link' | 'mixed';
@@ -42,9 +42,9 @@ export function toolKind(tool: string): FormatKind | null {
 }
 
 /** Background and border of text boxes (null: none) */
-export type BoxStyle = Partial<Pick<TextItem, 'fill' | 'border' | 'borderWidth'>>;
+export type BoxStyle = Partial<Pick<TextItem, 'fill' | 'border' | 'borderWidth' | 'padding'>>;
 
-export function selectionCommands(ed: EditorState, onedit: (id: string) => void) {
+export function selectionCommands(ed: EditorState, onedit: (id: string) => void, fontsPage = '/fonts') {
 	const forTool = (kind: FormatKind): boolean => !sel() && toolKind(tools.tool) === kind;
 	const ink = inkSelectionCommands<PdfPage, PdfItem>({ selection: () => ed.selection, tools, drawsInk: () => forTool('drawing') });
 	/** The selection, when there is one (else the format tab works on the chosen tool) */
@@ -81,8 +81,11 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 	 * whole, else new ones */
 	const rich = richTextCommands({
 		fonts: DOCUMENT_FONTS,
+		userFonts: { page: fontsPage },
+		documentFonts: () => ed.doc?.documentFonts ?? [],
 		sizes: () => TEXT_SIZES,
 		sizeLabel: (size) => m.textbox.sizeValue(size),
+		sizeField: { unit: 'pt', min: MIN_TEXT_SIZE, max: MAX_TEXT_SIZE, step: 0.5, decimals: 1 },
 		formats: () => texts().length > 0 || forTool('text'),
 		style: () => {
 			const [t] = texts();
@@ -113,7 +116,7 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 			if (!sel()) return setTextFormat({ lineHeight: height });
 			changeTexts(({ lineHeight: _, ...t }) => (height === DEFAULT_LINE_HEIGHT ? t : { ...t, lineHeight: height }));
 		},
-		ready: () => loadFonts(DOCUMENT_FONTS).then(() => undefined)
+		ready: (fonts) => loadFonts([...DOCUMENT_FONTS, ...(fonts ?? [])]).then(() => undefined)
 	});
 
 	/** Background or border: of the selected text boxes, else of new ones */
@@ -130,7 +133,9 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 	/** Background and border shown: the first selected text box's, else those of new ones */
 	const boxStyle = () => {
 		const [t] = texts();
-		return t ? { fill: t.fill ?? null, border: t.border ?? null, borderWidth: t.borderWidth ?? 1 } : { fill: textStyle.fill, border: textStyle.border, borderWidth: textStyle.borderWidth };
+		return t
+			? { fill: t.fill ?? null, border: t.border ?? null, borderWidth: t.borderWidth ?? 1, padding: paddingOf(t) }
+			: { fill: textStyle.fill, border: textStyle.border, borderWidth: textStyle.borderWidth, padding: textStyle.padding };
 	};
 
 	/** The one selected item, when it is of a kind (to write its text) */
@@ -226,7 +231,8 @@ export function selectionCommands(ed: EditorState, onedit: (id: string) => void)
 		alignRight: align('right', m.textbox.alignRight, 'icon-[material-symbols-light--format-align-right]'),
 		justify: align('justify', m.textbox.justify, 'icon-[material-symbols-light--format-align-justify]'),
 		fixedSize: sizing('fixed', m.textbox.fixedSize, m.textbox.fixedSizeTip, 'icon-[material-symbols-light--crop-free]'),
-		fontSize: rich.fontSize,
+		/** The text commands as a whole (the font size's field, `FontSizeButton`) */
+		rich,
 		formatText: rich.format,
 		formatOf: rich.marks,
 		bold: rich.bold,

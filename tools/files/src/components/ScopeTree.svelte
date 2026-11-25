@@ -8,15 +8,17 @@
 </script>
 
 <script lang="ts">
-	import { intlLocale } from '#lib/i18n/index.js';
+	import { intlLocale, m } from '#lib/i18n/index.js';
+	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	// Which folders a sync target takes part in: a tree with checkboxes, sizes and a note per folder; subfolders load
 	// when opened. One tree for every folder choice of the sync (devices, the synced folder, the setup of both).
 
 	interface Props {
-		/** The subfolders of `folder` with their sizes */
-		load: (folder: string) => Promise<ScopeFolder[]>;
+		/** The subfolders of `folder` with their sizes – what is quick to have; `later` the full list once other devices
+		 * answered, so the tree never waits for them */
+		load: (folder: string) => Promise<ScopeFolder[] | { folders: ScopeFolder[]; later: Promise<ScopeFolder[]> }>;
 		isOn: (path: string) => boolean;
 		/** A folder whose checkbox can't change (e.g. it exists only here, so leaving it out would delete it) */
 		locked?: (folder: ScopeFolder) => boolean;
@@ -35,20 +37,41 @@
 
 	const children = new SvelteMap<string, ScopeFolder[]>();
 	const expanded = new SvelteSet<string>();
+	/** Folders whose list may still grow by the other devices' answers */
+	const asking = new SvelteSet<string>();
+	/** Why a folder's list couldn't be read (never shown as “no folders”) */
+	const failed = new SvelteMap<string, string>();
+
+	const sorted = (folders: ScopeFolder[]) => [...folders].sort((a, b) => a.name.localeCompare(b.name, intlLocale));
 
 	async function fill(folder: string) {
+		failed.delete(folder);
 		try {
-			const folders = (await load(folder)).sort((a, b) => a.name.localeCompare(b.name, intlLocale));
-			children.set(folder, folders);
-			if (folder === '/') onroot?.(folders);
+			const loaded = await load(folder);
+			const first = Array.isArray(loaded) ? loaded : loaded.folders;
+			children.set(folder, sorted(first));
+			if (Array.isArray(loaded)) {
+				if (folder === '/') onroot?.(first);
+				return;
+			}
+			asking.add(folder);
+			const all = await loaded.later.catch((e) => {
+				// The other devices' answers are extra: what is here stays
+				console.warn('[files] folders of the other devices', folder, e);
+				return first;
+			});
+			asking.delete(folder);
+			children.set(folder, sorted(all));
+			if (folder === '/') onroot?.(all);
 		} catch (e) {
-			console.error(e);
-			children.set(folder, []);
+			console.error('[files] folders', folder, e);
+			failed.set(folder, e instanceof Error ? e.message : String(e));
 		}
 	}
 
 	$effect(() => {
-		void fill('/');
+		// (it writes the maps it would otherwise read: never a dependency of this effect)
+		untrack(() => void fill('/'));
 	});
 
 	function toggleOpen(path: string) {
@@ -61,6 +84,11 @@
 </script>
 
 {#snippet tree(folder: string, depth: number)}
+	{#if folder !== '/' && failed.has(folder)}
+		<li class="text-error py-1 text-xs" style:padding-left="{depth * 1.25}rem">{m.scope.failed(failed.get(folder) ?? '')}</li>
+	{:else if folder !== '/' && !children.has(folder)}
+		<li class="py-1" style:padding-left="{depth * 1.25}rem"><span class="loading loading-spinner loading-xs"></span></li>
+	{/if}
 	{#each children.get(folder) ?? [] as child (child.path)}
 		{@const parentOff = folder !== '/' && !isOn(folder)}
 		{@const on = isOn(child.path)}
@@ -104,7 +132,9 @@
 {/snippet}
 
 <ul class="max-h-[55vh] overflow-y-auto text-sm">
-	{#if children.get('/')?.length === 0}
+	{#if failed.has('/')}
+		<li class="text-error">{m.scope.failed(failed.get('/') ?? '')}</li>
+	{:else if children.get('/')?.length === 0 && !asking.has('/')}
 		<li class="opacity-60">{empty}</li>
 	{:else if children.has('/')}
 		{@render tree('/', 0)}
@@ -112,3 +142,5 @@
 		<li><span class="loading loading-spinner loading-sm"></span></li>
 	{/if}
 </ul>
+<!-- Always there, so nothing moves when the other devices answer -->
+<p class="min-h-4 text-xs opacity-60" aria-live="polite">{asking.size ? m.scope.asking : ''}</p>

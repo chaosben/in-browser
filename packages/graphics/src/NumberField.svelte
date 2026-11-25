@@ -89,11 +89,60 @@
 			else input.focus();
 		});
 	}
+
+	/**
+	 * The wheel changes the value over the label (the drag area) and over the field while it has the focus – never
+	 * over a field merely scrolled past, so scrolling a list of fields changes nothing. Up = more; a mouse's notch is a
+	 * step, a touchpad's small deltas add up; Shift ×10, Alt ×0.1. One turn of the wheel is one change (`oncommit`
+	 * when it rests).
+	 */
+	function wheelSteps(root: HTMLElement) {
+		let at: number | null = null;
+		let rest = 0;
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const onwheel = (e: WheelEvent) => {
+			const overLabel = e.target instanceof Node && label_.contains(e.target);
+			if (!overLabel && document.activeElement !== input) return;
+			// Shift turns the wheel sideways in some browsers
+			const delta = e.deltaY || e.deltaX;
+			if (!delta) return;
+			e.preventDefault();
+			let steps: number;
+			if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= 50) steps = -Math.sign(delta);
+			else {
+				rest += delta;
+				steps = -Math.trunc(rest / 40);
+				rest -= -steps * 40;
+			}
+			if (!steps) return;
+			draft = null;
+			const factor = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+			at = clampNumber((at ?? value) + steps * step * factor, min, max, decimals);
+			set(at);
+			clearTimeout(timer);
+			timer = setTimeout(() => {
+				at = null;
+				rest = 0;
+				oncommit?.();
+			}, 400);
+		};
+		root.addEventListener('wheel', onwheel, { passive: false });
+		return () => {
+			root.removeEventListener('wheel', onwheel);
+			// A turn not yet ended still counts
+			if (at !== null) {
+				clearTimeout(timer);
+				oncommit?.();
+			}
+		};
+	}
+	let label_: HTMLSpanElement;
 </script>
 
-<div class="flex min-w-0 items-center gap-1 text-xs">
+<div class="flex min-w-0 items-center gap-1 text-xs" {@attach wheelSteps}>
 	<!-- Drag area; the field itself carries the label for assistive technology -->
 	<span
+		bind:this={label_}
 		class="min-w-0 flex-1 cursor-ew-resize touch-none truncate opacity-70 select-none"
 		onpointerdown={scrub}
 		role="presentation"

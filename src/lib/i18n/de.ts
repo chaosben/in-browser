@@ -64,6 +64,11 @@ const de: Messages = {
 			name: brand.tools['pdf-editor'],
 			summary: 'PDFs beschreiben und kommentieren, Formulare ausfüllen, Seiten ordnen',
 			keywords: 'pdf editor, pdf, kommentieren, markieren, hervorheben, stempel, drucken, formular, ausfüllen, zusammenführen, teilen, seiten, drehen, acrobat, betrachter, handschrift, notizbuch, stift, eingabestift, skizzieren, zeichnen'
+		},
+		fonts: {
+			name: brand.tools['fonts'],
+			summary: 'Eigene Schriften für jedes Tool hinzufügen oder freie installieren',
+			keywords: 'fonts, schrift, schriften, schriftart, ttf, otf, installieren, google fonts, fontsource, typografie'
 		}
 	},
 

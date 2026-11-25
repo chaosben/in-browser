@@ -2,6 +2,7 @@ import type { IconData } from '@in-browser/graphics/icons/types.js';
 import type { BarcodeSpec } from '@in-browser/graphics/barcode.js';
 import type { DisplayFont, RichText } from '@in-browser/graphics/rich-text.js';
 import { FormatError, migrateFormat, type RawDocument } from '@in-browser/files/formats.js';
+import { evenInsets, type Insets } from '@in-browser/graphics/text-box.js';
 
 export type { IconData };
 
@@ -115,7 +116,8 @@ interface AnnotationBase extends ItemBase {
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
 
 /** Fonts of text annotations: the suite's display fonts (`@in-browser/graphics/fonts.js`) */
-export type FontId = DisplayFont;
+/** The display fonts and the user's own (`user:<family>`) */
+export type FontId = DisplayFont | `user:${string}`;
 
 interface Shadowed {
 	/** Soft drop shadow */
@@ -247,8 +249,8 @@ interface TextBase extends AnnotationBase, Shadowed {
 	boxHeight?: number;
 	/** Corner radius of the background as a fraction of the canvas height */
 	radius: number;
-	/** Space between the background's edge and the text as a fraction of the canvas height */
-	padding: number;
+	/** Space between the background's edge and the text per side, as fractions of the canvas height */
+	padding: Insets;
 }
 
 export interface TextAnnotation extends TextBase {
@@ -360,7 +362,7 @@ export interface Timeline {
 
 /** Format of `project.json` in a `.screencapture` package */
 export const FORMAT = 'screen-capture';
-export const VERSION = 2;
+export const VERSION = 3;
 
 export interface Project {
 	format: typeof FORMAT;
@@ -413,8 +415,21 @@ export function newId(): string {
 /** Steps from each older format version to the next; every change of the format adds one (with a test). */
 const MIGRATIONS: Record<number, (p: RawDocument) => RawDocument> = {
 	// Version 2: projects became packages in the shared file system; `format` names the tool
-	1: (p) => ({ ...p, format: FORMAT, version: 2 })
+	1: (p) => ({ ...p, format: FORMAT, version: 2 }),
+	// Version 3: the padding of text and callouts per side
+	2: (p) => {
+		const items = (list: unknown) => (Array.isArray(list) ? list.map(paddingPerSide) : list);
+		const timeline = p.timeline as { items?: unknown } | undefined;
+		const library = Array.isArray(p.library) ? p.library.map((e: { items?: unknown }) => ({ ...e, items: items(e.items) })) : p.library;
+		return { ...p, version: 3, ...(timeline ? { timeline: { ...timeline, items: items(timeline.items) } } : {}), ...(library ? { library } : {}) };
+	}
 };
+
+/** One padding for all sides (before version 3) as one per side */
+function paddingPerSide(item: unknown): unknown {
+	const raw = item as Record<string, unknown> | null;
+	return raw && typeof raw.padding === 'number' ? { ...raw, padding: evenInsets(raw.padding) } : item;
+}
 
 /** Brings a saved project to the current format version; newer or unknown formats are rejected (`FormatError`). */
 export const migrate = (raw: unknown) => migrateFormat(raw, FORMAT, VERSION, MIGRATIONS);
@@ -448,7 +463,9 @@ export function fillItem(item: Item): Item {
 	if ((item.kind === 'text' || item.kind === 'callout') && !raw.align) patch.align = 'left';
 	// Formerly fixed in relation to the font size
 	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.radius !== 'number') patch.radius = 0.3 * item.size;
-	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.padding !== 'number') patch.padding = 0.4 * item.size;
+	// One value for all sides before version 3 (also in the global library, which has no version)
+	if ((item.kind === 'text' || item.kind === 'callout') && typeof raw.padding === 'number') patch.padding = evenInsets(raw.padding);
+	else if ((item.kind === 'text' || item.kind === 'callout') && (!raw.padding || typeof raw.padding !== 'object')) patch.padding = evenInsets(0.4 * item.size);
 	if (item.kind === 'spotlight' && typeof raw.blur !== 'number') patch.blur = 0;
 	if (isDrawable(item) && typeof raw.sketch !== 'boolean') patch.sketch = false;
 	if (isDrawable(item) && typeof raw.drawIn !== 'number') patch.drawIn = 0;

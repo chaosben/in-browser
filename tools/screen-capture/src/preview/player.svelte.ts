@@ -3,6 +3,7 @@ import type { Clip, Project, Rect } from '#lib/project/types.js';
 import { renderFrame, type Frame } from '#lib/render/compositor.js';
 import { frameArea } from '#lib/media/content.js';
 import { onPictureLoaded } from '#lib/render/images.svelte.js';
+import { onFontsChanged } from '@in-browser/graphics/fonts.js';
 import { mediaPath } from '#lib/storage/store.js';
 import { mediaUrl, type MediaUrl } from '@in-browser/files/media-url.js';
 import { clipsAt, clipsOf, duration, fadeAlpha, itemEnd, sourceTime, trackState } from '#lib/timeline/ops.js';
@@ -81,9 +82,12 @@ export class Player {
 
 	attach(canvas: HTMLCanvasElement) {
 		this.#canvas = canvas;
-		// Fonts of text annotations load on first use – draw again once they are there
+		// Fonts of text annotations load on first use – draw again once they are there; the user's own come from
+		// their bytes (no `loadingdone`), so also when the suite's fonts say a family arrived
 		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
 		document.fonts.addEventListener('loadingdone', this.#redrawLater);
+		this.#unsubscribeFonts?.();
+		this.#unsubscribeFonts = onFontsChanged(this.#redrawLater);
 		// Likewise own images and icons
 		this.#unsubscribePictures?.();
 		this.#unsubscribePictures = onPictureLoaded(this.#redrawLater);
@@ -307,9 +311,11 @@ export class Player {
 
 	#redrawLater = () => this.redraw();
 	#unsubscribePictures: (() => void) | undefined;
+	#unsubscribeFonts: (() => void) | undefined;
 
 	destroy() {
 		document.fonts.removeEventListener('loadingdone', this.#redrawLater);
+		this.#unsubscribeFonts?.();
 		this.#unsubscribePictures?.();
 		cancelAnimationFrame(this.#redrawRaf);
 		this.pause();

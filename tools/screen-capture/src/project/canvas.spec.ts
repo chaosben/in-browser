@@ -1,3 +1,4 @@
+import { evenInsets } from '@in-browser/graphics/text-box.js';
 import { describe, expect, it } from 'vitest';
 import { clampCanvasSize, refitDefaults, resizeCanvas } from './canvas';
 import { placeRect } from './defaults';
@@ -45,12 +46,12 @@ describe('resizeCanvas', () => {
 			align: 'left',
 			boxWidth: 0.4,
 			radius: 0.02,
-			padding: 0.04,
+			padding: evenInsets(0.04),
 			background: '#fff',
 			tip: { x: 1, y: 0 }
 		};
 		const a = resizeCanvas(timeline(text), from, to).items[0];
-		expect(a).toMatchObject({ x: 0.25, y: 0.75, size: 0.05, radius: 0.01, padding: 0.02, boxWidth: 0.2, tip: { x: 0.75, y: 0.25 } });
+		expect(a).toMatchObject({ x: 0.25, y: 0.75, size: 0.05, radius: 0.01, padding: evenInsets(0.02), boxWidth: 0.2, tip: { x: 0.75, y: 0.25 } });
 	});
 	it('zoom keeps w === h and shows the same area', () => {
 		const t = resizeCanvas({ ...timeline(), zoom: [{ id: 'z', start: 0, end: 1, easeIn: 0.5, easeOut: 0.5, rect: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } }] }, from, { width: 2000, height: 500 });

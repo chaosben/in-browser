@@ -11,7 +11,8 @@ const en = {
 		files: 'Files',
 		'text-editor': 'Text Editor',
 		'screen-capture': 'Screen Capture',
-		'pdf-editor': 'PDF Editor'
+		'pdf-editor': 'PDF Editor',
+		fonts: 'Fonts'
 	},
 
 	brand: {

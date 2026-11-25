@@ -3,7 +3,8 @@
 // where it says nothing. We write both next to the appearance (which is what every viewer shows) and read them from
 // text boxes of other programs. Read as XML and only for these few things: never put into the page as HTML.
 
-import { asDocumentFont, DOCUMENT_FONTS, markerOf, tidy, type DocumentFont, type FullStyle, type RichText, type TextStyle } from '@in-browser/graphics/rich-text.js';
+import { asDocumentFont, DOCUMENT_FONTS, isCustomFont, markerOf, tidy, type DocumentFont, type FontFamily, type FullStyle, type RichText, type TextStyle } from '@in-browser/graphics/rich-text.js';
+import { customLabel } from '@in-browser/graphics/fonts.js';
 
 /** The names PDF programs know the three families by */
 const FAMILY_NAME: Record<DocumentFont, string> = { sans: 'Helvetica', serif: 'Times', mono: 'Courier' };
@@ -12,7 +13,7 @@ const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': 
 
 const css = (style: FullStyle) =>
 	[
-		`font-family:${FAMILY_NAME[asDocumentFont(style.font)]}`,
+		`font-family:${familyCss(style.font)}`,
 		`font-size:${style.size}pt`,
 		`color:${style.color.slice(0, 7)}`,
 		`font-weight:${style.bold ? 'bold' : 'normal'}`,
@@ -21,7 +22,14 @@ const css = (style: FullStyle) =>
 	].join(';');
 
 /** `/DS` of a box of style `base` */
-export const defaultStyleOf = (base: FullStyle, align: string) => `font:${base.italic ? 'italic ' : ''}${base.bold ? 'bold ' : ''}${base.size}pt ${FAMILY_NAME[asDocumentFont(base.font)]};text-align:${align};color:${base.color.slice(0, 7)}`;
+export const defaultStyleOf = (base: FullStyle, align: string) => `font:${base.italic ? 'italic ' : ''}${base.bold ? 'bold ' : ''}${base.size}pt ${familyCss(base.font)};text-align:${align};color:${base.color.slice(0, 7)}`;
+
+/** A family as other programs read it: one of ours by its standard name, a user's or a PDF's by its own (quoted),
+ * the standard sans-serif one after it */
+function familyCss(font: FontFamily): string {
+	if (!isCustomFont(font)) return FAMILY_NAME[asDocumentFont(font)];
+	return `'${customLabel(font).replace(/['\\]/g, '')}',${FAMILY_NAME.sans}`;
+}
 
 /** `/RC` of formatted text; list items carry their mark as text (the format knows no lists) */
 export function richContentsOf(rich: RichText, base: FullStyle): string {

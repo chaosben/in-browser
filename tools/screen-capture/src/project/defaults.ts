@@ -1,4 +1,5 @@
 import type { BarcodeSpec } from '@in-browser/graphics/barcode.js';
+import { evenInsets } from '@in-browser/graphics/text-box.js';
 import { DEFAULT_LINE_HEIGHT } from '@in-browser/graphics/rich-text.js';
 import { m } from '#lib/i18n/index.js';
 import {
@@ -84,7 +85,7 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				align: 'left',
 				background: '#000000a6',
 				radius: 0.015,
-				padding: 0.02,
+				padding: evenInsets(0.02),
 				// Like before: a translucent box has no shadow
 				shadow: false
 			};
@@ -105,7 +106,7 @@ export function createOverlay(kind: ToolKind, start: number, end: number, step =
 				align: 'left',
 				background: '#ffffff',
 				radius: 0.012,
-				padding: 0.016,
+				padding: evenInsets(0.016),
 				tip: { x: 0.36, y: 0.38 }
 			};
 	}

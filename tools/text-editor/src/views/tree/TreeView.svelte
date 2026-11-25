@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { treeKey } from '@in-browser/brand/ui/tree.js';
 	import { onMount, tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ChangeSpec } from '@codemirror/state';
@@ -485,27 +486,18 @@
 			else picker.only(line.node.id);
 			select(line);
 		};
-		if (e.key === 'ArrowDown') return handled(), go(index + 1);
-		if (e.key === 'ArrowUp') return handled(), go(Math.max(0, index - 1));
-		if (e.key === 'Home') return handled(), go(0);
-		if (e.key === 'End') return handled(), go(lines.length - 1);
+		const rows = lines.map((l) => ({ id: l.node.id, parent: l.parent?.id ?? null, container: isContainer(l.node), open: open.has(l.node.id) }));
+		// Arrows, Home and End: the suite's keys of a tree (`ui/tree.ts`)
+		const step = treeKey(e.key, rows, index);
+		if (step) {
+			handled();
+			if ('go' in step) go(step.go);
+			else if ('open' in step) open.add(step.open);
+			else if ('close' in step) open.delete(step.close);
+			return;
+		}
 		if (!current) return;
 		const { node } = current;
-		if (e.key === 'ArrowRight') {
-			handled();
-			if (isContainer(node) && !open.has(node.id)) open.add(node.id);
-			else if (lines[index + 1]?.parent === node) go(index + 1);
-			return;
-		}
-		if (e.key === 'ArrowLeft') {
-			handled();
-			if (open.has(node.id)) open.delete(node.id);
-			else {
-				const parent = lines.findIndex((l) => l.node === current.parent);
-				if (parent >= 0) go(parent);
-			}
-			return;
-		}
 		if (e.key === ' ') return handled(), toggle(node);
 	}
 

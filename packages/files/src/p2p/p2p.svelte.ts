@@ -350,9 +350,9 @@ const devicesSource: Source = liveSource(
 	{ readOnly: false, trash: true }
 );
 
-function withTimeout<T>(promise: Promise<T>, path: string): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, path: string, ms = LIVE_TIMEOUT): Promise<T> {
 	return new Promise((resolve, reject) => {
-		const timer = setTimeout(() => reject(new FilesError('offline', path)), LIVE_TIMEOUT);
+		const timer = setTimeout(() => reject(new FilesError('offline', path)), ms);
 		promise.then(
 			(value) => (clearTimeout(timer), resolve(value)),
 			(error) => (clearTimeout(timer), reject(error))
@@ -432,7 +432,7 @@ export const finishSetup = (scope: string[]) => request<void>('finishSetup', sco
 /** A new folder held for confirmation comes to this device after all */
 export const allowDeviceFolder = (folder: string) => request<void>('allowFolder', folder);
 /** Sizes of the subfolders of `folder` per device (connected ones and this one) */
-export const folderSizes = (folder: string) => request<Record<string, Record<string, number>>>('sizes', folder);
+export const folderSizes = (folder: string) => withTimeout(request<Record<string, Record<string, number>>>('sizes', folder), folder, 15_000);
 export const diagnostics = () => request<Diagnostics>('diagnostics');
 
 /** Events of the sync (conflict copies, devices added/removed) in every tab */

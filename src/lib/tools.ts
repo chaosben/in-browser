@@ -53,5 +53,12 @@ export const TOOLS: readonly Tool[] = [
 		icon: '/pdf-editor/favicon.svg',
 		category: 'writing',
 		also: ['organize', 'drawing']
+	},
+	{
+		id: 'fonts',
+		url: '/fonts',
+		icon: '/fonts/favicon.svg',
+		category: 'organize',
+		also: ['writing']
 	}
 ];

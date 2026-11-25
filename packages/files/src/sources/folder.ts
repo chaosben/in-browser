@@ -1,5 +1,5 @@
 import { FilesError, type Entry } from '../entry.js';
-import { childHandle, dirAt, isMissing, moveFile, renameEntry } from '../handles.js';
+import { childHandle, dirAt, folderAccess, isMissing, moveFile, renameEntry } from '../handles.js';
 import { basename, join, nameKey, parent, segments } from '../path.js';
 import type { Source } from './source.js';
 
@@ -19,7 +19,7 @@ function mapped(e: unknown, path: string): never {
 export function folderSource(root: FileSystemDirectoryHandle): Source {
 	/** Every access first checks the browser still allows it (it asks again after a restart unless allowed for good) */
 	async function access() {
-		const state = (await root.queryPermission?.({ mode: 'readwrite' })) ?? 'granted';
+		const state = await folderAccess(root);
 		if (state !== 'granted') throw new FilesError('denied', '/');
 	}
 

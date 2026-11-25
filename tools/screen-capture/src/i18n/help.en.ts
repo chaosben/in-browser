@@ -10,7 +10,7 @@ const help = {
 		items: {
 			layout: {
 				title: 'Layout',
-				text: 'At the top the ribbon with all commands in tabs: “File” (group “Project”: “Save as …”, “Share …” – the project for a guest, see the help page on sharing –, “Show in Files”, “Export”), “Home” (playback, cutting, clipboard, selection), “Insert” (recording, media, annotations, text, icon and barcode, zoom, library), “View” (timeline zoom, panels, canvas size); with a selection the tabs “Text box” (a text or speech bubble), “Arrange” and “Clip” appear after them, and the ribbon switches to one by itself – to the one you used last – and back when the selection ends. The editor opens on “Home”; undo and redo sit left of the tabs. The top bar above only shows the project’s name. Left: the panels with everything you add (media, library, icons, annotations, text, zoom) – the icons on the narrow bar open and close them. Middle: the preview, below it the timeline. Right: the properties of the selected element – with nothing selected, those of the project. Size, playhead time and a running import are shown in the footer.'
+				text: 'At the top the ribbon with all commands in tabs: “File” (group “Project”: “Save as …”, “Share …” – the project for a guest, see the help page on sharing –, “Show in Files”, “Export”), “Home” (playback, cutting, clipboard, selection), “Insert” (recording, media, annotations, text, icon and barcode, zoom, library), “View” (timeline zoom, panels, canvas size); with a selection the tabs “Properties” (the settings of the selected element), “Text box” (a text or speech bubble), “Arrange” and “Clip” appear after them, and the ribbon switches to one by itself – to the one you used last – and back when the selection ends. The editor opens on “Home”; undo and redo sit left of the tabs. The top bar above only shows the project’s name. Left: the panels with everything you add (media, library, icons, annotations, text, zoom) – the icons on the narrow bar open and close them. Middle: the preview, below it the timeline. Size, playhead time and a running import are shown in the footer.'
 			},
 			ribbon: {
 				title: 'Ribbon',
@@ -63,7 +63,7 @@ const help = {
 			flow: {
 				title: 'How a recording works',
 				text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. The dialog then shows a preview of what you shared; “Start recording” starts the optional 3 second countdown – switch to the window you record in the meantime – and then the recording. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording.',
-				tip: 'When you share a single window, the browser records only that window: its dialogs, menus and pop-ups are separate windows and are missing. If you need them, share the whole screen and crop the clip to the window afterwards (“Crop” in the clip’s properties).'
+				tip: 'When you share a single window, the browser records only that window: its dialogs, menus and pop-ups are separate windows and are missing. If you need them, share the whole screen and crop the clip to the window afterwards (“Crop” in the tab “Clip”).'
 			},
 			screenQuality: {
 				title: 'Screen – Quality',
@@ -255,16 +255,16 @@ const help = {
 			},
 			change: {
 				title: 'Change',
-				text: '“Change” in the project properties (or “Canvas size” in the “View” tab, which opens them) sets a new size. Everything keeps its size in pixels and stays centered; on a smaller canvas, content can reach over the edge. Can be undone.'
+				text: '“Canvas size …” in the “View” tab opens the canvas settings with the size field open; “Change” there sets a new size. Everything keeps its size in pixels and stays centered; on a smaller canvas, content can reach over the edge. Can be undone.'
 			},
 			cropCanvas: {
 				title: 'Canvas size of the largest clip',
-				text: '“Change” in the project properties offers “Largest clip” at the top of the size list as soon as the largest clip with a picture is smaller than the canvas; the entry shows the new size. After “Apply” the canvas takes exactly the size of that clip (the part on the canvas). Nothing is scaled – the clip then fills the canvas 1:1, other content keeps its pixel size and may reach over the edge. Can be undone.',
+				text: '“Change” under “Canvas size …” offers “Largest clip” at the top of the size list as soon as the largest clip with a picture is smaller than the canvas; the entry shows the new size. After “Apply” the canvas takes exactly the size of that clip (the part on the canvas). Nothing is scaled – the clip then fills the canvas 1:1, other content keeps its pixel size and may reach over the edge. Can be undone.',
 				tip: 'Use it after cropping a screen recording to a window: the export then has the size of the window instead of the whole screen – smaller files, no empty border.'
 			},
 			fitToClip: {
 				title: 'Fit canvas to clip',
-				text: '“Fit canvas to clip” in the properties of a clip with a picture (also in its context menu and in the “Clip” tab) gives the canvas the original size of the clip’s visible part – a crop counts. The new size is shown below the button; when the canvas already fits the clip, the button is grayed out. The clip then fills the canvas 1:1; everything else keeps its size in pixels around the clip’s center, webcams in their default place move to the new corner. The canvas can get smaller or larger. Can be undone.',
+				text: '“Fit canvas to clip” in the “Clip” tab of a clip with a picture (also in its context menu and under “Content” in the tab “Properties”) gives the canvas the original size of the clip’s visible part – a crop counts. The new size is shown below the button; when the canvas already fits the clip, the button is grayed out. The clip then fills the canvas 1:1; everything else keeps its size in pixels around the clip’s center, webcams in their default place move to the new corner. The canvas can get smaller or larger. Can be undone.',
 				tip: 'Use it when a recording is shown scaled down and should be exported sharp at its own resolution, or to export exactly one clip. Unlike “Largest clip”, it uses the original size of the clip you chose, not the frame it has on the canvas right now.'
 			},
 			enlarge: {
@@ -274,11 +274,11 @@ const help = {
 					grow: { label: 'Enlarge canvas', text: 'The new material is shown 1:1 and sharp; the existing content keeps its size and moves to the center. The export gets larger.' },
 					keep: { label: 'Keep size', text: 'The output size stays; the new material stays scaled down.' }
 				},
-				tip: 'Enlarge if the new material is your main content, e.g. a recording on a larger screen. Keep the size if the video has to fit a fixed format or the material is only a side element. The project properties offer “Enlarge canvas” again later (grayed out while every clip is already shown 1:1).'
+				tip: 'Enlarge if the new material is your main content, e.g. a recording on a larger screen. Keep the size if the video has to fit a fixed format or the material is only a side element. “Canvas size …” in the “View” tab offers “Enlarge canvas” again later (grayed out while every clip is already shown 1:1).'
 			},
 			background: {
 				title: 'Background color',
-				text: 'Visible wherever nothing covers the canvas: in gaps, around picture-in-picture clips and during fades. Set it in the project properties (nothing selected); a change can be undone like any other.'
+				text: 'Visible wherever nothing covers the canvas: in gaps, around picture-in-picture clips and during fades. Set it under “Canvas size …” in the “View” tab; a change can be undone like any other.'
 			}
 		}
 	},
@@ -338,7 +338,7 @@ const help = {
 			},
 			link: {
 				title: 'Link',
-				text: '“Link” (“Arrange” tab, properties, context menu) links the selected elements, so a click selects, moves and deletes them together; “Unlink” separates them. Grayed out when there is nothing to link or unlink.',
+				text: '“Link” (“Arrange” tab, context menu) links the selected elements, so a click selects, moves and deletes them together; “Unlink” separates them. Grayed out when there is nothing to link or unlink.',
 				keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']]
 			},
 			clipboard: {
@@ -364,7 +364,7 @@ const help = {
 			},
 			menu: {
 				title: 'Context menu',
-				text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and lists everything you can do with it: cut, copy, paste, delete (also with a gap), split, hold frame, change the layer, link and unlink, crop, remove crop, fit, fill, fit canvas to clip, add to the library, select all and “Properties …”. What can’t act on the selection is grayed out. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
+				text: 'A right click on an element – in the timeline or the preview – selects it (unless it already is) and lists everything you can do with it: cut, copy, paste, delete (also with a gap), split, hold frame, change the layer, link and unlink, crop, remove crop, fit, fill, fit canvas to clip, edit barcode, add to the library and select all. What can’t act on the selection is grayed out. On an empty spot in the timeline it moves the playhead there, so “Paste” inserts at that spot.'
 			},
 			view: {
 				title: 'Timeline zoom and height',
@@ -421,8 +421,8 @@ const help = {
 			},
 			crop: {
 				title: 'Crop',
-				text: '“Crop” in the clip’s properties (also in the “Clip” tab, the context menu, or double-click the clip in the preview) shows the outline of the whole picture dashed; drag the edges or corners to cut away what you don’t want to show. The picture stays in place, only its frame gets smaller, and the edges snap like everything else. The fields Left, Top, Right and Bottom set the cut in pixels of the recording. Clicking “Crop” again (it stays pressed while cropping), Esc or Enter ends cropping; “Remove crop” shows the whole picture again (grayed out without a crop). “Fit” and “Fill” then use the cropped part.',
-				tip: 'To show a program with its dialogs and menus, record the whole screen and crop to the area of the program window. Then “Largest clip” in the canvas size list of the project properties reduces the canvas to it. Hold frames and split clips keep the crop.',
+				text: '“Crop” in the “Clip” tab (also under “Content” in the tab “Properties”, in the context menu, or double-click the clip in the preview) shows the outline of the whole picture dashed; drag the edges or corners to cut away what you don’t want to show. The picture stays in place, only its frame gets smaller, and the edges snap like everything else. The fields Left, Top, Right and Bottom set the cut in pixels of the recording. Clicking “Crop” again (it stays pressed while cropping), Esc or Enter ends cropping; “Remove crop” shows the whole picture again (grayed out without a crop). “Fit” and “Fill” then use the cropped part.',
+				tip: 'To show a program with its dialogs and menus, record the whole screen and crop to the area of the program window. Then “Largest clip” in the size list under “Canvas size …” reduces the canvas to it. Hold frames and split clips keep the crop.',
 				keys: [['Esc'], ['Enter']]
 			},
 			shape: {
@@ -459,7 +459,7 @@ const help = {
 			},
 			shapes: {
 				title: 'Arrow, line, frame, ellipse',
-				text: 'Point at or mark something. Color and line width (1 px up to a tenth of the canvas height; the arrowhead grows along) are set in the properties; a line can be dashed, a frame can get rounded corners.'
+				text: 'Point at or mark something. Color and line width (1 px up to a tenth of the canvas height; the arrowhead grows along) are set under “Appearance” in the tab “Properties”; a line can be dashed, a frame can get rounded corners.'
 			},
 			pen: {
 				title: 'Hand-drawn and drawing itself',
@@ -513,11 +513,11 @@ const help = {
 			},
 			icon: {
 				title: 'Icon',
-				text: 'Icons from the “Icons” panel (“Icon” in the “Insert” tab opens it); the color including opacity is set in the properties.'
+				text: 'Icons from the “Icons” panel (“Icon” in the “Insert” tab opens it); the color including opacity is set under “Appearance” in the tab “Properties”.'
 			},
 			barcode: {
 				title: 'Barcode and QR code',
-				text: '“Barcode …” (tab “Insert”, next to “Icon”) makes a QR code or a barcode of what you type – plain text, a web address, Wi-Fi access, a contact and more – and places it in the middle of the picture at the playhead. The code is drawn as vectors, so it stays sharp at every size, and keeps its aspect ratio. Kind, colors and options are remembered for the next code, the content never. “Edit barcode …” (properties “Content”, context menu) opens the same dialog to change it; its middle and width stay.',
+				text: '“Barcode …” (tab “Insert”, next to “Icon”) makes a QR code or a barcode of what you type – plain text, a web address, Wi-Fi access, a contact and more – and places it in the middle of the picture at the playhead. The code is drawn as vectors, so it stays sharp at every size, and keeps its aspect ratio. Kind, colors and options are remembered for the next code, the content never. “Edit barcode …” (“Content” in the tab “Properties”, context menu) opens the same dialog to change it; its middle and width stay.',
 				tip: 'Keep it dark on light with the quiet zone on, at least a fifth of the picture high, and on screen for a few seconds – long enough for a phone camera to read it from the video.'
 			},
 			shadow: {
@@ -531,16 +531,21 @@ const help = {
 			},
 			styles: {
 				title: 'Remembered settings',
-				text: 'What you set in the properties – color, font, size, line width, shadow, fades, duration – and sizes dragged at a corner apply to the next new element of the same type, in all projects. Position, text and step number are not remembered.'
+				text: 'What you set in the tabs “Properties” and “Text box” – color, font, size, line width, shadow, fades, duration – and sizes dragged at a corner apply to the next new element of the same type, in all projects. Position, text and step number are not remembered.'
 			}
 		}
 	},
 	text: {
 		title: 'Text & speech bubble',
 		items: {
+			typing: {
+				title: 'Typing the text',
+				text: 'You type right on the preview: a new text or speech bubble is ready to be typed into at once. To change the text later, double-click it, or select it and press Enter or F2, or choose “Edit text” in the tab “Text box”. The field lies over the box in its font, size, alignment and color. Clicking elsewhere keeps what you typed – as one step to undo –, Esc puts back what was there.',
+				keys: [['Enter'], ['F2'], ['Esc']]
+			},
 			box: {
 				title: 'Text box',
-				text: 'The handles change only the box, never the font: the left and right side set the width (the text wraps, the height follows it), the top, bottom and corners a fixed size (Shift keeps a corner’s proportions); text that doesn’t fit a fixed size runs out below the box. Press K while dragging a handle to scale the font with the box. “Box size” under Font switches between the three. A box that would get larger than the canvas wraps to the canvas width and, if needed, gets a smaller font.',
+				text: 'The handles change only the box, never the font: the left and right side set the width (the text wraps, the height follows it), the top, bottom and corners a fixed size (Shift keeps a corner’s proportions); text that doesn’t fit a fixed size runs out below the box. Press K while dragging a handle to scale the font with the box. The group “Size” of the tab “Text box” switches between the three. A box that would get larger than the canvas wraps to the canvas width and, if needed, gets a smaller font.',
 				options: {
 					autoWidth: { label: 'Auto width (default)', text: 'As wide as the longest line; lines break only where you press Enter. For labels and titles.' },
 					autoHeight: { label: 'Auto height', text: 'Keeps its width; lines wrap and the box grows with the text. For longer texts.' },
@@ -551,13 +556,16 @@ const help = {
 			},
 			format: {
 				title: 'Formatting the text',
-				text: 'The text is typed in the field “Text” of the properties. Parts of it can be bold, italic, underlined, in another font, size or color, and paragraphs can be bullets or numbered: select words in the field and choose the format in the tab “Text box” (it appears while a text or speech bubble is selected), or press Ctrl+B, Ctrl+I, Ctrl+U. In a list, Enter starts the next item (on an empty one it ends the list), Tab and Shift+Tab change its level. With nothing selected in the field, a format applies to the whole box, and its parts lose their own value of it – the same as under Font. “Line spacing” is in the tab and under Font: 1.0 to 2.0 (texts made before keep 1.25).',
+				text: 'Parts of the text can be bold, italic, underlined, in another font, size or color, and paragraphs can be bullets or numbered: while you type in the box, select words and choose the format in the tab “Text box” (it appears while a text or speech bubble is selected), or press Ctrl+B, Ctrl+I, Ctrl+U. In a list, Enter starts the next item (on an empty one it ends the list), Tab and Shift+Tab change its level. With nothing selected in the box, or with the box only selected and not typed into, a format applies to the whole box, and its parts lose their own value of it. “Line spacing” is in the same tab: 1.0 to 2.0 (texts made before keep 1.25).',
+				options: {
+					size: { label: '“Font size”', text: 'Opens a field for any size from 1 to 400 canvas pixels – type it and press Enter, use ↑/↓, drag the field’s name sideways or turn the mouse wheel over it – and below it the usual sizes from 12 to 200 pixels.' }
+				},
 				tip: 'Set font, size and color for the whole box; select single words only for an emphasis. A bullet list of three or four short points reads better in a video than running text.',
 				keys: [['Ctrl', 'B'], ['Ctrl', 'I'], ['Ctrl', 'U']]
 			},
 			font: {
 				title: 'Font',
-				text: 'Fonts are included in the app and work offline, each with bold and italic (Caveat has no italic of its own: it is slanted).',
+				text: 'Fonts are included in the app and work offline, each with bold and italic (Caveat has no italic of its own: it is slanted). Below them the menu “Font” lists “My fonts” – those you added in the tool Fonts (“Manage fonts …” at its end opens it); a face such a font lacks is drawn in its regular one.',
 				options: {
 					system: { label: 'System font', text: 'The font of your operating system – neutral and familiar.' },
 					inter: { label: 'Inter', text: 'Very readable at small sizes; good for labels.' },
@@ -572,8 +580,8 @@ const help = {
 				text: 'Left, centered, right or justified. Justified text spreads the words to the full width; the last line of each paragraph stays left-aligned.'
 			},
 			background: {
-				title: 'Background color, corner radius, padding',
-				text: 'A box behind the text makes it readable on any picture. Corner radius rounds the box, padding sets the space between box edge and text. A text can do without a background, a speech bubble always has one.',
+				title: 'Background color, corner radius, inner margin',
+				text: 'A box behind the text makes it readable on any picture (“Background” in the tab “Properties”). Corner radius rounds the box; “Inner margin” sets the space between the box’s edge and the text for each side on its own (“Top”, “Right”, “Bottom”, “Left”, in canvas pixels) – with “Same on all sides” on, one field sets all four. A text can do without a background, a speech bubble always has one.',
 				tip: 'A dark box at about 65 % opacity (the default) keeps white text readable on any content. Without a background, turn on the shadow.'
 			},
 			callout: {
@@ -591,7 +599,7 @@ const help = {
 			},
 			level: {
 				title: 'Zoom level',
-				text: 'How much the area is enlarged: 1.1× to 6× in the properties, up to 10× by dragging the corners in the preview. The area always keeps the canvas’ aspect ratio.',
+				text: 'How much the area is enlarged: 1.1× to 6× under “Content” in the tab “Properties”, up to 10× by dragging the corners in the preview. The area always keeps the canvas’ aspect ratio.',
 				tip: '1.5–2.5× is usually enough to make small text readable. Higher levels enlarge the recorded pixels – the picture gets soft, unless you recorded with “Very high” quality on a large screen.'
 			},
 			transition: {
@@ -604,18 +612,14 @@ const help = {
 	properties: {
 		title: 'Properties',
 		items: {
-			show: {
-				title: 'Show and hide',
-				text: 'The properties sit on the right. “Properties” in the “View” tab or Alt + Enter shows or hides them; “Properties …” in the context menu of an element shows them. Drag their left edge to make them wider. With nothing selected, they show the project (canvas, background) and a list of the most important keys.',
-				keys: [['Alt', 'Enter']]
-			},
-			sections: {
-				title: 'Sections',
-				text: 'Properties are grouped into sections you can collapse; collapsed sections stay collapsed for all elements. The search field shows only matching properties. Buttons that can’t act on the element (e.g. “Remove crop” without a crop) stay in their place, grayed out.'
+			tab: {
+				title: 'The tab “Properties”',
+				text: 'While an element or a zoom segment is selected, the ribbon shows the tab “Properties”. Its five buttons each open the settings of one kind below them: “Content” (step number, click style, “Fit” and “Fill” of a picture, barcode, zoom level, and for clips the source, “Fit” and “Fill”, crop, window position and “Fit canvas to clip”), “Appearance” (color, line width, shadow, shape – annotations and clips with a picture), “Background” (texts and speech bubbles), “Audio” (clips with sound) and “Time” (duration and fades – every element). A button that doesn’t apply to the selection is grayed out. Font, size and formats of a text are in the tab “Text box”; the canvas and the project’s background color under “Canvas size …” in the tab “View”.',
+				tip: 'Change one thing and watch the preview: every change shows at once and can be undone step by step. Buttons inside (e.g. “Remove crop” without a crop) are grayed out where they can’t act, never hidden.'
 			},
 			numbers: {
 				title: 'Number fields',
-				text: 'Type a value (comma or point), use ↑/↓ (Shift: ×10) or drag the label left or right (Shift: ×10, Alt: ×0.1). Sizes are in pixels of the canvas.'
+				text: 'Type a value (comma or point), use ↑/↓ (Shift: ×10), drag the label left or right (Shift: ×10, Alt: ×0.1) or turn the mouse wheel over the label or the focused field (one notch, one step; Shift ×10, Alt ×0.1). Sizes are in pixels of the canvas.'
 			},
 			colors: {
 				title: 'Colors',
@@ -734,14 +738,14 @@ const help = {
 			link: { title: 'Link / unlink', text: 'Selected elements', keys: [['Ctrl', 'G'], ['Ctrl', 'Shift', 'G']] },
 			track: { title: 'Track', text: 'Forward / backward; with Shift to the front / back', keys: [['Ctrl', '↑'], ['Ctrl', '↓']] },
 			clipboard: { title: 'Copy / cut / paste', text: 'Selected elements; pasted at the playhead', keys: [['Ctrl', 'C'], ['Ctrl', 'X'], ['Ctrl', 'V']] },
-			format: { title: 'Bold / italic / underline', text: 'Selected text or speech bubble; while typing in the field “Text”: the selected words', keys: [['Ctrl', 'B'], ['Ctrl', 'I'], ['Ctrl', 'U']] },
+			format: { title: 'Bold / italic / underline', text: 'Selected text or speech bubble; while typing in it: the selected words', keys: [['Ctrl', 'B'], ['Ctrl', 'I'], ['Ctrl', 'U']] },
 			nudge: { title: 'Nudge', text: 'In the preview: 1 px, with Shift 10 px', keys: [['←'], ['↑'], ['→'], ['↓']] },
 			cycle: { title: 'Next element', text: 'In the preview: front to back under the playhead; with Shift backwards', keys: [['Tab'], ['Shift', 'Tab']] },
 			free: { title: 'Snapping', text: 'While dragging: the opposite of the “Snap” switch', keys: [['Alt']] },
 			axis: { title: 'One direction', text: 'While moving in the preview; at a corner: keep the proportions', keys: [['Shift']] },
 			scaleText: { title: 'Scale the font', text: 'While dragging a handle of a text box or speech bubble', keys: [['K']] },
 			zoom: { title: 'Timeline zoom', text: 'In the timeline', keys: [['Ctrl', 'Mouse wheel']] },
-			properties: { title: 'Properties', text: 'Show or hide them', keys: [['Alt', 'Enter']] },
+			editText: { title: 'Edit text', text: 'Type into the selected text or speech bubble on the preview; Esc puts back what was there', keys: [['Enter'], ['F2']] },
 			ribbon: { title: 'Ribbon', text: 'Collapse or expand the ribbon; Alt or F10 show its access keys', keys: [['Ctrl', 'F1'], ['Alt'], ['F10']] },
 			entries: { title: 'Media bin and library', text: 'Insert the selected entries, rename an entry, delete or remove them', keys: [['Enter'], ['F2'], ['Del']] }
 		}

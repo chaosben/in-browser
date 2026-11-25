@@ -5,16 +5,25 @@
 // (`RichTextTarget`); labels, icons, ids and shortcuts are these.
 
 import type { Command } from '@in-browser/brand/commands.js';
+import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+import { customLabel, customNote, knownFont, registeredFamilies } from './fonts.js';
 import { graphicsMessages } from './i18n/index.svelte.js';
 import { richEditing } from './rich-editing.svelte.js';
-import { LINE_HEIGHTS, withList, type FontFamily, type FullStyle, type ListKind, type RichText, type TextStyle } from './rich-text.js';
+import { isCustomFont, LINE_HEIGHTS, withList, type CustomFont, type FontFamily, type FullStyle, type ListKind, type RichText, type TextStyle } from './rich-text.js';
 
 export interface RichTextTarget {
 	/** Fonts the tool offers */
 	fonts: readonly FontFamily[];
+	/** The user's own fonts are offered too (“My fonts”, `user-fonts.svelte.ts`), with the way to the tool “Fonts” */
+	userFonts?: { page: string };
+	/** Fonts the open document brings (“Fonts of this PDF”); one that can't be used with the reason */
+	documentFonts?: () => readonly (CustomFont | { label: string; reason: string })[];
 	/** Font sizes to choose from (the tool's unit) and how one reads */
 	sizes: () => readonly number[];
 	sizeLabel: (size: number) => string;
+	/** Any size typed in: as shown (the tool's unit, e.g. pt or canvas px) and its range there; `shown`/`stored`
+	 * convert when the tool keeps sizes in another unit (missing: the same) */
+	sizeField: { unit: string; min: number; max: number; step: number; decimals: number; shown?: (size: number) => number; stored?: (value: number) => number };
 	/** Something to format: boxes selected, or the next new one */
 	formats: () => boolean;
 	/** The style shown: of the first selected box, else of the next new one */
@@ -29,17 +38,24 @@ export interface RichTextTarget {
 	lineHeight: () => number;
 	setLineHeight: (height: number) => void;
 	/** Resolves when the fonts are there (nothing is measured before) */
-	ready: () => Promise<void>;
+	ready: (fonts?: readonly FontFamily[]) => Promise<void>;
 }
 
 /** Equal within rounding (sizes may be fractions of a canvas) */
 const same = (a: number | null, b: number) => a !== null && Math.abs(a - b) <= Math.abs(b) * 1e-6;
 
+/** A font's name as shown: the bundled ones by our words, the others by their own; one not on this device says so */
+export function fontName(font: FontFamily): string {
+	const tm = graphicsMessages().text;
+	return isCustomFont(font) ? (knownFont(font) ? customLabel(font) : tm.missingFont(customLabel(font))) : tm.fonts[font];
+}
+
 export function richTextCommands(t: RichTextTarget) {
 	const tm = () => graphicsMessages().text;
 
 	async function format(patch: TextStyle) {
-		await t.ready();
+		// A font chosen is there before anything is measured in it
+		await t.ready(patch.font ? [patch.font] : undefined);
 		const typing = richEditing.current;
 		if (typing) return typing.apply(patch);
 		t.format(patch);
@@ -90,19 +106,44 @@ export function richTextCommands(t: RichTextTarget) {
 			enabled: t.formats,
 			menu: () => {
 				const current = marks().font;
-				return t.fonts.map((font) => ({ label: tm().fonts[font], checked: font === current, run: () => void format({ font }) }));
+				const entry = (font: FontFamily): MenuEntry => {
+					const note = isCustomFont(font) ? customNote(font) : undefined;
+					return { label: fontName(font), checked: font === current, run: () => void format({ font }), ...(note && { note }) };
+				};
+				const entries: MenuEntry[] = t.fonts.map(entry);
+				// A font of a text that isn't there (yet): shown checked, so the menu says what the text asks for
+				const listed = new Set<FontFamily>(t.fonts);
+				if (t.userFonts) {
+					const own = registeredFamilies('user:').sort((a, b) => fontName(a).localeCompare(fontName(b)));
+					entries.push({ heading: tm().myFonts }, ...own.map(entry));
+					own.forEach((f) => listed.add(f));
+				}
+				const documents = t.documentFonts?.() ?? [];
+				if (documents.length) {
+					entries.push(
+						{ heading: tm().documentFonts },
+						...documents.map((f): MenuEntry => (typeof f === 'string' ? entry(f) : { label: f.label, disabled: true, note: f.reason, run: () => {} }))
+					);
+					documents.forEach((f) => typeof f === 'string' && listed.add(f));
+				}
+				if (current && !listed.has(current)) entries.push({ separator: true }, entry(current));
+				if (t.userFonts) entries.push({ separator: true }, { label: tm().manageFonts, icon: 'icon-[material-symbols-light--font-download-outline]', href: t.userFonts.page, run: () => void open(t.userFonts!.page, '_blank', 'noopener') });
+				return entries;
 			}
 		} satisfies Command,
-		fontSize: {
-			id: 'fontSize',
-			label: tm().fontSize,
-			icon: 'icon-[material-symbols-light--format-size]',
+		/** For the font size's field and list (`FontSizeButton`) */
+		fontSizes: {
 			enabled: t.formats,
-			menu: () => {
-				const current = marks().size;
-				return t.sizes().map((size) => ({ label: t.sizeLabel(size), checked: same(current, size), run: () => void format({ size }) }));
-			}
-		} satisfies Command,
+			sizes: t.sizes,
+			label: t.sizeLabel,
+			field: t.sizeField,
+			/** The size of the text it acts on; null when that has several */
+			current: () => marks().size,
+			/** The box's own size: shown in the field when the text has several */
+			base: () => t.style().size,
+			set: (size: number) => void format({ size }),
+			same
+		},
 		bulleted: list('bullet', tm().bulleted, 'icon-[material-symbols-light--format-list-bulleted]'),
 		numbered: list('number', tm().numbered, 'icon-[material-symbols-light--format-list-numbered]'),
 		lineHeight: {

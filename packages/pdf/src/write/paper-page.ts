@@ -2,6 +2,7 @@
 // (thin vector lines), so every viewer and every printer shows it. Also the pages "Blank page" inserts with a paper.
 
 import { pdfLib } from '../pdf-lib.js';
+import { pdfProducer } from '../producer.js';
 
 export const PAPERS = ['blank', 'lined', 'grid', 'dotted'] as const;
 export type Paper = (typeof PAPERS)[number];
@@ -58,10 +59,14 @@ export function paperContent(paper: Paper, w: number, h: number): string {
 	return ops.join('\n');
 }
 
-/** A PDF of `pages` empty pages of `width` × `height` points with a paper */
-export async function paperPdf({ width, height, paper = 'blank', pages = 1 }: { width: number; height: number; paper?: Paper; pages?: number }): Promise<Uint8Array> {
+/** A PDF of `pages` empty pages of `width` × `height` points with a paper; made by the suite, by `author` (the user's
+ * name from the settings, when given) */
+export async function paperPdf({ width, height, paper = 'blank', pages = 1, author }: { width: number; height: number; paper?: Paper; pages?: number; author?: string }): Promise<Uint8Array> {
 	const { PDFDocument, PDFName } = await pdfLib();
 	const doc = await PDFDocument.create();
+	doc.setProducer(pdfProducer());
+	doc.setCreator(pdfProducer());
+	if (author?.trim()) doc.setAuthor(author.trim());
 	const content = paperContent(paper, width, height);
 	// One stream for all pages
 	const stream = content ? doc.context.register(doc.context.flateStream(content)) : null;

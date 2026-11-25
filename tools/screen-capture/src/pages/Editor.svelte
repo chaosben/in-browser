@@ -1,17 +1,18 @@
 <script lang="ts">
-	// Editor page of a project (`?path=` of its package): the ribbon on top, side panels on the left (what you add),
-	// the preview with its editing layer, the properties on the right and the timeline below. Every action is a
+	import { loadUserFonts, watchUserFonts } from '@in-browser/graphics/user-fonts.svelte.js';	// Editor page of a project (`?path=` of its package): the ribbon on top, side panels on the left (what you add),
+	// the preview with its editing layer (text is typed there) and the timeline below; the selection's properties are
+	// in the ribbon's contextual tab “Properties”. Every action is a
 	// `Command` (`ui/commands.ts`): ribbon, context menus and keys come from there. Changes save themselves; the save
 	// state, size, length and a running import sit in the footer. One tab per project.
 	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
-	import InspectorPane from '@in-browser/brand/Inspector.svelte';
-	import { InspectorState } from '@in-browser/brand/inspector.svelte.js';
 	import PanelRail from '@in-browser/brand/PanelRail.svelte';
 	import { panelCommand } from '@in-browser/brand/panels.js';
 	import Ribbon from '@in-browser/brand/Ribbon.svelte';
 	import RibbonPopover from '@in-browser/brand/RibbonPopover.svelte';
 	import type { GroupSize, RibbonTab } from '@in-browser/brand/ribbon.js';
 	import ColorField from '@in-browser/graphics/ColorField.svelte';
+	import { graphicsMessages } from '@in-browser/graphics/i18n/index.svelte.js';
+	import FontSizeButton from '@in-browser/graphics/FontSizeButton.svelte';
 	import { richEditing } from '@in-browser/graphics/rich-editing.svelte.js';
 	import { isTextLike, textCommands } from '#lib/ui/text-commands.js';
 	import { installCommandKeys, matches, type Command } from '@in-browser/brand/commands.js';
@@ -24,10 +25,12 @@
 	import { editorUrl } from '#lib/brand.js';
 	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import CanvasDialog from '#lib/components/CanvasDialog.svelte';
+	import PropertyPanel from '#lib/components/PropertyPanel.svelte';
+	import Modal from '@in-browser/brand/Modal.svelte';
+	import type { PropertySection } from '#lib/components/Inspector.svelte';
 	import { setBrandBar } from '@in-browser/brand/brand-bar.svelte.js';
 	import { saveStateOf, setBrandFooter } from '@in-browser/brand/brand-footer.svelte.js';
 	import ExportDialog from '#lib/components/ExportDialog.svelte';
-	import Inspector from '#lib/components/Inspector.svelte';
 	import OverlayEditor from '#lib/components/OverlayEditor.svelte';
 	import RecordDialog from '#lib/components/RecordDialog.svelte';
 	import Timeline from '#lib/components/Timeline.svelte';
@@ -86,8 +89,6 @@
 	import { ExternalVersions, flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
 
 	let editor = $state<Editor | null>(null);
-	/** The properties on the right (suite inspector: shown or not, width, folded sections) */
-	const inspector = new InspectorState('screen-capture');
 	let player = $state<Player | null>(null);
 	let loadError = $state<string | null>(null);
 	/** Opening failed because the browser doesn't allow access to the connected folder right now */
@@ -105,8 +106,31 @@
 	let timelineZoom = $state(1);
 	/** Duration of the next still frame (“Hold frame” ▾) */
 	let freezeSeconds = $state(3);
-	/** The properties' fields (View → “Canvas size” opens the size field there) */
-	let properties = $state<ReturnType<typeof Inspector>>();
+	let overlayEditor = $state<ReturnType<typeof OverlayEditor>>();
+	/** “Canvas size …”: the project's canvas and background in a dialog */
+	let canvasDialog = $state(false);
+
+	/** The sections of properties the selection has (the tab “Properties”; the others stay, disabled) */
+	function propertySections(): PropertySection[] {
+		const ed = editor;
+		if (!ed) return [];
+		const o = ed.selectedOverlay;
+		if (o) {
+			const out: PropertySection[] = [];
+			if (o.kind === 'step' || o.kind === 'click' || o.kind === 'image' || o.kind === 'barcode') out.push('content');
+			out.push('appearance');
+			if (o.kind === 'text' || o.kind === 'callout') out.push('background');
+			out.push('time');
+			return out;
+		}
+		if (ed.selectedZoom) return ['content', 'time'];
+		const clip = ed.selectedClip;
+		if (clip) {
+			const source = clip.type === 'video' || clip.type === 'freeze' ? ed.source(clip.sourceId) : undefined;
+			return ['content', ...(source?.hasVideo ? (['appearance'] as const) : []), ...(clip.type === 'video' && source?.hasAudio ? (['audio'] as const) : []), 'time'];
+		}
+		return [];
+	}
 
 	/** Dragging the splitter above the timeline changes its height; stored at the end */
 	function resizeTimeline(e: PointerEvent) {
@@ -277,6 +301,8 @@
 		if (!editor || !player) return;
 		const start = at.start ?? player.time;
 		placeAnnotation(applyStyle(createOverlay(kind, start, start + defaultDuration(kind), nextStepNumber(editor.project.timeline)), loadStyle(kind)), at);
+		// A new text is typed into right away, on the preview
+		if (kind === 'text' || kind === 'callout') void tick().then(() => overlayEditor?.editText());
 	}
 
 	/** Own image from the media bin (`image`: its id) or an icon, 3 s long */
@@ -409,29 +435,16 @@
 		},
 		openPanel: (id) => (panelState.open = id),
 		barcode: (edit) => (barcoding = { edit }),
-		changeCanvas: async () => {
-			if (!editor) return;
-			editor.selection = null;
-			inspector.show();
-			// The project's properties are there after the next update
-			await tick();
-			properties?.openCanvasSize();
+		changeCanvas: () => {
+			if (editor) canvasDialog = true;
 		}
 	};
 	const { commands: c, keyOnly, frames } = editorCommands(commandPage);
 	/** The contextual tab “Text box”: formats of the selected text and callouts */
 	const tc = textCommands(
 		() => editor,
-		async () => {
-			inspector.show();
-			await tick();
-			properties?.focusText();
-		}
+		() => overlayEditor?.editText()
 	);
-	/** “Properties” (View → Panels, Alt+Enter) */
-	const propertiesCommand = inspector.command();
-	/** The properties of what a context menu was opened on: shown, never hidden */
-	const showProperties: Command = { ...propertiesCommand, run: () => inspector.show() };
 
 	const openPanel = { get: () => panelState.open, set: (id: string | null) => (panelState.open = id) };
 
@@ -488,7 +501,7 @@
 			label: m.ribbon.tabs.view,
 			groups: [
 				{ id: 'timeline', label: m.ribbon.groups.timeline, items: [c.timelineIn, c.timelineOut, c.timelineFit] },
-				{ id: 'panels', label: m.ribbon.groups.panels, items: [...PANELS.map((spec) => panelCommand(spec, openPanel)), propertiesCommand] },
+				{ id: 'panels', label: m.ribbon.groups.panels, items: [...PANELS.map((spec) => panelCommand(spec, openPanel))] },
 				{ id: 'canvas', label: m.ribbon.groups.canvas, items: [c.canvasSize] }
 			]
 		},
@@ -499,9 +512,28 @@
 			contextual: true,
 			visible: () => isTextLike(editor?.selectedItem),
 			groups: [
-				{ id: 'text', label: m.ribbon.groups.text, items: [tc.editText, tc.fontFamily, tc.fontSize, tc.bold, tc.italic, tc.underline, { id: 'textColor', label: m.textbox.textColor, custom: textColor }] },
+				{ id: 'text', label: m.ribbon.groups.text, items: [tc.editText, tc.fontFamily, { id: 'fontSize', label: graphicsMessages().text.fontSize, custom: fontSizeButton }, tc.bold, tc.italic, tc.underline, { id: 'textColor', label: m.textbox.textColor, custom: textColor }] },
 				{ id: 'paragraph', label: m.ribbon.groups.paragraph, items: [tc.alignLeft, tc.alignCenter, tc.alignRight, tc.justify, tc.bulleted, tc.numbered, tc.lineHeight] },
 				{ id: 'sizing', label: m.ribbon.groups.sizing, items: [tc.autoWidth, tc.autoHeight, tc.fixedSize] }
+			]
+		},
+		{
+			id: 'properties',
+			label: m.ribbon.tabs.properties,
+			contextual: true,
+			visible: () => !!editor?.selectedItem || !!editor?.selectedZoom,
+			groups: [
+				{
+					id: 'properties',
+					label: m.ribbon.groups.properties,
+					items: [
+						{ id: 'content', label: m.inspector.sections.content, custom: contentButton },
+						{ id: 'appearance', label: m.inspector.sections.appearance, custom: appearanceButton },
+						{ id: 'background', label: m.inspector.sections.background, custom: backgroundButton },
+						{ id: 'audio', label: m.inspector.sections.audio, custom: audioButton },
+						{ id: 'time', label: m.inspector.sections.time, custom: timeButton }
+					]
+				}
 			]
 		},
 		{
@@ -541,7 +573,6 @@
 			return all.filter((cmd) => !(cmd === c.selectAll && !inEditArea()) && !(text && (cmd === c.copy || cmd === c.cut)));
 		})
 	);
-	$effect(() => installCommandKeys(() => [propertiesCommand]));
 
 	// ←/→ step through frames (Shift: a second) and repeat while held; not while typing or with a dialog open
 	$effect(() => {
@@ -574,7 +605,7 @@
 	 * entries of the place it was opened (e.g. the elements under the mouse pointer in the preview).
 	 */
 	function itemMenu(e: MouseEvent, extra: MenuEntry[] = []) {
-		openContextMenu(e, itemMenuEntries(c, showProperties, extra));
+		openContextMenu(e, itemMenuEntries(c, extra));
 	}
 
 	async function recorded(recording: Recording) {
@@ -692,17 +723,42 @@
 		overPreview = false;
 		if (editor && player) drop(e, { editor, player, timeline, actions, insertSource, importFiles });
 	}
+
+	// The user's own fonts (“My fonts”): read now, and again when the font folder changes
+	$effect(() => {
+		void loadUserFonts();
+		return watchUserFonts();
+	});
 </script>
+
+{#snippet fontSizeButton(size: GroupSize)}
+	<FontSizeButton commands={tc} {size} />
+{/snippet}
 
 {#snippet textColor(size: GroupSize)}
 	<!-- The color of what is selected in the text typed into, else of the selected boxes -->
 	{@const value = richEditing.current?.marks.color ?? tc.marks().color}
-	<RibbonPopover id="textColor" label={m.textbox.textColor} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={value} disabled={!tc.texts().length}>
+	<RibbonPopover id="textColor" label={m.textbox.textColor} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={value ?? null} disabled={!tc.texts().length}>
 		{#snippet children()}
 			<ColorField {value} onchange={(v, final) => v && final && void tc.format({ color: v })} />
 		{/snippet}
 	</RibbonPopover>
 {/snippet}
+
+<!-- The contextual tab “Properties”: each section of the selection's properties in a popover (what the inspector
+     held; every change one undo step, as there) -->
+{#snippet propertyButton(size: GroupSize, section: PropertySection, label: string, icon: string)}
+	<RibbonPopover id="properties-{section}" {label} {icon} {size} disabled={!editor || !propertySections().includes(section)}>
+		{#snippet children()}
+			{#if editor}<PropertyPanel {editor} commands={c} only={section} />{/if}
+		{/snippet}
+	</RibbonPopover>
+{/snippet}
+{#snippet contentButton(size: GroupSize)}{@render propertyButton(size, 'content', m.inspector.sections.content, 'icon-[material-symbols-light--tune]')}{/snippet}
+{#snippet appearanceButton(size: GroupSize)}{@render propertyButton(size, 'appearance', m.inspector.sections.appearance, 'icon-[material-symbols-light--style-outline]')}{/snippet}
+{#snippet backgroundButton(size: GroupSize)}{@render propertyButton(size, 'background', m.inspector.sections.background, 'icon-[material-symbols-light--colors]')}{/snippet}
+{#snippet audioButton(size: GroupSize)}{@render propertyButton(size, 'audio', m.inspector.sections.audio, 'icon-[material-symbols-light--volume-up-outline]')}{/snippet}
+{#snippet timeButton(size: GroupSize)}{@render propertyButton(size, 'time', m.inspector.sections.time, 'icon-[material-symbols-light--schedule-outline]')}{/snippet}
 
 {#snippet footerStatus()}
 	{#if editor && player}
@@ -771,14 +827,11 @@
 							class="block h-full w-full bg-black"
 							{@attach (canvas) => player?.attach(canvas)}
 						></canvas>
-						<OverlayEditor {editor} {player} {itemMenu} />
+						<OverlayEditor bind:this={overlayEditor} {editor} {player} {itemMenu} />
 					</div>
 				</div>
 			</section>
 
-			<InspectorPane state={inspector}>
-				<Inspector bind:this={properties} {editor} commands={c} />
-			</InspectorPane>
 		</div>
 
 		<!-- Splitter: drag (or arrow keys) to share the height between preview and timeline, double-click resets it -->
@@ -809,6 +862,17 @@
 		{/if}
 	</div>
 
+	{#if canvasDialog && editor}
+		<Modal onclose={() => (canvasDialog = false)} labelledby="canvas-title">
+			<div class="modal-box flex max-w-sm flex-col gap-3">
+				<h3 id="canvas-title" class="text-lg font-bold">{m.editor.canvasSize}</h3>
+				<PropertyPanel {editor} commands={c} only="canvas" />
+				<div class="modal-action mt-0">
+					<button class="btn btn-sm" onclick={() => (canvasDialog = false)}>{m.common.close}</button>
+				</div>
+			</div>
+		</Modal>
+	{/if}
 	{#if barcoding}
 		<BarcodeDialog spec={barcoding.edit?.spec} oninsert={placeBarcode} onclose={() => (barcoding = null)} />
 	{/if}

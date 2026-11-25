@@ -17,6 +17,8 @@ export interface MenuAction {
 	/** Where the entry leads (opening a folder or document): the middle mouse button or Ctrl/⌘+click opens it in a
 	 * new tab instead of running it, like a link */
 	href?: string;
+	/** A small mark (!) after the label, saying something to keep in mind about the choice (its tooltip) */
+	note?: string;
 	/** Pointer or focus on the entry (e.g. to highlight what it stands for), `false` when it leaves */
 	onhover?: (on: boolean) => void;
 }

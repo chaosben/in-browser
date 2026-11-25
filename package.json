@@ -32,6 +32,7 @@
 		"@in-browser/brand": "*",
 		"@in-browser/files": "*",
 		"@in-browser/files-app": "*",
+		"@in-browser/fonts": "*",
 		"@in-browser/graphics": "*",
 		"@in-browser/ink": "*",
 		"@in-browser/jwl": "*",

@@ -7,14 +7,15 @@
 // sticky notes and "Text box" types onto the page (their colors – and the text's size, background and border –
 // remembered with the markers').
 
-import { DEFAULT_LINE_HEIGHT, DOCUMENT_FONTS, LINE_HEIGHTS, type DocumentFont } from '@in-browser/graphics/rich-text.js';
+import { DEFAULT_LINE_HEIGHT, DOCUMENT_FONTS, LINE_HEIGHTS, type DocumentFont, type FontFamily } from '@in-browser/graphics/rich-text.js';
 import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 import type { Tool } from '@in-browser/ink/input/controller.js';
 import type { MeasureKind, MeasureUnit } from '@in-browser/ink/items.js';
 import type { ShapeKind } from '@in-browser/ink/shapes.js';
 import { InkTools } from '@in-browser/ink/tools.svelte.js';
 import type { MarkKind } from '#lib/render/markup.js';
-import { BORDER_WIDTHS, TEXT_ALIGNS, type TextAlign } from '#lib/render/textbox.js';
+import { BORDER_WIDTHS, MAX_PADDING, TEXT_ALIGNS, TEXT_PAD, type TextAlign } from '#lib/render/textbox.js';
+import { evenInsets, insetsOf, sameInsets, type Insets } from '@in-browser/graphics/text-box.js';
 import { NOTE_ICONS, type NoteIcon } from '#lib/render/note.js';
 import { STAMP_NAMES, type StampName, stampEvents } from '#lib/render/stamp.js';
 
@@ -36,7 +37,7 @@ const stored = loadJson<{
 	colors?: Partial<Record<MarkKind, unknown>>;
 	note?: unknown;
 	noteIcon?: unknown;
-	text?: { color?: unknown; size?: unknown; fill?: unknown; border?: unknown; borderWidth?: unknown; align?: unknown; font?: unknown; bold?: unknown; italic?: unknown; underline?: unknown; lineHeight?: unknown };
+	text?: { color?: unknown; size?: unknown; fill?: unknown; border?: unknown; borderWidth?: unknown; padding?: unknown; align?: unknown; font?: unknown; bold?: unknown; italic?: unknown; underline?: unknown; lineHeight?: unknown };
 	stamp?: { word?: unknown; name?: unknown; custom?: unknown; page?: unknown; info?: unknown; withName?: unknown; withDate?: unknown; withTime?: unknown };
 	caret?: unknown;
 	icon?: unknown;
@@ -68,16 +69,27 @@ export function setNoteIcon(icon: NoteIcon) {
 	storeMarkup();
 }
 
+/** Inner margins as stored, within what can be chosen (else the default) */
+function paddingFrom(value: unknown): Insets {
+	const insets = insetsOf(value);
+	return insets && Math.max(insets.top, insets.right, insets.bottom, insets.left) <= MAX_PADDING ? insets : evenInsets(TEXT_PAD);
+}
+
 /** Text color, font size, background and border of new text boxes */
-export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 32, 48];
-export const textStyle = $state<{ color: string; size: number; fill: string | null; border: string | null; borderWidth: number; align: TextAlign; font: DocumentFont; bold: boolean; italic: boolean; underline: boolean; lineHeight: number }>({
+export const TEXT_SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
+/** Any font size typed in lies between these (points) */
+export const MIN_TEXT_SIZE = 1;
+export const MAX_TEXT_SIZE = 288;
+export const textStyle = $state<{ color: string; size: number; fill: string | null; border: string | null; borderWidth: number; padding: Insets; align: TextAlign; font: FontFamily; bold: boolean; italic: boolean; underline: boolean; lineHeight: number }>({
 	color: colorOr(stored.text?.color, '#000000'),
-	size: TEXT_SIZES.includes(stored.text?.size as number) ? (stored.text!.size as number) : 12,
+	size: typeof stored.text?.size === 'number' && stored.text.size >= MIN_TEXT_SIZE && stored.text.size <= MAX_TEXT_SIZE ? stored.text.size : 12,
 	fill: colorOr(stored.text?.fill, null),
 	border: colorOr(stored.text?.border, null),
 	borderWidth: BORDER_WIDTHS.includes(stored.text?.borderWidth as number) ? (stored.text!.borderWidth as number) : 1,
+	padding: paddingFrom(stored.text?.padding),
 	align: TEXT_ALIGNS.includes(stored.text?.align as TextAlign) ? (stored.text!.align as TextAlign) : 'left',
-	font: DOCUMENT_FONTS.includes(stored.text?.font as DocumentFont) ? (stored.text!.font as DocumentFont) : 'sans',
+	// A user's font stays chosen (a PDF's own belongs to that PDF)
+	font: DOCUMENT_FONTS.includes(stored.text?.font as DocumentFont) || (typeof stored.text?.font === 'string' && stored.text.font.startsWith('user:')) ? (stored.text!.font as FontFamily) : 'sans',
 	bold: stored.text?.bold === true,
 	italic: stored.text?.italic === true,
 	underline: stored.text?.underline === true,
@@ -90,7 +102,8 @@ export const newTextFormat = () => ({
 	...(textStyle.bold && { bold: true }),
 	...(textStyle.italic && { italic: true }),
 	...(textStyle.underline && { underline: true }),
-	...(textStyle.lineHeight !== DEFAULT_LINE_HEIGHT && { lineHeight: textStyle.lineHeight })
+	...(textStyle.lineHeight !== DEFAULT_LINE_HEIGHT && { lineHeight: textStyle.lineHeight }),
+	...(!(sameInsets(textStyle.padding) && textStyle.padding.top === TEXT_PAD) && { padding: { ...textStyle.padding } })
 });
 
 /** Font, bold, italic, underline and line height of new text boxes (remembered) */
@@ -180,7 +193,7 @@ export function setTextAlign(align: TextAlign) {
 }
 
 /** Background and border of new text boxes (remembered) */
-export function setTextBoxStyle(style: Partial<Pick<typeof textStyle, 'fill' | 'border' | 'borderWidth'>>) {
+export function setTextBoxStyle(style: Partial<Pick<typeof textStyle, 'fill' | 'border' | 'borderWidth' | 'padding'>>) {
 	Object.assign(textStyle, style);
 	storeMarkup();
 }

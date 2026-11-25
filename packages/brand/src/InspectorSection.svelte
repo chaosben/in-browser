@@ -29,6 +29,9 @@
 	const open = $derived(search.active || inspector.isOpen(id));
 </script>
 
+{#if inspector.plain}
+	<div class="flex flex-col gap-4">{@render children()}</div>
+{:else}
 <!-- Fields stay mounted while hidden, so they keep reporting whether they match -->
 <section class={['border-base-300 flex flex-col border-t pt-2', { hidden: !visible }]}>
 	<button
@@ -44,3 +47,4 @@
 		{@render children()}
 	</div>
 </section>
+{/if}

@@ -25,7 +25,7 @@ export default defineConfig(({ command }) => ({
 	server: {
 		fs: { allow: ['tools', 'packages'] },
 		// Browser console and uncaught errors in the terminal of the dev server
-		forwardConsole: { unhandledErrors: true, logLevels: ['error', 'warn', 'info'] }
+		forwardConsole: { unhandledErrors: true, logLevels: ['error', 'warn', 'info', 'log', 'debug'] }
 	},
 	// Libraries only loaded on demand (dynamic import): pre-bundled at server start, otherwise found only on first use,
 	// which makes the dev server re-bundle and fail that import (504 "Outdated Optimize Dep")

@@ -70,6 +70,11 @@ const en = {
 			name: brand.tools['pdf-editor'],
 			summary: 'Write on and annotate PDFs, fill in forms, organize pages',
 			keywords: 'pdf, annotate, comment, highlight, stamp, print, form, fill, merge, split, pages, rotate, sign, acrobat, viewer, handwriting, notebook, stylus, pen, sketch, draw'
+		},
+		fonts: {
+			name: brand.tools['fonts'],
+			summary: 'Add your own fonts for every tool, or install free ones',
+			keywords: 'font, fonts, typeface, ttf, otf, install, google fonts, fontsource, typography'
 		}
 	},
 

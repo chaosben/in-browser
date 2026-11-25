@@ -115,4 +115,14 @@ describe('P2P devices', { timeout: 30_000 }, () => {
 		await until(() => heard.length === 1, 4000, 'heard');
 		expect(heard).toEqual([{ page: 2 }]);
 	});
+
+	it('gives the sizes of subfolders only – a file in the folder is none (choosing it off would exclude a file)', async () => {
+		const a = await device(hub(), 'A');
+		await writeText(a.tree, '/top.txt', '12345');
+		await writeText(a.tree, '/Docs/a.txt', '123');
+		await writeText(a.tree, '/Docs/sub/b.txt', '12');
+		await a.tree.mkdir('/Empty');
+		expect(await a.device.folderSizes('/')).toEqual({ '/Docs': 5, '/Empty': 0 });
+		expect(await a.device.folderSizes('/Docs')).toEqual({ '/Docs/sub': 2 });
+	});
 });

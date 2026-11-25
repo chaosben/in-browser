@@ -9,7 +9,7 @@
 	let { children }: { children: Snippet } = $props();
 </script>
 
-<!-- The pages set the title; the help opens left of the editor's properties panel -->
+<!-- The pages set the title -->
 <ToolLayout
 	slug="screen-capture"
 	{locale}

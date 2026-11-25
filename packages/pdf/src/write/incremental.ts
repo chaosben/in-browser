@@ -16,16 +16,17 @@ import type { PDFArray, PDFDict, PDFDocument, PDFObject, PDFRawStream, PDFRef } 
 import { contentObjects, type ContentFont, type ContentObject, type ContentResources } from '../content/objects.js';
 import { pdfNumber, rewriteContent, usedResources, type ContentChange } from '../content/rewrite.js';
 import { tokenize, type Op } from '../content/tokens.js';
-import type { PdfCrypt } from '../crypt.js';
+import { describeEncryption, newEncryption, type EncryptEntries, type NewProtection, type PdfCrypt } from '../crypt.js';
 import type { Matrix } from '../geometry.js';
 import { encryptObject, loadPdf } from '../load.js';
 import { pdfLib } from '../pdf-lib.js';
 import { PdfError } from '../pdfjs.js';
 import type { AttachedFile, ExistingAnnotation, ExistingReply, ExistingState, NewAnnotation, PaintOpacity, ReviewState, Rgb } from './annotations.js';
-import { annotationObjects, REPLACED_KEYS, REVIEW_STATES } from './annotations.js';
+import { annotationObjects, parsePdfDate, REPLACED_KEYS, REVIEW_STATES } from './annotations.js';
 import { embedForms, formOfStream, type PdfForm, type PdfPicture } from './form.js';
 import type { PdfImage } from './image.js';
 import { placeholdersOf, UNICODE_FONT, UNICODE_TEXT, unicodeFont, type UnicodeFont } from './unicode.js';
+import { pdfProducer } from '../producer.js';
 
 /** What changes, relative to the original file */
 export interface PdfEdits {
@@ -82,6 +83,103 @@ export interface PdfEdits {
 	 * `Q` after its streams) and the annotations of the file that aren't written anew or removed move along.
 	 */
 	resize?: ReadonlyMap<number, { width: number; height: number; matrix: Matrix }>;
+	/**
+	 * The bookmarks (document outline) as a whole, when they differ from the file's: written anew under the catalog's
+	 * `/Outlines` (an empty list takes them away). A target kept from the file whose page is no longer written goes.
+	 */
+	outline?: readonly NewBookmark[];
+	/** The document's properties changed (`/Info`, and the XMP metadata where the file has it); an empty text takes
+	 * one away */
+	info?: DocumentInfo;
+	/** A file made here (extracted, merged): `/Creator` names the suite too, not only `/Producer` (which every
+	 * section that changes something sets) */
+	created?: boolean;
+}
+
+/** The properties a document describes itself with (`/Info`) */
+export interface DocumentInfo {
+	title?: string;
+	author?: string;
+	subject?: string;
+	keywords?: string;
+}
+
+/** What `IncrementalPdf.info()` reads besides */
+export interface DocumentFacts extends DocumentInfo {
+	creator?: string;
+	producer?: string;
+	created?: Date | null;
+	modified?: Date | null;
+	/** `%PDF-x.y` of the file */
+	version: string;
+}
+
+/** What `IncrementalPdf.inspect()` finds that “Sanitize” can take out */
+export interface HiddenData {
+	/** Entries of `/Info`, XMP metadata streams, data of other programs (`/PieceInfo`), page thumbnails */
+	metadata: number;
+	/** Files embedded in the document (not those attached to comments) */
+	attachments: number;
+	/** Scripts and actions that run by themselves or on a click (document, pages, fields, links): JavaScript,
+	 * launching programs, sending or importing form data */
+	scripts: number;
+	bookmarks: number;
+	/** Earlier versions kept in the file (appended updates) */
+	versions: number;
+}
+
+/** A font a PDF's pages use (`IncrementalPdf.fonts`), with its program where the file embeds one */
+export interface PdfFontProgram {
+	/** Its name without a subset's prefix (`ABCDEF+`) */
+	name: string;
+	/** Only the characters the PDF uses are embedded */
+	subset: boolean;
+	kind: 'truetype' | 'opentype' | 'cff' | 'type1' | 'type3' | 'none';
+	/** The embedded program (decoded), if any */
+	bytes: Uint8Array | null;
+}
+
+/** What “Sanitize” takes out */
+export interface Sanitize {
+	metadata?: boolean;
+	attachments?: boolean;
+	scripts?: boolean;
+	bookmarks?: boolean;
+}
+
+/** The keys of `/Info` and what `DocumentInfo` calls them */
+const INFO_KEYS = { title: 'Title', author: 'Author', subject: 'Subject', keywords: 'Keywords' } as const;
+/** Action kinds that run something or send data away */
+const ACTIONS = new Set(['/JavaScript', '/Launch', '/SubmitForm', '/ImportData', '/ResetForm', '/Rendition', '/RichMediaExecute']);
+
+/** A bookmark of the file (`IncrementalPdf.outline`) */
+export interface FileBookmark {
+	/** Its object: `PdfEdits.outline` keeps its target by it */
+	ref: string;
+	title: string;
+	bold: boolean;
+	italic: boolean;
+	color?: Rgb;
+	/** Its entries are shown (a positive `/Count`) */
+	open: boolean;
+	/** The page of the file it leads to (index) and the top edge there (user space; null: where the view is) */
+	page: number | null;
+	top: number | null;
+	/** A web address it opens instead */
+	uri?: string;
+	items: FileBookmark[];
+}
+
+/** A bookmark as written: its target kept from the file (`ref` of a `FileBookmark`), a page by its place in the
+ * written pages with the top edge there (user space; null: where the view is), or none */
+export interface NewBookmark {
+	title: string;
+	bold?: boolean;
+	italic?: boolean;
+	color?: Rgb;
+	open?: boolean;
+	target: { keep: string } | { page: number; top: number | null } | null;
+	items: readonly NewBookmark[];
 }
 
 /** Names the color of the stream this package put first into a page's content (`PdfEdits.background`) */
@@ -115,7 +213,7 @@ interface NewContent {
  * another PDF (its bytes – the same array for pages of the same PDF – and the page's index there; `annotations:
  * false` leaves its annotations behind, e.g. a page of the file itself copied once more, whose drawings the tool
  * writes anew) */
-export type PageSlot = { base: number } | { blank: { width: number; height: number } } | { copy: { pdf: Uint8Array; index: number; annotations?: false } };
+export type PageSlot = { base: number } | { blank: { width: number; height: number } } | { copy: { pdf: Uint8Array; index: number; annotations?: false; password?: string } };
 
 /** Subtypes `annotations()` reads (the ones tools draw themselves; notes that answer another – `/IRT` – are left out) */
 const READ = new Set(['Text', 'FreeText', 'Ink', 'Line', 'Square', 'Circle', 'Polygon', 'PolyLine', 'Highlight', 'Underline', 'StrikeOut', 'Squiggly', 'Stamp', 'Caret', 'FileAttachment', 'Link']);
@@ -210,27 +308,227 @@ export class IncrementalPdf {
 		/** `/Encrypt` of the trailer, kept in ours */
 		private readonly encrypt: PDFRef | PDFDict | null = null,
 		/** Encrypted with a password (or another handler): only shown */
-		readonly locked = false
+		readonly locked = false,
+		/** The password that opened it (copies of its own pages and PDF.js's form update need it again) */
+		private readonly password = '',
+		/** Its `/Encrypt` entries, and whether opening it needs a password */
+		private readonly entries: EncryptEntries | null = null,
+		readonly needsPassword = false,
+		/** What the password that opened it is (the user's or the owner's) */
+		private readonly role: 'user' | 'owner' | null = null
 	) {}
+
+	/** A new `/Info` object of the update being built (the file's was missing or not an object of its own) */
+	private infoRef: PDFRef | undefined;
 
 	/** Pages' contents as read (page index → content; null: can't be read) */
 	private readonly contents = new Map<number, PageContent | null>();
 
-	/** Parses the original once (yielding now and then, so the page stays responsive) */
-	static async open(file: Uint8Array): Promise<IncrementalPdf> {
+	/** Parses the original once (yielding now and then, so the page stays responsive); `password` for one that needs it */
+	static async open(file: Uint8Array, password = ''): Promise<IncrementalPdf> {
 		const lib = await pdfLib();
-		const { doc, crypt, encrypt, locked } = await loadPdf(file, true);
+		const { doc, crypt, encrypt, locked, entries, needsPassword, role } = await loadPdf(file, true, password);
 		const tail = readTail(file);
-		if (tail) return new IncrementalPdf(file, doc, lib, tail, false, crypt, encrypt, locked);
+		if (tail) return new IncrementalPdf(file, doc, lib, tail, false, crypt, encrypt, locked, password, entries, needsPassword, role ?? null);
 		// An encrypted file isn't written anew (that would drop its protection): only shown
 		if (doc.isEncrypted) return new IncrementalPdf(file, doc, lib, { startxref: 0, kind: 'table', size: 0 }, false, null, null, true);
 		const repaired = await doc.save({ useObjectStreams: false, addDefaultPage: false, updateFieldAppearances: false });
-		return new IncrementalPdf(repaired, (await loadPdf(repaired, true)).doc, lib, readTail(repaired)!, true);
+		return new IncrementalPdf(repaired, (await loadPdf(repaired, true, password)).doc, lib, readTail(repaired)!, true);
 	}
 
 	/** Is the file encrypted (with or without a password)? */
 	get encrypted(): boolean {
 		return this.doc.isEncrypted;
+	}
+
+	/** How it is protected: the method and the permissions other programs keep to without the owner password; null
+	 * when it isn't */
+	get protection(): (ReturnType<typeof describeEncryption> & { needsPassword: boolean; openedAs: 'user' | 'owner' | null }) | null {
+		return this.entries ? { ...describeEncryption(this.entries), needsPassword: this.needsPassword, openedAs: this.role } : null;
+	}
+
+	/**
+	 * The file with another protection (AES-256), or none (null): written anew as a whole – a key can't change in an
+	 * appended section, and no earlier version may stay readable inside it. Signatures don't survive.
+	 */
+	async protect(protection: NewProtection | null): Promise<Uint8Array> {
+		if (this.locked) throw new PdfError('password');
+		const made = protection ? await newEncryption(protection) : null;
+		return this.whole([], { crypt: made?.crypt ?? null, dict: made?.dict ?? null });
+	}
+
+	/** The document's properties (`/Info`) and its PDF version */
+	info(): DocumentFacts {
+		const { PDFDict, PDFName, PDFString, PDFHexString } = this.lib;
+		const info = this.doc.context.lookup(this.doc.context.trailerInfo.Info);
+		const text = (key: string) => (info instanceof PDFDict ? info.lookupMaybe(PDFName.of(key), PDFString, PDFHexString)?.decodeText() : undefined) || undefined;
+		const date = (key: string) => {
+			const raw = info instanceof PDFDict ? info.lookupMaybe(PDFName.of(key), PDFString, PDFHexString) : undefined;
+			return raw ? parsePdfDate(raw instanceof PDFString ? raw.asString() : raw.decodeText()) : null;
+		};
+		return {
+			title: text('Title'),
+			author: text('Author'),
+			subject: text('Subject'),
+			keywords: text('Keywords'),
+			creator: text('Creator'),
+			producer: text('Producer'),
+			created: date('CreationDate'),
+			modified: date('ModDate'),
+			version: /^%PDF-(\d\.\d)/.exec(latin1.decode(this.base.subarray(0, 8)))?.[1] ?? ''
+		};
+	}
+
+	/** The fonts of the pages' resources and of their annotations' appearances (a text box's embedded font lies only
+	 * there) – each once, by name – with their embedded programs */
+	fonts(): PdfFontProgram[] {
+		const { PDFArray, PDFDict, PDFName, PDFRawStream, decodePDFRawStream } = this.lib;
+		const out = new Map<string, PdfFontProgram>();
+		const seen = new Set<PDFObject>();
+		const fontDicts: PDFDict[] = [];
+		for (const page of this.doc.getPages()) {
+			const own = page.node.Resources()?.lookupMaybe(PDFName.of('Font'), PDFDict);
+			if (own) fontDicts.push(own);
+			const annots = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+			for (let i = 0; i < (annots?.size() ?? 0); i++) {
+				try {
+					const ap = annots!.lookupMaybe(i, PDFDict)?.lookupMaybe(PDFName.of('AP'), PDFDict);
+					const normal = ap?.lookup(PDFName.of('N'));
+					const dict = normal instanceof PDFRawStream ? normal.dict : undefined;
+					const fonts = dict?.lookupMaybe(PDFName.of('Resources'), PDFDict)?.lookupMaybe(PDFName.of('Font'), PDFDict);
+					if (fonts) fontDicts.push(fonts);
+				} catch {
+					// An annotation that isn't what it should be has no fonts for us
+				}
+			}
+		}
+		for (const fonts of fontDicts) {
+			for (const [, value] of fonts.entries()) {
+				const font = this.doc.context.lookup(value);
+				if (!(font instanceof PDFDict) || seen.has(font)) continue;
+				seen.add(font);
+				const base = font.lookupMaybe(PDFName.of('BaseFont'), PDFName)?.decodeText() ?? '';
+				const subtype = font.lookupMaybe(PDFName.of('Subtype'), PDFName)?.asString();
+				const descendant = subtype === '/Type0' ? font.lookupMaybe(PDFName.of('DescendantFonts'), PDFArray)?.lookupMaybe(0, PDFDict) : font;
+				const descriptor = descendant?.lookupMaybe(PDFName.of('FontDescriptor'), PDFDict);
+				const ff2 = descriptor?.lookup(PDFName.of('FontFile2'));
+				const ff3 = descriptor?.lookup(PDFName.of('FontFile3'));
+				const ff1 = descriptor?.lookup(PDFName.of('FontFile'));
+				const stream = ff2 ?? ff3 ?? ff1;
+				const kind: PdfFontProgram['kind'] =
+					subtype === '/Type3' ? 'type3' : ff2 ? 'truetype' : ff3 ? ((ff3 as import('pdf-lib').PDFRawStream).dict?.lookupMaybe(PDFName.of('Subtype'), PDFName)?.asString() === '/OpenType' ? 'opentype' : 'cff') : ff1 ? 'type1' : 'none';
+				let bytes: Uint8Array | null = null;
+				if (stream instanceof PDFRawStream) {
+					try {
+						bytes = decodePDFRawStream(stream).decode();
+					} catch (e) {
+						console.warn('[pdf] font program not read', base, e);
+					}
+				}
+				// A subset as the standard names it (`ABCDEF+Name`); pdf-lib numbers every font it embeds (`Name-1234`)
+				const subset = /^[A-Z]{6}\+/.test(base);
+				const name = base.replace(/^[A-Z]{6}\+/, '').replace(/-\d{4,}$/, '') || 'Font';
+				// One per name: a complete one before a subset of it
+				const known = out.get(name);
+				if (!known || (known.subset && !subset) || (!known.bytes && bytes)) out.set(name, { name, subset, kind, bytes });
+			}
+		}
+		return [...out.values()];
+	}
+
+	/** What the file holds that “Sanitize” can take out (counts; 0: none) */
+	inspect(): HiddenData {
+		const { PDFArray, PDFDict, PDFName, PDFRawStream } = this.lib;
+		const context = this.doc.context;
+		const found: HiddenData = { metadata: 0, attachments: 0, scripts: 0, bookmarks: 0, versions: 0 };
+		const info = context.lookup(context.trailerInfo.Info);
+		if (info instanceof PDFDict) found.metadata += info.entries().length;
+		for (const [, object] of context.enumerateIndirectObjects()) {
+			const dict = object instanceof PDFRawStream ? object.dict : object instanceof PDFDict ? object : null;
+			if (!dict) continue;
+			if (dict.get(PDFName.of('Type')) === PDFName.of('Metadata') || dict.has(PDFName.of('PieceInfo')) || dict.has(PDFName.of('Thumb'))) found.metadata++;
+			if (dict.has(PDFName.of('AA'))) found.scripts++;
+			const s = dict.get(PDFName.of('S'));
+			if (s instanceof PDFName && ACTIONS.has(s.asString())) found.scripts++;
+		}
+		const names = this.doc.catalog.lookupMaybe(PDFName.of('Names'), PDFDict);
+		const count = (tree: PDFDict | undefined, depth = 0): number => {
+			if (!tree || depth > 32) return 0;
+			const list = tree.lookupMaybe(PDFName.of('Names'), PDFArray);
+			const kids = tree.lookupMaybe(PDFName.of('Kids'), PDFArray);
+			return (list ? Math.floor(list.size() / 2) : 0) + (kids ? kids.asArray().reduce((n: number, _, i) => n + count(kids.lookupMaybe(i, PDFDict), depth + 1), 0) : 0);
+		};
+		found.attachments = count(names?.lookupMaybe(PDFName.of('EmbeddedFiles'), PDFDict));
+		// Document scripts are actions of their own (counted above) – unless they lie in the name tree directly
+		found.scripts = Math.max(found.scripts, count(names?.lookupMaybe(PDFName.of('JavaScript'), PDFDict)));
+		const walk = (list: FileBookmark[]): number => list.reduce((n, b) => n + 1 + walk(b.items), 0);
+		found.bookmarks = walk(this.outline());
+		found.versions = Math.max(0, [...latin1.decode(this.base).matchAll(/startxref/g)].length - 1);
+		return found;
+	}
+
+	/**
+	 * The file without what is asked for, written anew as a whole (so earlier versions and objects nothing uses any
+	 * more are gone too); its protection stays. Comments, speaker notes and form values stay.
+	 */
+	async sanitize(what: Sanitize): Promise<Uint8Array> {
+		if (this.locked) throw new PdfError('password');
+		const { PDFDict, PDFName, PDFRawStream } = this.lib;
+		const context = this.doc.context;
+		const changed: SectionObject[] = [];
+		const drop = (dict: PDFDict, keys: readonly string[]) => {
+			let any = false;
+			for (const k of keys) if (dict.has(PDFName.of(k))) (dict.delete(PDFName.of(k)), (any = true));
+			return any;
+		};
+		const catalogRef = context.trailerInfo.Root as PDFRef;
+		for (const [ref, object] of context.enumerateIndirectObjects()) {
+			const isStream = object instanceof PDFRawStream;
+			const source = isStream ? object.dict : object instanceof PDFDict ? object : null;
+			if (!source) continue;
+			const dict = source.clone(context);
+			const catalog = ref.objectNumber === catalogRef.objectNumber;
+			let any = false;
+			if (what.metadata) any = drop(dict, ['Metadata', 'PieceInfo', 'Thumb']) || any;
+			if (what.scripts) {
+				any = drop(dict, ['AA']) || any;
+				const action = dict.lookupMaybe(PDFName.of('A'), PDFDict);
+				const s = action?.get(PDFName.of('S'));
+				if (s instanceof PDFName && ACTIONS.has(s.asString())) any = drop(dict, ['A']) || any;
+				const open = dict.lookupMaybe(PDFName.of('OpenAction'), PDFDict);
+				const o = open?.get(PDFName.of('S'));
+				if (catalog && o instanceof PDFName && ACTIONS.has(o.asString())) any = drop(dict, ['OpenAction']) || any;
+			}
+			if (catalog && what.bookmarks) any = drop(dict, ['Outlines']) || any;
+			if (catalog && (what.attachments || what.scripts)) {
+				const names = dict.lookupMaybe(PDFName.of('Names'), PDFDict);
+				if (names) {
+					const rest = names.clone(context);
+					const gone = drop(rest, [...(what.attachments ? ['EmbeddedFiles'] : []), ...(what.scripts ? ['JavaScript'] : [])]);
+					if (gone) {
+						dict.set(PDFName.of('Names'), rest);
+						any = true;
+					}
+				}
+			}
+			if (!any) continue;
+			const object2 = isStream ? PDFRawStream.of(dict, (object as import('pdf-lib').PDFRawStream).contents) : dict;
+			changed.push({ num: ref.objectNumber, gen: ref.generationNumber, body: bytesOf(object2) });
+		}
+		return this.whole(changed, undefined, { info: !what.metadata });
+	}
+
+	/** Another PDF (unprotected, or protected without a password – e.g. pages taken out of this one) protected as this
+	 * one is: the same encryption dictionary and key (and the first `/ID` it depends on) */
+	async protectLike(bytes: Uint8Array): Promise<Uint8Array> {
+		if (!this.crypt || !this.encrypt) return bytes;
+		// PDF.js keeps the protection of what it takes out: opened with this one's password
+		const other = await IncrementalPdf.open(bytes, this.password);
+		if (other.locked) throw new PdfError('password');
+		const { ID } = this.doc.context.trailerInfo;
+		const first = ID instanceof this.lib.PDFArray && ID.size() > 0 ? ID.get(0).toString() : null;
+		const dict = latin1.decode(bytesOf(this.doc.context.lookup(this.encrypt)!));
+		return other.whole([], { crypt: this.crypt, dict, id: first });
 	}
 
 	/** The file carries signatures (`/SigFlags` of its form): changes are appended, so they stay valid */
@@ -573,6 +871,90 @@ export class IncrementalPdf {
 		});
 	}
 
+	/** The bookmarks of the file (its outline), as far as their objects can be read */
+	outline(): FileBookmark[] {
+		const { PDFArray, PDFDict, PDFName, PDFNumber, PDFRef, PDFString, PDFHexString } = this.lib;
+		const context = this.doc.context;
+		const root = this.doc.catalog.lookupMaybe(PDFName.of('Outlines'), PDFDict);
+		if (!root) return [];
+		const pages = new Map(this.doc.getPages().map((p, i) => [p.ref.toString(), i]));
+		const seen = new Set<string>();
+		const number = (o: PDFObject | undefined) => (o instanceof PDFNumber ? o.asNumber() : null);
+		const read = (first: PDFObject | undefined, depth: number): FileBookmark[] => {
+			const out: FileBookmark[] = [];
+			let ref = first;
+			// Lists that loop or run on forever end where they repeat
+			while (ref instanceof PDFRef && !seen.has(ref.toString()) && seen.size < 100_000) {
+				seen.add(ref.toString());
+				const dict = context.lookup(ref);
+				if (!(dict instanceof PDFDict)) break;
+				const flags = number(dict.lookup(PDFName.of('F'))) ?? 0;
+				const c = dict.lookupMaybe(PDFName.of('C'), PDFArray);
+				const color = rgb(c?.asArray().map((v) => number(context.lookup(v)) ?? 0));
+				const target = this.bookmarkTarget(dict, pages);
+				out.push({
+					ref: ref.toString(),
+					title: dict.lookupMaybe(PDFName.of('Title'), PDFString, PDFHexString)?.decodeText() ?? '',
+					bold: (flags & 2) !== 0,
+					italic: (flags & 1) !== 0,
+					...(color && { color }),
+					open: (number(dict.lookup(PDFName.of('Count'))) ?? 0) > 0,
+					...target,
+					items: depth < 64 ? read(dict.get(PDFName.of('First')), depth + 1) : []
+				});
+				ref = dict.get(PDFName.of('Next'));
+			}
+			return out;
+		};
+		return read(root.get(PDFName.of('First')), 0);
+	}
+
+	/** Where a bookmark leads: a page of the file and the top there (`/Dest` or `/A` `/GoTo`, explicit or named), or a
+	 * web address (`/A` `/URI`) */
+	private bookmarkTarget(dict: PDFDict, pages: ReadonlyMap<string, number>): { page: number | null; top: number | null; uri?: string } {
+		const { PDFArray, PDFDict, PDFName, PDFNumber, PDFRef, PDFString, PDFHexString } = this.lib;
+		const none = { page: null, top: null };
+		const action = dict.lookupMaybe(PDFName.of('A'), PDFDict);
+		const kind = action?.lookupMaybe(PDFName.of('S'), PDFName)?.asString();
+		if (kind === '/URI') return { ...none, uri: action!.lookupMaybe(PDFName.of('URI'), PDFString, PDFHexString)?.decodeText() };
+		let dest: PDFObject | undefined = kind === '/GoTo' ? action!.lookup(PDFName.of('D')) : dict.lookup(PDFName.of('Dest'));
+		if (dest instanceof PDFName) dest = this.namedDestination(dest.decodeText());
+		else if (dest instanceof PDFString || dest instanceof PDFHexString) dest = this.namedDestination(dest.decodeText());
+		if (dest instanceof PDFDict) dest = dest.lookup(PDFName.of('D'));
+		if (!(dest instanceof PDFArray) || !dest.size()) return none;
+		const first = dest.get(0);
+		const page = first instanceof PDFRef ? (pages.get(first.toString()) ?? null) : null;
+		const fit = dest.lookupMaybe(1, PDFName)?.asString();
+		const at = fit === '/XYZ' ? 3 : fit === '/FitH' || fit === '/FitBH' ? 2 : -1;
+		const top = at > 0 && at < dest.size() ? dest.lookup(at) : undefined;
+		return { page, top: top instanceof PDFNumber ? top.asNumber() : null };
+	}
+
+	/** A named destination: in the catalog's `/Dests`, else in the name tree `/Names` `/Dests` */
+	private namedDestination(name: string): PDFObject | undefined {
+		const { PDFArray, PDFDict, PDFName, PDFString, PDFHexString } = this.lib;
+		const old = this.doc.catalog.lookupMaybe(PDFName.of('Dests'), PDFDict);
+		const found = old?.lookup(PDFName.of(name));
+		if (found) return found;
+		const tree = this.doc.catalog.lookupMaybe(PDFName.of('Names'), PDFDict)?.lookupMaybe(PDFName.of('Dests'), PDFDict);
+		const search = (node: PDFDict | undefined, depth: number): PDFObject | undefined => {
+			if (!node || depth > 32) return undefined;
+			const names = node.lookupMaybe(PDFName.of('Names'), PDFArray);
+			if (names)
+				for (let i = 0; i + 1 < names.size(); i += 2) {
+					const key = names.lookup(i);
+					if ((key instanceof PDFString || key instanceof PDFHexString) && key.decodeText() === name) return names.lookup(i + 1);
+				}
+			const kids = node.lookupMaybe(PDFName.of('Kids'), PDFArray);
+			for (let i = 0; kids && i < kids.size(); i++) {
+				const hit = search(kids.lookupMaybe(i, PDFDict), depth + 1);
+				if (hit) return hit;
+			}
+			return undefined;
+		};
+		return search(tree, 0);
+	}
+
 	/** Where a `/Link` leads: a web address (`/A` with `/URI`), or a page (`/Dest` or `/A` with `/GoTo`; an explicit
 	 * destination – named ones are left to PDF.js) */
 	private linkTarget(dict: PDFDict): { uri?: string; destPage?: number } {
@@ -688,9 +1070,11 @@ export class IncrementalPdf {
 			.flat()
 			.concat([...(edits.replace?.values() ?? [])])
 			.concat([...(edits.flatten?.values() ?? [])].flat().map((f) => f.annotation));
-		const placeholders = written
-			.flatMap((a) => [a.appearance.content, ...(a.appearance.groups ?? [])].flatMap(placeholdersOf));
-		const font = placeholders.length ? await unicodeFont(placeholders) : null;
+		const placeholders = written.flatMap((a) => [a.appearance.content, ...(a.appearance.groups ?? [])].flatMap(placeholdersOf));
+		// One subset per font used (Liberation Sans, a user's fonts)
+		const byFont = new Map<string, string[]>();
+		for (const p of placeholders) byFont.set(p.font, [...(byFont.get(p.font) ?? []), p.hex]);
+		const font = new Map(await Promise.all([...byFont].map(async ([key, hexes]) => [key, await unicodeFont(hexes, key)] as const)));
 		const copies = await this.copied(edits.pages ?? []);
 		const drawn = written.flatMap((a) => a.appearance.forms ?? []);
 		const forms = drawn.length ? await embedForms(this.lib, drawn) : null;
@@ -724,7 +1108,8 @@ export class IncrementalPdf {
 		for (const w of wanted) {
 			let source = sources.get(w.pdf);
 			if (!source) {
-				const loaded = await loadPdf(w.pdf);
+				// The file's own pages (a copy) open with its password
+				const loaded = await loadPdf(w.pdf, false, w.password ?? this.password);
 				if (loaded.locked) throw new PdfError('password');
 				sources.set(w.pdf, (source = loaded.doc));
 			}
@@ -743,7 +1128,7 @@ export class IncrementalPdf {
 	/** Objects that differ from the original (clones, never the parsed objects themselves) and new ones */
 	private changes(
 		edits: PdfEdits,
-		font: UnicodeFont | null = null,
+		font: ReadonlyMap<string, UnicodeFont> = new Map(),
 		copies: Copies | null = null,
 		form: FormUpdate | null = null,
 		forms: Awaited<ReturnType<typeof embedForms>> | null = null,
@@ -785,12 +1170,12 @@ export class IncrementalPdf {
 			}
 			return { renumbered, objects };
 		};
-		// The subset font first
-		let fontRef = '';
-		if (font) {
-			const { renumbered, objects } = adopt(font.doc, font.numbers);
+		// The subset fonts first
+		const fontRefs = new Map<string, string>();
+		for (const [key, made] of font) {
+			const { renumbered, objects } = adopt(made.doc, made.numbers);
 			for (const [num, object] of objects) out.push({ num, gen: 0, body: bytesOf(object) });
-			fontRef = `${renumbered.get(font.font)} 0 R`;
+			fontRefs.set(key, `${renumbered.get(made.font)} 0 R`);
 		}
 		// Copied pages: everything they use; the pages themselves are written below (with their place in the tree)
 		const copiedPages = new Map<number, { ref: PDFRef; dict: PDFDict; annots: PDFObject[] }>();
@@ -816,9 +1201,9 @@ export class IncrementalPdf {
 		/** An annotation as written: the embedded font's glyphs in place of its placeholders, its forms' objects */
 		const ready = (a: NewAnnotation): NewAnnotation => {
 			if (a.appearance.forms?.length) a = { ...a, appearance: { ...a.appearance, formRefs: a.appearance.forms.map((f) => formRefs.get(f) ?? '') } };
-			if (!font) return a;
-			const fill = (content: string) => content.replace(UNICODE_TEXT, (_, hex: string) => font.glyphs.get(hex) ?? '<>');
-			const fonts = Object.fromEntries(Object.entries(a.appearance.fonts ?? {}).map(([name, base]) => [name, base === UNICODE_FONT ? fontRef : base]));
+			if (!font.size) return a;
+			const fill = (content: string) => content.replace(UNICODE_TEXT, (_, key: string, hex: string) => font.get(key === 'U' ? UNICODE_FONT : key)?.glyphs.get(hex) ?? '<>');
+			const fonts = Object.fromEntries(Object.entries(a.appearance.fonts ?? {}).map(([name, base]) => [name, fontRefs.get(base) ?? base]));
 			return { ...a, appearance: { ...a.appearance, content: fill(a.appearance.content), groups: a.appearance.groups?.map(fill), fonts } };
 		};
 		const replace = edits.replace ?? new Map<string, NewAnnotation>();
@@ -1050,7 +1435,136 @@ export class IncrementalPdf {
 			tree.set(PDFName.of('Count'), PDFNumber.of(slots.length));
 			out.push({ num: root.objectNumber, gen: root.generationNumber, body: bytesOf(tree) });
 		}
+		if (edits.outline) this.writeOutline(edits.outline, slots, slotRefs, out, () => next++);
+		this.infoRef = undefined;
+		// Whatever this section changes, the file says who wrote it last (`/Producer`); a file we made also who made it
+		if (edits.info || edits.created || out.length) this.writeInfo(edits.info ?? {}, out, () => next++, !!edits.created);
 		return out;
+	}
+
+	/** `/Info` with the properties changed, `/Producer` (and `/Creator` for a file we made) and `/ModDate` now, and the
+	 * XMP metadata alike where the catalog has it */
+	private writeInfo(info: DocumentInfo, out: SectionObject[], take: () => number, created = false) {
+		const { PDFDict, PDFHexString, PDFName, PDFRef, PDFString, PDFRawStream, decodePDFRawStream } = this.lib;
+		const context = this.doc.context;
+		const ref = context.trailerInfo.Info;
+		const old = context.lookup(ref);
+		const dict = old instanceof PDFDict ? old.clone(context) : PDFDict.withContext(context);
+		for (const [key, name] of Object.entries(INFO_KEYS) as [keyof DocumentInfo, string][]) {
+			const value = info[key];
+			if (value === undefined) continue;
+			if (value) dict.set(PDFName.of(name), PDFHexString.fromText(value));
+			else dict.delete(PDFName.of(name));
+		}
+		const now = new Date();
+		const producer = pdfProducer();
+		dict.set(PDFName.of('Producer'), PDFHexString.fromText(producer));
+		if (created) {
+			dict.set(PDFName.of('Creator'), PDFHexString.fromText(producer));
+			if (!dict.has(PDFName.of('CreationDate'))) dict.set(PDFName.of('CreationDate'), PDFString.fromDate(now));
+		}
+		dict.set(PDFName.of('ModDate'), PDFString.fromDate(now));
+		// (an object the form update wrote under the same number gives way)
+		const put = (o: SectionObject) => {
+			const i = out.findIndex((x) => x.num === o.num);
+			if (i >= 0) out.splice(i, 1);
+			out.push(o);
+		};
+		if (ref instanceof PDFRef) put({ num: ref.objectNumber, gen: ref.generationNumber, body: bytesOf(dict) });
+		else {
+			this.infoRef = PDFRef.of(take(), 0);
+			out.push({ num: this.infoRef.objectNumber, gen: 0, body: bytesOf(dict) });
+		}
+		// XMP: the same values, so programs reading it show the new ones
+		const metaRef = this.doc.catalog.get(PDFName.of('Metadata'));
+		const meta = metaRef instanceof PDFRef ? context.lookup(metaRef) : undefined;
+		if (!(metaRef instanceof PDFRef) || !(meta instanceof PDFRawStream) || typeof DOMParser === 'undefined') return;
+		try {
+			const xml = new TextDecoder().decode(decodePDFRawStream(meta).decode());
+			const changed = withXmp(xml, info, { producer, date: now, created });
+			if (changed === null) return;
+			const bytes = new TextEncoder().encode(changed);
+			const head = ascii.encode(`<< /Type /Metadata /Subtype /XML /Length ${bytes.length} >>\nstream\n`);
+			const tail = ascii.encode('\nendstream');
+			const body = new Uint8Array(head.length + bytes.length + tail.length);
+			body.set(head);
+			body.set(bytes, head.length);
+			body.set(tail, head.length + bytes.length);
+			put({ num: metaRef.objectNumber, gen: metaRef.generationNumber, body });
+		} catch (e) {
+			console.warn('[pdf] XMP not changed', e);
+		}
+	}
+
+	/**
+	 * The bookmarks anew: an outline dictionary with its entries (`/First`, `/Last`, `/Prev`, `/Next`, `/Parent`,
+	 * `/Count` – positive for an open entry: the entries shown below it, negative for a closed one), and the catalog
+	 * with its `/Outlines` (written here, or changed where this section already writes it). The file's old entries
+	 * stay unused in it (gone when the file is written as a whole).
+	 */
+	private writeOutline(outline: readonly NewBookmark[], slots: readonly PageSlot[], slotRefs: readonly PDFRef[], out: SectionObject[], take: () => number) {
+		const { PDFDict, PDFName, PDFObjectParser, PDFRef, PDFHexString } = this.lib;
+		const context = this.doc.context;
+		const catalogRef = context.trailerInfo.Root;
+		if (!(catalogRef instanceof PDFRef)) return;
+		const written = new Set(slots.flatMap((s) => ('base' in s ? [s.base] : [])));
+		const file = new Map<string, FileBookmark>();
+		const walk = (list: FileBookmark[]) => list.forEach((b) => (file.set(b.ref, b), walk(b.items)));
+		walk(this.outline());
+		const num = (n: number) => String(Math.round(n * 1000) / 1000);
+		/** Entries shown below an open bookmark */
+		const shown = (b: NewBookmark): number => (b.open ? b.items.reduce((sum, i) => sum + 1 + shown(i), 0) : 0);
+		const target = (b: NewBookmark): string => {
+			const t = b.target;
+			if (!t) return '';
+			if ('page' in t) return slotRefs[t.page] ? ` /Dest [${slotRefs[t.page]} /XYZ null ${t.top === null ? 'null' : num(t.top)} null]` : '';
+			const kept = file.get(t.keep);
+			// Its page is no longer in the file: it leads nowhere
+			if (!kept || (kept.page !== null && !written.has(kept.page))) return '';
+			const [n, g] = t.keep.split(' ').map(Number);
+			const dict = context.lookup(PDFRef.of(n, g));
+			if (!(dict instanceof PDFDict)) return '';
+			return ['Dest', 'A', 'SE']
+				.map((k) => [k, dict.get(PDFName.of(k))] as const)
+				.filter(([, v]) => v !== undefined)
+				.map(([k, v]) => ` /${k} ${v!.toString()}`)
+				.join('');
+		};
+		const rootNum = take();
+		const write = (list: readonly NewBookmark[], parent: number): { first: number; last: number } | null => {
+			if (!list.length) return null;
+			const nums = list.map(() => take());
+			list.forEach((b, i) => {
+				const kids = write(b.items, nums[i]);
+				const count = b.items.length ? (b.open ? shown(b) : -b.items.length) : 0;
+				const flags = (b.italic ? 1 : 0) | (b.bold ? 2 : 0);
+				const body = [
+					`<< /Title ${PDFHexString.fromText(b.title).toString()} /Parent ${parent} 0 R`,
+					i > 0 ? ` /Prev ${nums[i - 1]} 0 R` : '',
+					i < list.length - 1 ? ` /Next ${nums[i + 1]} 0 R` : '',
+					kids ? ` /First ${kids.first} 0 R /Last ${kids.last} 0 R /Count ${count}` : '',
+					flags ? ` /F ${flags}` : '',
+					b.color ? ` /C [${b.color.map(num).join(' ')}]` : '',
+					target(b),
+					' >>'
+				].join('');
+				out.push({ num: nums[i], gen: 0, body: bytesOfSource(body) });
+			});
+			return { first: nums[0], last: nums[nums.length - 1] };
+		};
+		const top = write(outline, rootNum);
+		const visible = outline.reduce((sum, b) => sum + 1 + shown(b), 0);
+		out.push({ num: rootNum, gen: 0, body: ascii.encode(top ? `<< /Type /Outlines /First ${top.first} 0 R /Last ${top.last} 0 R /Count ${visible} >>` : '<< /Type /Outlines /Count 0 >>') });
+		// The catalog: the one this section writes already (a filled-in form), else the file's
+		const at = out.findIndex((o) => o.num === catalogRef.objectNumber);
+		const base = at >= 0 ? PDFObjectParser.forBytes(out[at].body, context).parseObject() : context.lookup(catalogRef);
+		if (!(base instanceof PDFDict)) return;
+		const catalog = base.clone(context);
+		if (top) catalog.set(PDFName.of('Outlines'), PDFRef.of(rootNum, 0));
+		else catalog.delete(PDFName.of('Outlines'));
+		const entry = { num: catalogRef.objectNumber, gen: catalogRef.generationNumber, body: bytesOf(catalog) };
+		if (at >= 0) out[at] = entry;
+		else out.push(entry);
 	}
 
 	/** The objects PDF.js appended to the original (`PdfEdits.form`): those of the file keep their numbers, new ones
@@ -1060,7 +1574,7 @@ export class IncrementalPdf {
 		const appended = new TextDecoder('latin1').decode(bytes.subarray(this.base.length));
 		const refs = new Map<number, number>();
 		for (const m of appended.matchAll(/(?:^|[\r\n])\s*(\d+)\s+(\d+)\s+obj\b/g)) refs.set(Number(m[1]), Number(m[2]));
-		const { doc } = await loadPdf(bytes);
+		const { doc } = await loadPdf(bytes, false, this.password);
 		const size = Math.max(this.tail.size, this.doc.context.largestObjectNumber + 1);
 		const kept: number[] = [];
 		const added: number[] = [];
@@ -1126,8 +1640,10 @@ export class IncrementalPdf {
 	 * the trailer (catalog, info, encryption). What nothing names any more – a page's old content, an image only a
 	 * deleted object drew, earlier versions appended to the file – is not in it.
 	 */
-	private async whole(changed: SectionObject[]): Promise<Uint8Array> {
+	private async whole(changed: SectionObject[], protection?: { crypt: PdfCrypt | null; dict: string | null; id?: string | null }, keep: { info: boolean } = { info: true }): Promise<Uint8Array> {
 		const { PDFArray, PDFDict, PDFObjectParser, PDFRef, PDFStream } = this.lib;
+		// Another protection (or none): the old encryption dictionary isn't written, a new one is
+		const crypt = protection ? protection.crypt : this.crypt;
 		const context = this.doc.context;
 		const own = new Map<number, { gen: number; object: PDFObject }>();
 		for (const [ref, object] of context.enumerateIndirectObjects()) own.set(ref.objectNumber, { gen: ref.generationNumber, object });
@@ -1141,8 +1657,9 @@ export class IncrementalPdf {
 		};
 		// Everything reached from the trailer (a stack, not recursion: lists of bookmarks run deep)
 		const reached = new Set<number>();
-		const { Root, Info } = context.trailerInfo;
-		const stack: (PDFObject | undefined)[] = [Root, Info, this.encrypt ?? undefined];
+		const { Root } = context.trailerInfo;
+		const Info = keep.info ? this.infoRef ?? context.trailerInfo.Info : undefined;
+		const stack: (PDFObject | undefined)[] = [Root, Info, protection ? undefined : (this.encrypt ?? undefined)];
 		while (stack.length) {
 			const o = stack.pop();
 			if (o instanceof PDFRef) {
@@ -1175,11 +1692,21 @@ export class IncrementalPdf {
 			const written = fresh.get(num);
 			let object: SectionObject = written ?? { num, gen: own.get(num)!.gen, body: bytesOf(own.get(num)!.object) };
 			// The encryption dictionary itself is never encrypted
-			if (this.crypt && num !== encryptNum) object = await this.sealed(object, this.crypt);
+			if (crypt && num !== encryptNum) object = await this.sealed(object, crypt);
 			entries.push({ num, gen: object.gen, offset: length });
 			text(`${num} ${object.gen} obj\n`);
 			push(object.body);
 			text('\nendobj\n');
+		}
+		let encryptRef: string | null | undefined;
+		if (protection) {
+			encryptRef = null;
+			if (protection.dict) {
+				const num = Math.max(0, ...entries.map((e) => e.num)) + 1;
+				entries.push({ num, gen: 0, offset: length });
+				text(`${num} 0 obj\n${protection.dict}\nendobj\n`);
+				encryptRef = `${num} 0 R`;
+			}
 		}
 		const xref = length;
 		const size = Math.max(...entries.map((e) => e.num)) + 1;
@@ -1188,7 +1715,7 @@ export class IncrementalPdf {
 			text(`${run[0].num} ${run.length}\n`);
 			for (const e of run) text(`${String(e.offset).padStart(10, '0')} ${String(e.gen).padStart(5, '0')} n\r\n`);
 		}
-		text(`trailer\n<< /Size ${size} ${this.trailerEntries()} >>\nstartxref\n${xref}\n%%EOF\n`);
+		text(`trailer\n<< /Size ${size} ${this.trailerEntries(encryptRef, protection?.id, keep.info)} >>\nstartxref\n${xref}\n%%EOF\n`);
 		const out = new Uint8Array(length);
 		let at = 0;
 		for (const part of parts) {
@@ -1264,17 +1791,66 @@ export class IncrementalPdf {
 		return out;
 	}
 
-	/** `/Root`, `/Info` and `/ID` (the first part kept, the second new: the file changed) */
-	private trailerEntries(): string {
+	/** `/Root`, `/Info` and `/ID` (the first part kept, the second new: the file changed); `encryptRef`: another
+	 * encryption dictionary (null: none), `firstId` the first ID it needs */
+	private trailerEntries(encryptRef?: string | null, firstId?: string | null, withInfo = true): string {
 		const { PDFArray } = this.lib;
-		const { Root, Info, ID } = this.doc.context.trailerInfo;
-		const first = ID instanceof PDFArray && ID.size() > 0 ? ID.get(0).toString() : null;
+		const { Root, ID } = this.doc.context.trailerInfo;
+		const Info = withInfo ? (this.infoRef ?? this.doc.context.trailerInfo.Info) : undefined;
+		const first = firstId ?? (ID instanceof PDFArray && ID.size() > 0 ? ID.get(0).toString() : null);
 		const fresh = `<${randomHex(16)}>`;
-		const encrypt = this.encrypt && `/Encrypt ${this.encrypt.toString()}`;
-		// The key of an encrypted file depends on its first ID: none stays none
-		const id = this.encrypt && !first ? '' : `/ID [${first ?? fresh} ${fresh}]`;
+		const ref = encryptRef === undefined ? this.encrypt?.toString() : encryptRef;
+		const encrypt = ref && `/Encrypt ${ref}`;
+		// The key of an encrypted file (RC4, AES-128) depends on its first ID: none stays none
+		const id = encryptRef === undefined && this.encrypt && !first ? '' : `/ID [${first ?? fresh} ${fresh}]`;
 		return [Root && `/Root ${Root.toString()}`, Info && `/Info ${Info.toString()}`, encrypt, id].filter(Boolean).join(' ');
 	}
+}
+
+/** XMP with the properties set (title, author, subject as `dc:`, keywords as `pdf:Keywords`); null when it can't be read */
+function withXmp(xml: string, info: DocumentInfo, stamp: { producer: string; date: Date; created: boolean }): string | null {
+	const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+	const DC = 'http://purl.org/dc/elements/1.1/';
+	const PDF = 'http://ns.adobe.com/pdf/1.3/';
+	const XMP = 'http://ns.adobe.com/xap/1.0/';
+	const start = xml.indexOf('<x:xmpmeta') >= 0 ? xml.indexOf('<x:xmpmeta') : xml.indexOf('<rdf:RDF');
+	const end = xml.lastIndexOf('</x:xmpmeta>') >= 0 ? xml.lastIndexOf('</x:xmpmeta>') + 12 : xml.lastIndexOf('</rdf:RDF>') + 10;
+	if (start < 0 || end <= start) return null;
+	const doc = new DOMParser().parseFromString(xml.slice(start, end), 'application/xml');
+	if (doc.getElementsByTagName('parsererror').length) return null;
+	const description = doc.getElementsByTagNameNS(RDF, 'Description')[0];
+	if (!description) return null;
+	/** A `dc:` property as a list of one entry (`rdf:Alt` with x-default, or `rdf:Seq`) */
+	const list = (name: string, kind: 'Alt' | 'Seq', value: string | undefined) => {
+		if (value === undefined) return;
+		for (const old of [...doc.getElementsByTagNameNS(DC, name)]) old.remove();
+		if (!value) return;
+		const el = doc.createElementNS(DC, `dc:${name}`);
+		const box = el.appendChild(doc.createElementNS(RDF, `rdf:${kind}`));
+		const li = box.appendChild(doc.createElementNS(RDF, 'rdf:li'));
+		if (kind === 'Alt') li.setAttribute('xml:lang', 'x-default');
+		li.textContent = value;
+		description.appendChild(el);
+	};
+	list('title', 'Alt', info.title);
+	list('creator', 'Seq', info.author);
+	list('description', 'Alt', info.subject);
+	if (info.keywords !== undefined) {
+		for (const old of [...doc.getElementsByTagNameNS(PDF, 'Keywords')]) old.remove();
+		description.removeAttributeNS(PDF, 'Keywords');
+		if (info.keywords) description.appendChild(doc.createElementNS(PDF, 'pdf:Keywords')).textContent = info.keywords;
+	}
+	/** A simple property (element or attribute of the description) set anew */
+	const simple = (ns: string, prefix: string, name: string, value: string) => {
+		for (const old of [...doc.getElementsByTagNameNS(ns, name)]) old.remove();
+		for (const d of [...doc.getElementsByTagNameNS(RDF, 'Description')]) d.removeAttributeNS(ns, name);
+		description.appendChild(doc.createElementNS(ns, `${prefix}:${name}`)).textContent = value;
+	};
+	simple(PDF, 'pdf', 'Producer', stamp.producer);
+	simple(XMP, 'xmp', 'ModifyDate', stamp.date.toISOString());
+	simple(XMP, 'xmp', 'MetadataDate', stamp.date.toISOString());
+	if (stamp.created) simple(XMP, 'xmp', 'CreatorTool', stamp.producer);
+	return xml.slice(0, start) + new XMLSerializer().serializeToString(doc) + xml.slice(end);
 }
 
 function bytesOf(object: PDFObject | PDFRef): Uint8Array {

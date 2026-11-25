@@ -34,7 +34,7 @@
 	const shown = $derived(selection ? (draft ?? selection.color) : value);
 </script>
 
-<RibbonPopover {id} label={label ?? inkMessages().selection.color} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={shown} {disabled}>
+<RibbonPopover {id} label={label ?? inkMessages().selection.color} icon="icon-[material-symbols-light--palette-outline]" {size} swatch={shown ?? null} {disabled}>
 	<ColorField
 		value={shown}
 		onchange={(v, final) => {

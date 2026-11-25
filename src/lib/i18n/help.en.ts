@@ -65,7 +65,7 @@ const help = {
 					items: {
 						folder: {
 							title: 'Folder on your computer',
-							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while in-browser is open in this browser – the overview or any tool. Only Chrome and Edge on a computer can access folders.',
+							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while in-browser is open in this browser – the overview or any tool. After a restart the browser may ask again for access: the sync settings then say “Paused”, and “Allow access” continues. Only Chrome and Edge on a computer can access folders.',
 							tip: 'Choose a folder your sync program (Syncthing, Nextcloud, Dropbox …) or your backup already covers – then your files reach your other computers and your backup by themselves. When the browser asks again for access, choose “Allow on every visit”, so the sync continues without asking.'
 						},
 						devices: {

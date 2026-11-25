@@ -78,7 +78,19 @@ const de: GraphicsMessages = {
 		lineHeight: 'Zeilenabstand',
 		lineHeightValue: (n) => n.toLocaleString('de', { minimumFractionDigits: 1 }),
 		bulleted: 'Aufzählung',
-		numbered: 'Nummerierung'
+		numbered: 'Nummerierung',
+		myFonts: 'Meine Schriften',
+		documentFonts: 'Schriften dieser PDF',
+		manageFonts: 'Schriften verwalten …',
+		missingFont: (name: string) => `${name} (nicht auf diesem Gerät)`
+	},
+
+	insets: {
+		same: 'Alle Seiten gleich',
+		top: 'Oben',
+		right: 'Rechts',
+		bottom: 'Unten',
+		left: 'Links'
 	},
 
 	icons: {

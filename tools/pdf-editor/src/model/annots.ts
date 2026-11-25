@@ -10,10 +10,11 @@ import { inkAlpha } from '@in-browser/ink/outline.js';
 import { paintOf } from '@in-browser/ink/paint.js';
 import { endOf } from '@in-browser/ink/shapes.js';
 import { inWinAnsi, num, winAnsi, type NewAnnotation, type Rgb } from '@in-browser/pdf/write/annotations.js';
-import { UNICODE_FONT, unicodeText } from '@in-browser/pdf/write/unicode.js';
+import { embeddedFont, UNICODE_FONT, unicodeText } from '@in-browser/pdf/write/unicode.js';
+import { faceOf, familyBytes, knownFont, shownFace } from '@in-browser/graphics/fonts.js';
 import { isMarkup, markLine, squiggle, type Annotatable, type MarkupItem } from '#lib/render/markup.js';
 import { alignOf, ASCENT, baseStyle, borderOf, calloutColor, calloutHead, calloutLine, calloutWidth, isFormatted, isText, itemBounds, LINE_HEIGHT, lineRuns, padOf, richLines, richTextOf, textExtent, UNDERLINE, type TextItem } from '#lib/render/textbox.js';
-import { asDocumentFont, type FullStyle } from '@in-browser/graphics/rich-text.js';
+import { asDocumentFont, isCustomFont, type FullStyle } from '@in-browser/graphics/rich-text.js';
 import { defaultStyleOf, richContentsOf } from './rich-pdf.js';
 import { CARET_LINE, caretPoints, isCaret, type CaretItem } from '#lib/render/caret.js';
 import { isLink, safeUrl, type LinkItem } from '#lib/render/link.js';
@@ -397,6 +398,18 @@ const faceIndex = (style: Pick<FullStyle, 'bold' | 'italic'>) => (style.bold ? 1
 /** The name a style's font has in an appearance's resources (`Helv` as ever for the plain sans-serif one) */
 const fontName = (style: Pick<FullStyle, 'font' | 'bold' | 'italic'>) => (asDocumentFont(style.font) === 'sans' && !faceIndex(style) ? 'Helv' : `F${asDocumentFont(style.font)}${faceIndex(style)}`);
 
+/** The key of a run's font when it is embedded (a user's font or the PDF's own one that is on this device) */
+function embeddedKey(style: Pick<FullStyle, 'font' | 'bold' | 'italic'>): string | null {
+	const font = style.font;
+	if (!isCustomFont(font) || !knownFont(font)) return null;
+	const face = shownFace(font, faceOf(style));
+	return embeddedFont(`${font}|${face}`, async () => {
+		const bytes = await familyBytes(font, face);
+		if (!bytes) throw new Error(`font ${font} is not on this device`);
+		return bytes;
+	});
+}
+
 /** A text box: `/FreeText` with the text (`/Contents`), font and color (`/DA`) and no border; the appearance writes
  * the stored lines in Helvetica (characters it lacks become `?` there – `/Contents` keeps them) */
 function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefined, modified: Date): NewAnnotation {
@@ -459,14 +472,18 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 		for (const line of richLines(item)) {
 			for (const run of line.runs) {
 				if (!run.text) continue;
-				const start = pad + run.x;
-				const off = pad + line.y + line.baseline;
+				const start = pad.left + run.x;
+				const off = pad.top + line.y + line.baseline;
 				const [ex, ey] = at(start, off);
-				const plain = [...run.text].every(inWinAnsi);
-				unicode ||= !plain;
-				const name = fontName(run.style);
-				fonts[name] = STANDARD_FONTS[asDocumentFont(run.style.font)][faceIndex(run.style)];
-				const show = plain ? `/${name} ${num(run.style.size)} Tf ${winAnsi(run.text)}` : `/Uni ${num(run.style.size)} Tf ${unicodeText(run.text)}`;
+				// A user's or the PDF's own font: embedded as a subset of what is written in it (its regular face where it
+				// lacks the one asked for); a font missing on this device is written in the standard sans-serif one
+				const own = embeddedKey(run.style);
+				const plain = !own && [...run.text].every(inWinAnsi);
+				unicode ||= !own && !plain;
+				const name = own ?? fontName(run.style);
+				if (own) fonts[own] = own;
+				else fonts[name] = STANDARD_FONTS[asDocumentFont(run.style.font)][faceIndex(run.style)];
+				const show = own ? `/${own} ${num(run.style.size)} Tf ${unicodeText(run.text, own)}` : plain ? `/${name} ${num(run.style.size)} Tf ${winAnsi(run.text)}` : `/Uni ${num(run.style.size)} Tf ${unicodeText(run.text)}`;
 				const ink = rgbOps(rgbOf(run.style.color), false);
 				const drawn = [`BT ${ink} ${[a, b, c, d, ex, ey].map(num).join(' ')} Tm ${show} Tj ET`];
 				if (run.style.underline && !run.marker) {
@@ -482,12 +499,12 @@ function textAnnotation(item: TextItem, toUser: ToUser, author: string | undefin
 	}
 	(formatted ? [] : item.lines).forEach((line, i) => {
 		if (!line) return;
-		const off = pad + item.size * (ASCENT + i * LINE_HEIGHT);
+		const off = pad.top + item.size * (ASCENT + i * LINE_HEIGHT);
 		const plain = [...line].every(inWinAnsi);
 		unicode ||= !plain;
 		// Each run where it is on screen (aligned or justified word by word – the same in every viewer)
 		for (const run of lineRuns(item, i)) {
-			const start = pad + run.at;
+			const start = pad.left + run.at;
 			const [ex, ey] = toUser(cx + along[0] * start + down[0] * off, cy + along[1] * start + down[1] * off);
 			const show = plain ? `/Helv ${num(item.size)} Tf ${winAnsi(run.text)}` : `/Uni ${num(item.size)} Tf ${unicodeText(run.text)}`;
 			text.push(`BT ${rgbOps(color, false)} ${[a, b, c, d, ex, ey].map(num).join(' ')} Tm ${show} Tj ET`);

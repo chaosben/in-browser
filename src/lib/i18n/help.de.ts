@@ -61,7 +61,7 @@ const help: typeof enHelp = {
 					items: {
 						folder: {
 							title: 'Ordner auf deinem Rechner',
-							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange in-browser in diesem Browser offen ist – die Übersicht oder irgendein Tool. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
+							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange in-browser in diesem Browser offen ist – die Übersicht oder irgendein Tool. Nach einem Neustart fragt der Browser vielleicht erneut nach Zugriff: In den Sync-Einstellungen steht dann „Pausiert“, und „Zugriff erlauben“ setzt fort. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
 							tip: 'Wähle einen Ordner, den dein Sync-Programm (Syncthing, Nextcloud, Dropbox …) oder deine Datensicherung schon erfasst – dann kommen deine Dateien von selbst auf deine anderen Rechner und in die Sicherung. Fragt der Browser erneut nach Zugriff, wähle „Bei jedem Besuch zulassen“, dann läuft das Synchronisieren ohne Nachfrage weiter.'
 						},
 						devices: {

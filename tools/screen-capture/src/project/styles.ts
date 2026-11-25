@@ -1,6 +1,7 @@
 // Last used settings per annotation type (color, font, width, duration, …), applied to the next new annotation
 // of that type. Position, content and step number are not part of it. Stored in localStorage for all projects.
 
+import { insetsOf } from '@in-browser/graphics/text-box.js';
 import type { Annotation, AnnotationKind } from './types.js';
 import { loadJson, storeJson } from '@in-browser/brand/storage.js';
 
@@ -56,6 +57,8 @@ export function applyStyle<T extends Annotation>(annotation: T, style: Style | u
 	const result: Record<string, unknown> = { ...annotation };
 	for (const [key, value] of Object.entries(style)) {
 		if (NOT_STYLE.has(key) || !(key in result) || !compatible(result[key], value)) continue;
+		// A padding remembered before it had sides, or broken
+		if (key === 'padding' && !insetsOf(value)) continue;
 		result[key] = value;
 	}
 	const duration = style.duration;

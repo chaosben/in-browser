@@ -10,6 +10,9 @@ import { formBitmap, isForm, pdfForm, type PdfForm, type PdfPicture } from '@in-
 import { encodeImage } from '@in-browser/pdf/write/image.js';
 import { svgForm } from '@in-browser/pdf/write/svg.js';
 import { loadPdf } from '@in-browser/pdf/load.js';
+import { PdfError } from '@in-browser/pdf/pdfjs.js';
+import { IncrementalPdf } from '@in-browser/pdf/write/incremental.js';
+import { withPassword } from './password.svelte.js';
 import type { IconData } from '@in-browser/graphics/icons/types.js';
 import { iconSvg, registerStampImage, type StampIcon } from '#lib/render/stamp.js';
 import { defaultWords, parseWords, serializeWords, type StampWord } from './stamp-words.js';
@@ -47,6 +50,32 @@ export async function addStamp(from: string, page = 0, pages = 1): Promise<strin
 	const taken = (await list(STAMP_FOLDER)).map((e) => e.name);
 	const path = join(STAMP_FOLDER, uniqueName(file, taken));
 	await copy(from, path);
+	await loadStamps();
+	return path;
+}
+
+/**
+ * A picture file a stamp can be made of: a PDF that needs a password is opened with it (remembered or asked) and kept
+ * without its protection in "My stamps" – a stamp is used again and again, never asking each time; that copy's path.
+ * Other files as they are; null when the password was not given.
+ */
+export async function usablePicture(from: string): Promise<string | null> {
+	if (extname(from).toLowerCase() !== '.pdf') return from;
+	const bytes = new Uint8Array(await (await read(from)).arrayBuffer());
+	const first = await IncrementalPdf.open(bytes);
+	if (!first.locked) return from;
+	if (first.protection?.method === 'other') throw new PdfError('password');
+	const name = from.slice(from.lastIndexOf('/') + 1);
+	const plain = await withPassword(name, from, async (password) => {
+		const opened = await IncrementalPdf.open(bytes, password);
+		if (opened.locked) throw new PdfError('password', undefined, !!password);
+		return opened.protect(null);
+	});
+	if (!plain) return null;
+	await mkdir(STAMP_FOLDER);
+	const taken = (await list(STAMP_FOLDER)).map((e) => e.name);
+	const path = join(STAMP_FOLDER, uniqueName(name, taken));
+	await write(path, new Blob([plain as Uint8Array<ArrayBuffer>], { type: 'application/pdf' }));
 	await loadStamps();
 	return path;
 }

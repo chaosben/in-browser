@@ -2,6 +2,7 @@
 // so a new canvas size means converting everything. Existing content keeps its size in pixels and stays
 // centered; new space around it stays empty, on a smaller canvas it reaches over the edge.
 
+import { scaleInsets } from '@in-browser/graphics/text-box.js';
 import { croppedSize } from './crop.js';
 import { cameraRect, placeRect } from './defaults.js';
 import { zoomRectAt } from './geometry.js';
@@ -73,14 +74,14 @@ export function resizeCanvas(timeline: Timeline, from: Size, to: Size, offset?: 
 			case 'click':
 				return { ...a, ...point(a), size: a.size * sy };
 			case 'text':
-				return { ...a, ...point(a), size: a.size * sy, radius: a.radius * sy, padding: a.padding * sy, ...boxWidth(a.boxWidth, a.boxHeight) };
+				return { ...a, ...point(a), size: a.size * sy, radius: a.radius * sy, padding: scaleInsets(a.padding, sy), ...boxWidth(a.boxWidth, a.boxHeight) };
 			case 'callout':
 				return {
 					...a,
 					...point(a),
 					size: a.size * sy,
 					radius: a.radius * sy,
-					padding: a.padding * sy,
+					padding: scaleInsets(a.padding, sy),
 					...boxWidth(a.boxWidth, a.boxHeight),
 					tip: point(a.tip)
 				};

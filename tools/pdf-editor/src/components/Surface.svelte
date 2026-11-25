@@ -14,7 +14,7 @@
 	import type { CaretItem } from '#lib/render/caret.js';
 	import { isNote, NOTE_SIZE } from '#lib/render/note.js';
 	import { DOCUMENT_FONTS } from '@in-browser/graphics/rich-text.js';
-	import { loadFonts } from '@in-browser/graphics/fonts.js';
+	import { loadFonts, onFontsChanged } from '@in-browser/graphics/fonts.js';
 	import { fontOf, isText, loadTextFont, minTextSize, roomOf, withText, type TextItem } from '#lib/render/textbox.js';
 	import { Stage, type StageElements } from '@in-browser/ink/render/stage.js';
 	import { attachSurface } from '@in-browser/ink/ui/surface.js';
@@ -37,7 +37,7 @@
 	import { contentAt, contentEdit, cornerAt, movedBox, unionBox } from '#lib/model/content.svelte.js';
 	import { ContentOverlay, type ContentMark } from '#lib/render/content-overlay.js';
 	import type { Matrix } from '@in-browser/pdf/geometry.js';
-	import { SNAP_PX, snapMove, snapTargets, type SnapTargets } from '@in-browser/graphics/snap.js';
+	import { SNAP_PX, snapMove, snapPoint, snapTargets, type SnapTargets } from '@in-browser/graphics/snap.js';
 	import { chosenWord, wordText } from '#lib/model/stamp-words.js';
 	import { drawStamp, isStamp, pictureStamp, wordStamp, type StampItem } from '#lib/render/stamp.js';
 	import { suiteSettings } from '@in-browser/files/suite-settings.svelte.js';
@@ -354,8 +354,31 @@
 	}
 
 	/** "Highlight area": a box dragged open on a page, in the highlight's color (for what has no text to mark: scans) */
+	/** The first point of a box or line drawn with one of our tools, snapped like the shape tool's (no guides yet) */
+	function snapStart<H extends { index: number; x: number; y: number }>(s: PdfStage, hit: H | null): H | null {
+		const targets = hit && tools.snap ? s.snapTargets(hit.index, new Set()) : null;
+		if (!hit || !targets) return hit;
+		const tol = SNAP_PX / s.view.zoom;
+		const { point } = snapPoint({ x: hit.x, y: hit.y }, targets, { x: tol, y: tol });
+		return { ...hit, x: point.x, y: point.y };
+	}
+
+	/** The pointer as the second point (page points), snapped – the switch “Snap”, Alt the opposite – with its guides */
+	function snapEnd(s: PdfStage, page: number, sx: number, sy: number, alt: boolean): [number, number] {
+		const [x, y] = s.toPage(page, sx, sy);
+		const targets = tools.snap !== alt ? s.snapTargets(page, new Set()) : null;
+		if (!targets) {
+			s.setGuides(null);
+			return [x, y];
+		}
+		const tol = SNAP_PX / s.view.zoom;
+		const snapped = snapPoint({ x, y }, targets, { x: tol, y: tol });
+		s.setGuides({ page, guides: snapped.guides, targets });
+		return [snapped.point.x, snapped.point.y];
+	}
+
 	function area(s: PdfStage, pdf: PdfDocument, layers: TextLayers, sx: number, sy: number): Gesture | null {
-		const hit = s.pageAt(sx, sy);
+		const hit = snapStart(s, s.pageAt(sx, sy));
 		if (!hit || pdf.editable !== 'yes') return null;
 		const page = pdf.pages[hit.index];
 		const color = markColors.highlight;
@@ -369,11 +392,12 @@
 		return {
 			// A click sets the first corner, the next one the opposite corner
 			hold: () => true,
-			move(x, y) {
-				end = s.toPage(hit.index, x, y);
+			move(x, y, e) {
+				end = snapEnd(s, hit.index, x, y, e.altKey);
 				layers.setPreview({ index: hit.index, boxes: [box()], color, kind: 'highlight' });
 			},
 			end(cancelled) {
+				s.setGuides(null);
 				layers.setPreview(null);
 				const b = box();
 				// A click marks nothing
@@ -385,7 +409,7 @@
 
 	/** "Link": a box dragged open on a page becomes a link, opened to say where it leads; a press on a link opens it */
 	function link(s: PdfStage, pdf: PdfDocument, layers: TextLayers, selection: PdfSelection, sx: number, sy: number): Gesture | null {
-		const hit = s.pageAt(sx, sy);
+		const hit = snapStart(s, s.pageAt(sx, sy));
 		if (!hit || pdf.editable !== 'yes') return null;
 		const page = pdf.pages[hit.index];
 		const on = itemAt(s, pdf, sx, sy);
@@ -399,11 +423,12 @@
 		return {
 			// A click sets the first corner, the next one the opposite corner
 			hold: () => !(on && isLink(on.item)),
-			move(x, y) {
-				end = s.toPage(hit.index, x, y);
+			move(x, y, e) {
+				end = snapEnd(s, hit.index, x, y, e.altKey);
 				layers.setPreview({ index: hit.index, boxes: [box()], color: CAPTURE_TINT, kind: 'highlight' });
 			},
 			end(cancelled) {
+				s.setGuides(null);
 				layers.setPreview(null);
 				if (cancelled) return;
 				const b = box();
@@ -496,7 +521,7 @@
 
 	/** "Stamp from area": a box dragged open on a page becomes a stamp of what it holds */
 	function capture(s: PdfStage, pdf: PdfDocument, layers: TextLayers, sx: number, sy: number): Gesture | null {
-		const hit = s.pageAt(sx, sy);
+		const hit = snapStart(s, s.pageAt(sx, sy));
 		if (!hit) return null;
 		const page = pdf.pages[hit.index];
 		let end = [hit.x, hit.y];
@@ -509,11 +534,12 @@
 		return {
 			// A click sets the first corner, the next one the opposite corner
 			hold: () => true,
-			move(x, y) {
-				end = s.toPage(hit.index, x, y);
+			move(x, y, e) {
+				end = snapEnd(s, hit.index, x, y, e.altKey);
 				layers.setPreview({ index: hit.index, boxes: [box()], color: CAPTURE_TINT, kind: 'highlight' });
 			},
 			end(cancelled) {
+				s.setGuides(null);
 				layers.setPreview(null);
 				const b = box();
 				if (cancelled || (b.x1 - b.x0) * s.view.zoom < 4 || (b.y1 - b.y0) * s.view.zoom < 4) return;
@@ -580,7 +606,7 @@
 	/** "Callout": press where it should point, drag to where its text goes (a click puts the box a little away);
 	 * a press on a text box edits it */
 	function callout(s: PdfStage, pdf: PdfDocument, selection: PdfSelection, sx: number, sy: number): Gesture | null {
-		const hit = s.pageAt(sx, sy);
+		const hit = snapStart(s, s.pageAt(sx, sy));
 		if (!hit || pdf.editable !== 'yes') return null;
 		const on = itemAt(s, pdf, sx, sy);
 		let end = [hit.x, hit.y];
@@ -588,11 +614,12 @@
 		return {
 			// A click sets the tip, the next one where the text goes (on the tip again: a little away)
 			hold: () => !onText,
-			move(x, y) {
-				end = s.toPage(hit.index, x, y);
+			move(x, y, e) {
+				end = snapEnd(s, hit.index, x, y, e.altKey);
 				if (!onText) s.setRubber({ page: hit.index, points: [hit.x, hit.y, 0.5, end[0], end[1], 0.5], color: textStyle.border ?? textStyle.color, size: 1 });
 			},
 			end(cancelled) {
+				s.setGuides(null);
 				s.setRubber(null);
 				if (cancelled) return;
 				if (on && isText(on.item)) {
@@ -619,15 +646,16 @@
 	}
 
 	function textbox(s: PdfStage, pdf: PdfDocument, selection: PdfSelection, sx: number, sy: number): Gesture | null {
-		const hit = s.pageAt(sx, sy);
+		const hit = snapStart(s, s.pageAt(sx, sy));
 		if (!hit || pdf.editable !== 'yes') return null;
 		const on = itemAt(s, pdf, sx, sy);
 		let end = [hit.x, hit.y];
 		return {
-			move(x, y) {
-				end = s.toPage(hit.index, x, y);
+			move(x, y, e) {
+				end = snapEnd(s, hit.index, x, y, e.altKey);
 			},
 			end(cancelled) {
+				s.setGuides(null);
 				if (cancelled) return;
 				if (on && isText(on.item)) {
 					selection.select(on.page, new Set([on.item.id]));
@@ -864,10 +892,13 @@
 			};
 			el.root.addEventListener('pointerdown', press);
 			el.root.addEventListener('click', click);
-			// Text boxes drawn before their font was there: drawn again with it
-			void Promise.all([loadTextFont(), loadFonts(DOCUMENT_FONTS)]).then(() => {
+			// Text boxes drawn before their font was there: drawn again with it – also a font that comes later (the user's,
+			// the PDF's own: registered after the boxes were drawn)
+			const redrawTexts = () => {
 				for (const page of pdf.pages) if (pdf.scene(page.id)?.items.some(isText)) s.contentChanged(page.id);
-			});
+			};
+			void Promise.all([loadTextFont(), loadFonts(DOCUMENT_FONTS)]).then(redrawTexts);
+			const stopFonts = onFontsChanged(redrawTexts);
 			const detach = input.attach();
 			const detachSurface = attachSurface(el.root, s);
 			stage = s;
@@ -876,6 +907,7 @@
 			s.onview();
 			onready(s, selection, suggestion, (id) => showField(s, pdf, fields, id));
 			return () => {
+				stopFonts();
 				el.root.removeEventListener('dblclick', dblclick);
 				el.root.removeEventListener('pointerdown', press);
 				el.root.removeEventListener('click', click);

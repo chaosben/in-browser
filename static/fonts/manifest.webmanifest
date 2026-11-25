@@ -1,0 +1,34 @@
+{
+	"lang": "en",
+	"id": "/fonts",
+	"name": "Fonts – in-browser",
+	"short_name": "Fonts",
+	"description": "Your own fonts for every in-browser tool – added from your files or found in the catalog.",
+	"start_url": "/fonts",
+	"scope": "/fonts",
+	"display": "standalone",
+	"launch_handler": {
+		"client_mode": "focus-existing"
+	},
+	"categories": [
+		"productivity",
+		"utilities",
+		"design"
+	],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{
+			"src": "/fonts/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/fonts/icon-maskable.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}

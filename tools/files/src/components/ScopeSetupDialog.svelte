@@ -6,6 +6,7 @@
 	import { finishSetup, folderSizes, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
 	import { exclude, include, inScope } from '@in-browser/files/p2p/scope.js';
 	import { suiteSettings } from '@in-browser/files/suite-settings.svelte.js';
+	import { folderAccess } from '@in-browser/files/handles.js';
 	import { handleTree } from '@in-browser/files/sync/handle-tree.js';
 	import { opfsTree } from '@in-browser/files/sync/opfs-tree.js';
 	import { folderAmounts, preselectExcluded, subfolders, type FolderAmounts } from '@in-browser/files/sync/scope-sizes.js';
@@ -51,7 +52,7 @@
 			free = estimate?.quota !== undefined ? estimate.quota - (estimate.usage ?? 0) : null;
 			if (mode === 'folder') {
 				const handle = await syncedFolder();
-				if (!handle || (await handle.queryPermission?.({ mode: 'readwrite' })) !== 'granted') {
+				if (!handle || (await folderAccess(handle)) !== 'granted') {
 					error = t.unreadable;
 					return;
 				}

@@ -19,22 +19,23 @@
 	const self = $derived(p2pStatus.view.self?.id ?? '');
 	const names = $derived(new Map(p2pStatus.view.devices.map((d) => [d.id, d.name])));
 
-	/** The subfolders of `folder` here and on the connected devices, with their size on each device */
-	async function load(folder: string): Promise<ScopeFolder[]> {
-		const [local, sizes] = await Promise.all([list(folder).catch(() => []), folderSizes(folder).catch(() => ({}))]);
-		const byPath = new Map<string, ScopeFolder>();
-		for (const entry of local) {
-			if (entry.kind === 'directory' && !isHidden(entry.path)) byPath.set(entry.path, { path: entry.path, name: entry.name, sizes: {} });
-		}
-		for (const [device, perFolder] of Object.entries(sizes)) {
-			for (const [path, bytes] of Object.entries(perFolder)) {
-				if (isHidden(path)) continue;
-				const entry = byPath.get(path) ?? { path, name: path.split('/').at(-1) ?? path, sizes: {} };
-				entry.sizes[device] = bytes;
-				byPath.set(path, entry);
+	/** The subfolders of `folder` here at once, then with those only on the connected devices and their size on each */
+	async function load(folder: string): Promise<{ folders: ScopeFolder[]; later: Promise<ScopeFolder[]> }> {
+		const local = await list(folder).catch(() => []);
+		const here = local.filter((entry) => entry.kind === 'directory' && !isHidden(entry.path)).map((entry) => ({ path: entry.path, name: entry.name, sizes: {} }));
+		const later = folderSizes(folder).then((sizes) => {
+			const byPath = new Map<string, ScopeFolder>(here.map((f) => [f.path, { ...f, sizes: {} }]));
+			for (const [device, perFolder] of Object.entries(sizes)) {
+				for (const [path, bytes] of Object.entries(perFolder)) {
+					if (isHidden(path)) continue;
+					const entry = byPath.get(path) ?? { path, name: path.split('/').at(-1) ?? path, sizes: {} };
+					entry.sizes[device] = bytes;
+					byPath.set(path, entry);
+				}
 			}
-		}
-		return [...byPath.values()];
+			return [...byPath.values()];
+		});
+		return { folders: here, later };
 	}
 
 	async function toggle(folder: ScopeFolder, on: boolean) {

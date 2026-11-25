@@ -18,7 +18,24 @@ test('creates an empty project, lists it on the start page, deletes it into the 
 	// The editor of that project, with the suite's frame
 	await expect(page).toHaveURL(/\/screen-capture\/editor\?path=/);
 	await expect(page.getByTestId('ribbon')).toBeVisible();
+
+	// A new text is typed into on the preview right away; leaving keeps it, “Edit text” types into it again, Esc leaves
+	await page.getByRole('tab', { name: 'Insert' }).click();
+	await page.locator('[data-command="add-text"]').first().click();
+	const field = page.getByRole('textbox', { name: 'Text of the text box' });
+	await expect(field).toBeFocused();
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.type('Hello there');
+	await field.evaluate((el) => (el as HTMLElement).blur());
+	await expect(field).toBeHidden();
+	// Its properties are the ribbon's now (no inspector)
+	await expect(page.getByRole('tab', { name: 'Properties' })).toBeVisible();
 	await shot(page, 'screen-capture-editor');
+	await page.getByRole('tab', { name: 'Text box' }).click();
+	await page.locator('[data-command="editText"]').first().click();
+	await expect(field).toHaveText('Hello there');
+	await page.keyboard.press('Escape');
+	await expect(field).toBeHidden();
 
 	// Back on the start page it is a card; its menu holds everything that can be done with it
 	await page.goto('/screen-capture');

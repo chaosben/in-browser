@@ -5,6 +5,24 @@ type Movable<H extends FileSystemHandle = FileSystemHandle> = H & { move?: (dir:
 /** Folders on disk can be picked (File System Access API, Chromium): connecting and syncing a folder need it */
 export const diskFoldersSupported = () => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
+/**
+ * Whether the browser lets this tab read and write a folder on disk: `prompt` until a click allows it again. An answer
+ * missing after `wait` ms counts as `prompt` (seen in Chrome: the question never came back, and the folder sync stood
+ * still without a word).
+ */
+export async function folderAccess(handle: FileSystemHandle, wait = 2000): Promise<PermissionState> {
+	const query = (handle as FileSystemHandle & { queryPermission?: (d: { mode: 'readwrite' }) => Promise<PermissionState> }).queryPermission;
+	if (!query) return 'granted';
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([query.call(handle, { mode: 'readwrite' }), new Promise<PermissionState>((resolve) => (timer = setTimeout(() => resolve('prompt'), wait)))]);
+	} catch {
+		return 'denied';
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 /** The error of a handle that isn't there (or is a folder where a file was asked for, and the other way round) */
 export const isMissing = (e: unknown) => e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError');
 

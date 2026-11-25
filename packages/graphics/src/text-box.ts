@@ -139,3 +139,36 @@ export function resizeTextBox(start: Rect, sizing: TextSizing, handle: TextHandl
 	const y = north ? start.y + start.h - h : south ? start.y : options.scaleText ? start.y + (start.h - h) / 2 : start.y;
 	return { rect: { x, y, w, h }, sizing: options.scaleText ? sizing : sizingAfter(sizing, handle), scale };
 }
+
+/** Space between a box's edge and its text, per side (the tool's unit) */
+export interface Insets {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
+export const INSET_SIDES = ['top', 'right', 'bottom', 'left'] as const;
+
+/** The same space on every side */
+export const evenInsets = (n: number): Insets => ({ top: n, right: n, bottom: n, left: n });
+
+/** Every side the same? */
+export const sameInsets = (i: Insets) => i.top === i.right && i.top === i.bottom && i.top === i.left;
+
+export const scaleInsets = (i: Insets, k: number): Insets => ({ top: i.top * k, right: i.right * k, bottom: i.bottom * k, left: i.left * k });
+
+/** `n` more on every side (a border inside the box) */
+export const growInsets = (i: Insets, n: number): Insets => (n ? { top: i.top + n, right: i.right + n, bottom: i.bottom + n, left: i.left + n } : i);
+
+/** Left and right together, top and bottom together */
+export const insetsX = (i: Insets) => i.left + i.right;
+export const insetsY = (i: Insets) => i.top + i.bottom;
+
+/** Insets read from stored data: four finite numbers ≥ 0, else null */
+export function insetsOf(value: unknown): Insets | null {
+	if (!value || typeof value !== 'object') return null;
+	const v = value as Record<string, unknown>;
+	const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+	return ok(v.top) && ok(v.right) && ok(v.bottom) && ok(v.left) ? { top: v.top, right: v.right, bottom: v.bottom, left: v.left } : null;
+}
