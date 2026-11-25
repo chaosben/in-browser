@@ -14,6 +14,7 @@
 import { version } from '$app/env';
 import { assets, immutable, prerendered } from '$app/manifest';
 import { self } from '$app/service-worker';
+import { fetchFresh } from './fetch-fresh.js';
 
 const PREFIX = 'in-browser-';
 const CACHE = `${PREFIX}${version}`;
@@ -32,7 +33,19 @@ const PRECACHED = new Set(PRECACHE);
 const IMMUTABLE = '/_app/immutable/';
 
 self.addEventListener('install', (event) => {
-	event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)));
+	// Not `addAll`: it would take a 404 the HTTP cache kept (`fetchFresh`) and never install
+	event.waitUntil(
+		(async () => {
+			const cache = await caches.open(CACHE);
+			await Promise.all(
+				PRECACHE.map(async (path) => {
+					const response = await fetchFresh(path);
+					if (!response.ok) throw new Error(`${path}: ${response.status}`);
+					await cache.put(path, response);
+				})
+			);
+		})()
+	);
 });
 
 self.addEventListener('activate', (event) => {
@@ -136,7 +149,7 @@ async function networkFirst(path: string, request: Request): Promise<Response> {
 }
 
 async function cacheFirst(path: string, request: Request): Promise<Response> {
-	return (await cached(path)) ?? fetch(request);
+	return (await cached(path)) ?? fetchFresh(request);
 }
 
 // --- Media read in pieces (`/_live/`) ---
