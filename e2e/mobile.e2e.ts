@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
 import { expect, test } from './fixtures.js';
+import { backup } from './jwl.js';
 import { formPdf, getFile, putFile, shot } from './pdf.js';
 
 // Files, Text Editor, Fonts and the PDF Editor on a phone (project `mobile`: Pixel 7, touch only): everything without
@@ -234,4 +235,35 @@ test('Fonts: font files from the phone become one font with its faces, opened by
 	await page.getByRole('button', { name: /Liberation Sans/ }).tap();
 	await page.getByRole('menuitem', { name: 'Delete' }).tap();
 	await expect(page.getByText('You have no fonts of your own yet.', { exact: false })).toBeVisible();
+});
+
+test('JWL Files: a backup from the phone kept, a second one merged into it, the merge undone', async ({ page }) => {
+	await page.goto('/jwl');
+	const input = page.locator('input[type="file"]').first();
+	const dialog = page.getByRole('dialog');
+	await input.setInputFiles({ name: 'Backup A.jwlibrary', mimeType: 'application/octet-stream', buffer: await backup([{ guid: 'a', title: 'First note' }], 'Phone') });
+	await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
+	await expect(page).toHaveURL(/\/jwl\/editor/);
+	await expect(page.getByRole('heading', { name: 'JW Library backup' })).toBeVisible();
+	await shot(page, 'jwl');
+
+	// The second backup is merged into the first one: picked in the save dialog, “Merge” next to “Replace”
+	await page.goto('/jwl');
+	await input.setInputFiles({ name: 'Backup B.jwlibrary', mimeType: 'application/octet-stream', buffer: await backup([{ guid: 'b', title: 'Second note' }], 'Tablet') });
+	await dialog.getByRole('option', { name: 'Backup A.jwlibrary' }).tap();
+	await expect(dialog.getByRole('button', { name: 'Replace', exact: true })).toBeEnabled();
+	await dialog.getByRole('button', { name: 'Merge', exact: true }).tap();
+	const toast = page.getByRole('status').filter({ hasText: 'Merged into “Backup A.jwlibrary”: 1 new, 0 changed, 0 removed.' });
+	await expect(toast).toBeVisible();
+	await expect(page).toHaveURL(/Backup%20A/);
+	await page.locator('[data-command="view:notes"]:visible').tap();
+	await expect(page.getByRole('option', { name: /Second note/ })).toBeVisible();
+	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();
+	await shot(page, 'jwl-notes');
+
+	// “Undo” puts the file back; the open editor reads it again after asking
+	await toast.getByRole('button', { name: 'Undo' }).tap();
+	await page.getByRole('dialog').getByRole('button', { name: 'Reload', exact: true }).tap();
+	await expect(page.getByRole('option', { name: /Second note/ })).toHaveCount(0);
+	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();
 });

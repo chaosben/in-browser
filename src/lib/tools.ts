@@ -20,7 +20,7 @@ export interface Tool {
 }
 
 /** Order of the sections */
-export const CATEGORIES: readonly Category[] = ['media', 'writing', 'drawing', 'organize'];
+export const CATEGORIES: readonly Category[] = ['media', 'writing', 'drawing', 'organize', 'special'];
 
 /** Feature detection per requirement (browser only, never browser sniffing) */
 export const REQUIREMENTS: Record<Requirement, () => boolean> = {
@@ -60,5 +60,12 @@ export const TOOLS: readonly Tool[] = [
 		icon: '/fonts/favicon.svg',
 		category: 'organize',
 		also: ['writing']
+	},
+	{
+		id: 'jwl',
+		url: '/jwl',
+		icon: '/jwl/favicon.svg',
+		category: 'special',
+		also: ['organize', 'media']
 	}
 ];

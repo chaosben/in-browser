@@ -1,0 +1,34 @@
+{
+	"lang": "de",
+	"id": "/jwl",
+	"name": "JWL-Dateien – in-browser",
+	"short_name": "JWL-Dateien",
+	"description": "Sicherungen und Playlists von JW Library in deinem Browser: zusammenführen, aufräumen und bearbeiten – hochgeladen wird nichts.",
+	"start_url": "/jwl",
+	"scope": "/jwl",
+	"display": "standalone",
+	"launch_handler": {
+		"client_mode": "focus-existing"
+	},
+	"categories": [
+		"productivity",
+		"utilities",
+		"books"
+	],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{
+			"src": "/jwl/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/jwl/icon-maskable.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}

@@ -7,7 +7,8 @@ const TOOLS = [
 	{ path: '/files', name: 'Files' },
 	{ path: '/text-editor', name: 'Text Editor' },
 	{ path: '/screen-capture', name: 'Screen Capture' },
-	{ path: '/pdf-editor', name: 'PDF Editor' }
+	{ path: '/pdf-editor', name: 'PDF Editor' },
+	{ path: '/jwl', name: 'JWL Files' }
 ];
 
 test('overview, every tool and the 404 page load', async ({ page, problems }) => {

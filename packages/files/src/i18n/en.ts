@@ -27,6 +27,8 @@ const en = {
 		exists: (name: string) => `“${name}” already exists here. Choose another name.`,
 		replace: 'Replace',
 		replaces: (name: string) => `“${name}” already exists here and will be replaced.`,
+		merge: 'Merge',
+		mergeOrReplace: (name: string) => `“${name}” already exists here: merge both into it, or replace it.`,
 		/** Choice between My files and the connected folders */
 		place: 'Place'
 	},
@@ -259,6 +261,25 @@ const en = {
 		failed: 'The file could not be sent.',
 		ready: (n: number) => (n === 1 ? 'The file is ready to send.' : `The ${n} files are ready to send.`),
 		now: 'Send'
+	},
+
+	/** Merging a file into one of the same format (`merge.ts`) */
+	merge: {
+		action: 'Merge with …',
+		tip: 'Takes what another file of this kind has into this one – nothing is replaced',
+		chooseTitle: (name: string) => `Merge with “${name}”`,
+		same: 'Choose another file – a file can’t be merged with itself.',
+		unchanged: (name: string) => `“${name}” already has everything – nothing changed.`,
+		done: (name: string, c: { added: number; changed: number; removed: number }) =>
+			`Merged into “${name}”: ${c.added} new, ${c.changed} changed, ${c.removed} removed.`,
+		undo: 'Undo',
+		undone: (name: string) => `“${name}” is as it was before merging.`,
+		lossTitle: 'Remove that much?',
+		loss: (name: string, removed: number, of: number) =>
+			`Merging would remove ${removed} of the ${of} highlights and notes in “${name}” – the other file deleted them. Merge anyway?`,
+		anyway: 'Merge anyway',
+		notMerged: 'Not merged – nothing changed.',
+		failed: (name: string) => `Could not merge into “${name}”.`
 	},
 
 	/** Files another app shared with in-browser or opened with it */

@@ -40,6 +40,12 @@
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
+# JWL Files: SQLite (WebAssembly) runs in its worker (see `/_app/immutable/*`); thumbnails, new videos and downloads
+# from blob:
+/jwl*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
 # Fonts: font files previewed from blob:; the catalog of free fonts (Fontsource: its API and the files on jsDelivr) is
 # reached only from these pages, and only when the user searches it
 /fonts*

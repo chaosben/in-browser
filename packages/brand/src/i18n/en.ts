@@ -12,7 +12,8 @@ const en = {
 		'text-editor': 'Text Editor',
 		'screen-capture': 'Screen Capture',
 		'pdf-editor': 'PDF Editor',
-		fonts: 'Fonts'
+		fonts: 'Fonts',
+		jwl: 'JWL Files'
 	},
 
 	brand: {

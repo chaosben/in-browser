@@ -128,7 +128,7 @@
 {#snippet name(item: Item, classes: string)}
 	{#if manager.renaming === item.path}
 		<input
-			class="input input-xs min-w-0 {classes}"
+			class={['input input-sm min-w-0', !classes.includes('text-sm') && 'text-base', classes]}
 			value={item.name}
 			aria-label={m.common.rename}
 			{@attach renameField}

@@ -3,10 +3,10 @@
 
 import initSqlJs from 'sql.js';
 import sqlWasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url';
-import { Zip, ZipDeflate } from 'fflate';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import schema from './schema-v16.sql?raw';
+import { ZipOut, defaultThumbnail, localIso } from './archive.js';
 import { END_ACTIONS, type Playlist, type PlaylistReply, type PlaylistRequest } from './playlist.js';
 
 const SCHEMA_VERSION = 16;
@@ -149,54 +149,16 @@ async function build(playlist: Playlist, deviceName: string) {
 			schemaVersion: SCHEMA_VERSION
 		}
 	};
-	const out: Uint8Array[] = [];
-	let failure: Error | null = null;
-	const zip = new Zip((error, chunk) => {
-		if (error) failure = error;
-		else out.push(chunk);
-	});
-	const flush = async () => {
-		if (failure) throw failure;
-		for (const chunk of out.splice(0)) {
-			const sent = new Promise<void>((resolve) => (acknowledged = resolve));
-			// A copy of its own: fflate's pieces may be views into a buffer it keeps using
-			const data = chunk.slice();
-			post({ type: 'chunk', data }, [data.buffer]);
-			await sent;
-		}
-	};
-	const entry = (name: string, level: 1 | 6) => {
-		const file = new ZipDeflate(name, { level });
-		file.mtime = now;
-		zip.add(file);
-		return file;
-	};
-	const whole = async (name: string, data: Uint8Array) => {
-		const file = entry(name, 6);
-		file.push(data, true);
-		await flush();
-	};
-	await whole('manifest.json', new TextEncoder().encode(JSON.stringify(manifest)));
-	for (const m of media) {
-		// Already compressed pictures and videos: the fastest level, still DEFLATE as JW Library's files are
-		const file = entry(m.path, 1);
-		// One piece ahead, so the last one is pushed as the file's end
-		const reader = m.blob.stream().getReader();
-		let next = await reader.read();
-		if (next.done) file.push(new Uint8Array(0), true);
-		while (!next.done) {
-			const piece = next.value;
-			next = await reader.read();
-			file.push(piece, next.done);
-			progress(piece.byteLength);
-			await flush();
-		}
-		await flush();
-	}
-	await whole('default_thumbnail.png', await defaultThumbnail());
-	await whole(DATABASE, database);
-	zip.end();
-	await flush();
+	const zip = new ZipOut(async (data) => {
+		const sent = new Promise<void>((resolve) => (acknowledged = resolve));
+		post({ type: 'chunk', data }, [data.buffer]);
+		await sent;
+	}, now);
+	await zip.whole('manifest.json', new TextEncoder().encode(JSON.stringify(manifest)));
+	for (const m of media) await zip.stream(m.path, m.blob, progress);
+	await zip.whole('default_thumbnail.png', await defaultThumbnail());
+	await zip.whole(DATABASE, database);
+	await zip.end();
 	// Files shown more than once were written once
 	if (done < total) progress(total - done);
 }
@@ -216,24 +178,4 @@ function mimeOf(name: string): string {
 	const extension = name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
 	const found = Object.entries(EXTENSIONS).find(([, e]) => e === extension || (e === 'jpg' && extension === 'jpeg'));
 	return found?.[0] ?? 'application/octet-stream';
-}
-
-/** `2026-11-23T02:15:47.045+01:00` – local time with its offset, as JW Library writes `creationDate` */
-function localIso(date: Date): string {
-	const pad = (n: number, width = 2) => String(Math.abs(n)).padStart(width, '0');
-	const offset = -date.getTimezoneOffset();
-	return (
-		`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:` +
-		`${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}${offset < 0 ? '-' : '+'}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`
-	);
-}
-
-/** The plain grey picture JW Library falls back to where an item has no thumbnail */
-async function defaultThumbnail(): Promise<Uint8Array> {
-	const canvas = new OffscreenCanvas(128, 128);
-	const ctx = canvas.getContext('2d');
-	if (!ctx) throw new Error('No canvas');
-	ctx.fillStyle = '#d4d4d4';
-	ctx.fillRect(0, 0, 128, 128);
-	return new Uint8Array(await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer());
 }

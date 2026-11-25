@@ -50,7 +50,7 @@ const help: typeof enHelp = {
 		items: {
 			open: {
 				title: 'Öffnen',
-				text: 'Doppelklicke einen Eintrag oder wähle ihn aus und drücke Enter. Ein Ordner öffnet sich in Dateien. Ein Dokument eines Tools (z. B. ein Projekt der Bildschirmaufnahme oder eine Textdatei) öffnet sich in diesem Tool – können es mehrere Tools öffnen, bietet das Menü des Eintrags für jedes „Mit … öffnen“ an. Andere Dateien öffnen sich in der Vorschau. Manche davon lassen sich auch als Text bearbeiten: Das Menü eines SVG-Bilds bietet „Mit Texteditor öffnen“ an, ein Doppelklick zeigt das Bild. Auf Touchscreens öffnet ein Tippen. Soll dieser Ordner sichtbar bleiben, öffne einen Eintrag in einem neuen Browser-Tab: Klick ihn mit der mittleren Maustaste (dem Mausrad) an, oder „Öffnen“ bzw. „Mit … öffnen“ in seinem Menü – ein Ordner öffnet sich dort in Dateien, ein Dokument in seinem Tool. Das geht auch mit Ordnern in der Seitenleiste „Ordner“ und mit dem Papierkorb.'
+				text: 'Doppelklicke einen Eintrag oder wähle ihn aus und drücke Enter. Ein Ordner öffnet sich in Dateien. Ein Dokument eines Tools (z. B. ein Projekt der Bildschirmaufnahme oder eine Textdatei) öffnet sich in diesem Tool; sein Symbol trägt dann das Symbol des Tools als kleine Kachel in der Ecke, ein Projekt zeigt das Symbol des Tools selbst. Können es mehrere Tools öffnen, bietet das Menü des Eintrags für jedes „Mit … öffnen“ an. Andere Dateien öffnen sich in der Vorschau. Manche davon lassen sich auch als Text bearbeiten: Das Menü eines SVG-Bilds bietet „Mit Texteditor öffnen“ an, ein Doppelklick zeigt das Bild. Auf Touchscreens öffnet ein Tippen. Soll dieser Ordner sichtbar bleiben, öffne einen Eintrag in einem neuen Browser-Tab: Klick ihn mit der mittleren Maustaste (dem Mausrad) an, oder „Öffnen“ bzw. „Mit … öffnen“ in seinem Menü – ein Ordner öffnet sich dort in Dateien, ein Dokument in seinem Tool. Das geht auch mit Ordnern in der Seitenleiste „Ordner“ und mit dem Papierkorb.'
 			},
 			select: {
 				title: 'Auswählen',
@@ -75,7 +75,7 @@ const help: typeof enHelp = {
 		items: {
 			upload: {
 				title: 'Hochladen',
-				text: '„Hochladen“ (Registerkarte „Start“, Gruppe „Neu“) kopiert Dateien von deinem Rechner oder Handy in den geöffneten Ordner – „Dateien hochladen“ für einzelne Dateien, „Ordner hochladen“ für einen ganzen Ordner mit seinen Unterordnern (auf iPhone und iPad nicht angeboten). Du kannst Dateien oder Ordner auch von deinem Rechner auf die Liste ziehen: auf der freien Fläche abgelegt landen sie im geöffneten Ordner, auf einem Ordner in der Liste oder in der Seitenleiste „Ordner“ landen sie dort. Die untere Zeile zeigt, welche Datei gerade kopiert wird. „Hochladen“ heißt nur Kopieren in den Browserspeicher – nichts verlässt dein Gerät.'
+				text: '„Hochladen“ (Registerkarte „Start“, Gruppe „Neu“) kopiert Dateien von deinem Rechner oder Handy in den geöffneten Ordner – „Dateien hochladen“ für einzelne Dateien, „Ordner hochladen“ für einen ganzen Ordner mit seinen Unterordnern (auf iPhone und iPad nicht angeboten). Du kannst Dateien oder Ordner auch von deinem Rechner auf die Liste ziehen: auf der freien Fläche abgelegt landen sie im geöffneten Ordner, auf einem Ordner in der Liste oder in der Seitenleiste „Ordner“ landen sie dort. Die untere Zeile zeigt, welche Datei gerade kopiert wird. „Hochladen“ heißt nur Kopieren in den Browserspeicher – nichts verlässt dein Gerät. Eine Sicherung von JW Library (.jwlibrary) fragt stattdessen, wo sie liegen soll: Wähle die Sicherung, die du aufbewahrst, und „Zusammenführen“ übernimmt, was die neue hat, „Ersetzen“ überschreibt sie, ein neuer Name legt sie als eigene Datei ab.'
 			},
 			download: {
 				title: 'Herunterladen',
@@ -193,6 +193,11 @@ const help: typeof enHelp = {
 				title: 'An eine andere App senden',
 				text: '„Senden …“ in der Registerkarte „Freigeben“, in „Auswahl“ und im Menü von Dateien gibt die ausgewählten Dateien an eine andere App dieses Geräts – Mail, einen Messenger, JW Library. Die App bekommt eine Kopie; danach bleibt nichts verbunden. Es geht nur für Dateien (nicht für Ordner) und nur für Arten, die dein Browser sendet – sonst ist es ausgegraut.',
 				link: { href: '/help/install#system', label: 'Mit den anderen Apps deines Geräts' }
+			},
+			merge: {
+				title: 'Sicherungen von JW Library zusammenführen',
+				text: 'Das Menü einer Sicherung von JW Library (.jwlibrary) hat „Zusammenführen mit …“: Wähle eine andere Sicherung, und was sie hat, wird in diese übernommen – ersetzt wird nichts, eine Meldung nennt, was neu ist, und bietet „Rückgängig“. Beim Ablegen einer Sicherung, die aus JW Library kommt, steht „Zusammenführen“ neben „Ersetzen“, wenn du eine vorhandene wählst. Auch für eine Kopie, die die Synchronisation als „… (Konflikt …)“ behalten hat.',
+				link: { href: '/help/jwl#merge', label: 'Sicherungen zusammenführen' }
 			},
 			receive: {
 				title: 'Dateien aus anderen Apps',

@@ -7,6 +7,8 @@ import filesDe from '@in-browser/files-app/i18n/help.de.js';
 import filesEn from '@in-browser/files-app/i18n/help.en.js';
 import fontsDe from '@in-browser/fonts/i18n/help.de.js';
 import fontsEn from '@in-browser/fonts/i18n/help.en.js';
+import jwlDe from '@in-browser/jwl-app/i18n/help.de.js';
+import jwlEn from '@in-browser/jwl-app/i18n/help.en.js';
 import pdfEditorDe from '@in-browser/pdf-editor/i18n/help.de.js';
 import pdfEditorEn from '@in-browser/pdf-editor/i18n/help.en.js';
 import screenCaptureDe from '@in-browser/screen-capture/i18n/help.de.js';
@@ -34,7 +36,8 @@ export const TOOL_HELP: Record<Tool['id'], Record<Locale, HelpContent>> = {
 	files: { en: filesEn, de: filesDe },
 	textEditor: { en: textEditorEn, de: textEditorDe },
 	pdfEditor: { en: pdfEditorEn, de: pdfEditorDe },
-	fonts: { en: fontsEn, de: fontsDe }
+	fonts: { en: fontsEn, de: fontsDe },
+	jwl: { en: jwlEn, de: jwlDe }
 };
 
 /** Address of a tool's help page: `/help/<tool>` */

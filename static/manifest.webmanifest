@@ -17,6 +17,7 @@
 	"file_handlers": [
 		{ "action": "/pdf-editor?open-with", "accept": { "application/pdf": [".pdf"] } },
 		{ "action": "/fonts?open-with", "accept": { "font/ttf": [".ttf"], "font/otf": [".otf"] } },
+		{ "action": "/jwl?open-with", "accept": { "application/octet-stream": [".jwlibrary", ".jwlplaylist"] } },
 		{
 			"action": "/text-editor?open-with",
 			"accept": {
@@ -36,6 +37,7 @@
 		{ "name": "Text Editor", "url": "/text-editor", "icons": [{ "src": "/text-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
 		{ "name": "Screen Capture", "url": "/screen-capture", "icons": [{ "src": "/screen-capture/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
 		{ "name": "PDF Editor", "url": "/pdf-editor", "icons": [{ "src": "/pdf-editor/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
-		{ "name": "Fonts", "url": "/fonts", "icons": [{ "src": "/fonts/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }
+		{ "name": "Fonts", "url": "/fonts", "icons": [{ "src": "/fonts/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] },
+		{ "name": "JWL Files", "url": "/jwl", "icons": [{ "src": "/jwl/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }
 	]
 }

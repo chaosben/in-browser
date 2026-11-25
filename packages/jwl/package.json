@@ -9,7 +9,8 @@
 			"svelte": "./src/*.svelte",
 			"default": "./src/*.svelte"
 		},
-		"./*.js": "./src/*.ts"
+		"./*.js": "./src/*.ts",
+		"./*.sql": "./src/*.sql"
 	},
 	"dependencies": {
 		"@in-browser/brand": "*",

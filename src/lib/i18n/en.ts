@@ -25,7 +25,8 @@ const en = {
 		media: 'Media',
 		writing: 'Writing',
 		drawing: 'Drawing',
-		organize: 'Organize'
+		organize: 'Organize',
+		special: 'Special editors'
 	},
 
 	/** Short points of the bar below the tools: keyword in bold, then a few words */
@@ -75,6 +76,11 @@ const en = {
 			name: brand.tools['fonts'],
 			summary: 'Add your own fonts for every tool, or install free ones',
 			keywords: 'font, fonts, typeface, ttf, otf, install, google fonts, fontsource, typography'
+		},
+		jwl: {
+			name: brand.tools['jwl'],
+			summary: 'Merge, tidy up and edit JW Library backups and playlists',
+			keywords: 'jw library, jwlibrary, jwlplaylist, backup, merge, notes, highlights, bookmarks, tags, playlist, jwl files'
 		}
 	},
 

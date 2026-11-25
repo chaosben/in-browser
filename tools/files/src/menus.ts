@@ -4,6 +4,7 @@ import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+import { canMerge, mergeWith } from '@in-browser/files/merge.js';
 import { canSend, sendPaths } from '@in-browser/files/send.js';
 import { basename, isConnected, isInside, parent } from '@in-browser/files/path.js';
 import { allowAccess, disconnect, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';

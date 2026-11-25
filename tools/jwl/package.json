@@ -1,0 +1,24 @@
+{
+	"name": "@in-browser/jwl-app",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"description": "JWL Files tool of in-browser: JW Library backups and playlists viewed, edited and merged (included as source code, route /jwl)",
+	"exports": {
+		"./*.svelte": {
+			"svelte": "./src/*.svelte",
+			"default": "./src/*.svelte"
+		},
+		"./*.js": "./src/*.ts"
+	},
+	"imports": {
+		"#lib": "./src/index.js",
+		"#lib/*": "./src/*"
+	},
+	"dependencies": {
+		"@in-browser/brand": "*",
+		"@in-browser/files": "*",
+		"@in-browser/jwl": "*",
+		"@noble/hashes": "2.4.0"
+	}
+}

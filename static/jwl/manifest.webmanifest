@@ -1,0 +1,34 @@
+{
+	"lang": "en",
+	"id": "/jwl",
+	"name": "JWL Files – in-browser",
+	"short_name": "JWL Files",
+	"description": "JW Library backups and playlists in your browser: merge, tidy up and edit them – nothing is uploaded.",
+	"start_url": "/jwl",
+	"scope": "/jwl",
+	"display": "standalone",
+	"launch_handler": {
+		"client_mode": "focus-existing"
+	},
+	"categories": [
+		"productivity",
+		"utilities",
+		"books"
+	],
+	"background_color": "#1c1f25",
+	"theme_color": "#1c1f25",
+	"icons": [
+		{
+			"src": "/jwl/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/jwl/icon-maskable.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}

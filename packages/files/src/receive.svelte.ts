@@ -1,12 +1,13 @@
 import type { ToolSlug } from '@in-browser/brand/i18n/index.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { chooseFile } from './dialog.svelte.js';
+import { chooseFile, chooseSaveTarget } from './dialog.svelte.js';
 import { showError } from './errors.js';
 import { filesUrl, formatsOf, openUrl } from './formats.js';
 import { list, write } from './fs.js';
 import { filesMessages } from './i18n/index.svelte.js';
 import { dropIncoming, incomingTool, readIncoming, receivedUrl, storeIncoming, type Incoming } from './incoming.js';
-import { join, uniqueName } from './path.js';
+import { canMerge, lastMergeTarget, mergeInto } from './merge.js';
+import { basename, extname, join, parent, uniqueName } from './path.js';
 import { recentDocuments } from './sources/recent.js';
 
 // Files from other apps (shared to the installed suite, opened with it, or picked from the computer) are kept in
@@ -16,22 +17,30 @@ import { recentDocuments } from './sources/recent.js';
 
 /**
  * Keeps one file from outside: asks where (starting in the folder last used by its tool), writes it and returns
- * its path; `null` when canceled.
+ * its path; `null` when canceled. A file of a format that merges (`merge.ts`) may be merged into one there instead –
+ * the dialog suggests the file merged into last. `folder` is where the dialog starts otherwise (an upload: the
+ * folder uploaded into).
  */
-export async function keepFile(file: File, { title }: { title?: string } = {}): Promise<string | null> {
+export async function keepFile(file: File, { title, folder }: { title?: string; folder?: string } = {}): Promise<string | null> {
 	const format = formatsOf(file.name, 'file')[0];
 	const recent = recentDocuments(format?.tool ?? 'files');
-	const path = await chooseFile({
+	const mergeable = canMerge(file.name);
+	const target = mergeable ? lastMergeTarget(extname(file.name)) : null;
+	const choice = await chooseSaveTarget({
 		mode: 'save',
-		folder: recent.lastFolder(),
+		folder: target ? parent(target) : (folder ?? recent.lastFolder()),
 		accept: format ? [format.ext] : [],
-		name: file.name,
-		title: title ?? filesMessages().receive.saveTitle
+		name: target ? basename(target) : file.name,
+		title: title ?? filesMessages().receive.saveTitle,
+		overwrite: mergeable,
+		merge: mergeable
 	});
-	if (!path) return null;
-	await write(path, file);
-	recent.usedFolderOf(path);
-	return path;
+	if (!choice) return null;
+	if (choice.merge) {
+		if (!(await mergeInto(choice.path, file))) return null;
+	} else await write(choice.path, file);
+	recent.usedFolderOf(choice.path);
+	return choice.path;
 }
 
 /** Keeps several files in a folder the user picks (numbered on clashes); the folder, `null` when canceled */

@@ -68,9 +68,12 @@
 		!!markedFolder || options?.mode === 'folder' || (options?.mode === 'save' ? !!name.trim() && !nameIssue && !taken : selected.length > 0)
 	);
 
+	/** Saving over a file of a format that merges: “Merge” is the main button, “Replace” stands next to it */
+	const merging = $derived(options?.mode === 'save' && !!options.merge);
 	const confirmText = $derived.by(() => {
 		if (markedFolder) return t.dialog.open;
 		if (options?.mode === 'folder') return options.confirmLabel ?? t.dialog.chooseFolder;
+		if (merging) return replacing && !nameIssue ? t.dialog.merge : t.dialog.save;
 		if (options?.mode === 'save') return replacing && !nameIssue ? t.dialog.replace : t.dialog.save;
 		return selected.length > 1 ? t.dialog.openCount(selected.length) : t.dialog.open;
 	});
@@ -128,7 +131,13 @@
 		if (markedFolder) return load(markedFolder);
 		if (options?.mode === 'folder') return closeFileDialog([folder]);
 		// Replacing keeps the existing spelling (a name differing only in case would collide)
-		closeFileDialog(options?.mode === 'save' ? [join(folder, replacing && existing ? existing.name : fullName)] : selected);
+		closeFileDialog(options?.mode === 'save' ? [join(folder, replacing && existing ? existing.name : fullName)] : selected, merging && replacing);
+	}
+
+	/** “Replace” next to “Merge” */
+	function replace() {
+		if (!canConfirm || markedFolder || !replacing || !existing) return;
+		closeFileDialog([join(folder, existing.name)], false);
 	}
 
 	/** Click on an entry: a folder is marked, a file picked (with `multiple` like in Files: Ctrl/Shift, touch mode) */
@@ -356,6 +365,8 @@
 						<span class="text-error">{t.names[nameIssue]}</span>
 					{:else if options.mode === 'save' && taken}
 						<span class="text-error">{t.dialog.exists(fullName)}</span>
+					{:else if merging && replacing && existing}
+						<span class="text-warning">{t.dialog.mergeOrReplace(existing.name)}</span>
 					{:else if options.mode === 'save' && replacing && existing}
 						<span class="text-warning">{t.dialog.replaces(existing.name)}</span>
 					{/if}
@@ -363,8 +374,12 @@
 
 				<div class="modal-action mt-0">
 					<button class="btn btn-ghost" onclick={() => closeFileDialog(null)}>{t.dialog.cancel}</button>
+					{#if merging}
+						<!-- Always in its place, enabled only over an existing file -->
+						<button class="btn" disabled={!replacing || !!nameIssue || !!markedFolder} onclick={replace}>{t.dialog.replace}</button>
+					{/if}
 					<button
-						class={['btn', !(replacing && !nameIssue && !markedFolder) && 'btn-primary']}
+						class={['btn', (merging || !(replacing && !nameIssue && !markedFolder)) && 'btn-primary']}
 						disabled={!canConfirm}
 						onclick={confirm}
 					>

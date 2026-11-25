@@ -76,6 +76,8 @@
 	import { trash, TRASH } from '#lib/trash.svelte.js';
 	import { inTrash } from '@in-browser/files/trash.js';
 	import { download, fromDrop, fromInput, upload, zipName, type Upload } from '#lib/transfer.js';
+	import { canMerge } from '@in-browser/files/merge.js';
+	import { keepFile } from '@in-browser/files/receive.svelte.js';
 
 	const manager = new Manager();
 	manager.relocate = navigate;
@@ -802,9 +804,20 @@
 		}
 	}
 
+	/**
+	 * Uploads into `folder`. Single files of a format that merges (a JW Library backup) go through the save dialog
+	 * instead, like a file shared to the suite: kept where the user says, or merged into a file there.
+	 */
 	async function uploadAll(uploads: Upload[] | Promise<Upload[]>, folder: string) {
 		try {
-			const count = await upload(await uploads, folder, (name) => (uploading = name));
+			const all = await uploads;
+			const merges = (u: Upload) => !!u.file && !u.relative.includes('/') && canMerge(u.relative);
+			for (const u of all) if (merges(u)) await keepFile(u.file!, { folder });
+			const count = await upload(
+				all.filter((u) => !merges(u)),
+				folder,
+				(name) => (uploading = name)
+			);
 			if (count) toast(m.toasts.uploaded(count), 'success');
 		} catch (e) {
 			fail(e);

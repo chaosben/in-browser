@@ -27,6 +27,8 @@ const de: FilesMessages = {
 		exists: (name) => `„${name}“ gibt es hier schon. Wähle einen anderen Namen.`,
 		replace: 'Ersetzen',
 		replaces: (name) => `„${name}“ gibt es hier schon und wird ersetzt.`,
+		merge: 'Zusammenführen',
+		mergeOrReplace: (name: string) => `„${name}“ gibt es hier schon: führe beide darin zusammen oder ersetze sie.`,
 		place: 'Ort'
 	},
 
@@ -238,6 +240,24 @@ const de: FilesMessages = {
 		failed: 'Die Datei konnte nicht gesendet werden.',
 		ready: (n) => (n === 1 ? 'Die Datei ist bereit zum Senden.' : `Die ${n} Dateien sind bereit zum Senden.`),
 		now: 'Senden'
+	},
+
+	merge: {
+		action: 'Zusammenführen mit …',
+		tip: 'Übernimmt, was eine andere Datei dieser Art hat, in diese – ersetzt wird nichts',
+		chooseTitle: (name: string) => `Mit „${name}“ zusammenführen`,
+		same: 'Wähle eine andere Datei – eine Datei lässt sich nicht mit sich selbst zusammenführen.',
+		unchanged: (name: string) => `„${name}“ hat schon alles – nichts geändert.`,
+		done: (name: string, c: { added: number; changed: number; removed: number }) =>
+			`In „${name}“ zusammengeführt: ${c.added} neu, ${c.changed} geändert, ${c.removed} entfernt.`,
+		undo: 'Rückgängig',
+		undone: (name: string) => `„${name}“ ist wieder wie vor dem Zusammenführen.`,
+		lossTitle: 'So viel entfernen?',
+		loss: (name: string, removed: number, of: number) =>
+			`Beim Zusammenführen würden ${removed} der ${of} Markierungen und Notizen in „${name}“ entfernt – die andere Datei hat sie gelöscht. Trotzdem zusammenführen?`,
+		anyway: 'Trotzdem zusammenführen',
+		notMerged: 'Nicht zusammengeführt – nichts geändert.',
+		failed: (name: string) => `Zusammenführen in „${name}“ hat nicht geklappt.`
 	},
 
 	receive: {

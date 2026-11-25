@@ -23,7 +23,8 @@ const de: Messages = {
 		media: 'Medien',
 		writing: 'Schreiben',
 		drawing: 'Zeichnen',
-		organize: 'Organisieren'
+		organize: 'Organisieren',
+		special: 'Spezial-Editoren'
 	},
 
 	principles: {
@@ -69,6 +70,11 @@ const de: Messages = {
 			name: brand.tools['fonts'],
 			summary: 'Eigene Schriften für jedes Tool hinzufügen oder freie installieren',
 			keywords: 'fonts, schrift, schriften, schriftart, ttf, otf, installieren, google fonts, fontsource, typografie'
+		},
+		jwl: {
+			name: brand.tools['jwl'],
+			summary: 'Sicherungen und Playlists von JW Library zusammenführen, aufräumen und bearbeiten',
+			keywords: 'jw library, jwlibrary, jwlplaylist, sicherung, backup, zusammenführen, notizen, markierungen, lesezeichen, tags, playlist, jwl files, jwl-dateien'
 		}
 	},
 
