@@ -4,10 +4,13 @@
 		name: string;
 		/** Bytes per side or device (the caller decides what the keys mean) */
 		sizes: Record<string, number>;
+		/** A package: one document, nothing below it to choose */
+		leaf?: boolean;
 	}
 </script>
 
 <script lang="ts">
+	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -96,10 +99,11 @@
 		<li>
 			<div class="hover:bg-base-200 rounded-box flex items-center gap-2 py-1 pr-2" style:padding-left="{depth * 1.25}rem">
 				<button
-					class="btn btn-ghost btn-xs btn-square"
+					class={['btn btn-ghost btn-xs btn-square', child.leaf && 'invisible']}
 					onclick={() => toggleOpen(child.path)}
 					aria-label={child.name}
 					aria-expanded={expanded.has(child.path)}
+					disabled={child.leaf}
 				>
 					<span
 						class={['icon-[material-symbols-light--chevron-right] size-4 transition-transform', expanded.has(child.path) && 'rotate-90']}
@@ -118,7 +122,7 @@
 							ontoggle(child, checked);
 						}}
 					/>
-					<span class="icon-[material-symbols-light--folder-outline] text-folder size-5 shrink-0" aria-hidden="true"></span>
+					<FileIcon name={child.name} kind="directory" />
 					<span class="min-w-0 truncate">{child.name}</span>
 					{#if note}<span class="text-hint shrink-0 text-xs">{note}</span>{/if}
 				</label>

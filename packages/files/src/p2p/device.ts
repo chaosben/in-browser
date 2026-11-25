@@ -1,4 +1,5 @@
 import { FilesError } from '../entry.js';
+import { isPackage } from '../formats.js';
 import { basename, isHidden, isInside, normalize } from '../path.js';
 import { inTrash, trashInTree, untrashInTree } from '../trash.js';
 import { expired, sharePath, shareRoot, tokenHash, type Share } from './shares.js';
@@ -1085,7 +1086,7 @@ export class Device {
 	}
 
 	/** Sizes of the subfolders of `folder` (for choosing folders): a file directly in it is no subfolder – it was shown
-	 * as one, and leaving it out would have excluded a file */
+	 * as one, and leaving it out would have excluded a file. A package counts like a file (`scopeFolder`) */
 	async folderSizes(folder: string): Promise<Record<string, number>> {
 		const sizes: Record<string, number> = {};
 		const prefix = folder === '/' ? '/' : folder + '/';
@@ -1093,7 +1094,9 @@ export class Device {
 			if (!path.startsWith(prefix) || path === folder) continue;
 			const rest = path.slice(prefix.length);
 			const slash = rest.indexOf('/');
-			const child = prefix + (slash < 0 ? rest : rest.slice(0, slash));
+			const name = slash < 0 ? rest : rest.slice(0, slash);
+			if (isPackage(name, 'directory')) continue;
+			const child = prefix + name;
 			if (slash < 0) {
 				// The subfolder itself (also an empty one); a file here belongs to no subfolder
 				if (state.kind === 'directory') sizes[child] ??= 0;

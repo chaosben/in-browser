@@ -11,11 +11,17 @@ export const diskFoldersSupported = () => typeof window !== 'undefined' && 'show
  * still without a word).
  */
 export async function folderAccess(handle: FileSystemHandle, wait = 2000): Promise<PermissionState> {
+	const answer = await folderAccessAnswer(handle, wait);
+	return answer === 'silent' ? 'prompt' : answer;
+}
+
+/** Like `folderAccess`, but a browser that doesn't answer is told apart (`silent`): asking it for access hangs too */
+export async function folderAccessAnswer(handle: FileSystemHandle, wait = 2000): Promise<PermissionState | 'silent'> {
 	const query = (handle as FileSystemHandle & { queryPermission?: (d: { mode: 'readwrite' }) => Promise<PermissionState> }).queryPermission;
 	if (!query) return 'granted';
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
-		return await Promise.race([query.call(handle, { mode: 'readwrite' }), new Promise<PermissionState>((resolve) => (timer = setTimeout(() => resolve('prompt'), wait)))]);
+		return await Promise.race([query.call(handle, { mode: 'readwrite' }), new Promise<'silent'>((resolve) => (timer = setTimeout(() => resolve('silent'), wait)))]);
 	} catch {
 		return 'denied';
 	} finally {

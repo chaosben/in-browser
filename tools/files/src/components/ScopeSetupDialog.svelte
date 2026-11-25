@@ -4,12 +4,13 @@
 	import { storageEstimate } from '@in-browser/files/cache.js';
 	import { formatSize } from '@in-browser/files/i18n/index.svelte.js';
 	import { finishSetup, folderSizes, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
-	import { exclude, include, inScope } from '@in-browser/files/p2p/scope.js';
+	import { basename, parent } from '@in-browser/files/path.js';
+	import { exclude, excludedPackages, include, inScope } from '@in-browser/files/p2p/scope.js';
 	import { suiteSettings } from '@in-browser/files/suite-settings.svelte.js';
 	import { folderAccess } from '@in-browser/files/handles.js';
 	import { handleTree } from '@in-browser/files/sync/handle-tree.js';
 	import { opfsTree } from '@in-browser/files/sync/opfs-tree.js';
-	import { folderAmounts, preselectExcluded, subfolders, type FolderAmounts } from '@in-browser/files/sync/scope-sizes.js';
+	import { folderAmounts, preselectExcluded, scopeFolder, subfolders, type FolderAmounts } from '@in-browser/files/sync/scope-sizes.js';
 	import { folderScope, setFolderScope, syncedFolder, syncStatus } from '@in-browser/files/sync/sync.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import ScopeTree, { type ScopeFolder } from './ScopeTree.svelte';
@@ -70,7 +71,17 @@
 
 	const sizesOf = (a: FolderAmounts): Record<string, number> => ({ here: a.here, there: a.there, in: a.in, out: a.out });
 
+	/** Packages left out by an earlier choice: one row each, to take them in again (the tree offers no packages) */
+	const packages = $derived(excludedPackages(excluded));
+	const isOn = (path: string) => inScope(path, excluded) && !packages.includes(path);
+	const packageRows = (folder: string): ScopeFolder[] =>
+		packages.filter((path) => parent(path) === folder).map((path) => ({ path, name: basename(path), sizes: { here: 0, there: 0, in: 0, out: 0 }, leaf: true }));
+
 	async function load(folder: string): Promise<ScopeFolder[]> {
+		return [...(await folders(folder)), ...packageRows(folder)];
+	}
+
+	async function folders(folder: string): Promise<ScopeFolder[]> {
 		if (mode === 'folder') {
 			const all = amounts!;
 			return subfolders(all, folder).map((path) => ({ path, name: path.split('/').at(-1) ?? path, sizes: sizesOf(all.get(path)!) }));
@@ -79,7 +90,7 @@
 		const perDevice = await folderSizes(folder);
 		const paths = new Set(Object.values(perDevice).flatMap((sizes) => Object.keys(sizes)));
 		return [...paths]
-			.filter((path) => !path.split('/').some((name) => name.startsWith('.')))
+			.filter(scopeFolder)
 			.map((path) => {
 				const here = perDevice[self]?.[path] ?? 0;
 				const there = Math.max(0, ...Object.entries(perDevice).filter(([id]) => id !== self).map(([, sizes]) => sizes[path] ?? 0));
@@ -162,7 +173,7 @@
 				</p>
 			{:else}
 				{#key online}
-					<ScopeTree {load} isOn={(path) => inScope(path, excluded)} {locked} ontoggle={toggle} {detail} {mark} empty={m.scope.empty} {onroot} />
+					<ScopeTree {load} {isOn} {locked} ontoggle={toggle} {detail} {mark} empty={m.scope.empty} {onroot} />
 				{/key}
 			{/if}
 			<p class="text-xs opacity-60">{m.scope.always}: <code>.apps</code></p>

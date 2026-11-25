@@ -15,6 +15,10 @@ type ForwardedConsole =
 
 const DIR = '.debug';
 const FILE = `${DIR}/browser.log`;
+/** Vite's own notices of hot updates: one per changed module while agents edit, and they say nothing about the page */
+const NOISE = /^\[vite\] (css )?hot updated: /;
+/** The same in the server's terminal, where Vite puts the level (dimmed) in front */
+const TERMINAL_NOISE = /\[console\.\w+\] (?:\x1b\[\d+m)*\[vite\] (css )?hot updated: /;
 
 /** Short name of a browser from its user agent, e.g. `Android Chrome 157` */
 export function browserName(ua: string): string {
@@ -48,6 +52,14 @@ export function browserLog(): Plugin {
 		name: 'in-browser:browser-log',
 		apply: 'serve',
 		configureServer(server) {
+			// The terminal: Vite prints the forwarded console through the loggers of its environments
+			const loggers = new Set([server.config.logger, ...Object.values(server.environments).map((e) => e.config.logger)]);
+			for (const logger of loggers) {
+				const info = logger.info.bind(logger);
+				logger.info = (message, options) => {
+					if (!TERMINAL_NOISE.test(message)) info(message, options);
+				};
+			}
 			mkdirSync(DIR, { recursive: true });
 			writeFileSync(FILE, `# Browser log of the dev server, started ${new Date().toISOString()}\n`);
 			const write = (label: string, text: string) => {
@@ -62,14 +74,15 @@ export function browserLog(): Plugin {
 				write(label, `hello ${hello.path} · dpr ${hello.dpr} · screen ${hello.screen} · touch points ${hello.touch} · ${hello.ua}`);
 			});
 			server.ws.on('in-browser:log', (log: DebugLog, client) => {
-				write(labels.get(client) ?? '?', `${log.level}: ${log.message}`);
+				if (!NOISE.test(log.message)) write(labels.get(client) ?? '?', `${log.level}: ${log.message}`);
 			});
 			// What Vite forwards of the console (`server.forwardConsole`) from connections that never said hello: the
 			// workers (PDF.js, fonts …) – pages send their own, above
 			server.ws.on('vite:forward-console', (payload: ForwardedConsole, client) => {
 				if (labels.has(client)) return;
-				if (payload.type === 'log') write('worker', `${payload.data.level}: ${payload.data.message}`);
-				else write('worker', `${payload.type}: ${payload.data.name}: ${payload.data.message}${payload.data.stack ? `\n${payload.data.stack}` : ''}`);
+				if (payload.type === 'log') {
+					if (!NOISE.test(payload.data.message)) write('worker', `${payload.data.level}: ${payload.data.message}`);
+				} else write('worker', `${payload.type}: ${payload.data.name}: ${payload.data.message}${payload.data.stack ? `\n${payload.data.stack}` : ''}`);
 			});
 		}
 	};

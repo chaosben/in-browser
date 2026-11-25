@@ -1,4 +1,5 @@
-import { isInside } from '../path.js';
+import { isPackage, packageOf } from '../formats.js';
+import { basename, isInside } from '../path.js';
 import { inTrash, originalPath } from '../trash.js';
 import type { Base, Snapshot } from '../sync/plan.js';
 
@@ -42,7 +43,16 @@ export function exclude(excluded: readonly string[], folder: string): string[] {
 	return [...excluded.filter((f) => !isInside(f, folder)), folder].sort();
 }
 
-/** Takes a folder (or the excluded folder it lies in) part again */
+/** Takes a folder (or the excluded folder it lies in) part again – a package always as a whole */
 export function include(excluded: readonly string[], folder: string): string[] {
-	return excluded.filter((f) => f !== folder && !isInside(folder, f));
+	return excluded.filter((f) => f !== folder && !isInside(folder, f) && packageOf(f) !== folder);
+}
+
+/**
+ * Packages that are left out, or have a folder inside left out. The folder choice offers no packages (`scopeFolder`
+ * in `sync/scope-sizes.ts`); these are from an earlier choice or a held new folder that was excluded, and are
+ * listed so they can be taken in again.
+ */
+export function excludedPackages(excluded: readonly string[]): string[] {
+	return [...new Set(excluded.map((f) => (isPackage(basename(f), 'directory') ? f : packageOf(f))).filter((f) => f !== null))];
 }

@@ -1,4 +1,5 @@
-import { isHidden } from '../path.js';
+import { isPackage, packageOf } from '../formats.js';
+import { basename, isHidden } from '../path.js';
 import type { Snapshot } from './plan.js';
 
 // Sizes for choosing folders before a sync starts: per folder what is here, what is there, and what would travel
@@ -15,11 +16,21 @@ export interface FolderAmounts {
 
 const none = (): FolderAmounts => ({ here: 0, there: 0, in: 0, out: 0 });
 
+/**
+ * Whether `path` is a folder to choose: a package is one document and counts like a file – neither it nor a folder
+ * inside it is offered (leaving out a part of it would break the document), its size belongs to the folder it lies in
+ */
+export function scopeFolder(path: string): boolean {
+	return !isHidden(path) && !isPackage(basename(path), 'directory') && !packageOf(path);
+}
+
 /** Amounts of every visible folder of both snapshots (hidden folders, tool data and the trash always travel) */
 export function folderAmounts(here: Snapshot, there: Snapshot): Map<string, FolderAmounts> {
 	const out = new Map<string, FolderAmounts>();
 	const add = (path: string, key: keyof FolderAmounts, bytes: number) => {
-		for (let i = path.indexOf('/', 1); i > 0; i = path.indexOf('/', i + 1)) {
+		// Inside a package: only the folders above it
+		const end = packageOf(path)?.length ?? path.length;
+		for (let i = path.indexOf('/', 1); i > 0 && i < end; i = path.indexOf('/', i + 1)) {
 			const folder = path.slice(0, i);
 			const amounts = out.get(folder) ?? none();
 			amounts[key] += bytes;
@@ -33,7 +44,7 @@ export function folderAmounts(here: Snapshot, there: Snapshot): Map<string, Fold
 		for (const [path, state] of snapshot) {
 			if (isHidden(path)) continue;
 			if (state.kind === 'directory') {
-				if (!out.has(path)) out.set(path, none());
+				if (scopeFolder(path) && !out.has(path)) out.set(path, none());
 				continue;
 			}
 			add(path, side, state.size);

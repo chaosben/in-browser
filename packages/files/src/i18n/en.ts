@@ -90,6 +90,10 @@ const en = {
 	connected: {
 		allow: 'Allow access',
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`,
+		notAllowed: (name: string) => `The browser didn’t allow access to “${name}”. If it didn’t ask you, the folder may be gone or the browser blocks the question – choose the folder again.`,
+		notAnswering: (name: string) => `The browser hasn’t answered the question for “${name}” yet. If you see no question, reload the page and choose “Allow access” again – you then pick the folder anew.`,
+		reload: 'Reload page',
+		chooseAgain: 'Choose folder again',
 		editCredentials: 'Change sign-in data'
 	},
 

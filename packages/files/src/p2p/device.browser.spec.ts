@@ -122,7 +122,10 @@ describe('P2P devices', { timeout: 30_000 }, () => {
 		await writeText(a.tree, '/Docs/a.txt', '123');
 		await writeText(a.tree, '/Docs/sub/b.txt', '12');
 		await a.tree.mkdir('/Empty');
-		expect(await a.device.folderSizes('/')).toEqual({ '/Docs': 5, '/Empty': 0 });
+		// A package counts like a file: no folder to choose, its size belongs to the folder it lies in
+		await writeText(a.tree, '/Trip.screencapture/project.json', '{}');
+		await writeText(a.tree, '/Docs/Trip.screencapture/media/a.mp4', '1234');
+		expect(await a.device.folderSizes('/')).toEqual({ '/Docs': 9, '/Empty': 0 });
 		expect(await a.device.folderSizes('/Docs')).toEqual({ '/Docs/sub': 2 });
 	});
 });

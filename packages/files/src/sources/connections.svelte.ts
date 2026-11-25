@@ -1,3 +1,5 @@
+import { debug } from '@in-browser/brand/debug.js';
+import { toast, type ToastAction } from '@in-browser/brand/ui/toast.svelte.js';
 import { FilesError, noticed } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import { connectionOf, connectionRoot, join } from '../path.js';
@@ -17,7 +19,7 @@ import { allowShareSync, beginShare, codeFromWords, endShareSession, onShareSync
 import type { ShareSyncState } from './share-sync.js';
 import { parseWords, wordLists } from '../p2p/words.js';
 import { syncedFolder } from '../sync/sync.svelte.js';
-import { diskFoldersSupported, folderAccess } from '../handles.js';
+import { diskFoldersSupported, folderAccessAnswer } from '../handles.js';
 
 // Connections for the UI (“Connected” in Files, the file dialog): list with access state, connect, rename,
 // disconnect, allow access again, connect and edit servers (WebDAV, S3). Each tab watches its connected folders itself
@@ -98,8 +100,39 @@ function noticeRemote() {
 	if (remote.length) noticed(...remote.map((c) => c.path));
 }
 
-async function accessOf(handle: FileSystemDirectoryHandle): Promise<PermissionState> {
-	return folderAccess(handle);
+/**
+ * Connected folders whose stored handle the browser doesn't answer for (seen in Chrome, on a local disk: neither the
+ * state nor the question for access ever came back, and while that question hangs the folder picker doesn't open
+ * either). “Allow access” then lets the user pick the folder anew instead of asking. Kept for the tab's session,
+ * since the way out of a hanging question is a reload.
+ */
+const STUCK = 'files:stuck-access';
+const stuck = new Set<string>(readStuck());
+
+function readStuck(): string[] {
+	try {
+		return JSON.parse(sessionStorage.getItem(STUCK) ?? '[]') as string[];
+	} catch {
+		return [];
+	}
+}
+
+function setStuck(id: string, on: boolean) {
+	if (on) stuck.add(id);
+	else stuck.delete(id);
+	try {
+		sessionStorage.setItem(STUCK, JSON.stringify([...stuck]));
+	} catch {
+		// Only this page then
+	}
+}
+
+async function accessOf(id: string, handle: FileSystemDirectoryHandle): Promise<PermissionState> {
+	const answer = await folderAccessAnswer(handle);
+	if (answer !== 'silent') return answer;
+	if (!stuck.has(id)) debug('[files] access state not answered', handle.name);
+	setStuck(id, true);
+	return 'prompt';
 }
 
 /** Reads the connections and their access state again */
@@ -114,10 +147,12 @@ export async function refresh(): Promise<void> {
 				c.kind === 'share'
 					? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted', host: c.host, mode: c.mode, ended: c.ended, single: c.single, expires: c.expires, sync: shareSyncState() }
 					: c.kind === 'folder'
-						? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.handle) }
+						? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.id, c.handle) }
 						: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted' }
 		)
 	);
+	handles.clear();
+	for (const c of folders(list)) handles.set(c.id, c.handle);
 	const changedAccess = views.some((v) => connections.list.find((o) => o.id === v.id)?.access !== v.access);
 	connections.list = views;
 	connections.loaded = true;
@@ -214,12 +249,78 @@ export async function connectRemote(input: RemoteInput, id?: string): Promise<st
 /** Opens the dialog that changes a server connection (set by Files; elsewhere Files opens in a new tab) */
 export const connectionEditor = { open: null as ((id: string) => void) | null };
 
-/** Asks the browser for access again (needs a click) */
-export async function allowAccess(id: string): Promise<boolean> {
-	const connection = folders(await listConnections()).find((c) => c.id === id);
-	const state = await connection?.handle.requestPermission?.({ mode: 'readwrite' });
-	await refresh();
+/** The connected folders' handles as last read, so the question for access is asked right in the click */
+const handles = new Map<string, FileSystemDirectoryHandle>();
+
+/** A question for access unanswered this long gets a toast with the way out (the user may also still be reading it) */
+const ANSWER_WAIT = 4000;
+
+/**
+ * Asks the browser for access to a folder on disk (needs a click) – for connected folders and the synced one. Never
+ * without a word (the button did nothing): a browser that says no or fails gets a toast with `again` as its action,
+ * one that doesn't answer a toast with `silent`.
+ */
+export async function askAccess(handle: FileSystemDirectoryHandle, { again, silent }: { again?: ToastAction; silent?: ToastAction } = {}): Promise<boolean> {
+	const t = filesMessages().connected;
+	let state: PermissionState | undefined;
+	const waiting = setTimeout(() => {
+		debug('[files] access not answered', handle.name);
+		toast(t.notAnswering(handle.name), 'warning', 20_000, silent);
+	}, ANSWER_WAIT);
+	try {
+		debug('[files] access asked', handle.name);
+		state = await handle.requestPermission?.({ mode: 'readwrite' });
+		debug('[files] access answered', handle.name, state ?? 'not supported');
+	} catch (e) {
+		console.error('[files] access', handle.name, e);
+	} finally {
+		clearTimeout(waiting);
+	}
+	if (state !== 'granted') toast(t.notAllowed(handle.name), 'error', 15_000, again);
 	return state === 'granted';
+}
+
+/** Asks the browser for access again (needs a click); for a handle it doesn't answer for, the folder is picked anew */
+export async function allowAccess(id: string): Promise<boolean> {
+	if (stuck.has(id)) return chooseAgain(id);
+	const t = filesMessages().connected;
+	const handle = handles.get(id) ?? folders(await listConnections()).find((c) => c.id === id)?.handle;
+	const allowed =
+		!!handle &&
+		(await askAccess(handle, {
+			again: { label: t.chooseAgain, run: async () => void (await chooseAgain(id)) },
+			// The hanging question keeps the picker from opening: after a reload “Allow access” picks the folder anew
+			silent: {
+				label: t.reload,
+				run: () => {
+					setStuck(id, true);
+					location.reload();
+				}
+			}
+		}));
+	await refresh();
+	return allowed;
+}
+
+/**
+ * The user picks the folder of the connection `id` anew (needs a click): the connection keeps its id and name – so
+ * paths and remembered documents stay –, only its handle is replaced. `false` when canceled.
+ */
+async function chooseAgain(id: string): Promise<boolean> {
+	let handle: FileSystemDirectoryHandle;
+	try {
+		debug('[files] folder asked again', id);
+		handle = await window.showDirectoryPicker({ id: 'in-browser-connected', mode: 'readwrite' });
+	} catch (e) {
+		if (e instanceof DOMException && e.name === 'AbortError') return false;
+		throw e;
+	}
+	debug('[files] folder chosen again', handle.name);
+	await saveConnections((await listConnections()).map((c) => (c.id === id && c.kind === 'folder' ? { ...c, handle } : c)));
+	setStuck(id, false);
+	await refresh();
+	noticed(connectionRoot(id));
+	return true;
 }
 
 /**

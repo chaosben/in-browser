@@ -85,6 +85,10 @@ const de: FilesMessages = {
 	connected: {
 		allow: 'Zugriff erlauben',
 		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`,
+		notAllowed: (name) => `Der Browser hat den Zugriff auf „${name}“ nicht erlaubt. Hat er dich nicht gefragt, gibt es den Ordner vielleicht nicht mehr oder der Browser unterdrückt die Frage – wähle den Ordner neu.`,
+		notAnswering: (name) => `Der Browser hat die Frage für „${name}“ noch nicht beantwortet. Siehst du keine Frage, lade die Seite neu und wähle wieder „Zugriff erlauben“ – du wählst den Ordner dann neu.`,
+		reload: 'Seite neu laden',
+		chooseAgain: 'Ordner neu wählen',
 		editCredentials: 'Anmeldedaten ändern'
 	},
 

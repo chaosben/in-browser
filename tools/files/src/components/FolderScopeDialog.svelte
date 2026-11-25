@@ -3,9 +3,10 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { list } from '@in-browser/files/fs.js';
 	import { formatSize } from '@in-browser/files/i18n/index.svelte.js';
-	import { isHidden } from '@in-browser/files/path.js';
+	import { basename, parent } from '@in-browser/files/path.js';
 	import { folderSizes, includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
-	import { inScope } from '@in-browser/files/p2p/scope.js';
+	import { excludedPackages, inScope } from '@in-browser/files/p2p/scope.js';
+	import { scopeFolder } from '@in-browser/files/sync/scope-sizes.js';
 	import { devicesUi } from '#lib/devices.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import ScopeTree, { type ScopeFolder } from './ScopeTree.svelte';
@@ -17,17 +18,21 @@
 
 	const scope = $derived(p2pStatus.view.scope);
 	const self = $derived(p2pStatus.view.self?.id ?? '');
+	const packages = $derived(excludedPackages(scope));
+	const isOn = (path: string) => inScope(path, scope) && !packages.includes(path);
 	const names = $derived(new Map(p2pStatus.view.devices.map((d) => [d.id, d.name])));
 
 	/** The subfolders of `folder` here at once, then with those only on the connected devices and their size on each */
 	async function load(folder: string): Promise<{ folders: ScopeFolder[]; later: Promise<ScopeFolder[]> }> {
 		const local = await list(folder).catch(() => []);
-		const here = local.filter((entry) => entry.kind === 'directory' && !isHidden(entry.path)).map((entry) => ({ path: entry.path, name: entry.name, sizes: {} }));
+		const here: ScopeFolder[] = local.filter((entry) => entry.kind === 'directory' && scopeFolder(entry.path)).map((entry) => ({ path: entry.path, name: entry.name, sizes: {} }));
+		// Packages left out by an earlier choice: one row each, to take them in again
+		for (const path of packages) if (parent(path) === folder) here.push({ path, name: basename(path), sizes: {}, leaf: true });
 		const later = folderSizes(folder).then((sizes) => {
 			const byPath = new Map<string, ScopeFolder>(here.map((f) => [f.path, { ...f, sizes: {} }]));
 			for (const [device, perFolder] of Object.entries(sizes)) {
 				for (const [path, bytes] of Object.entries(perFolder)) {
-					if (isHidden(path)) continue;
+					if (!scopeFolder(path)) continue;
 					const entry = byPath.get(path) ?? { path, name: path.split('/').at(-1) ?? path, sizes: {} };
 					entry.sizes[device] = bytes;
 					byPath.set(path, entry);
@@ -69,7 +74,7 @@
 	<div class="modal-box flex max-w-2xl flex-col gap-3">
 		<h3 class="text-lg font-bold">{m.scope.title}</h3>
 		<p class="text-sm opacity-80">{m.scope.hint}</p>
-		<ScopeTree {load} isOn={(path) => inScope(path, scope)} ontoggle={toggle} detail={where} empty={m.scope.empty} />
+		<ScopeTree {load} {isOn} ontoggle={toggle} detail={where} empty={m.scope.empty} />
 		<p class="text-xs opacity-60">{m.scope.always}: <code>.apps</code></p>
 		<div class="modal-action">
 			<button class="btn" onclick={onclose}>{m.devices.close}</button>

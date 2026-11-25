@@ -61,7 +61,7 @@ const help: typeof enHelp = {
 					items: {
 						folder: {
 							title: 'Ordner auf deinem Rechner',
-							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange in-browser in diesem Browser offen ist – die Übersicht oder irgendein Tool. Nach einem Neustart fragt der Browser vielleicht erneut nach Zugriff: In den Sync-Einstellungen steht dann „Pausiert“, und „Zugriff erlauben“ setzt fort. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
+							text: 'Wähle in Dateien „Ordner auf deinem Rechner“ → „Ordner wählen“. Bevor etwas kopiert wird, zeigt „Ordner auswählen“, was hierher käme und was dorthin ginge; „Synchronisieren starten“ legt los. Ab dann werden die Dateien in beide Richtungen mit diesem echten Ordner synchronisiert: Die neuere Version gewinnt, Löschungen im Ordner bestätigst du, bevor sie hier gelten. Das Synchronisieren läuft, solange in-browser in diesem Browser offen ist – die Übersicht oder irgendein Tool. Nach einem Neustart fragt der Browser vielleicht erneut nach Zugriff: In den Sync-Einstellungen steht dann „Pausiert“, und „Zugriff erlauben“ setzt fort. Ein Projekt der Bildschirmaufnahme liegt dort als Ordner, z. B. „Reise.screencapture“, mit seinen Aufnahmen darin – lass seinen Inhalt, wie er ist. Nur Chrome und Edge am Rechner können auf Ordner zugreifen.',
 							tip: 'Wähle einen Ordner, den dein Sync-Programm (Syncthing, Nextcloud, Dropbox …) oder deine Datensicherung schon erfasst – dann kommen deine Dateien von selbst auf deine anderen Rechner und in die Sicherung. Fragt der Browser erneut nach Zugriff, wähle „Bei jedem Besuch zulassen“, dann läuft das Synchronisieren ohne Nachfrage weiter.'
 						},
 						devices: {
@@ -148,7 +148,7 @@ const help: typeof enHelp = {
 						},
 						folders: {
 							title: 'Ordner auswählen',
-							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und synchronisieren sich dort weiter – nur dieses Gerät bekommt sie nicht, und seine Kopie wird hier gelöscht. Einen Ordner auszulassen löscht ihn nirgendwo sonst.',
+							text: 'Unter „Ordner auswählen“ legst du pro Gerät fest, welche Ordner es bekommt. Abgewählte Ordner bleiben auf den anderen Geräten und synchronisieren sich dort weiter – nur dieses Gerät bekommt sie nicht, und seine Kopie wird hier gelöscht. Einen Ordner auszulassen löscht ihn nirgendwo sonst. Ein Projekt der Bildschirmaufnahme ist ein Dokument und steht nicht in dieser Liste: Es geht mit dem Ordner, in dem es liegt.',
 							tip: 'Lass große Ordner (z. B. Bildschirmaufnahmen) auf einem Telefon mit wenig Platz aus – öffnen kannst du sie trotzdem live.'
 						},
 						live: {
@@ -293,7 +293,7 @@ const help: typeof enHelp = {
 						},
 						access: {
 							title: 'Zugriff nach einem Neustart',
-							text: 'Browser fragen nach einem Neustart meist erneut nach dem Zugriff. Der Ordner zeigt dann „Zugriff erlauben“; ein Klick, und er ist wieder da. Tools, die dort speichern, sagen es in ihrem Speicherstatus, und ihre Meldungen, Öffnen-Dialoge und Startseiten bieten ebenfalls „Zugriff erlauben“ an.',
+							text: 'Browser fragen nach einem Neustart meist erneut nach dem Zugriff. Der Ordner zeigt dann „Zugriff erlauben“; ein Klick, und er ist wieder da. Tools, die dort speichern, sagen es in ihrem Speicherstatus, und ihre Meldungen, Öffnen-Dialoge und Startseiten bieten ebenfalls „Zugriff erlauben“ an. Lehnt der Browser ab, bietet eine Meldung „Ordner neu wählen“ an: Wähle denselben Ordner, und die Verbindung läuft mit ihrem Namen und ihren gemerkten Dokumenten weiter. Antwortet er gar nicht, bietet die Meldung „Seite neu laden“ an; danach lässt dich „Zugriff erlauben“ den Ordner neu wählen.',
 							tip: 'Wähle „Bei jedem Besuch erlauben“, wenn der Browser fragt – dann bleibt er verbunden.'
 						},
 						manage: {

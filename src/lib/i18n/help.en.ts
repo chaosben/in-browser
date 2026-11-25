@@ -65,7 +65,7 @@ const help = {
 					items: {
 						folder: {
 							title: 'Folder on your computer',
-							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while in-browser is open in this browser – the overview or any tool. After a restart the browser may ask again for access: the sync settings then say “Paused”, and “Allow access” continues. Only Chrome and Edge on a computer can access folders.',
+							text: 'In Files, choose “Folder on your computer” → “Choose folder”. Before anything is copied, “Choose folders” shows what would come here and what would go there; “Start syncing” begins. From then on the files are kept in sync with this real folder in both directions: the newer version wins, deletions in the folder are confirmed before they apply here. The sync runs while in-browser is open in this browser – the overview or any tool. After a restart the browser may ask again for access: the sync settings then say “Paused”, and “Allow access” continues. A project of Screen Capture lies there as a folder, e.g. “Trip.screencapture”, with its recordings inside – leave what is in it as it is. Only Chrome and Edge on a computer can access folders.',
 							tip: 'Choose a folder your sync program (Syncthing, Nextcloud, Dropbox …) or your backup already covers – then your files reach your other computers and your backup by themselves. When the browser asks again for access, choose “Allow on every visit”, so the sync continues without asking.'
 						},
 						devices: {
@@ -152,7 +152,7 @@ const help = {
 						},
 						folders: {
 							title: 'Choosing folders',
-							text: 'Under “Choose folders” you decide per device which folders it gets. Folders you deselect stay on the other devices and keep syncing there – only this device doesn’t get them, and its copy is deleted here. Leaving out a folder never deletes it anywhere else.',
+							text: 'Under “Choose folders” you decide per device which folders it gets. Folders you deselect stay on the other devices and keep syncing there – only this device doesn’t get them, and its copy is deleted here. Leaving out a folder never deletes it anywhere else. A project of Screen Capture is one document and not in this list: it goes with the folder it lies in.',
 							tip: 'Leave out large folders (e.g. screen recordings) on a phone with little space – you can still open them live.'
 						},
 						live: {
@@ -297,7 +297,7 @@ const help = {
 						},
 						access: {
 							title: 'Access after a restart',
-							text: 'Browsers usually ask again for access after a restart. The folder then shows “Allow access”; one click and it is back. Tools that save there say so in their save state, and their messages, open dialogs and start pages offer “Allow access” as well.',
+							text: 'Browsers usually ask again for access after a restart. The folder then shows “Allow access”; one click and it is back. Tools that save there say so in their save state, and their messages, open dialogs and start pages offer “Allow access” as well. If the browser says no, a message offers “Choose folder again”: pick the same folder, and the connection continues with its name and its remembered documents. If it doesn’t answer at all, the message offers “Reload page”; after that “Allow access” lets you pick the folder anew.',
 							tip: 'Choose “Allow on every visit” when the browser asks – then it stays connected.'
 						},
 						manage: {

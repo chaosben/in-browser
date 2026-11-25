@@ -1,4 +1,4 @@
-import { startConnections } from '../sources/connections.svelte.js';
+import { askAccess, startConnections } from '../sources/connections.svelte.js';
 import { watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
 import { diskFoldersSupported, folderAccess } from '../handles.js';
@@ -177,7 +177,7 @@ export async function excludeFromFolderSync(path: string): Promise<void> {
 /** Asks for access again (needs a click), then syncs. */
 export async function renewAccess(): Promise<void> {
 	const folder = await idbGet<FileSystemDirectoryHandle>(HANDLE);
-	if ((await folder?.requestPermission?.({ mode: 'readwrite' })) === 'granted') send('run');
+	if (folder && (await askAccess(folder))) send('run');
 }
 
 export function syncNow() {
