@@ -196,7 +196,7 @@ const help: typeof enHelp = {
 			},
 			merge: {
 				title: 'Sicherungen von JW Library zusammenführen',
-				text: 'Das Menü einer Sicherung von JW Library (.jwlibrary) hat „Zusammenführen mit …“: Wähle eine andere Sicherung, und was sie hat, wird in diese übernommen – ersetzt wird nichts, eine Meldung nennt, was neu ist, und bietet „Rückgängig“. Beim Ablegen einer Sicherung, die aus JW Library kommt, steht „Zusammenführen“ neben „Ersetzen“, wenn du eine vorhandene wählst. Auch für eine Kopie, die die Synchronisation als „… (Konflikt …)“ behalten hat.',
+				text: 'Das Menü einer Sicherung von JW Library (.jwlibrary) hat „Zusammenführen mit …“: Wähle eine andere Sicherung, und sie wird in diese geführt – was sie neu oder geändert hat, wird übernommen, und was ihr Gerät seit seiner letzten Sicherung gelöscht hat, fällt auch hier weg; eine Meldung nennt, was neu, geändert und entfernt ist, und bietet „Rückgängig“. Beim Ablegen einer Sicherung, die aus JW Library kommt, steht „Zusammenführen“ neben „Ersetzen“, wenn du eine vorhandene wählst. Auch für eine Kopie, die die Synchronisation als „… (Konflikt …)“ behalten hat.',
 				link: { href: '/help/jwl#merge', label: 'Sicherungen zusammenführen' }
 			},
 			receive: {

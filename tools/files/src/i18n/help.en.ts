@@ -198,7 +198,7 @@ const help = {
 			},
 			merge: {
 				title: 'Merging JW Library backups',
-				text: 'The menu of a JW Library backup (.jwlibrary) has “Merge with …”: choose another backup, and what it has is taken into this one – nothing is replaced, a message names what is new and offers “Undo”. Keeping a backup that arrives from JW Library offers “Merge” next to “Replace” when you pick an existing one. Also for a copy the sync kept as “… (conflict …)”.',
+				text: 'The menu of a JW Library backup (.jwlibrary) has “Merge with …”: choose another backup, and it is merged into this one – what it has new or changed is taken over, and what its device deleted since its last backup goes here too; a message names what is new, changed and removed and offers “Undo”. Keeping a backup that arrives from JW Library offers “Merge” next to “Replace” when you pick an existing one. Also for a copy the sync kept as “… (conflict …)”.',
 				link: { href: '/help/jwl#merge', label: 'Merging backups' }
 			},
 			receive: {

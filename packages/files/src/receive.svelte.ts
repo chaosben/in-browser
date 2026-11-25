@@ -11,7 +11,8 @@ import { basename, extname, join, parent, uniqueName } from './path.js';
 import { recentDocuments } from './sources/recent.js';
 
 // Files from other apps (shared to the installed suite, opened with it, or picked from the computer) are kept in
-// the suite – always a copy, where the user says (decided by the user, 2026-11-24) – and then opened in their tool.
+// the suite – always a copy, where the user says (decided by the user, 2026-11-24) – and then opened in their tool
+// (JWL Files keeps them closed, `jwl.md`).
 // `ToolLayout` hands a page's `?received=<id>` to `takeReceived`; a tool that takes it another way (the Text
 // Editor: a draft without a place) registers a `receiver`.
 
@@ -21,7 +22,12 @@ import { recentDocuments } from './sources/recent.js';
  * the dialog suggests the file merged into last. `folder` is where the dialog starts otherwise (an upload: the
  * folder uploaded into).
  */
-export async function keepFile(file: File, { title, folder }: { title?: string; folder?: string } = {}): Promise<string | null> {
+export async function keepFile(file: File, options: { title?: string; folder?: string } = {}): Promise<string | null> {
+	return (await keepFileAs(file, options))?.path ?? null;
+}
+
+/** `keepFile`, also telling whether the file was merged into the one at `path` instead of written there */
+export async function keepFileAs(file: File, { title, folder }: { title?: string; folder?: string } = {}): Promise<{ path: string; merged: boolean } | null> {
 	const format = formatsOf(file.name, 'file')[0];
 	const recent = recentDocuments(format?.tool ?? 'files');
 	const mergeable = canMerge(file.name);
@@ -40,7 +46,7 @@ export async function keepFile(file: File, { title, folder }: { title?: string; 
 		if (!(await mergeInto(choice.path, file))) return null;
 	} else await write(choice.path, file);
 	recent.usedFolderOf(choice.path);
-	return choice.path;
+	return { path: choice.path, merged: choice.merge };
 }
 
 /** Keeps several files in a folder the user picks (numbered on clashes); the folder, `null` when canceled */

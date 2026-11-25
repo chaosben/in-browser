@@ -279,6 +279,7 @@ const en = {
 			`Merging would remove ${removed} of the ${of} highlights and notes in “${name}” – the other file deleted them. Merge anyway?`,
 		anyway: 'Merge anyway',
 		notMerged: 'Not merged – nothing changed.',
+		blind: 'This file continues an earlier merge that this device doesn’t know (made on another device and not synced yet). It could only add: what was deleted in it since is still there. Sync your devices and merge it again.',
 		failed: (name: string) => `Could not merge into “${name}”.`
 	},
 

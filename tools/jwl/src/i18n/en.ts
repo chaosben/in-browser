@@ -19,13 +19,14 @@ const en = {
 		newPlaylistTitle: 'New playlist',
 		newPlaylistName: 'Playlist',
 		openTitle: 'Open a backup or playlist',
-		fromDevice: 'Open from the device …',
+		fromDevice: 'Import from the device …',
 		saveTitle: 'Where should the file be kept?',
-		empty: 'Nothing opened yet. Share a backup from JW Library to in-browser, or open one.',
+		empty: 'Nothing here yet. Share a backup from JW Library to in-browser, or open one.',
+		kept: (name: string) => `“${name}” is kept in your files.`,
 		onlyFirst: (name: string) => `Only “${name}” was taken – one file at a time.`,
 		remove: 'Remove from the list',
 		failed: (error: string) => `The file could not be kept: ${error}`,
-		hint: 'A backup shared from JW Library lands here: keep it as a new file, or merge it into the one you keep.'
+		hint: 'A backup shared from JW Library lands here: keep it as a new file, or merge it into the one you keep. It isn’t opened.'
 	},
 
 	ribbon: {

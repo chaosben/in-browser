@@ -2,7 +2,8 @@
 // connected paragraphs with their highlights, a note, a tag, a tag on something, a tag's order, a bookmark slot, an
 // input field, a playlist item. Every unit has a state string; “absent” is a state too, which is how deletions are
 // told. Each side (a file) may have a base – the merge result it started from: what it changed against that base
-// counts (the newest change wins), everything else stays as in `current`; a side without a base only adds.
+// counts (the newest change wins), everything else stays as in `current`; a side without a base only adds. A base
+// may also be the last backup of the side's device (`Source.adds`): its deletions count, and it still adds.
 // Pure and tested (`merge.spec.ts`); the rules: .claude/rules/jwl.md “Merging”.
 
 import {
@@ -58,6 +59,11 @@ export interface Source {
 	name: string;
 	base: Snapshot | null;
 	chain: Snapshot[];
+	/**
+	 * The base is only what this side had before (a device's last backup), not what the other file got from it:
+	 * what it changed counts as with every base, and what it still has is added where missing, as without one
+	 */
+	adds?: boolean;
 }
 
 export interface MergeInput {
@@ -219,11 +225,11 @@ function distinct(candidates: Candidate[]): number {
 	return new Set(candidates.map((c) => (c.state ? `present:${c.state.canon}` : 'absent'))).size;
 }
 
-/** The unit in the latest state of each side, newest first; `onlyBaseless`: sides with a base are left out */
+/** The unit in the latest state of each side, newest first; `onlyBaseless`: only sides that add (no base, or `adds`) */
 function present(sources: Source[], id: string, onlyBaseless: boolean): Unit[] {
 	const list: { unit: Unit; time: number; name: string }[] = [];
 	for (const s of sources) {
-		if (onlyBaseless && s.base) continue;
+		if (onlyBaseless && s.base && !s.adds) continue;
 		const unit = latest(s).units!.get(id);
 		if (!unit) continue;
 		list.push({ unit, time: Number.isNaN(unit.time) ? latest(s).time : unit.time, name: s.name });
@@ -296,7 +302,7 @@ export function mergeData(input: MergeInput): MergeResult {
 			}
 			if (!win) stats.deleted++;
 		} else if (input.current) {
-			// Sides without a base can't delete or replace, only add
+			// What no side changed stays; sides without a base (or with a device's) add what is missing
 			const others = present(input.sources, id, true);
 			win = input.current.units!.get(id);
 			if (kind === 'marks') win = addMarks(win, others);
@@ -476,9 +482,14 @@ export function loss(reference: JwlData, result: JwlData): { removed: number; of
 export const tooMuchLost = (l: { removed: number; of: number }) => l.removed > 20 && l.removed > l.of * 0.2;
 
 /** Two files and the merge results they started from, if known: what the merged file holds */
-export function mergeFiles(mine: Snapshot, incoming: Snapshot, bases: { mine: Snapshot | null; incoming: Snapshot | null }, files?: { has(hash: string): boolean }): MergeResult {
+export function mergeFiles(
+	mine: Snapshot,
+	incoming: Snapshot,
+	bases: { mine: Snapshot | null; incoming: Snapshot | null; incomingAdds?: boolean },
+	files?: { has(hash: string): boolean }
+): MergeResult {
 	const sources: Source[] = [];
 	if (bases.mine) sources.push({ name: 'mine', base: bases.mine, chain: [mine] });
-	sources.push({ name: 'incoming', base: bases.incoming, chain: [incoming] });
+	sources.push({ name: 'incoming', base: bases.incoming, chain: [incoming], adds: bases.incomingAdds });
 	return mergeData({ current: mine, sources, files });
 }

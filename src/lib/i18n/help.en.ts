@@ -623,14 +623,14 @@ const help = {
 					items: {
 						share: {
 							title: 'Share to in-browser',
-							text: 'On Android, the installed app “in-browser” appears in the share menu of other apps. Share a PDF and it opens in the PDF Editor, a text file or a text in the Text Editor; other files land in Files. Before it is kept, you choose where – the file is copied into your files, nothing is uploaded.',
+							text: 'On Android, the installed app “in-browser” appears in the share menu of other apps. Share a PDF and it opens in the PDF Editor, a text file or a text in the Text Editor; a JW Library backup or playlist is kept in JWL Files without being opened (a backup can be merged into the one you keep); other files land in Files. Before it is kept, you choose where – the file is copied into your files, nothing is uploaded.',
 							options: {
 								where: { label: 'Where it works', text: 'Chrome and Samsung Internet on Android, with in-browser installed. Not on iPhone and iPad – there, save the file and upload it in Files.' }
 							}
 						},
 						openWith: {
 							title: 'Open with in-browser',
-							text: 'On a computer, “Open with” → “in-browser” opens PDFs in the PDF Editor and text files in the Text Editor – also from the download bar of the browser, and as the default app if you choose it. A PDF is copied into your files first (you choose where), a text opens as a new text that you save where you like. The file on your computer stays as it was.',
+							text: 'On a computer, “Open with” → “in-browser” opens PDFs in the PDF Editor and text files in the Text Editor – also from the download bar of the browser, and as the default app if you choose it. A PDF is copied into your files first (you choose where), a text opens as a new text that you save where you like. A JW Library backup or playlist is copied into your files and listed in JWL Files, not opened. The file on your computer stays as it was.',
 							options: {
 								where: { label: 'Where it works', text: 'Chrome and Edge on a computer, with in-browser installed. The first time, the browser asks whether in-browser may open such files.' }
 							}

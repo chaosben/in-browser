@@ -132,6 +132,7 @@ function askLead(steal: boolean) {
 	const asked = (navigator.locks.query?.() ?? Promise.resolve({ held: [] }))
 		.then((state) => !!state.held?.some((lock) => lock.name === 'files:p2p-leader'))
 		.catch(() => false);
+	void asked.then((held) => held && !steal && debug('[p2p] another page of this browser leads the sync – this one waits'));
 	navigator.locks
 		.request('files:p2p-leader', steal ? { steal: true } : {}, async () => {
 			const mine = ++generation;
@@ -274,6 +275,7 @@ async function lead(mine: number) {
 	// Connected folders are no part of My files: their changes never reach the other devices (once per page)
 	if (!watching) watch((paths) => void device?.localChange(paths.filter((path) => !isConnected(path))));
 	watching = true;
+	debug('[p2p] device starting');
 	await made.start();
 	// The lead went while it started: it must not stay in the rooms
 	if (mine !== generation) {

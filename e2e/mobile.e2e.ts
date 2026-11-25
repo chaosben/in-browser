@@ -237,12 +237,17 @@ test('Fonts: font files from the phone become one font with its faces, opened by
 	await expect(page.getByText('You have no fonts of your own yet.', { exact: false })).toBeVisible();
 });
 
-test('JWL Files: a backup from the phone kept, a second one merged into it, the merge undone', async ({ page }) => {
+test('JWL Files: a backup from the phone kept without opening, a second one merged into it, the merge undone', async ({ page }) => {
 	await page.goto('/jwl');
 	const input = page.locator('input[type="file"]').first();
 	const dialog = page.getByRole('dialog');
 	await input.setInputFiles({ name: 'Backup A.jwlibrary', mimeType: 'application/octet-stream', buffer: await backup([{ guid: 'a', title: 'First note' }], 'Phone') });
 	await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
+	// Kept and listed, not opened; the message offers “Open”
+	const kept = page.getByRole('status').filter({ hasText: '“Backup A.jwlibrary” is kept in your files.' });
+	await expect(page.getByRole('link', { name: /Backup A/ })).toBeVisible();
+	await expect(page).toHaveURL(/\/jwl$/);
+	await kept.getByRole('button', { name: 'Open' }).tap();
 	await expect(page).toHaveURL(/\/jwl\/editor/);
 	await expect(page.getByRole('heading', { name: 'JW Library backup' })).toBeVisible();
 	await shot(page, 'jwl');
@@ -255,7 +260,8 @@ test('JWL Files: a backup from the phone kept, a second one merged into it, the 
 	await dialog.getByRole('button', { name: 'Merge', exact: true }).tap();
 	const toast = page.getByRole('status').filter({ hasText: 'Merged into “Backup A.jwlibrary”: 1 new, 0 changed, 0 removed.' });
 	await expect(toast).toBeVisible();
-	await expect(page).toHaveURL(/Backup%20A/);
+	await expect(page).toHaveURL(/\/jwl$/);
+	await page.getByRole('link', { name: /Backup A/ }).tap();
 	await page.locator('[data-command="view:notes"]:visible').tap();
 	await expect(page.getByRole('option', { name: /Second note/ })).toBeVisible();
 	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();

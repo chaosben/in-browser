@@ -19,13 +19,14 @@ const de: Messages = {
 		newPlaylistTitle: 'Neue Playlist',
 		newPlaylistName: 'Playlist',
 		openTitle: 'Sicherung oder Playlist öffnen',
-		fromDevice: 'Vom Gerät öffnen …',
+		fromDevice: 'Vom Gerät importieren …',
 		saveTitle: 'Wo soll die Datei liegen?',
-		empty: 'Noch nichts geöffnet. Teile eine Sicherung aus JW Library mit in-browser oder öffne eine.',
+		empty: 'Noch nichts hier. Teile eine Sicherung aus JW Library mit in-browser oder öffne eine.',
+		kept: (name) => `„${name}“ liegt in deinen Dateien.`,
 		onlyFirst: (name) => `Nur „${name}“ wurde übernommen – eine Datei nach der anderen.`,
 		remove: 'Aus der Liste entfernen',
 		failed: (error) => `Die Datei konnte nicht abgelegt werden: ${error}`,
-		hint: 'Eine aus JW Library geteilte Sicherung landet hier: lege sie als neue Datei ab oder führe sie mit der zusammen, die du aufbewahrst.'
+		hint: 'Eine aus JW Library geteilte Sicherung landet hier: lege sie als neue Datei ab oder führe sie mit der zusammen, die du aufbewahrst. Geöffnet wird sie nicht.'
 	},
 
 	ribbon: {

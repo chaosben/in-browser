@@ -24,8 +24,16 @@ export interface MergeOutcome {
 	loss: { removed: number; of: number } | null;
 	/** Nothing to do: the existing file has everything already */
 	unchanged: boolean;
-	/** Kept for later merges under its id (the format names it in the result) */
-	keep: { id: string; text: string } | null;
+	/**
+	 * Kept for later merges under their ids: a result (the format names it in the file; the newest `KEEP` stay) and
+	 * what is `lasting` (never cleared by count – the format keeps few of them, e.g. one per device)
+	 */
+	keep: { id: string; text: string; lasting?: boolean }[];
+	/**
+	 * The incoming file continues an earlier merge whose kept state isn't on this device: it could only add, and
+	 * the user is told (what it deleted since is still there)
+	 */
+	blind?: boolean;
 }
 
 export interface Merger {
@@ -40,10 +48,11 @@ const MERGERS: Record<string, () => Promise<Merger>> = {
 
 export const canMerge = (name: string) => extname(name) in MERGERS;
 
-/** Kept results of earlier merges, synced like all tool data; the newest `KEEP` per format */
+/** Kept results of earlier merges, synced like all tool data; the newest `KEEP` per format, and what is lasting */
 const BASES = '/.apps/files/merge';
 const KEEP = 10;
 const basesOf = (ext: string) => join(BASES, ext.slice(1));
+const lastingOf = (ext: string) => join(basesOf(ext), 'lasting');
 
 async function gzip(text: string): Promise<Blob> {
 	return new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).blob();
@@ -56,21 +65,28 @@ async function gunzip(blob: Blob): Promise<string> {
 function baseStore(ext: string) {
 	return {
 		get: async (id: string) => {
-			try {
-				return await gunzip(await read(join(basesOf(ext), `${safeId(id)}.json.gz`)));
-			} catch {
-				return null;
+			for (const folder of [basesOf(ext), lastingOf(ext)]) {
+				try {
+					return await gunzip(await read(join(folder, `${safeId(id)}.json.gz`)));
+				} catch {
+					// Not there
+				}
 			}
+			return null;
 		}
 	};
 }
 
 const safeId = (id: string) => id.replace(/[^\w-]/g, '_');
 
-async function keepBase(ext: string, keep: { id: string; text: string }) {
+async function keepBases(ext: string, keep: MergeOutcome['keep']) {
+	for (const k of keep) {
+		const folder = k.lasting ? lastingOf(ext) : basesOf(ext);
+		await mkdir(folder);
+		await write(join(folder, `${safeId(k.id)}.json.gz`), await gzip(k.text));
+	}
+	if (!keep.some((k) => !k.lasting)) return;
 	const folder = basesOf(ext);
-	await mkdir(folder);
-	await write(join(folder, `${safeId(keep.id)}.json.gz`), await gzip(keep.text));
 	const kept = (await list(folder)).filter((e) => e.kind === 'file').sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
 	for (const old of kept.slice(KEEP)) await remove(old.path).catch(() => {});
 }
@@ -94,8 +110,12 @@ export async function mergeInto(path: string, incoming: Blob, tries = 0): Promis
 	const previous = new Blob([await (await read(path)).arrayBuffer()]);
 	const outcome = await (await loader()).merge(previous, incoming, baseStore(extname(path)));
 	rememberTarget(path);
+	const keep = () => keepBases(extname(path), outcome.keep).catch((e) => console.error('[files] merge base', e));
+	const tellBlind = () => outcome.blind && toast(t.blind, 'warning', 12000);
 	if (outcome.unchanged) {
+		await keep();
 		toast(t.unchanged(name), 'info', 6000);
+		tellBlind();
 		return 'unchanged';
 	}
 	if (outcome.loss && !(await ask({ title: t.lossTitle, message: t.loss(name, outcome.loss.removed, outcome.loss.of), confirm: t.anyway, danger: true }))) {
@@ -109,7 +129,7 @@ export async function mergeInto(path: string, incoming: Blob, tries = 0): Promis
 		throw new Error(`${name} keeps changing`);
 	}
 	await write(path, outcome.result);
-	if (outcome.keep) await keepBase(extname(path), outcome.keep).catch((e) => console.error('[files] merge base', e));
+	await keep();
 	toast(t.done(name, outcome.counts), 'success', 10000, {
 		label: t.undo,
 		run: async () => {
@@ -121,6 +141,7 @@ export async function mergeInto(path: string, incoming: Blob, tries = 0): Promis
 			}
 		}
 	});
+	tellBlind();
 	return 'merged';
 }
 

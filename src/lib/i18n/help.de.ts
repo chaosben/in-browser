@@ -619,14 +619,14 @@ const help: typeof enHelp = {
 					items: {
 						share: {
 							title: 'An in-browser teilen',
-							text: 'Unter Android erscheint die installierte App „in-browser“ im Teilen-Menü anderer Apps. Teilst du eine PDF, öffnet sie sich im PDF-Editor, eine Textdatei oder einen Text im Texteditor; andere Dateien landen in Dateien. Bevor etwas abgelegt wird, wählst du, wo – die Datei wird in deine Dateien kopiert, nichts wird hochgeladen.',
+							text: 'Unter Android erscheint die installierte App „in-browser“ im Teilen-Menü anderer Apps. Teilst du eine PDF, öffnet sie sich im PDF-Editor, eine Textdatei oder einen Text im Texteditor; eine Sicherung oder Playlist von JW Library wird in JWL-Dateien abgelegt, ohne geöffnet zu werden (eine Sicherung kannst du mit der zusammenführen, die du aufbewahrst); andere Dateien landen in Dateien. Bevor etwas abgelegt wird, wählst du, wo – die Datei wird in deine Dateien kopiert, nichts wird hochgeladen.',
 							options: {
 								where: { label: 'Wo es geht', text: 'Chrome und Samsung Internet unter Android, mit installiertem in-browser. Nicht auf iPhone und iPad – dort speicherst du die Datei und lädst sie in Dateien hoch.' }
 							}
 						},
 						openWith: {
 							title: 'Mit in-browser öffnen',
-							text: 'Am Computer öffnet „Öffnen mit“ → „in-browser“ PDFs im PDF-Editor und Textdateien im Texteditor – auch aus der Download-Leiste des Browsers und als Standard-App, wenn du es so einstellst. Eine PDF wird zuerst in deine Dateien kopiert (du wählst, wohin), ein Text öffnet sich als neuer Text, den du speicherst, wo du willst. Die Datei auf deinem Computer bleibt, wie sie ist.',
+							text: 'Am Computer öffnet „Öffnen mit“ → „in-browser“ PDFs im PDF-Editor und Textdateien im Texteditor – auch aus der Download-Leiste des Browsers und als Standard-App, wenn du es so einstellst. Eine PDF wird zuerst in deine Dateien kopiert (du wählst, wohin), ein Text öffnet sich als neuer Text, den du speicherst, wo du willst. Eine Sicherung oder Playlist von JW Library wird in deine Dateien kopiert und steht dann in JWL-Dateien, geöffnet wird sie nicht. Die Datei auf deinem Computer bleibt, wie sie ist.',
 							options: {
 								where: { label: 'Wo es geht', text: 'Chrome und Edge am Computer, mit installiertem in-browser. Beim ersten Mal fragt der Browser, ob in-browser solche Dateien öffnen darf.' }
 							}

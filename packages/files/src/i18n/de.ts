@@ -257,6 +257,7 @@ const de: FilesMessages = {
 			`Beim Zusammenführen würden ${removed} der ${of} Markierungen und Notizen in „${name}“ entfernt – die andere Datei hat sie gelöscht. Trotzdem zusammenführen?`,
 		anyway: 'Trotzdem zusammenführen',
 		notMerged: 'Nicht zusammengeführt – nichts geändert.',
+		blind: 'Diese Datei setzt ein früheres Zusammenführen fort, das dieses Gerät nicht kennt (auf einem anderen Gerät gemacht und noch nicht synchronisiert). Sie konnte nur hinzufügen: Was darin seitdem gelöscht wurde, ist noch da. Synchronisiere deine Geräte und führe sie noch einmal zusammen.',
 		failed: (name: string) => `Zusammenführen in „${name}“ hat nicht geklappt.`
 	},
 
