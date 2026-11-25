@@ -19,7 +19,7 @@ import { allowShareSync, beginShare, codeFromWords, endShareSession, onShareSync
 import type { ShareSyncState } from './share-sync.js';
 import { parseWords, wordLists } from '../p2p/words.js';
 import { syncedFolder } from '../sync/sync.svelte.js';
-import { diskFoldersSupported, folderAccessAnswer } from '../handles.js';
+import { diskFoldersSupported, folderAccessAnswer, isStuck, setStuck } from '../handles.js';
 
 // Connections for the UI (“Connected” in Files, the file dialog): list with access state, connect, rename,
 // disconnect, allow access again, connect and edit servers (WebDAV, S3). Each tab watches its connected folders itself
@@ -100,37 +100,13 @@ function noticeRemote() {
 	if (remote.length) noticed(...remote.map((c) => c.path));
 }
 
-/**
- * Connected folders whose stored handle the browser doesn't answer for (seen in Chrome, on a local disk: neither the
- * state nor the question for access ever came back, and while that question hangs the folder picker doesn't open
- * either). “Allow access” then lets the user pick the folder anew instead of asking. Kept for the tab's session,
- * since the way out of a hanging question is a reload.
- */
-const STUCK = 'files:stuck-access';
-const stuck = new Set<string>(readStuck());
-
-function readStuck(): string[] {
-	try {
-		return JSON.parse(sessionStorage.getItem(STUCK) ?? '[]') as string[];
-	} catch {
-		return [];
-	}
-}
-
-function setStuck(id: string, on: boolean) {
-	if (on) stuck.add(id);
-	else stuck.delete(id);
-	try {
-		sessionStorage.setItem(STUCK, JSON.stringify([...stuck]));
-	} catch {
-		// Only this page then
-	}
-}
+// Connected folders whose stored handle the browser doesn't answer for (`isStuck`, keyed by the connection's id):
+// “Allow access” then lets the user pick the folder anew instead of asking.
 
 async function accessOf(id: string, handle: FileSystemDirectoryHandle): Promise<PermissionState> {
 	const answer = await folderAccessAnswer(handle);
 	if (answer !== 'silent') return answer;
-	if (!stuck.has(id)) debug('[files] access state not answered', handle.name);
+	if (!isStuck(id)) debug('[files] access state not answered', handle.name);
 	setStuck(id, true);
 	return 'prompt';
 }
@@ -282,7 +258,7 @@ export async function askAccess(handle: FileSystemDirectoryHandle, { again, sile
 
 /** Asks the browser for access again (needs a click); for a handle it doesn't answer for, the folder is picked anew */
 export async function allowAccess(id: string): Promise<boolean> {
-	if (stuck.has(id)) return chooseAgain(id);
+	if (isStuck(id)) return chooseAgain(id);
 	const t = filesMessages().connected;
 	const handle = handles.get(id) ?? folders(await listConnections()).find((c) => c.id === id)?.handle;
 	const allowed =

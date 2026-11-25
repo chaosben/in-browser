@@ -187,6 +187,8 @@
 				if (disposed) return next.destroy();
 				stopSharing = sharePassword(path, password);
 				opened = ed.doc = next;
+				// Every PDF opens with "Hand": it is read and paged through first (the tools' formats stay remembered)
+				choose('hand');
 				// Messages of the form's scripts (`app.alert`) – never a browser dialog
 				next.onScriptMessage = (text) => toast(text, 'info', 8000);
 				recent.remember(path);
@@ -1582,7 +1584,7 @@ share: shareCommand(() => ed.doc?.path),
 			id: 'comment',
 			label: m.ribbon.tabs.comment,
 			groups: [
-				{ id: 'select', label: m.ribbon.groups.select, items: [commands.lasso, commands.selectAll, commands.snap] },
+				{ id: 'select', label: m.ribbon.groups.select, items: [commands.hand, commands.lasso, commands.selectAll, commands.snap] },
 				{ id: 'markup', label: m.ribbon.groups.markup, items: [commands.highlight, commands.underline, commands.squiggly, commands.strikeout, commands.insert, commands.replace, commands.area] },
 				{ id: 'notes', label: m.ribbon.groups.notes, items: [commands.note, commands.textbox, commands.callout, commands.attach, commands.link, commands.stamp, commands.picture, { id: 'icon', label: m.commands.icon, custom: iconButton }, commands.barcode] },
 				{ id: 'draw', label: m.ribbon.groups.draw, items: [commands.pen, commands.highlighter, commands.shape, commands.eraser, commands.penOnly] },
@@ -1987,9 +1989,6 @@ share: shareCommand(() => ed.doc?.path),
 											<span class="icon-[material-symbols-light--download] size-5" aria-hidden="true"></span>
 										</button>
 									{/if}
-									<button class="btn btn-ghost btn-sm btn-square" onclick={commands.stampFromSelection.run} title={commands.stampFromSelection.label} aria-label={commands.stampFromSelection.label}>
-										<span class="icon-[material-symbols-light--approval-outline] size-5" aria-hidden="true"></span>
-									</button>
 									{#if commands.flattenSelection.enabled?.()}
 										<button class="btn btn-ghost btn-sm btn-square" onclick={commands.flattenSelection.run} title={commands.flattenSelection.label} aria-label={commands.flattenSelection.label} data-command="flattenSelection">
 											<span class="icon-[material-symbols-light--layers-outline] size-5" aria-hidden="true"></span>

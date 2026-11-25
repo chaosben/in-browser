@@ -1,7 +1,7 @@
 import { askAccess, startConnections } from '../sources/connections.svelte.js';
 import { watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
-import { diskFoldersSupported, folderAccess } from '../handles.js';
+import { diskFoldersSupported, folderAccessAnswer, isStuck, setStuck } from '../handles.js';
 import { idbDelete, idbGet, idbSet } from './idb.js';
 import { runSync } from './apply.js';
 import { treeSide } from './tree-ops.js';
@@ -175,9 +175,41 @@ export async function excludeFromFolderSync(path: string): Promise<void> {
 }
 
 /** Asks for access again (needs a click), then syncs. */
-export async function renewAccess(): Promise<void> {
+/** Key of the synced folder among the handles the browser doesn't answer for (`isStuck`) */
+const STUCK_KEY = 'sync';
+
+/**
+ * Asks the browser for access to the synced folder again (needs a click). Never a dead end: a no or an error offers
+ * to choose the folder anew, a question left unanswered a reload, after which this picks the folder anew. Choosing
+ * the same folder keeps everything (`chooseSyncFolder`); `onSetup` runs when another folder now waits for its setup.
+ */
+export async function renewAccess(onSetup?: () => void): Promise<void> {
 	const folder = await idbGet<FileSystemDirectoryHandle>(HANDLE);
-	if (folder && (await askAccess(folder))) send('run');
+	if (!folder) return;
+	const again = async () => {
+		try {
+			await chooseSyncFolder();
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
+			throw e;
+		}
+		setStuck(STUCK_KEY, false);
+		if (syncStatus.state === 'setup') onSetup?.();
+	};
+	if (isStuck(STUCK_KEY)) return again();
+	const t = filesMessages().connected;
+	const allowed = await askAccess(folder, {
+		again: { label: t.chooseAgain, run: again },
+		// The hanging question keeps the picker from opening: after a reload “Allow access” picks the folder anew
+		silent: {
+			label: t.reload,
+			run: () => {
+				setStuck(STUCK_KEY, true);
+				location.reload();
+			}
+		}
+	});
+	if (allowed) send('run');
 }
 
 export function syncNow() {
@@ -267,7 +299,10 @@ async function run(): Promise<void> {
 		const folder = await idbGet<FileSystemDirectoryHandle>(HANDLE);
 		if (!folder) return publish({ folder: null, state: 'off' });
 		// (unanswered counts as not allowed: the folder shows as paused, and “Allow access” asks again with a click)
-		const permission = await folderAccess(folder);
+		const answer = await folderAccessAnswer(folder);
+		// Not answered: asking would hang too, so “Allow access” in this tab picks the folder anew
+		if (answer === 'silent') setStuck(STUCK_KEY, true);
+		const permission = answer === 'silent' ? 'prompt' : answer;
 		if (permission !== 'granted') {
 			log('folder.paused', { folder: folder.name, reason: 'no permission' });
 			return publish({ folder: folder.name, state: 'paused' });

@@ -55,7 +55,7 @@
 		</button>
 	{:else if syncStatus.state === 'paused'}
 		<p class="text-warning">{m.sync.paused(syncStatus.folder)}</p>
-		<button class="btn btn-sm btn-primary" onclick={() => run(renewAccess)}>{m.sync.renew}</button>
+		<button class="btn btn-sm btn-primary" onclick={() => run(() => renewAccess(() => openDevicesDialog('folderScope')))}>{m.sync.renew}</button>
 		<p class="text-xs opacity-60">{m.sync.renewHint}</p>
 	{:else if syncStatus.state === 'setup'}
 		<p class="text-warning">{m.sync.setup}</p>

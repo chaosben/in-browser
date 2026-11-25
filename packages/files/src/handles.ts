@@ -29,6 +29,38 @@ export async function folderAccessAnswer(handle: FileSystemHandle, wait = 2000):
 	}
 }
 
+/**
+ * Folders on disk whose stored handle the browser doesn't answer for (seen in Chrome, on a local disk: neither the
+ * state nor the question for access ever came back, and while that question hangs the folder picker doesn't open
+ * either). Asking for access then picks the folder anew. Kept for the tab's session (`files:stuck-access`), since the
+ * way out of a hanging question is a reload. Keys: a connection's id, `sync` for the synced folder.
+ */
+const STUCK = 'files:stuck-access';
+let stuck: Set<string> | null = null;
+
+function stuckKeys(): Set<string> {
+	if (stuck) return stuck;
+	try {
+		stuck = new Set(JSON.parse(sessionStorage.getItem(STUCK) ?? '[]') as string[]);
+	} catch {
+		stuck = new Set();
+	}
+	return stuck;
+}
+
+export const isStuck = (key: string) => stuckKeys().has(key);
+
+export function setStuck(key: string, on: boolean) {
+	const keys = stuckKeys();
+	if (on) keys.add(key);
+	else keys.delete(key);
+	try {
+		sessionStorage.setItem(STUCK, JSON.stringify([...keys]));
+	} catch {
+		// Only this page then
+	}
+}
+
 /** The error of a handle that isn't there (or is a folder where a file was asked for, and the other way round) */
 export const isMissing = (e: unknown) => e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError');
 

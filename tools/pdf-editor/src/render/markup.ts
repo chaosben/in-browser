@@ -21,7 +21,7 @@ const unionBox = (a: Box, b: Box): Box => ({ x0: Math.min(a.x0, b.x0), y0: Math.
 import { drawStamp, isStamp, recolorIcon, stampBounds, type StampItem } from './stamp.js';
 import { drawStepMark, flipsOf, stepLabel, stepView, withFlips } from './steps.js';
 import { drawCallout, drawText, hitsText, isText, itemBounds, moveTextHandle, paddingOf, roundInsets, textHandles, withText, type TextItem } from './textbox.js';
-import { scaleInsets } from '@in-browser/graphics/text-box.js';
+import { handlePoint, resizeTextBox, scaleInsets, TEXT_HANDLES } from '@in-browser/graphics/text-box.js';
 
 export type { MarkKind };
 
@@ -218,6 +218,26 @@ const ownHit = (item: Own, x: number, y: number, r: number) =>
 				? hitsText(item, x, y, r)
 				: inBox(ownBounds(item), x, y, r);
 
+/** The comments that are a box drawn by hand – a highlighted area, a link –, resized freely by their corners and sides */
+type Boxed = MarkupItem | LinkItem;
+const isBoxed = (item: PdfItem): item is Boxed => (isMarkup(item) && !!item.area && item.boxes.length === 1) || isLink(item);
+
+function rectOf(item: Boxed) {
+	if (isLink(item)) return { x: item.x, y: item.y, w: item.w, h: item.h };
+	const b = item.boxes[0];
+	return { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0 };
+}
+
+/** The box with handle `index` (`TEXT_HANDLES`) dragged to (x, y): the opposite side or corner stays; Shift keeps a corner's proportions */
+function moveBoxHandle(item: Boxed, index: number, x: number, y: number, keepAspect: boolean): Boxed {
+	const r = rectOf(item);
+	const handle = TEXT_HANDLES[index];
+	const [hx, hy] = handlePoint(r, handle);
+	const { rect } = resizeTextBox(r, 'fixed', handle, x - hx, y - hy, { keepAspect, minW: 1, minH: 1 });
+	if (isLink(item)) return { ...item, ...rect };
+	return { ...item, boxes: [{ x0: rect.x, y0: rect.y, x1: rect.x + rect.w, y1: rect.y + rect.h }] };
+}
+
 /** Strikes out the text in `boxes` (reading along `dir`) */
 function strike(ctx: Ctx, boxes: readonly Box[], dir: number, color: string) {
 	ctx.strokeStyle = color;
@@ -273,9 +293,11 @@ export const pdfKit: ItemKit<PdfItem> = {
 		isCaret(item) ? { ...item, x: t.ox + (item.x - t.ox) * t.scale + t.dx, y: t.oy + (item.y - t.oy) * t.scale + t.dy, h: item.h * t.scale } : isMarkup(item) ? transformMarkup(item, t) : isNote(item) ? transformNote(item, t) : isStamp(item) || isLink(item) ? transformStamp(item, t) : isText(item) ? transformText(item, t) : inkKit.transform(item, t),
 	// Marked text belongs to its text: it never moves away from it (a highlighted area was drawn: it moves)
 	fixed: (item) => (isMarkup(item) && !item.area) || isCaret(item),
-	// A text box's corners and sides change its box (its font only with K); a shape's points
-	handles: (item) => (isText(item) ? textHandles(item) : isOwn(item) ? null : (inkKit.handles?.(item) ?? null)),
-	moveHandle: (item, index, x, y, o) => (isText(item) ? moveTextHandle(item, index, x, y, o) : isOwn(item) ? item : inkKit.moveHandle!(item, index, x, y, o)),
+	// A text box's corners and sides change its box (its font only with K), those of a highlighted area or a link
+	// their box, freely; a shape's points
+	handles: (item) => (isText(item) ? textHandles(item) : isBoxed(item) ? TEXT_HANDLES.map((h) => handlePoint(rectOf(item), h)) : isOwn(item) ? null : (inkKit.handles?.(item) ?? null)),
+	moveHandle: (item, index, x, y, o) =>
+		isText(item) ? moveTextHandle(item, index, x, y, o) : isBoxed(item) ? moveBoxHandle(item, index, x, y, o.keepAspect) : isOwn(item) ? item : inkKit.moveHandle!(item, index, x, y, o),
 	ownScale: isText,
 	// Pieces of an erased stroke and a stroke turned into a shape keep their steps
 	inherit: (from, made) => withFlips(made, flipsOf(from))

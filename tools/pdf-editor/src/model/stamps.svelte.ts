@@ -16,7 +16,7 @@ import { withPassword } from './password.svelte.js';
 import type { IconData } from '@in-browser/graphics/icons/types.js';
 import { iconSvg, registerStampImage, type StampIcon } from '#lib/render/stamp.js';
 import { defaultWords, parseWords, serializeWords, type StampWord } from './stamp-words.js';
-import { setStamp, stampChoice } from './tools.svelte.js';
+import { choose, setStamp, stampChoice, tools } from './tools.svelte.js';
 
 export const STAMP_FOLDER = '/.apps/pdf-editor/stamps';
 /** Picture files a stamp can be made of */
@@ -99,8 +99,9 @@ export async function stampThumbnail(path: string): Promise<ImageBitmap | null> 
 /** Takes a stamp out of "My stamps" (into the trash, with "Undo") */
 export async function removeStamp(path: string) {
 	if (!(await deleteToTrash([path], () => void loadStamps()))) return;
-	// The stamp tool doesn't go on with a picture that is gone
+	// The stamp tool doesn't go on with a picture that is gone – nor with another stamp nobody chose: back to "Select"
 	if (stampChoice.custom === path) {
+		if (tools.tool === 'stamp') choose('lasso');
 		setStamp({ custom: null });
 		stampTool.picture = null;
 	}
