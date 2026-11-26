@@ -15,7 +15,7 @@
 		renameDevice,
 		syncDevicesNow
 	} from '@in-browser/files/p2p/p2p.svelte.js';
-	import { selfStale } from '@in-browser/files/p2p/staleness.js';
+	import { behind as isBehind, selfStale, upToDate } from '@in-browser/files/p2p/staleness.js';
 	import { openDevicesDialog } from '#lib/devices.svelte.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { resolve } from '$app/paths';
@@ -35,7 +35,9 @@
 	});
 
 	const ago = (time: number) => formatAgo(time, now, intlLocale);
-	const selfBehind = $derived(view.state === 'online' && selfStale(view.lastSync, others.filter((d) => d.online).length, now));
+	const selfBehind = $derived(view.state === 'online' && selfStale(view.lastSync, view.behind, others.filter((d) => d.online).length, now));
+	/** Every other device has the same state as this one, as far as known (also through other devices) */
+	const allUpToDate = $derived(others.length > 0 && others.every((d) => d.missing && upToDate(d.missing)));
 
 	let renaming = $state(false);
 
@@ -88,7 +90,8 @@
 		if (d.syncing) return m.devices.syncing(d.syncing.done, d.syncing.total);
 		if (d.online) return m.devices.online;
 		if (d.unreachable) return m.devices.unreachable;
-		return d.lastSeen ? m.devices.lastSeen(ago(d.lastSeen)) : m.devices.never;
+		if (!d.lastSeen) return m.devices.never;
+		return d.via ? m.devices.lastSeenVia(ago(d.lastSeen), d.via) : m.devices.lastSeen(ago(d.lastSeen));
 	}
 </script>
 
@@ -132,7 +135,7 @@
 		{#if selfBehind}
 			<p role="alert" class="text-warning flex gap-1.5 text-xs">
 				<span class="icon-[material-symbols-light--sync-problem] size-4 shrink-0" aria-hidden="true"></span>
-				{m.devices.selfBehind(ago(view.lastSync))}
+				{view.behind ? m.devices.selfAhead : m.devices.selfBehind(ago(view.lastSync))}
 			</p>
 		{/if}
 		<ul class="flex flex-col gap-2">
@@ -162,7 +165,8 @@
 				</li>
 			{/if}
 			{#each others as d (d.id)}
-				{@const behind = !!d.missing && (d.missing.changes > 0 || d.missing.more)}
+				{@const behind = !!d.missing && isBehind(d.missing)}
+				{@const ahead = !behind && !!d.missing?.ahead}
 				<li class="flex items-start gap-2">
 					{#if d.syncing}
 						<span class="icon-[material-symbols-light--sync] mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true"></span>
@@ -178,8 +182,10 @@
 						<span class={['text-xs', d.outdated || d.newer || d.unreachable ? 'text-warning' : 'opacity-60']}>{stateText(d)}</span>
 						{#if behind && d.missing}
 							<span class="text-warning text-xs">{m.devices.probablyBehind(m.devices.changes(d.missing.changes, d.missing.more), d.lastSync ? ago(d.lastSync) : m.devices.never)}</span>
-						{:else if d.lastSync && !d.syncing}
-							<span class="text-xs opacity-60">{m.devices.lastSync(ago(d.lastSync))} · {m.devices.upToDate}</span>
+						{:else if ahead}
+							<span class="text-xs opacity-60">{m.devices.ahead}</span>
+						{:else if d.missing && upToDate(d.missing) && !d.syncing}
+							<span class="text-xs opacity-60">{d.lastSync ? `${m.devices.lastSync(ago(d.lastSync))} · ${m.devices.upToDate}` : m.devices.upToDate}</span>
 						{/if}
 					</div>
 					<button class="btn btn-ghost btn-xs btn-square" onclick={() => confirmRemove(d)} title={m.devices.removeNamed(d.name)} aria-label={m.devices.removeNamed(d.name)}>
@@ -189,7 +195,7 @@
 			{/each}
 		</ul>
 		{#if !others.some((d) => d.online)}
-			<p class="text-xs opacity-60">{m.devices.waiting}</p>
+			<p class="text-xs opacity-60">{allUpToDate ? m.devices.allUpToDate : m.devices.waiting}</p>
 		{/if}
 		{#if view.scope.length}
 			<button class="link link-hover text-left text-xs opacity-70" onclick={() => openDevicesDialog('scope')}>{m.devices.excludedCount(view.scope.length)}</button>

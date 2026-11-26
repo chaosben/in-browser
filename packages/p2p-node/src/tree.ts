@@ -1,10 +1,11 @@
 import { openAsBlob } from 'node:fs';
-import { mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { segments } from '@in-browser/files/path.js';
 import { ignored, type FileState, type Snapshot } from '@in-browser/files/sync/plan.js';
 import { DIR } from '@in-browser/files/sync/scan.js';
 import type { Tree } from '@in-browser/files/sync/tree.js';
+import { beginVersion, versionDataPath, type VersionReason } from '@in-browser/files/sync/versions.js';
 import { canFlush, syncDir } from './durable.js';
 
 // A folder on disk as the P2P sync sees it: paths of the sync (`/a/b.txt`) below `root`. Modification times are
@@ -16,7 +17,8 @@ import { canFlush, syncDir } from './durable.js';
 
 const missing = (e: unknown) => (e as NodeJS.ErrnoException).code === 'ENOENT';
 
-export function fsTree(root: string): Tree {
+/** `versions`: folder for the earlier versions (`sync/versions.ts`) – then what the sync replaces or deletes goes there */
+export function fsTree(root: string, { versions }: { versions?: string } = {}): Tree {
 	const real = (path: string) => join(root, ...segments(path));
 
 	const state = async (path: string): Promise<FileState | null> => {
@@ -82,8 +84,27 @@ export function fsTree(root: string): Tree {
 				if (missing(e)) return [];
 				throw e;
 			}
-		}
+		},
+		...(versions ? { keep: (path: string, reason: VersionReason) => keep(path, reason, versions) } : {})
 	};
+
+	async function keep(path: string, reason: VersionReason, dir: string) {
+		const file = real(path);
+		const s = await state(file);
+		if (s?.kind !== 'file') throw new Error(`Not a file: ${path}`);
+		const store = fsTree(dir);
+		const entry = await beginVersion(store, { path, reason, size: s.size, modified: s.modified });
+		const target = join(dir, ...segments(versionDataPath(entry)));
+		try {
+			await rename(file, target);
+		} catch (e) {
+			// Another file system (the instance's folder and the synced one may lie on different disks)
+			if ((e as NodeJS.ErrnoException).code !== 'EXDEV') throw e;
+			await copyFile(file, target);
+			await rm(file);
+		}
+		await syncDir(join(file, '..'));
+	}
 }
 
 /**

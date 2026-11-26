@@ -259,6 +259,7 @@ async function lead(mine: number) {
 		log: log.add,
 		holdLarge: true,
 		freeSpace: async () => {
+			await (await import('../versions-browser.js')).makeRoom();
 			const { quota, usage } = await storageEstimate();
 			return quota === undefined ? null : quota - (usage ?? 0);
 		},
@@ -457,7 +458,7 @@ async function diagnosticsHere(): Promise<Diagnostics> {
 	const { relayStates, STUN } = await import('./trystero.js');
 	return {
 		self: d.identity.id,
-		stun: STUN,
+		stun: STUN.join(', '),
 		relays: relayStates(),
 		peers: await d.connectionStats()
 	};

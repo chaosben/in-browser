@@ -8,7 +8,8 @@ import { Device } from '@in-browser/files/p2p/device.js';
 import type { P2pView } from '@in-browser/files/p2p/view.js';
 import { resolve } from '@in-browser/files/p2p/members.js';
 import { createTrysteroNetwork } from '@in-browser/files/p2p/trystero.js';
-import { cleanTrash, retentionOf, TRASH_ROOT } from '@in-browser/files/trash.js';
+import { cleanTrash, DEFAULT_RETENTION, retentionOf, TRASH_ROOT } from '@in-browser/files/trash.js';
+import { cleanVersions, listVersions } from '@in-browser/files/sync/versions.js';
 import de from '@in-browser/files/i18n/de.js';
 import en from '@in-browser/files/i18n/en.js';
 import { EXIT_REMOVED, type FromPeer, type ToPeer } from './ipc.js';
@@ -28,7 +29,9 @@ const log = (...args: unknown[]) => console.log(new Date().toISOString(), ...arg
 const german = /^de\b/i.test(process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || Intl.DateTimeFormat().resolvedOptions().locale);
 const messages = german ? de : en;
 
-const tree = fsTree(folder);
+/** What the sync replaces or deletes here is kept for a while (`sync/versions.ts`), next to the device's state */
+const versionsDir = join(instanceDir ?? '', 'versions');
+const tree = fsTree(folder, { versions: versionsDir });
 /** Expired entries of the trash go this often (the retention, a suite setting, is synced into this folder too) */
 const TRASH_INTERVAL = 60 * 60 * 1000;
 /** Fixed WebRTC ports forwarded by the router (`IN_BROWSER_ICE_PORTS=off`: random ports, no forwarding – tests) */
@@ -88,8 +91,13 @@ async function run() {
 	}
 	const unwatch = watchTree(folder, (paths) => void d.localChange(paths));
 	if (icePorts) keepForwarded(icePorts, (line) => log(line));
-	void cleanTrash(tree);
-	setInterval(() => void cleanTrash(tree), TRASH_INTERVAL);
+	const clean = async () => {
+		await cleanTrash(tree);
+		const retention = await retentionOf(tree).catch(() => DEFAULT_RETENTION);
+		await cleanVersions(fsTree(versionsDir), retention).catch((e) => log('Cleaning up earlier versions failed:', e));
+	};
+	void clean();
+	setInterval(() => void clean(), TRASH_INTERVAL);
 	let stopping = false;
 	const stop = async () => {
 		if (stopping) return;
@@ -134,6 +142,8 @@ async function status() {
 		`Trash: ${trash.files} files, ${(trash.bytes / 1e6).toFixed(1)} MB in ${trashDir}` +
 			(days === undefined ? '' : days === null ? ' (kept until emptied)' : ` (kept ${days} days)`)
 	);
+	const versions = await listVersions(fsTree(versionsDir)).catch(() => []);
+	console.log(`Earlier versions (replaced or deleted by the sync): ${versions.length} files, ${(versions.reduce((sum, v) => sum + v.size, 0) / 1e6).toFixed(1)} MB in ${versionsDir}`);
 	if (state.removed) console.log('Removed from its devices – pair it again.');
 	else if (!group) console.log('Not paired yet.');
 	else {

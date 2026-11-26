@@ -12,8 +12,8 @@ import type { Tree } from './tree.js';
 //   with the one the plan saw; if it differs, the step is skipped (the next run plans again).
 // - Files arrive in a hidden temporary file and are moved into place only when complete.
 // - The losing version of a change on both sides becomes a conflict copy (unless the content is the same).
-// - No versions are kept: what the other side deleted or replaced is deleted or replaced here: the
-//   user's own deletions are kept in the synced trash (`trash.ts`), so they are on every device anyway.
+// - What the other side deleted or replaced is deleted or replaced here – kept as an earlier version of this device
+//   where the tree keeps them (`Tree.keep`, `versions.ts`); the user's own deletions are in the synced trash.
 
 export interface SyncOptions {
 	/** State after the last sync with this other side (already limited to what both take part in) */
@@ -204,7 +204,8 @@ async function apply(
 					keep: op.both ? options.conflictLabel('mine') : undefined,
 					expect: local.get(path) ?? null,
 					onWrite: write,
-					packages: copies
+					packages: copies,
+					version: true
 				});
 			} catch (e) {
 				// Gone there since the plan

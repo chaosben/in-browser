@@ -1,5 +1,6 @@
 import type { Share } from './shares.js';
 import type { HeldFolder } from '../sync/plan.js';
+import type { Staleness } from './staleness.js';
 
 // What the UI shows of the device sync (`Device.view()`, mirrored to every tab as `p2pStatus.view`). Its own module,
 // so the app can show the status before the sync code (`device.ts`) is loaded.
@@ -18,8 +19,10 @@ export interface DeviceView {
 	syncing: { done: number; total: number } | null;
 	lastSync: number;
 	lastSeen: number;
-	/** Changes it is missing, as far as known */
-	missing: { changes: number; more: boolean } | null;
+	/** Name of the device that saw it last (`lastSeen`), when it wasn't seen here directly */
+	via: string | null;
+	/** Compared with this device, as far as known (also through other devices) */
+	missing: Staleness | null;
 	scope: string[];
 }
 
@@ -37,6 +40,8 @@ export interface P2pView {
 	failed: number;
 	/** Last sync of this device with any other */
 	lastSync: number;
+	/** Another device is known to have changes this one is missing */
+	behind: boolean;
 	/** Folders shared with a guest right now */
 	shares: ShareView[];
 	/** What the other ends of connections offer live now (`live-ends.ts`), with this device's paths */
@@ -44,7 +49,7 @@ export interface P2pView {
 }
 
 /** No group (yet), or not started */
-export const OFF_VIEW: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, pendingFolders: [], setup: false, failed: 0, lastSync: 0, shares: [], live: [] };
+export const OFF_VIEW: P2pView = { state: 'off', self: null, devices: [], invite: null, scope: [], pendingDeletes: 0, pendingFolders: [], setup: false, failed: 0, lastSync: 0, behind: false, shares: [], live: [] };
 
 export interface ShareView {
 	id: string;

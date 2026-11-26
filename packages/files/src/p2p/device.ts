@@ -1047,9 +1047,9 @@ export class Device {
 		if (connected) connected.live = !!theirs.live;
 		const log = mergeLogs(this.state.log, theirs.log ?? []);
 		this.state.log = log;
-		this.state.devices = mergeDevices(this.state.devices, theirs.devices ?? {});
+		this.state.devices = mergeDevices(this.state.devices, theirs.devices ?? {}, peer);
 		const info = this.state.devices[peer] ?? { lastSeen: 0, lastSync: 0, scope: [], vector: {} };
-		this.state.devices[peer] = { ...info, lastSeen: now, scope: theirs.scope ?? [], vector: theirs.vector ?? {} };
+		this.state.devices[peer] = { lastSeen: now, lastSync: info.lastSync, scope: theirs.scope ?? [], vector: theirs.vector ?? {} };
 		if (synced) {
 			const theirVector = theirs.vector ?? {};
 			const theirScope = theirs.scope ?? [];
@@ -1074,7 +1074,7 @@ export class Device {
 	private touchSelf() {
 		if (!this.identity) return;
 		const info = this.state.devices[this.identity.id] ?? { lastSeen: 0, lastSync: 0, scope: [], vector: {} };
-		this.state.devices[this.identity.id] = { ...info, lastSeen: this.now(), scope: this.state.scope, vector: this.state.vector };
+		this.state.devices[this.identity.id] = { lastSeen: this.now(), lastSync: info.lastSync, scope: this.state.scope, vector: this.state.vector };
 	}
 
 	private ownWrite(path: string) {
@@ -1212,6 +1212,7 @@ export class Device {
 		if (!this.identity || !this.state) return OFF_VIEW;
 		if (this.state.removed) return { ...this.view0(), state: 'removed' };
 		if (!group) return this.view0();
+		const mine = { vector: this.state.vector, scope: this.state.scope };
 		const devices: DeviceView[] = [...group.members].map(([id, member]) => {
 			const info = this.state.devices[id];
 			const self = id === this.identity.id;
@@ -1227,7 +1228,8 @@ export class Device {
 				syncing: peer?.syncing ?? null,
 				lastSync: info?.lastSync ?? 0,
 				lastSeen: info?.lastSeen ?? 0,
-				missing: self || !info ? null : staleness(info, this.state.log),
+				via: info?.via ? (group.members.get(info.via)?.name ?? null) : null,
+				missing: self || !info ? null : staleness(info, this.state.log, mine),
 				scope: info?.scope ?? []
 			};
 		});
@@ -1236,7 +1238,8 @@ export class Device {
 			...this.view0(),
 			state: 'online',
 			self: { id: this.identity.id, name: group.members.get(this.identity.id)?.name ?? '' },
-			devices
+			devices,
+			behind: devices.some((d) => d.missing?.ahead)
 		};
 	}
 
@@ -1253,6 +1256,7 @@ export class Device {
 			setup: !!this.state.setupPending,
 			failed: this.failed,
 			lastSync: this.state.devices[this.identity.id]?.lastSync ?? 0,
+			behind: false,
 			live: [...this.sessions].flatMap(([id, list]) => {
 				const end = this.ends.get(id);
 				if (!end?.open) return [];

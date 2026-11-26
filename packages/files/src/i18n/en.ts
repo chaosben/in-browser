@@ -77,6 +77,12 @@ const en = {
 		forGoodConfirm: 'Delete'
 	},
 
+	/** Earlier versions: what a sync replaced or deleted on this device */
+	versions: {
+		/** Part of the name of a restored version next to the current file: `Plan (earlier version).md` */
+		restoredLabel: 'earlier version'
+	},
+
 	/** Connected folders (access, start pages of the tools) */
 	document: {
 		saveFailed: (error: string) => `Saving failed: ${error}`,
@@ -200,12 +206,17 @@ const en = {
 		connected: (online: number, total: number) => `${online} of ${total} devices connected`,
 		waiting: 'Waiting for your devices',
 		syncingWith: (name: string, done: number, total: number) => `Syncing with ${name} … ${done}/${total}`,
-		upToDate: 'Up to date',
+		/** No other device connected, and all of them have the same state as this one (as far as known) */
+		allUpToDate: 'All devices up to date',
+		upToDate: 'up to date',
+		ahead: 'has changes this device is missing',
 		probablyBehind: (name: string) => `${name} probably not up to date`,
 		selfBehind: 'This device is not up to date',
 		removed: 'This device was removed from your devices',
 		online: 'connected',
 		lastSeen: (ago: string) => `last seen ${ago}`,
+		/** Seen by another device, not by this one */
+		lastSeenVia: (ago: string, via: string) => `last seen ${ago} by ${via}`,
 		never: 'not seen yet',
 		unreachable: 'online, but not reachable',
 		outdated: 'needs an update of in-browser',

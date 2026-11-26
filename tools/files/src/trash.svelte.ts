@@ -28,7 +28,8 @@ export function trashEntry(item: TrashItem): Item {
 		folder: false,
 		formats: [],
 		openWith: [],
-		origin: parent(item.path)
+		origin: parent(item.path),
+		...(item.versions ? { localOnly: true } : {})
 	};
 }
 

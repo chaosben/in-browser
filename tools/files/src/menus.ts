@@ -31,6 +31,9 @@ export interface MenuContext {
 	open(item: Item): void;
 	preview(item: Item): void;
 	properties(item: Item | null): void;
+	/** “Earlier versions …” of a file of My files on this device (`versionable`) */
+	versions(item: Item): void;
+	versionable(item: Item | null): boolean;
 	/** Opens the share dialog of a folder, or with `single` of one file (`id`: an existing share) */
 	share(path: string, id?: string, single?: boolean): void;
 	/** “Share a folder …” */
@@ -209,6 +212,7 @@ export function itemEntries(ctx: MenuContext, items: Item[], rename: (item: Item
 		...(one && ctx.shareable(one.path)
 			? [{ label: m.share.action, icon: 'icon-[material-symbols-light--share-outline]', run: () => ctx.share(one.path, undefined, !one.folder) }]
 			: []),
+		{ label: m.versions.action, icon: 'icon-[material-symbols-light--history]', disabled: !ctx.versionable(one), run: () => one && ctx.versions(one) },
 		{ label: m.menu.properties, icon: 'icon-[material-symbols-light--info-outline]', disabled: !one, run: () => ctx.properties(one) }
 	];
 }

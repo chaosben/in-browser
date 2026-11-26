@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanTrash, entryName } from '@in-browser/files/trash.js';
+import { listVersions, versionDataPath } from '@in-browser/files/sync/versions.js';
 import { fsTree } from './tree.js';
 
 let root: string;
@@ -16,6 +17,18 @@ async function write(tree: ReturnType<typeof fsTree>, path: string, text: string
 }
 
 describe('fsTree', () => {
+	it('keeps what the sync takes away as an earlier version outside the synced folder', async () => {
+		const versions = join(root, 'versions');
+		const tree = fsTree(join(root, 'folder'), { versions });
+		await write(tree, '/docs/a.txt', 'old');
+		await tree.keep!('/docs/a.txt', 'replaced');
+		expect(await tree.stat('/docs/a.txt')).toBeNull();
+		const store = fsTree(versions);
+		const [version] = await listVersions(store);
+		expect(version).toMatchObject({ path: '/docs/a.txt', reason: 'replaced', size: 3 });
+		expect(await (await store.read(versionDataPath(version.entry))).text()).toBe('old');
+	});
+
 	it('scans files and folders, skipping ignored and special entries', async () => {
 		await mkdir(join(root, 'docs'));
 		await writeFile(join(root, 'docs', 'a.txt'), 'x');

@@ -81,7 +81,8 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, al
 	let copies: PackageCopies = new Map();
 	const side = treeSide(tree, { onWrite, log, packages: () => copies });
 	// Deleting files goes through the trash where one is given
-	const trashing = trash ? treeSide({ ...tree, remove: trash }, { onWrite, log }) : side;
+	// A guest's deletions go into the trash, not into the earlier versions
+	const trashing = trash ? treeSide({ ...tree, remove: trash, keep: undefined }, { onWrite, log }) : side;
 	let holding = false;
 	const release = () => {
 		if (holding) gate.leave();

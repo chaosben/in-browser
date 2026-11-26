@@ -2,7 +2,7 @@ import { requestPersistence } from './cache.js';
 import { changed } from './changes.js';
 import { FilesError, type Entry } from './entry.js';
 import { basename, nameKey, nameProblem, normalize, parent, segments } from './path.js';
-import { childHandle, isMissing, nativeMove } from './handles.js';
+import { childHandle, isMissing, moveFile, nativeMove } from './handles.js';
 
 // My files in the Origin Private File System (OPFS), as they really are on this device: no routing to connected
 // folders or other devices (that is fs.ts). Used by the syncs, the trash cleanup and to answer live requests of other
@@ -194,6 +194,17 @@ export async function remove(path: string): Promise<void> {
 		await (await dirHandle(parent(path))).removeEntry(name, { recursive: true });
 	} catch (e) {
 		if (!(e instanceof FilesError) && !(e instanceof DOMException && e.name === 'NotFoundError')) throw e;
+	}
+	changed(path);
+}
+
+/** Moves a file of My files out into another folder of the OPFS (the earlier versions); announced like a deletion */
+export async function moveOut(path: string, to: FileSystemDirectoryHandle, name: string): Promise<void> {
+	path = normalize(path);
+	try {
+		await moveFile(await dirHandle(parent(path)), basename(path), to, name);
+	} catch (e) {
+		full(e, path);
 	}
 	changed(path);
 }

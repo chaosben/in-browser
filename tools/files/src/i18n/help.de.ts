@@ -154,6 +154,12 @@ const help: typeof enHelp = {
 			elsewhere: {
 				title: 'Papierkorb im Ordner auf deinem Rechner',
 				text: 'Im synchronisierten Ordner auf deinem Rechner und beim p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien dort werden nach derselben Zeit entfernt.'
+			},
+			versions: {
+				title: 'Frühere Versionen',
+				text: 'Ersetzt oder löscht eine Synchronisation hier eine Datei, weil sie auf einem anderen Gerät oder im synchronisierten Ordner geändert wurde, bleibt die Fassung von hier auf diesem Gerät erhalten. Eine so gelöschte Datei steht im Papierkorb mit „nur auf diesem Gerät“ neben ihrem ursprünglichen Ort (ein ganzer Ordner als ein Eintrag); „Wiederherstellen“ holt sie zurück. Bei einer ersetzten Datei wählst du sie aus und dann „Frühere Versionen …“ (Tab „Auswahl“ oder das Menü der Datei): Es listet die Fassungen mit ihrem Datum, und „Wiederherstellen“ legt eine als „Name (frühere Version)“ neben die Datei, nie darüber. Ausgegraut bei Ordnern und bei Dateien, die nicht auf diesem Gerät liegen.',
+				tip: 'Frühere Versionen bleiben auf dem Gerät, auf dem die Synchronisation die Datei ersetzt hat – sieh auf dem Gerät nach, auf dem du zuletzt die gewünschte Fassung hattest.',
+				link: { href: '/help/sync#trash', label: 'Wie lange frühere Versionen bleiben' }
 			}
 		}
 	},
@@ -255,7 +261,7 @@ const help: typeof enHelp = {
 			},
 			status: {
 				title: 'Stand der Geräte',
-				text: 'Die Liste zeigt dieses Gerät (ein Klick auf seinen Namen benennt es um) und jedes andere: verbunden, synchronisiert gerade, wann es zuletzt gesehen oder synchronisiert wurde. Hinweise in Warnfarbe sagen, wenn ein Gerät wahrscheinlich nicht aktuell ist, nicht erreichbar ist (oft Mobilfunk oder ein Firmennetz) oder ein Update braucht. Synchronisiert wird, solange mindestens zwei Geräte in-browser geöffnet haben; „Jetzt synchronisieren“ startet es sofort.',
+				text: 'Die Liste zeigt dieses Gerät (ein Klick auf seinen Namen benennt es um) und jedes andere: verbunden, synchronisiert gerade, wann es zuletzt gesehen oder synchronisiert wurde – auch wenn ein anderes Gerät es gesehen hat („zuletzt vor 2 Stunden von Laptop gesehen“) – und „aktuell“, wenn es dieselben Dateien hat wie dieses, soweit deine Geräte es wissen. Hinweise in Warnfarbe sagen, wenn ein Gerät wahrscheinlich nicht aktuell ist, nicht erreichbar ist (oft Mobilfunk oder ein Firmennetz) oder ein Update braucht. Synchronisiert wird, solange mindestens zwei Geräte in-browser geöffnet haben; „Jetzt synchronisieren“ startet es sofort.',
 				link: { href: '/help/sync', label: 'Wenn Geräte nicht synchronisieren' }
 			},
 			folders: {

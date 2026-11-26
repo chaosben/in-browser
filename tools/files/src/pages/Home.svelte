@@ -45,6 +45,7 @@
 	import FileList from '#lib/components/FileList.svelte';
 	import PreviewDialog from '#lib/components/PreviewDialog.svelte';
 	import PropertiesDialog from '#lib/components/PropertiesDialog.svelte';
+	import VersionsDialog from '#lib/components/VersionsDialog.svelte';
 	import SyncDialog from '#lib/components/SyncDialog.svelte';
 	import TrashView from '#lib/components/TrashView.svelte';
 	import ExcludeFolderDialog from '#lib/components/ExcludeFolderDialog.svelte';
@@ -85,6 +86,10 @@
 	/** An entry of My files on this device can be shared with a guest (an excluded one isn't here) */
 	const shareable = (path: string) => p2pStatus.supported && path !== '/' && !isConnected(path) && inScope(path, p2pStatus.view.scope);
 	let properties = $state<Item | null>(null);
+	/** The file whose earlier versions are shown */
+	let versionsOf = $state<string | null>(null);
+	/** A file of My files on this device: only those have earlier versions here */
+	const versionable = (item: Item | null) => !!item && item.kind === 'file' && !isConnected(item.path) && inScope(item.path, p2pStatus.view.scope);
 	let uploading = $state<string | null>(null);
 	let dropping = $state(false);
 	let usage = $state<string | null>(null);
@@ -107,6 +112,8 @@
 		open,
 		preview: (item) => (preview = item),
 		properties: (item) => (properties = item),
+		versions: (item) => (versionsOf = item.path),
+		versionable,
 		share: (path, id, single) => openShareDialog(id ? { id } : { path, single }),
 		shareNew,
 		shareable,
@@ -332,6 +339,14 @@
 			icon: 'icon-[material-symbols-light--info-outline]',
 			enabled: () => selected.length <= 1,
 			run: () => (properties = one ?? current)
+		},
+		versions: {
+			id: 'versions',
+			label: m.versions.action,
+			icon: 'icon-[material-symbols-light--history]',
+			tip: m.versions.tip,
+			enabled: () => selected.length === 1 && versionable(one),
+			run: () => one && (versionsOf = one.path)
 		},
 		share: {
 			id: 'share',
@@ -567,7 +582,7 @@
 			visible: () => selected.length > 0,
 			groups: [
 				{ id: 'open', label: m.ribbon.groups.open, items: [commands.open, commands.openWith, commands.preview, commands.download, commands.send] },
-				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.rename, commands.moveTo, commands.delete, commands.properties] },
+				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.rename, commands.moveTo, commands.delete, commands.versions, commands.properties] },
 				{ id: 'select', label: m.ribbon.groups.select, items: [commands.selectAll, commands.clearSelection] }
 			]
 		},
@@ -1024,6 +1039,17 @@
 
 {#if properties}
 	<PropertiesDialog item={properties} onclose={() => (properties = null)} />
+{/if}
+{#if versionsOf}
+	<VersionsDialog
+		path={versionsOf}
+		onclose={() => (versionsOf = null)}
+		onrestored={(path) => {
+			manager.refresh();
+			const item = toItem({ name: basename(path), path, kind: 'file' });
+			toast(m.versions.restored(path), 'success', 8000, { label: m.versions.open, run: () => open(item) });
+		}}
+	/>
 {/if}
 {#if devicesUi.dialog === 'sync'}
 	<SyncDialog onclose={closeDevicesDialog} />

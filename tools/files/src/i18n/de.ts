@@ -260,6 +260,7 @@ const de: Messages = {
 		online: 'verbunden',
 		syncing: (done, total) => `synchronisiere … ${done}/${total}`,
 		lastSeen: (ago) => `zuletzt gesehen ${ago}`,
+		lastSeenVia: (ago, via) => `zuletzt ${ago} von ${via} gesehen`,
 		never: 'noch nicht gesehen',
 		unreachable: 'Online, aber nicht erreichbar. Vermutlich blockiert das Netz direkte Verbindungen (z. B. Mobilfunk oder Firmen-WLAN).',
 		outdated: 'Braucht ein Update: Öffne dort in-browser und lade die Seite neu.',
@@ -269,6 +270,10 @@ const de: Messages = {
 		probablyBehind: (changes, ago) => `Wahrscheinlich nicht aktuell: ${changes} seit dem letzten Sync ${ago}.`,
 		changes: (n, more) => (more ? `mehr als ${n} Änderungen` : n === 1 ? '1 Änderung' : `${n} Änderungen`),
 		waiting: 'Warte auf deine anderen Geräte. Öffne in-browser auf einem davon.',
+		allUpToDate: 'Alle deine Geräte sind aktuell. Änderungen wandern, sobald in-browser auf zweien davon geöffnet ist.',
+		ahead: 'Hat Änderungen, die diesem Gerät noch fehlen.',
+		selfAhead:
+			'Eines deiner anderen Geräte hat Änderungen, die diesem Gerät noch fehlen. Öffne in-browser dort (oder auf einem Gerät, das damit synchronisiert hat), bevor du hier weiterarbeitest – sonst können Konfliktkopien entstehen.',
 		selfBehind: (ago) =>
 			`Dieses Gerät wurde zuletzt ${ago} synchronisiert. Öffne in-browser auf einem deiner anderen Geräte, bevor du hier weiterarbeitest – sonst können Konfliktkopien entstehen.`,
 		excludedCount: (n) => (n === 1 ? '1 Ordner wird auf diesem Gerät nicht synchronisiert' : `${n} Ordner werden auf diesem Gerät nicht synchronisiert`),
@@ -337,7 +342,7 @@ const de: Messages = {
 		],
 		diagram: 'Drei Geräte, direkt miteinander verbunden, kein Server dazwischen',
 		expertSections: [
-			['Transport', 'WebRTC-DataChannels (SCTP über DTLS), direkt zwischen den Geräten, jedes mit jedem. STUN über stun.cloudflare.com, kein TURN – strenge NATs (symmetrisches NAT, CGNAT im Mobilfunk) verhindern deshalb oft eine Verbindung. Ein p2p-node nutzt die festen UDP-Ports 29400–29449 und lässt sie vom Router weiterleiten (UPnP), damit er von überall erreichbar ist.'],
+			['Transport', 'WebRTC-DataChannels (SCTP über DTLS), direkt zwischen den Geräten, jedes mit jedem. STUN über stun.cloudflare.com und stun.l.google.com, kein TURN – strenge NATs (symmetrisches NAT, CGNAT im Mobilfunk) verhindern deshalb oft eine Verbindung. Ein p2p-node nutzt die festen UDP-Ports 29400–29449 und lässt sie vom Router weiterleiten (UPnP), damit er von überall erreichbar ist.'],
 			['Signaling', 'Trystero über öffentliche Nostr-Relays. Sie sehen IP-Adressen, Zeitpunkte und einen Hash des Raums; Angebote und ICE-Kandidaten sind mit einem Schlüssel aus dem Raumgeheimnis verschlüsselt. Jedes Entfernen bringt ein neues Raumgeheimnis.'],
 			['Identität', 'Ed25519-Schlüsselpaar pro Gerät (WebCrypto, nicht exportierbar, IndexedDB). Die Geräte-ID ist der Fingerabdruck des öffentlichen Schlüssels. Die Anmeldung signiert eine Zufallszahl zusammen mit den DTLS-Fingerabdrücken der Verbindung, damit kein Relay dazwischen sitzen kann.'],
 			['Mitglieder', 'Hash-verkettetes Protokoll signierter Einträge (create, add, remove, rename), bei jedem Kontakt zusammengeführt. Entfernen schlägt gleichzeitige Einträge des entfernten Geräts; gegenseitiges gleichzeitiges Entfernen entfernt beide. Ein Gerät, das offline war, erfährt vom Entfernen über jedes Mitglied – trifft es zuerst das entfernte Gerät, kann dieses bis dahin noch mit ihm synchronisieren.'],
@@ -471,6 +476,7 @@ const de: Messages = {
 	trash: {
 		title: 'Papierkorb',
 		intro: 'Was du löschst, landet zuerst hier – auf all deinen Geräten, so kannst du es auf jedem zurückholen.',
+		localOnly: 'nur auf diesem Gerät',
 		elsewhere: 'Im synchronisierten Ordner auf deinem Rechner und beim p2p-node ist es der versteckte Ordner „.in-browser-trash“.',
 		summary: (n, size) => (n === 1 ? `1 Element, ${size}` : `${n} Elemente, ${size}`),
 		nothing: 'Der Papierkorb ist leer.',
@@ -491,6 +497,19 @@ const de: Messages = {
 		emptyMessage: (n) => (n === 1 ? '1 Element wird endgültig gelöscht, auf all deinen Geräten.' : `${n} Elemente werden endgültig gelöscht, auf all deinen Geräten.`),
 		more: (n) => `${n} weitere – stelle zuerst einige wieder her oder lösche sie.`,
 		close: 'Schließen'
+	},
+
+	versions: {
+		action: 'Frühere Versionen …',
+		tip: 'Was eine Synchronisation auf diesem Gerät ersetzt hat – als Kopie wiederherstellen',
+		title: (name) => `Frühere Versionen von „${name}“`,
+		intro: 'Ersetzt oder löscht eine Synchronisation diese Datei, weil sie auf einem anderen Gerät oder im synchronisierten Ordner geändert wurde, bleibt die Fassung von hier erhalten – nur auf diesem Gerät.',
+		none: 'Keine früheren Versionen auf diesem Gerät.',
+		replaced: (time) => `ersetzt ${time}`,
+		deleted: (time) => `gelöscht ${time}`,
+		restore: 'Wiederherstellen',
+		restored: (path) => `Als „${path}“ wiederhergestellt.`,
+		open: 'Öffnen'
 	},
 
 	help

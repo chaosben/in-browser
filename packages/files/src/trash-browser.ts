@@ -5,6 +5,8 @@ import { filesMessages } from './i18n/index.svelte.js';
 import { basename, isConnected } from './path.js';
 import { displayName } from './sources/registry.js';
 import { opfsTree } from './sync/opfs-tree.js';
+import type { Version } from './sync/versions.js';
+import { deletedVersions, removeVersions, restoreVersion } from './versions-browser.js';
 import {
 	DEFAULT_RETENTION,
 	entryPath,
@@ -27,7 +29,14 @@ export interface TrashItem extends TrashInfo {
 	entry: string;
 	/** Bytes (a folder: everything inside) */
 	size: number;
+	/**
+	 * Only on this device: what a sync deleted here because another side did (earlier versions, `versions-browser.ts`)
+	 * – a file, or a folder gone as a whole with its files
+	 */
+	versions?: Version[];
 }
+
+const LOCAL = 'local-';
 
 /** Moves files and folders into the trash; returns the entries (for undoing) */
 export async function moveToTrash(paths: string[]): Promise<TrashItem[]> {
@@ -111,28 +120,45 @@ async function sizeOf(path: string): Promise<number> {
 
 /** Everything in the trash, newest first (entries still arriving from another device are left out) */
 export async function listTrash(): Promise<TrashItem[]> {
-	if (!(await stat(TRASH_ROOT))) return [];
 	const items: TrashItem[] = [];
-	for (const { name, kind } of await list(TRASH_ROOT)) {
+	for (const { name, kind } of (await stat(TRASH_ROOT)) ? await list(TRASH_ROOT) : []) {
 		if (kind !== 'directory' || parseEntry(name) === null) continue;
 			const info = await readTrashInfo(opfsTree, name);
 		if (!info || !(await stat(itemPath(name, info.path)))) continue;
 		items.push({ ...info, entry: name, size: await sizeOf(itemPath(name, info.path)) });
 	}
+	for (const group of await deletedVersions().catch((e) => (console.warn('[Versions] listing failed', e), []))) {
+		items.push({
+			path: group.path,
+			kind: group.kind,
+			deleted: Math.max(...group.versions.map((v) => v.time)),
+			entry: LOCAL + group.versions[0].entry,
+			size: group.versions.reduce((sum, v) => sum + v.size, 0),
+			versions: group.versions
+		});
+	}
 	return items.sort((a, b) => b.deleted - a.deleted || a.path.localeCompare(b.path));
 }
 
 /** Puts an item back where it was (under a free name if that is taken now); returns its path */
-export const restoreFromTrash = (item: TrashItem): Promise<string> => untrashInTree(opfsTree, item);
+export async function restoreFromTrash(item: TrashItem): Promise<string> {
+	if (!item.versions) return untrashInTree(opfsTree, item);
+	const label = filesMessages().versions.restoredLabel;
+	for (const version of item.versions) await restoreVersion(version, label);
+	await removeVersions(item.versions);
+	return item.path;
+}
 
 /** Removes an entry for good */
 export async function deleteFromTrash(item: TrashItem): Promise<void> {
-	await remove(entryPath(item.entry));
+	if (item.versions) await removeVersions(item.versions);
+	else await remove(entryPath(item.entry));
 }
 
-/** Removes everything in the trash for good */
+/** Removes everything in the trash for good – also what syncs deleted on this device */
 export async function emptyTrash(): Promise<void> {
 	await remove(TRASH_ROOT);
+	for (const group of await deletedVersions()) await removeVersions(group.versions);
 }
 
 export async function trashRetention(): Promise<Retention> {

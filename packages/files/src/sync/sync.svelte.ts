@@ -10,7 +10,8 @@ import { opfsTree } from './opfs-tree.js';
 import type { Base, BaseEntry, HeldFolder, Op } from './plan.js';
 import { askAboveOf } from '../settings.js';
 import { storageEstimate } from '../cache.js';
-import { cleanTrash } from '../trash.js';
+import { cleanTrash, DEFAULT_RETENTION, retentionOf } from '../trash.js';
+import { cleanBrowserVersions, makeRoom } from '../versions-browser.js';
 import { journal } from './journal.svelte.js';
 import type { LogFn } from './log.js';
 import { excludedNow, startP2p } from '../p2p/p2p.svelte.js';
@@ -123,11 +124,20 @@ export function startSync() {
 
 let cleaning = false;
 
-/** Expired trash entries go, in one tab at a time (every browser, also without a folder or other devices) */
+/**
+ * Expired trash entries and earlier versions go, in one tab at a time (every browser, also without a folder or other
+ * devices); versions also when storage runs low
+ */
 function startTrashCleaning() {
 	if (cleaning || typeof navigator === 'undefined' || !navigator.locks || !navigator.storage?.getDirectory) return;
 	cleaning = true;
-	const clean = () => navigator.locks.request('files:trash-clean', { ifAvailable: true }, async (lock) => lock && cleanTrash(opfsTree));
+	const clean = () =>
+		navigator.locks.request('files:trash-clean', { ifAvailable: true }, async (lock) => {
+			if (!lock) return;
+			await cleanTrash(opfsTree);
+			const retention = await retentionOf(opfsTree).catch(() => DEFAULT_RETENTION);
+			await cleanBrowserVersions(retention).catch((e) => console.warn('[Versions] cleanup failed', e));
+		});
 	setTimeout(clean, 5000);
 	setInterval(clean, TRASH_INTERVAL);
 }
@@ -323,6 +333,7 @@ async function run(): Promise<void> {
 		const remote = intersect(await disk.scan(), excluded, scope);
 		const allowed = (await idbGet<string[]>(ALLOWED)) ?? [];
 		const limit = await askAboveOf(opfsTree);
+		await makeRoom();
 		const estimate = await storageEstimate().catch(() => null);
 		const free = estimate?.quota !== undefined ? estimate.quota - (estimate.usage ?? 0) : null;
 		log('folder.start', { folder: folder.name, local: local.size, disk: remote.size, base: base.size, scope });

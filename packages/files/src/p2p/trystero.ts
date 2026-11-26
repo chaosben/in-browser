@@ -24,7 +24,8 @@ export const RELAYS: readonly string[] = [
 	'wss://relay.primal.net',
 	'wss://relay.snort.social'
 ];
-export const STUN = 'stun:stun.cloudflare.com:3478';
+/** Tell each device its public address; several, so one failing server doesn't keep devices apart */
+export const STUN: readonly string[] = ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'];
 
 export interface TrysteroOptions {
 	/** WebRTC outside the browser (the p2p-node in Node) */
@@ -40,7 +41,7 @@ export const createTrysteroNetwork = ({ rtcPolyfill, relays = RELAYS }: Trystero
 				appId: APP_ID,
 				password,
 				identity: 'none',
-				rtcConfig: { iceServers: [{ urls: STUN }] },
+				rtcConfig: { iceServers: [{ urls: [...STUN] }] },
 				...(rtcPolyfill ? { rtcPolyfill } : {}),
 				relayConfig: { urls: [...relays] }
 			},

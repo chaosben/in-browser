@@ -66,18 +66,23 @@ export function advance(mine: Vector, myScope: readonly string[], theirs: Vector
 	return out;
 }
 
-/** Changes a device with this vector and these folders is missing: count of paths, `more` if the log is trimmed */
-export function missing(vector: Vector, scope: readonly string[], log: Change[]): { paths: number; more: boolean } {
+/**
+ * Changes a device with this vector and these folders is missing: count of paths, `more` if the log doesn't reach
+ * back far enough. With `upTo` only the changes up to those numbers count (what a device with that vector has).
+ */
+export function missing(vector: Vector, scope: readonly string[], log: Change[], upTo?: Vector): { paths: number; more: boolean } {
 	const paths = new Set<string>();
-	let more = false;
+	const known = new Map<string, number>();
 	const newest = new Map<string, number>();
-	const oldest = new Map<string, number>();
 	for (const change of log) {
+		if (upTo && change.n > (upTo[change.o] ?? 0)) continue;
 		newest.set(change.o, Math.max(newest.get(change.o) ?? 0, change.n));
-		oldest.set(change.o, Math.min(oldest.get(change.o) ?? Infinity, change.n));
-		if (change.n > (vector[change.o] ?? 0) && inScope(change.p, scope)) paths.add(change.p);
+		if (change.n <= (vector[change.o] ?? 0)) continue;
+		known.set(change.o, (known.get(change.o) ?? 0) + 1);
+		if (inScope(change.p, scope)) paths.add(change.p);
 	}
-	for (const [origin, first] of oldest) if ((vector[origin] ?? 0) < first - 1 && newest.get(origin)! > (vector[origin] ?? 0)) more = true;
+	// Numbers in between that the log doesn't hold (trimmed, or not here yet) may be anything
+	const more = Object.entries(upTo ?? Object.fromEntries(newest)).some(([origin, target]) => target - (vector[origin] ?? 0) > (known.get(origin) ?? 0));
 	return { paths: paths.size, more };
 }
 
@@ -88,14 +93,18 @@ export interface DeviceInfo {
 	lastSync: number;
 	scope: string[];
 	vector: Vector;
+	/** The device that told us the newest of this (`lastSeen`); missing: seen directly */
+	via?: string;
 }
 
-export function mergeDevices(a: Record<string, DeviceInfo>, b: Record<string, DeviceInfo>): Record<string, DeviceInfo> {
+/** Merges what `from` knows about the devices into what this one knows */
+export function mergeDevices(a: Record<string, DeviceInfo>, b: Record<string, DeviceInfo>, from?: string): Record<string, DeviceInfo> {
 	const out: Record<string, DeviceInfo> = { ...a };
 	for (const [id, info] of Object.entries(b)) {
 		const mine = out[id];
+		const told = from && from !== id ? { via: from } : {};
 		if (!mine) {
-			out[id] = info;
+			out[id] = { lastSeen: info.lastSeen, lastSync: info.lastSync, scope: info.scope, vector: info.vector, ...told };
 			continue;
 		}
 		const vector = { ...mine.vector };
@@ -104,7 +113,8 @@ export function mergeDevices(a: Record<string, DeviceInfo>, b: Record<string, De
 			lastSeen: Math.max(mine.lastSeen, info.lastSeen),
 			lastSync: Math.max(mine.lastSync, info.lastSync),
 			scope: info.lastSeen > mine.lastSeen ? info.scope : mine.scope,
-			vector
+			vector,
+			...(info.lastSeen > mine.lastSeen ? told : mine.via ? { via: mine.via } : {})
 		};
 	}
 	return out;

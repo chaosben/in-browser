@@ -73,6 +73,10 @@ const de: FilesMessages = {
 		forGoodConfirm: 'Löschen'
 	},
 
+	versions: {
+		restoredLabel: 'frühere Version'
+	},
+
 	document: {
 		saveFailed: (error) => `Speichern fehlgeschlagen: ${error}`,
 		changedTitle: (name) => `„${name}“ wurde woanders geändert`,
@@ -182,12 +186,15 @@ const de: FilesMessages = {
 		connected: (online, total) => `${online} von ${total} Geräten verbunden`,
 		waiting: 'Warte auf deine Geräte',
 		syncingWith: (name, done, total) => `Synchronisiere mit ${name} … ${done}/${total}`,
-		upToDate: 'Aktuell',
+		allUpToDate: 'Alle Geräte aktuell',
+		upToDate: 'aktuell',
+		ahead: 'hat Änderungen, die hier fehlen',
 		probablyBehind: (name) => `${name} wahrscheinlich nicht aktuell`,
 		selfBehind: 'Dieses Gerät ist nicht aktuell',
 		removed: 'Dieses Gerät wurde aus deinen Geräten entfernt',
 		online: 'verbunden',
 		lastSeen: (ago) => `zuletzt gesehen ${ago}`,
+		lastSeenVia: (ago, via) => `zuletzt ${ago} von ${via} gesehen`,
 		never: 'noch nicht gesehen',
 		unreachable: 'online, aber nicht erreichbar',
 		outdated: 'braucht ein Update von in-browser',

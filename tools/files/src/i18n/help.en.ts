@@ -156,6 +156,12 @@ const help = {
 			elsewhere: {
 				title: 'Trash in the folder on your computer',
 				text: 'In the synced folder on your computer and on a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files there are removed after the same time.'
+			},
+			versions: {
+				title: 'Earlier versions',
+				text: 'When a sync replaces or deletes a file here because it changed on another device or in the synced folder, the version that was here is kept on this device. A file deleted that way shows in the trash with “only on this device” next to its original location (a whole folder as one entry); “Restore” puts it back. For a file that was replaced, select it and choose “Earlier versions …” (tab “Selection”, or the menu of the file): it lists the versions with their date, and “Restore” puts one next to the file as “Name (earlier version)”, never over it. Greyed out for folders and for files that aren’t on this device.',
+				tip: 'Earlier versions stay on the device where the sync replaced the file – look on the device where you last had the version you want.',
+				link: { href: '/help/sync#trash', label: 'How long earlier versions stay' }
 			}
 		}
 	},
@@ -257,7 +263,7 @@ const help = {
 			},
 			status: {
 				title: 'Status of the devices',
-				text: 'The list shows this device (click its name to rename it) and every other one: connected, syncing, when it was last seen or synced. Hints in warning color say when a device is probably not up to date, can’t be reached (often mobile data or a company network) or needs an update. Syncing happens while at least two devices have in-browser open; “Sync now” starts it right away.',
+				text: 'The list shows this device (click its name to rename it) and every other one: connected, syncing, when it was last seen or synced – also when another device saw it (“last seen 2 hours ago by Laptop”) – and “up to date” when it has the same files as this one, as far as your devices know. Hints in warning color say when a device is probably not up to date, can’t be reached (often mobile data or a company network) or needs an update. Syncing happens while at least two devices have in-browser open; “Sync now” starts it right away.',
 				link: { href: '/help/sync', label: 'When devices don’t sync' }
 			},
 			folders: {

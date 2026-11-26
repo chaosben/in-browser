@@ -122,7 +122,11 @@
 	];
 
 	/** The second column: what the entry is – in the trash where it came from */
-	const second = (item: Item) => (item.origin === undefined ? kindOf(item) : item.origin === '/' ? t.root : item.origin);
+	const second = (item: Item) => {
+		if (item.origin === undefined) return kindOf(item);
+		const origin = item.origin === '/' ? t.root : item.origin;
+		return item.localOnly ? `${origin} · ${m.trash.localOnly}` : origin;
+	};
 </script>
 
 {#snippet name(item: Item, classes: string)}

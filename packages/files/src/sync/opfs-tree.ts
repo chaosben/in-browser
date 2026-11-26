@@ -2,6 +2,7 @@ import { FilesError } from '../entry.js';
 import { list, mkdir, move, read, remove, rootHandle, stat, writable } from '../opfs.js';
 import { scan } from './scan.js';
 import type { Tree } from './tree.js';
+import { keepInBrowser } from '../versions-browser.js';
 
 // My files on this device (OPFS) as the syncs see it – never routed elsewhere; every change goes through opfs.ts (locks,
 // `watch`)
@@ -20,6 +21,7 @@ export const opfsTree: Tree = {
 	mkdir,
 	remove,
 	move,
+	keep: keepInBrowser,
 	async names(folder) {
 		try {
 			return (await list(folder)).map((entry) => entry.name);

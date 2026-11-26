@@ -7,7 +7,7 @@
 	import { basename } from './path.js';
 	import type { DeviceView } from './p2p/view.js';
 	import { onP2pEvent, p2pStatus, syncDevicesNow } from './p2p/p2p.svelte.js';
-	import { selfStale } from './p2p/staleness.js';
+	import { behind as isBehind, selfStale, upToDate } from './p2p/staleness.js';
 	import { syncNow, syncStatus } from './sync/sync.svelte.js';
 	import { liveUrl } from './live-sessions.js';
 	import type { LiveView } from './p2p/view.js';
@@ -62,8 +62,10 @@
 	const others = $derived(view.devices.filter((d) => !d.self));
 	const online = $derived(others.filter((d) => d.online));
 	const syncing = $derived(others.find((d) => d.syncing));
-	const behind = $derived(others.find((d) => d.missing && (d.missing.changes > 0 || d.missing.more)));
-	const selfBehind = $derived(view.state === 'online' && selfStale(view.lastSync, online.length, now));
+	const behind = $derived(others.find((d) => d.missing && isBehind(d.missing)));
+	/** Every other device has the same state as this one, as far as known (also through other devices) */
+	const allUpToDate = $derived(others.every((d) => d.missing && upToDate(d.missing)));
+	const selfBehind = $derived(view.state === 'online' && selfStale(view.lastSync, view.behind, online.length, now));
 	const devices = $derived(view.state === 'online' && others.length > 0);
 	const folderProblem = $derived(!!syncStatus.folder && (syncStatus.state === 'paused' || syncStatus.failed > 0 || syncStatus.pendingDeletes > 0));
 	/** New folders waiting for confirmation (from the folder on disk and the other devices) */
@@ -93,7 +95,7 @@
 		}
 		if (selfBehind) return { label: p.selfBehind, tone: 'warn' };
 		if (behind) return { label: p.probablyBehind(behind.name), tone: 'warn' };
-		if (devices && !online.length) return { label: p.waiting, tone: 'idle' };
+		if (devices && !online.length) return allUpToDate ? { label: p.allUpToDate, tone: 'ok' } : { label: p.waiting, tone: 'idle' };
 		if (devices) return { label: p.connected(online.length, others.length), tone: 'ok' };
 		return { label: t.indicator.synced, tone: 'ok' };
 	});
@@ -109,10 +111,13 @@
 				: d.unreachable
 					? p.unreachable
 					: d.lastSeen
-						? p.lastSeen(formatAgo(d.lastSeen, now, lang.current))
+						? d.via
+							? p.lastSeenVia(formatAgo(d.lastSeen, now, lang.current), d.via)
+							: p.lastSeen(formatAgo(d.lastSeen, now, lang.current))
 						: p.never;
-		const missing = d.missing && (d.missing.changes || d.missing.more) ? ` · ${p.missing(d.missing.changes, d.missing.more)}` : '';
-		return `${d.name}: ${state}${missing}`;
+		const s = d.missing;
+		const known = !s ? '' : isBehind(s) ? ` · ${p.missing(s.changes, s.more)}` : s.ahead ? ` · ${p.ahead}` : d.online ? '' : ` · ${p.upToDate}`;
+		return `${d.name}: ${state}${known}`;
 	}
 
 	function menu(e: MouseEvent) {

@@ -15,6 +15,8 @@ export interface Item extends Entry {
 	openWith: Format[];
 	/** An entry of the trash: the folder it was deleted from */
 	origin?: string;
+	/** An entry of the trash that only this device has: deleted here by a sync (earlier versions) */
+	localOnly?: boolean;
 }
 
 export function toItem(entry: Entry): Item {

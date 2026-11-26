@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advance, mergeLogs, missing, record, type Change } from './knowledge.js';
+import { advance, mergeDevices, mergeLogs, missing, record, type Change } from './knowledge.js';
+import { staleness, upToDate } from './staleness.js';
 
 describe('knowledge', () => {
 	it('counts what a device misses, indirectly updated devices included (A → B → C)', () => {
@@ -32,5 +33,21 @@ describe('knowledge', () => {
 	it('reports a trimmed log as “more”', () => {
 		const log: Change[] = [{ o: 'A', n: 50, p: '/a' }];
 		expect(missing({ A: 10 }, [], log)).toEqual({ paths: 1, more: true });
+	});
+
+	// A changes /x; B syncs with A, C with B. A never meets C and learns about it through B
+	it.each([
+		{ name: 'C has the same state', cChanges: false, logHasIt: false, expected: true },
+		{ name: 'C changed something A has in its log, but not yet', cChanges: true, logHasIt: true, expected: false },
+		{ name: 'C changed something A doesn’t even know of', cChanges: true, logHasIt: false, expected: false }
+	])('judges a device known only through another one: $name', ({ cChanges, logHasIt, expected }) => {
+		const a = record([], {}, 'A', '/x');
+		const b = advance({}, [], a.vector, [], a.log);
+		let c = { log: a.log, vector: advance({}, [], b, [], a.log) };
+		if (cChanges) c = record(c.log, c.vector, 'C', '/z');
+		const log = logHasIt ? mergeLogs(a.log, c.log) : a.log;
+		const devices = mergeDevices({}, { C: { lastSeen: 100, lastSync: 100, scope: [], vector: c.vector } }, 'B');
+		expect(devices.C.via).toBe('B');
+		expect(upToDate(staleness(devices.C, log, { vector: a.vector, scope: [] }))).toBe(expected);
 	});
 });

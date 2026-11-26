@@ -268,6 +268,8 @@ const en = {
 		online: 'connected',
 		syncing: (done: number, total: number) => `syncing … ${done}/${total}`,
 		lastSeen: (ago: string) => `last seen ${ago}`,
+		/** Seen by another device, not by this one */
+		lastSeenVia: (ago: string, via: string) => `last seen ${ago} by ${via}`,
 		never: 'not seen yet',
 		unreachable: 'Online, but can’t be reached. The network probably blocks direct connections (e.g. mobile data or a company network).',
 		outdated: 'Needs an update: open in-browser there and reload the page.',
@@ -277,6 +279,12 @@ const en = {
 		probablyBehind: (changes: string, ago: string) => `Probably not up to date: ${changes} since the last sync ${ago}.`,
 		changes: (n: number, more: boolean) => (more ? `more than ${n} changes` : n === 1 ? '1 change' : `${n} changes`),
 		waiting: 'Waiting for your other devices. Open in-browser on one of them.',
+		/** No other device connected, but all have the same state as this one (as far as known) */
+		allUpToDate: 'All your devices are up to date. Changes travel as soon as in-browser is open on two of them.',
+		/** Another device has changes this one doesn’t have yet */
+		ahead: 'Has changes this device doesn’t have yet.',
+		selfAhead:
+			'Another of your devices has changes this device doesn’t have yet. Open in-browser there (or on a device that synced with it) before you continue here – otherwise conflict copies may appear.',
 		selfBehind: (ago: string) =>
 			`This device was last synced ${ago}. Open in-browser on one of your other devices before you continue here – otherwise conflict copies may appear.`,
 		excludedCount: (n: number) => (n === 1 ? '1 folder not synced on this device' : `${n} folders not synced on this device`),
@@ -345,7 +353,7 @@ const en = {
 		],
 		diagram: 'Three devices connected directly with each other, no server in between',
 		expertSections: [
-			['Transport', 'WebRTC data channels (SCTP over DTLS), directly between the devices, each with each. STUN via stun.cloudflare.com, no TURN – so strict NATs (symmetric NAT, CGNAT on mobile networks) often prevent a connection. A p2p-node uses the fixed UDP ports 29400–29449 and has the router forward them (UPnP), so it is reachable from anywhere.'],
+			['Transport', 'WebRTC data channels (SCTP over DTLS), directly between the devices, each with each. STUN via stun.cloudflare.com and stun.l.google.com, no TURN – so strict NATs (symmetric NAT, CGNAT on mobile networks) often prevent a connection. A p2p-node uses the fixed UDP ports 29400–29449 and has the router forward them (UPnP), so it is reachable from anywhere.'],
 			['Signaling', 'Trystero over public Nostr relays. They see IP addresses, timing and a hash of the room; offers and ICE candidates are encrypted with a key derived from the room secret. Every removal brings a new room secret.'],
 			['Identity', 'Ed25519 key pair per device (WebCrypto, not extractable, IndexedDB). The device ID is the fingerprint of the public key. Signing in signs a nonce together with the DTLS fingerprints of the connection, so no relay can sit in between.'],
 			['Members', 'Hash-chained log of signed entries (create, add, remove, rename), merged on every contact. A removal beats concurrent entries of the removed device; mutual concurrent removals remove both. A device that was offline learns about a removal from any member – if it meets the removed device first, that one can still sync with it until then.'],
@@ -484,6 +492,8 @@ const en = {
 		title: 'Trash',
 		intro: 'What you delete lands here first – on all your devices, so you can get it back on any of them.',
 		elsewhere: 'In the synced folder on your computer and with a p2p-node it is the hidden folder “.in-browser-trash”.',
+		/** Deleted here by a sync because it was deleted elsewhere past the trash (an earlier version of this device) */
+		localOnly: 'only on this device',
 		summary: (n: number, size: string) => (n === 1 ? `1 item, ${size}` : `${n} items, ${size}`),
 		nothing: 'The trash is empty.',
 		kept: (days: number | null) => (days === null ? 'Items stay until you empty the trash.' : `Items stay ${days} days, then they are removed for good.`),
@@ -503,6 +513,21 @@ const en = {
 		emptyMessage: (n: number) => (n === 1 ? '1 item is deleted for good, on all your devices.' : `${n} items are deleted for good, on all your devices.`),
 		more: (n: number) => `${n} more – restore or delete some first.`,
 		close: 'Close'
+	},
+
+	/** “Earlier versions …” of a file: what a sync replaced or deleted on this device */
+	versions: {
+		action: 'Earlier versions …',
+		tip: 'What a sync replaced on this device – restore one as a copy',
+		title: (name: string) => `Earlier versions of “${name}”`,
+		intro: 'When a sync replaces or deletes this file because it changed on another device or in the synced folder, the version that was here is kept – on this device only.',
+		none: 'No earlier versions on this device.',
+		/** Date of the version itself is shown above; this is when the sync took it away */
+		replaced: (time: string) => `replaced ${time}`,
+		deleted: (time: string) => `deleted ${time}`,
+		restore: 'Restore',
+		restored: (path: string) => `Restored as “${path}”.`,
+		open: 'Open'
 	},
 
 	/** Help window and the page `/help/files` (topics in help.en.ts) */

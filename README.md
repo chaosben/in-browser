@@ -30,7 +30,8 @@ User help is on the site, not here: https://in-browser.org/help (pages in `src/r
 Your devices sync their files directly with each other over WebRTC; only encrypted connection offers pass through
 public Nostr relays. Both syncs (devices and a folder on disk) share one way of applying changes
 (`packages/files/src/sync/apply.ts`): the newer version wins, the other one becomes a conflict copy, and what the user
-deletes goes into the synced trash `/.in-browser-trash/` (`packages/files/src/trash.ts`). Folders a device doesn't
+deletes goes into the synced trash `/.in-browser-trash/` (`packages/files/src/trash.ts`); what a sync replaces or
+deletes is kept per device as an earlier version (`packages/files/src/sync/versions.ts`). Folders a device doesn't
 sync open live from a device that has them (live requests on the same connections, `packages/files/src/p2p/live.ts`).
 A guest share gives one folder or file to a browser outside the group (by link, QR code or four words): the guest
 gets a copy kept in sync by the same sessions (`packages/files/src/p2p/session.ts`, `share-tree.ts`) and deleted

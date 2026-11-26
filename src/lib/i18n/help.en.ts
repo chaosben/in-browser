@@ -114,7 +114,7 @@ const help = {
 						},
 						when: {
 							title: 'When devices sync',
-							text: 'Two devices sync while both have in-browser open – one tab is enough, the overview or any tool, also in the background. On a phone the page has to be in front. What a device missed is caught up the next time it meets one of the others; the hint “Probably not up to date” in Files shows which device may still lack changes.',
+							text: 'Two devices sync while both have in-browser open – one tab is enough, the overview or any tool, also in the background. On a phone the page has to be in front. What a device missed is caught up the next time it meets one of the others – also through a third one: what your laptop got from the p2p-node, your phone gets from the laptop. Each device knows what the others have, also when it learned that through another device: a device that isn’t open shows “up to date” with when and by whom it was last seen (“last seen 2 hours ago by Laptop”), and the footer says “All devices up to date”. The hint “Probably not up to date” shows which device may still lack changes; “This device is not up to date” that another one has changes this device doesn’t have yet.',
 							tip: 'If your devices are rarely open at the same time, set up a p2p-node on a computer or home server that is always on: it syncs with each device whenever that one is open.'
 						},
 						p2pNode: {
@@ -215,6 +215,12 @@ const help = {
 						folder: {
 							title: 'In a folder on disk',
 							text: 'In the synced folder on your computer and with a p2p-node, the trash is the hidden folder “.in-browser-trash”. Files you delete in such a folder with another program are synced as deletions – the trash of your system keeps those.'
+						},
+						versions: {
+							title: 'Earlier versions',
+							text: 'When a sync replaces or deletes a file on a device because it changed elsewhere, the version that was there is kept on that device – not synced, so each device keeps its own. Files deleted that way (e.g. in the synced folder with another program) are in the trash marked “only on this device”; replaced versions are under “Earlier versions …” in the menu of a file in Files. Restoring puts a copy next to the file, never over it. They stay as long as the trash keeps items; when the browser’s storage runs low, the oldest go first. A p2p-node keeps them in the folder “versions” of its instance.',
+							tip: 'Something you didn’t want got overwritten by a sync? Look under “Earlier versions …” of that file on the device where you last had the right version.',
+							link: { href: '/help/files', label: 'Earlier versions in Files' }
 						}
 					}
 				},
@@ -241,7 +247,7 @@ const help = {
 						},
 						relays: {
 							title: 'What third parties see',
-							text: 'To find each other, devices post encrypted connection offers on public Nostr relays. The relays see IP addresses and timing, but not your files, file names or device names. A STUN server of Cloudflare tells each device its public address.'
+							text: 'To find each other, devices post encrypted connection offers on public Nostr relays. The relays see IP addresses and timing, but not your files, file names or device names. STUN servers of Cloudflare and Google tell each device its public address (it asks both, so one failing doesn’t keep your devices apart); they see the address, nothing else.'
 						}
 					}
 				},
@@ -451,7 +457,7 @@ const help = {
 								pair: { label: 'pair <name> <link>', text: 'Adds a new instance as a device. “--folder <dir>” picks the synced folder (default: inside the data folder), “--name <device name>” the name your devices see, “--exclude <folder>” leaves a folder of My files out (repeat it for more, e.g. “--exclude Videos --exclude Photos/2019”). Without “--exclude” the computer gets everything.' },
 								run: { label: 'run <name>', text: 'Runs an instance in the foreground, e.g. to watch it.' },
 								install: { label: 'install <name>', text: 'Runs it in the background and at every start. “uninstall <name>” stops that and keeps the data.' },
-								status: { label: 'status [<name>]', text: 'Shows devices, folder and trash of one or all instances.' },
+								status: { label: 'status [<name>]', text: 'Shows devices, folder, trash and earlier versions of one or all instances.' },
 								update: { label: 'update', text: 'Looks for a new version now instead of within the hour.' }
 							}
 						},

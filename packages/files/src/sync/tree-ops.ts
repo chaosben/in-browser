@@ -5,6 +5,7 @@ import { ignored, type FileState } from './plan.js';
 import type { LogFn } from './log.js';
 import { stateOf } from './scan.js';
 import { unchanged, type Tree } from './tree.js';
+import { versioned, type VersionReason } from './versions.js';
 
 // The single steps of a sync on a tree, with the rules that keep the user's data (see `apply.ts`): writing a file via a
 // hidden temporary file, deleting and renaming only what is still as planned, conflict copies, content hashes – and
@@ -92,6 +93,12 @@ async function copyFolder(tree: Tree, from: string, to: string, root = false): P
 
 export const validName = (path: string) => segments(path).every((name) => !nameProblem(name));
 
+/** Takes away a file a sync replaces or deletes: into the earlier versions where the tree keeps them (`version`) */
+async function retire(tree: Tree, path: string, reason: VersionReason, version: boolean) {
+	if (version && tree.keep && versioned(path)) await tree.keep(path, reason);
+	else await tree.remove(path);
+}
+
 /** Deletes a file that may still be open for writing for a moment (aborted transfer) */
 async function removeSoon(tree: Tree, path: string) {
 	for (let attempt = 0; attempt < 20; attempt++) {
@@ -115,7 +122,20 @@ export async function receive<T>(
 	tree: Tree,
 	path: string,
 	fill: (target: WritableStream<Uint8Array>) => Promise<T>,
-	{ keep, expect, onWrite = () => {}, packages }: { keep?: string; expect: FileState | null; onWrite?: (path: string) => void; packages?: PackageCopies }
+	{
+		keep,
+		expect,
+		onWrite = () => {},
+		packages,
+		version = false
+	}: {
+		keep?: string;
+		expect: FileState | null;
+		onWrite?: (path: string) => void;
+		packages?: PackageCopies;
+		/** A sync replaces it: the version there is kept as an earlier version (`Tree.keep`) */
+		version?: boolean;
+	}
 ): Promise<{ result: T; copy?: string } | { stale: true }> {
 	const temp = join(parent(path), `.p2p-${crypto.randomUUID()}.part`);
 	onWrite(temp);
@@ -148,7 +168,7 @@ export async function receive<T>(
 				copy = await conflictPath(tree, path, keep);
 				onWrite(copy);
 				await tree.move(path, copy);
-			} else await tree.remove(path);
+			} else await retire(tree, path, 'replaced', version);
 		}
 		await tree.move(temp, path);
 		return { result, copy };
@@ -158,7 +178,7 @@ export async function receive<T>(
 	}
 }
 
-/** Deletes what the plan saw: a file only while unchanged, a folder only while empty */
+/** Deletes what the plan saw: a file only while unchanged (kept as an earlier version where the tree keeps them), a folder only while empty */
 export async function discard(tree: Tree, path: string, kind: FileState['kind'], expect: FileState | null, onWrite: (path: string) => void = () => {}): Promise<Outcome> {
 	if (kind === 'directory') {
 		if ((await tree.names(path)).length) return 'kept';
@@ -170,7 +190,7 @@ export async function discard(tree: Tree, path: string, kind: FileState['kind'],
 	if (!current) return 'done';
 	if (!unchanged(current, expect)) return 'stale';
 	onWrite(path);
-	await tree.remove(path);
+	await retire(tree, path, 'deleted', true);
 	return 'done';
 }
 
@@ -218,7 +238,7 @@ export function treeSide(
 				await upload.cancel().catch(() => {});
 				throw new Error(`Invalid name: ${path}`);
 			}
-			const received = await receive(tree, path, (target) => upload.pipeTo(target), { keep, expect, onWrite, packages: packages?.() ?? own });
+			const received = await receive(tree, path, (target) => upload.pipeTo(target), { keep, expect, onWrite, packages: packages?.() ?? own, version: true });
 			if ('stale' in received) {
 				log?.('serve.stale', { path, expect });
 				return received;

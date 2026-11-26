@@ -9,7 +9,8 @@ import type { Tree } from './sync/tree.js';
 // file or folder: `/.in-browser-trash/<entry>/.trashinfo.json` (where it was, when) plus the item under its full
 // original path (`…/<entry>/Docs/Plan.md`), so the folder choice of a device applies to it without reading anything.
 // Entries are removed after the retention the user picked (suite settings, `settings.ts` – synced as well).
-// What the syncs delete or replace because another side did is not kept (the syncs keep no versions).
+// What the syncs delete or replace because another side did is kept per device as an earlier version instead
+// (`sync/versions.ts`), not here.
 
 export const TRASH_ROOT = '/.in-browser-trash';
 export const TRASH_INFO = '.trashinfo.json';

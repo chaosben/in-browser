@@ -4,6 +4,8 @@ import type { FileState, Snapshot } from './plan.js';
  * A file system as the syncs see it: the shared OPFS in the app (`opfs-tree.ts`), a folder on disk (`handle-tree.ts`
  * in the browser, `fsTree` in the p2p-node) or a separate folder per simulated device in the specs.
  */
+import type { VersionReason } from './versions.js';
+
 export interface Tree {
 	/** Everything below the root; throws when something can't be read (never reports it as missing) */
 	scan(): Promise<Snapshot>;
@@ -17,6 +19,11 @@ export interface Tree {
 	move(from: string, to: string): Promise<void>;
 	/** Names in a folder (`[]` if it doesn't exist; throws if it can't be read) */
 	names(folder: string): Promise<string[]>;
+	/**
+	 * Takes a file out of the tree into the earlier versions of this device (`versions.ts`) instead of deleting it;
+	 * only trees that keep versions have it
+	 */
+	keep?(path: string, reason: VersionReason): Promise<void>;
 }
 
 /** Whether a path is still in the state a plan saw (`null`: not there) */

@@ -110,7 +110,7 @@ const help: typeof enHelp = {
 						},
 						when: {
 							title: 'Wann sich Geräte synchronisieren',
-							text: 'Zwei Geräte synchronisieren sich, solange auf beiden in-browser offen ist – ein Tab reicht, die Übersicht oder irgendein Tool, auch im Hintergrund. Auf dem Telefon muss die Seite im Vordergrund sein. Was ein Gerät verpasst hat, holt es nach, sobald es wieder auf eines der anderen trifft; der Hinweis „Wahrscheinlich nicht aktuell“ in Dateien zeigt, welchem Gerät noch Änderungen fehlen könnten.',
+							text: 'Zwei Geräte synchronisieren sich, solange auf beiden in-browser offen ist – ein Tab reicht, die Übersicht oder irgendein Tool, auch im Hintergrund. Auf dem Telefon muss die Seite im Vordergrund sein. Was ein Gerät verpasst hat, holt es nach, sobald es wieder auf eines der anderen trifft – auch über ein drittes: Was dein Laptop vom p2p-node bekommen hat, bekommt dein Telefon vom Laptop. Jedes Gerät weiß, was die anderen haben, auch wenn es das über ein anderes Gerät erfahren hat: Ein Gerät, das nicht offen ist, zeigt „aktuell“ mit wann und von wem es zuletzt gesehen wurde („zuletzt vor 2 Stunden von Laptop gesehen“), und die Fußzeile sagt „Alle Geräte aktuell“. Der Hinweis „Wahrscheinlich nicht aktuell“ zeigt, welchem Gerät noch Änderungen fehlen könnten; „Dieses Gerät ist nicht aktuell“, dass ein anderes Änderungen hat, die diesem noch fehlen.',
 							tip: 'Sind deine Geräte selten gleichzeitig offen, richte einen p2p-node auf einem Rechner oder Heimserver ein, der immer läuft: Er synchronisiert sich mit jedem Gerät, sobald es offen ist.'
 						},
 						p2pNode: {
@@ -211,6 +211,12 @@ const help: typeof enHelp = {
 						folder: {
 							title: 'In einem Ordner auf der Festplatte',
 							text: 'Im synchronisierten Ordner auf deinem Rechner und bei einem p2p-node ist der Papierkorb der versteckte Ordner „.in-browser-trash“. Dateien, die du in so einem Ordner mit einem anderen Programm löschst, werden als Löschung synchronisiert – die behält der Papierkorb deines Systems.'
+						},
+						versions: {
+							title: 'Frühere Versionen',
+							text: 'Ersetzt oder löscht eine Synchronisation auf einem Gerät eine Datei, weil sie woanders geändert wurde, bleibt die Fassung von dort auf diesem Gerät erhalten – nicht synchronisiert, jedes Gerät behält seine eigenen. So gelöschte Dateien (z. B. im synchronisierten Ordner mit einem anderen Programm) liegen im Papierkorb mit dem Vermerk „nur auf diesem Gerät“; ersetzte Fassungen findest du unter „Frühere Versionen …“ im Menü einer Datei in Dateien. Wiederherstellen legt eine Kopie neben die Datei, nie darüber. Sie bleiben so lange, wie der Papierkorb Gelöschtes behält; wird der Speicher des Browsers knapp, gehen die ältesten zuerst. Ein p2p-node behält sie im Ordner „versions“ seiner Instanz.',
+							tip: 'Hat eine Synchronisation etwas überschrieben, das du behalten wolltest? Sieh unter „Frühere Versionen …“ dieser Datei auf dem Gerät nach, auf dem du zuletzt die richtige Fassung hattest.',
+							link: { href: '/help/files', label: 'Frühere Versionen in Dateien' }
 						}
 					}
 				},
@@ -237,7 +243,7 @@ const help: typeof enHelp = {
 						},
 						relays: {
 							title: 'Was Dritte sehen',
-							text: 'Um sich zu finden, legen die Geräte verschlüsselte Verbindungsangebote auf öffentlichen Nostr-Relays ab. Die Relays sehen IP-Adressen und Zeitpunkte, aber weder deine Dateien noch Datei- oder Gerätenamen. Ein STUN-Server von Cloudflare nennt jedem Gerät seine öffentliche Adresse.'
+							text: 'Um sich zu finden, legen die Geräte verschlüsselte Verbindungsangebote auf öffentlichen Nostr-Relays ab. Die Relays sehen IP-Adressen und Zeitpunkte, aber weder deine Dateien noch Datei- oder Gerätenamen. STUN-Server von Cloudflare und Google nennen jedem Gerät seine öffentliche Adresse (es fragt beide, damit ein ausgefallener deine Geräte nicht trennt); sie sehen die Adresse, sonst nichts.'
 						}
 					}
 				},
@@ -447,7 +453,7 @@ const help: typeof enHelp = {
 								pair: { label: 'pair <name> <link>', text: 'Fügt eine neue Instanz als Gerät hinzu. „--folder <dir>“ wählt den synchronisierten Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen, „--exclude <ordner>“ lässt einen Ordner von Meine Dateien aus (für mehrere wiederholen, z. B. „--exclude Videos --exclude Fotos/2019“). Ohne „--exclude“ bekommt der Rechner alles.' },
 								run: { label: 'run <name>', text: 'Startet eine Instanz im Vordergrund, z. B. um zuzusehen.' },
 								install: { label: 'install <name>', text: 'Lässt sie im Hintergrund und bei jedem Start laufen. „uninstall <name>“ beendet das und behält die Daten.' },
-								status: { label: 'status [<name>]', text: 'Zeigt Geräte, Ordner und Papierkorb einer oder aller Instanzen.' },
+								status: { label: 'status [<name>]', text: 'Zeigt Geräte, Ordner, Papierkorb und frühere Versionen einer oder aller Instanzen.' },
 								update: { label: 'update', text: 'Sucht jetzt nach einer neuen Version statt innerhalb der Stunde.' }
 							}
 						},
