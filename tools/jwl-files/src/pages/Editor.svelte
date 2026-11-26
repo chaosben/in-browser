@@ -13,8 +13,9 @@
 	import { formatDateTime } from '@in-browser/brand/i18n/tool.js';
 	import Modal from '@in-browser/brand/Modal.svelte';
 	import Ribbon from '@in-browser/brand/Ribbon.svelte';
+	import TagField from '@in-browser/brand/TagField.svelte';
 	import type { RibbonTab } from '@in-browser/brand/ribbon.js';
-	import { openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
+	import { type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
@@ -54,14 +55,14 @@
 		renamePlaylist,
 		renameTag,
 		reorder,
-		tagNotes,
+		setNoteTags,
 		trimItem,
 		tagsOfNote,
 		userTags,
 		type NewItem
 	} from '@in-browser/jwl/edits.js';
 	import { DEVICE_NAME, JwlError, readJwl, writeJwl } from '@in-browser/jwl/jwl-file.js';
-	import { TAG_PLAYLIST, parseTime, tagKey, type JwlData } from '@in-browser/jwl/model.js';
+	import { TAG_PLAYLIST, TAG_USER, parseTime, tagKey, type JwlData } from '@in-browser/jwl/model.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { JwlDocument } from '#lib/model/document.svelte.js';
 	import { MEDIA_EXTENSIONS, isVideo, newItem } from '#lib/model/media.js';
@@ -94,8 +95,13 @@
 	let tagFilter = $state<string[]>([]);
 	let tagMatch = $state<'all' | 'any'>('all');
 	const pick = new Picker<string>();
-	/** The note open in the dialog, with what is typed */
-	let editing = $state<{ guid: string; title: string; content: string } | null>(null);
+	/**
+	 * The dialog of notes: one note's title and text (`text`), and the tags of the notes – those all have (`tags`) and
+	 * those only some have (`partial`); `before` is what they had when it opened
+	 */
+	let editing = $state<{ guids: string[]; text: boolean; title: string; content: string; tags: string[]; partial: string[]; before: string[] } | null>(null);
+	/** The tag field of the notes' filter */
+	let filterInput = $state<HTMLInputElement>();
 	/** The playlist item being trimmed */
 	let trimming = $state<string | null>(null);
 	/** The tag renamed in place */
@@ -273,13 +279,35 @@
 
 	function openNote(guid: string) {
 		const note = data?.notes.get(guid);
-		if (note) editing = { guid, title: note.title ?? '', content: note.content ?? '' };
+		if (!data || !note) return;
+		const tags = tagsOfNote(data, guid);
+		editing = { guids: [guid], text: true, title: note.title ?? '', content: note.content ?? '', tags, partial: [], before: tags };
 	}
 
+	/** “Tags …”: the tags of the selected notes */
+	function openTags(guids: string[]) {
+		if (!data || !guids.length) return;
+		const of = guids.map((g) => tagsOfNote(data, g));
+		const any = [...new Set(of.flat())];
+		const tags = any.filter((k) => of.every((t) => t.includes(k)));
+		editing = { guids, text: false, title: '', content: '', tags, partial: any.filter((k) => !tags.includes(k)), before: any };
+	}
+
+	/** “Done”: title, text and tags as one step */
 	function keepNote() {
-		if (editing && data) change(editNote(data, editing.guid, { title: editing.title, content: editing.content }));
+		if (!editing || !data) return;
+		const { guids, tags, partial, before } = editing;
+		let next = editing.text ? editNote(data, guids[0], { title: editing.title, content: editing.content }) : data;
+		const all = guids.map((g) => tagsOfNote(data, g));
+		const on = tags.filter((k) => !all.every((t) => t.includes(k)));
+		const off = before.filter((k) => !tags.includes(k) && !partial.includes(k));
+		if (on.length || off.length) next = setNoteTags(next, guids, on, off);
+		if (next !== data) change(next);
 		editing = null;
 	}
+
+	const tagOptions = $derived(tags.map((t) => ({ id: t.id, label: t.name })));
+	const newTagKey = (name: string) => tagKey({ type: TAG_USER, name });
 
 	function newTag() {
 		if (!data) return;
@@ -476,7 +504,7 @@
 			label: m.commands.tagNotes,
 			icon: 'icon-[material-symbols-light--sell-outline]',
 			enabled: () => view === 'notes' && has() && editable(),
-			menu: () => tagMenu()
+			run: () => openTags(selected)
 		},
 		filterTags: {
 			id: 'filterTags',
@@ -485,7 +513,7 @@
 			icon: 'icon-[material-symbols-light--filter-alt-outline]',
 			active: () => filtering.length > 0,
 			enabled: () => view === 'notes' && tags.length > 0,
-			menu: () => filterMenu()
+			run: () => filterInput?.focus()
 		},
 		recolor: {
 			id: 'recolor',
@@ -596,26 +624,6 @@
 		},
 		removeItems: { id: 'removeItems', label: m.commands.removeItems, icon: 'icon-[material-symbols-light--playlist-remove]', enabled: () => !!list && has() && editable(), run: () => data && change(removeItems(data, selected)) }
 	} satisfies Record<string, Command>;
-
-	function tagMenu(): MenuEntry[] {
-		if (!data) return [];
-		if (!tags.length) return [{ label: m.notes.tagsNone, disabled: true, run: () => {} }];
-		return tags.map((t) => {
-			const on = selected.every((guid) => tagsOfNote(data, guid).includes(t.id));
-			return { label: t.name, checked: on, run: () => change(tagNotes(data, selected, t.id, !on)) };
-		});
-	}
-
-	/** Tags to filter the notes by: each a switch; several narrow down (or widen, with “one of them”) */
-	function filterMenu(): MenuEntry[] {
-		const entries: MenuEntry[] = tags.map((t) => ({
-			label: t.name,
-			checked: filtering.includes(t.id),
-			run: () => (tagFilter = filtering.includes(t.id) ? filtering.filter((k) => k !== t.id) : [...filtering, t.id])
-		}));
-		if (filtering.length) entries.push({ separator: true }, { label: m.notes.clearFilter, icon: 'icon-[material-symbols-light--filter-alt-off-outline]', run: () => (tagFilter = []) });
-		return entries;
-	}
 
 	function colorMenu(): MenuEntry[] {
 		if (!data) return [];
@@ -813,33 +821,24 @@
 					{#if isBackup}<p class="text-sm opacity-70">{m.overview.mergeHint}</p>{/if}
 					<p class="text-sm opacity-70">{m.overview.backHint}</p>
 				{:else if view === 'notes'}
-					<div class="flex gap-2">
-						<label class="input input-sm min-w-0 flex-1">
+					<div class="flex flex-wrap items-start gap-2">
+						<label class="input input-sm min-w-48 flex-1">
 							<span class="icon-[material-symbols-light--search] size-5 opacity-60" aria-hidden="true"></span>
 							<input type="search" placeholder={m.notes.search} aria-label={m.notes.search} bind:value={query} />
 						</label>
-						<button class={['btn btn-sm', filtering.length && 'btn-active']} disabled={!tags.length} title={m.commands.filterTagsTip} onclick={(e) => openMenuBelow(e, filterMenu())}>
-							<span class="icon-[material-symbols-light--filter-alt-outline] size-5" aria-hidden="true"></span>{m.notes.tagsButton}{#if filtering.length}<span class="badge badge-sm">{filtering.length}</span>{/if}
-							<span class="icon-[material-symbols-light--arrow-drop-down] size-5" aria-hidden="true"></span>
-						</button>
+						{#if tags.length}
+							<div class="min-w-48 flex-1">
+								<TagField options={tagOptions} bind:value={tagFilter} bind:input={filterInput} label={m.notes.filterLabel} placeholder={m.notes.filterPlaceholder} size="sm" />
+							</div>
+						{/if}
 					</div>
-					{#if filtering.length}
+					{#if filtering.length > 1}
 						<div class="flex flex-wrap items-center gap-1">
-							{#each filtering as key (key)}
-								<span class="badge badge-outline gap-1">
-									{data.tags.get(key)?.name}
-									<button class="cursor-pointer opacity-70 hover:opacity-100" aria-label={m.notes.removeFilter(data.tags.get(key)?.name ?? '')} title={m.notes.removeFilter(data.tags.get(key)?.name ?? '')} onclick={() => (tagFilter = filtering.filter((k) => k !== key))}>
-										<span class="icon-[material-symbols-light--close] size-4" aria-hidden="true"></span>
-									</button>
-								</span>
-							{/each}
-							{#if filtering.length > 1}
-								<span class="ml-1 text-sm opacity-70">{m.notes.match}</span>
-								<div class="join" role="group" aria-label={m.notes.match}>
-									<button class={['btn btn-xs join-item', tagMatch === 'all' && 'btn-active']} aria-pressed={tagMatch === 'all'} onclick={() => (tagMatch = 'all')}>{m.notes.matchAll}</button>
-									<button class={['btn btn-xs join-item', tagMatch === 'any' && 'btn-active']} aria-pressed={tagMatch === 'any'} onclick={() => (tagMatch = 'any')}>{m.notes.matchAny}</button>
-								</div>
-							{/if}
+							<span class="text-sm opacity-70">{m.notes.match}</span>
+							<div class="join" role="group" aria-label={m.notes.match}>
+								<button class={['btn btn-xs join-item', tagMatch === 'all' && 'btn-active']} aria-pressed={tagMatch === 'all'} onclick={() => (tagMatch = 'all')}>{m.notes.matchAll}</button>
+								<button class={['btn btn-xs join-item', tagMatch === 'any' && 'btn-active']} aria-pressed={tagMatch === 'any'} onclick={() => (tagMatch = 'any')}>{m.notes.matchAny}</button>
+							</div>
 						</div>
 					{/if}
 					<EntryList
@@ -848,7 +847,7 @@
 						label={m.views.notes}
 						empty={data.notes.size ? m.notes.none : m.notes.empty}
 						name={(r) => r.note.title || m.notes.untitled}
-						menu={() => entryMenu(commands.editNote, commands.delete)}
+						menu={() => entryMenu(commands.editNote, commands.tagNotes, commands.delete)}
 						onopen={(r) => editable() && openNote(r.id)}
 					>
 						{#snippet row(r)}
@@ -1066,16 +1065,30 @@
 
 {#if editing}
 	<Modal onclose={() => (editing = null)} labelledby="jwl-note-title">
-		<div class="modal-box flex max-h-[85vh] w-11/12 max-w-2xl flex-col gap-3">
-			<h3 id="jwl-note-title" class="text-lg font-bold">{m.notes.editTitle}</h3>
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">{m.notes.title}</span>
-				<input class="input w-full" bind:value={editing.title} />
-			</label>
-			<label class="flex min-h-0 flex-1 flex-col gap-1">
-				<span class="text-sm">{m.notes.text}</span>
-				<textarea class="textarea min-h-48 w-full flex-1" bind:value={editing.content}></textarea>
-			</label>
+		<div class={['modal-box flex max-h-[85vh] w-11/12 flex-col gap-3', editing.text ? 'max-w-2xl' : 'max-w-lg']}>
+			<h3 id="jwl-note-title" class="text-lg font-bold">{editing.text ? m.notes.editTitle : m.notes.tagsTitle(editing.guids.length)}</h3>
+			{#if editing.text}
+				<label class="flex flex-col gap-1">
+					<span class="text-sm">{m.notes.title}</span>
+					<input class="input w-full" bind:value={editing.title} />
+				</label>
+				<label class="flex min-h-0 flex-1 flex-col gap-1">
+					<span class="text-sm">{m.notes.text}</span>
+					<textarea class="textarea min-h-48 w-full flex-1" bind:value={editing.content}></textarea>
+				</label>
+			{/if}
+			<div class="flex flex-col gap-1">
+				<span class="text-sm">{m.notes.tags}</span>
+				<TagField
+					options={tagOptions}
+					bind:value={editing.tags}
+					bind:partial={editing.partial}
+					create={newTagKey}
+					createLabel={m.notes.newTag}
+					label={m.notes.tags}
+					placeholder={m.notes.tagsPlaceholder}
+				/>
+			</div>
 			<div class="modal-action mt-0">
 				<button class="btn btn-ghost" onclick={() => (editing = null)}>{m.common.cancel}</button>
 				<button class="btn btn-primary" onclick={keepNote}>{m.common.done}</button>

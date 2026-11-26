@@ -166,6 +166,21 @@ export function tagNotes(data: JwlData, guids: Iterable<string>, tag: string, on
 	return renumber(out);
 }
 
+/**
+ * The tags of notes in one step: the tags `on` put on every one of them (a user's tag not there yet – known by its
+ * `tagKey` – is made first), those `off` taken off
+ */
+export function setNoteTags(data: JwlData, guids: Iterable<string>, on: Iterable<string>, off: Iterable<string>): JwlData {
+	const notes = [...guids];
+	let out = data;
+	for (const key of on) {
+		if (!out.tags.has(key)) out = addTag(out, key.slice(key.indexOf('|') + 1)).data;
+		out = tagNotes(out, notes, key, true);
+	}
+	for (const key of off) out = tagNotes(out, notes, key, false);
+	return out;
+}
+
 export const tagsOfNote = (data: JwlData, guid: string) => data.tagMaps.filter((tm) => tm.target === noteTarget(guid)).map((tm) => tm.tag);
 
 // --- Bookmarks ---

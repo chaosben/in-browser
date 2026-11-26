@@ -237,7 +237,7 @@ test('Fonts: font files from the phone become one font with its faces, opened by
 	await expect(page.getByText('You have no fonts of your own yet.', { exact: false })).toBeVisible();
 });
 
-test('JWL Files: two backups from the phone kept without opening, one merged into the other, the merge undone', async ({ page }) => {
+test('JWL Files: two backups from the phone kept without opening, one merged into the other, the merge undone, a note tagged', async ({ page }) => {
 	await page.goto('/jwl-files');
 	const input = page.locator('input[type="file"]').first();
 	const dialog = page.getByRole('dialog');
@@ -274,4 +274,17 @@ test('JWL Files: two backups from the phone kept without opening, one merged int
 	await toast.getByRole('button', { name: 'Undo' }).tap();
 	await expect(page.getByRole('option', { name: /Second note/ })).toHaveCount(0);
 	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();
+
+	// A tag typed in the note's dialog is made and put on the note; the filter field finds the note by it
+	await page.getByRole('option', { name: /First note/ }).tap();
+	const tags = dialog.getByRole('combobox', { name: 'Tags' });
+	await tags.fill('Study');
+	await dialog.getByRole('option', { name: 'New tag “Study”' }).tap();
+	await shot(page, 'jwl-note-tags');
+	await dialog.getByRole('button', { name: 'Done', exact: true }).tap();
+	await expect(page.getByRole('option', { name: /First note/ })).toContainText('Study');
+	await page.getByRole('combobox', { name: 'Filter by tags' }).fill('stu');
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();
+	await shot(page, 'jwl-notes-filter');
 });

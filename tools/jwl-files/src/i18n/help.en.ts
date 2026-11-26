@@ -55,7 +55,8 @@ const help = {
 			},
 			notes: {
 				title: 'Notes',
-				text: 'The list shows each note with its title, the start of its text and where it belongs; the field above it searches title and text. “Edit note …” (or a double click) opens title and text – “Done” keeps, Esc puts back. “Tags” puts one of your tags on the selected notes or takes it off. “Tags ▾” next to the search field (or “Filter by tags” in the tab “Notes”) shows only the notes with the tags you tick – each one a chip below the field, × takes it away. With several tags, “Notes with all of them” (default) shows those that have every one, “one of them” those that have any; “Show all notes” ends the filter. “Notes as text …” (tab “File”) saves the selected notes – else all – as a text file in your files.'
+				text: 'The list shows each note with its title, the start of its text and where it belongs; the field above it searches title and text. “Edit note …” (or a double click) opens title, text and tags – “Done” keeps all of it as one change, Esc puts back. “Tags …” (tab “Notes” and the menu of a note) shows the tags of the selected notes; a dashed tag is on only some of them – click it to put it on all. Tags are chosen by typing: the list below the field shows the tags that match, ↑/↓ move in it, Enter takes one, “New tag …” makes one with the name typed; × on a tag takes it away, Backspace in the empty field the last one, the × at the end all of them. The field “Filter by tags …” below the search (or “Filter by tags” in the tab “Notes”) shows only the notes with the tags you type in. With several tags, “Notes with all of them” (default) shows those that have every one, “one of them” those that have any. “Notes as text …” (tab “File”) saves the selected notes – else all – as a text file in your files.',
+				keys: [['↑'], ['↓'], ['Enter'], ['Backspace']]
 			},
 			highlights: {
 				title: 'Highlights',

@@ -52,6 +52,14 @@ const en = {
 		selectAll: 'Select all'
 	},
 
+	tagField: {
+		create: (name: string) => `Make “${name}”`,
+		remove: (name: string) => `Remove “${name}”`,
+		clear: 'Remove all',
+		partial: (name: string) => `Only some have “${name}” – click to give it to all`,
+		noMatch: 'Nothing matches.'
+	},
+
 	inspector: {
 		label: 'Properties',
 		close: 'Hide the properties',

@@ -49,6 +49,14 @@ const de: BrandMessages = {
 		selectAll: 'Alles auswählen'
 	},
 
+	tagField: {
+		create: (name) => `„${name}“ anlegen`,
+		remove: (name) => `„${name}“ entfernen`,
+		clear: 'Alle entfernen',
+		partial: (name) => `Nur einige haben „${name}“ – klick, um es allen zu geben`,
+		noMatch: 'Nichts passt.'
+	},
+
 	inspector: {
 		label: 'Eigenschaften',
 		close: 'Eigenschaften ausblenden',
