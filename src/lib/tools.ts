@@ -62,9 +62,9 @@ export const TOOLS: readonly Tool[] = [
 		also: ['writing']
 	},
 	{
-		id: 'jwl',
-		url: '/jwl',
-		icon: '/jwl/favicon.svg',
+		id: 'jwl-files',
+		url: '/jwl-files',
+		icon: '/jwl-files/favicon.svg',
 		category: 'special',
 		also: ['organize', 'media']
 	}

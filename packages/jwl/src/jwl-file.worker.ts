@@ -85,7 +85,7 @@ async function write(job: WriteJob) {
 	let database: Uint8Array;
 	let paths: Map<string, string>;
 	try {
-		paths = writeData(db, job.data, { marker: job.marker, modified: now.getTime() });
+		paths = writeData(db, job.data, { modified: now.getTime() });
 		verify(db);
 		database = db.export();
 	} finally {

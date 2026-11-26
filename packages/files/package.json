@@ -13,7 +13,6 @@
 	},
 	"dependencies": {
 		"@in-browser/brand": "*",
-		"@in-browser/jwl": "*",
 		"trystero": "0.27.0",
 		"uqr": "0.1.3"
 	}

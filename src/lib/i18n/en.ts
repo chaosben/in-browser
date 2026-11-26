@@ -77,8 +77,8 @@ const en = {
 			summary: 'Add your own fonts for every tool, or install free ones',
 			keywords: 'font, fonts, typeface, ttf, otf, install, google fonts, fontsource, typography'
 		},
-		jwl: {
-			name: brand.tools['jwl'],
+		'jwl-files': {
+			name: brand.tools['jwl-files'],
 			summary: 'Merge, tidy up and edit JW Library backups and playlists',
 			keywords: 'jw library, jwlibrary, jwlplaylist, backup, merge, notes, highlights, bookmarks, tags, playlist, jwl files'
 		}

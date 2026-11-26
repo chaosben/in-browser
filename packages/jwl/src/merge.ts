@@ -1,10 +1,8 @@
-// Merging JW Library databases, unit by unit. A unit is the smallest piece of data merged as a whole: a group of
-// connected paragraphs with their highlights, a note, a tag, a tag on something, a tag's order, a bookmark slot, an
-// input field, a playlist item. Every unit has a state string; “absent” is a state too, which is how deletions are
-// told. Each side (a file) may have a base – the merge result it started from: what it changed against that base
-// counts (the newest change wins), everything else stays as in `current`; a side without a base only adds. A base
-// may also be the last backup of the side's device (`Source.adds`): its deletions count, and it still adds.
-// Pure and tested (`merge.spec.ts`); the rules: .claude/rules/jwl.md “Merging”.
+// Merging two JW Library databases, unit by unit (decided by the user, 2026-11-26: two ways, no kept states). A
+// unit is the smallest piece of data merged as a whole: a group of connected paragraphs with their highlights, a
+// note, a tag, a tag on something, a tag's order, a bookmark slot, an input field, a playlist item. What only one
+// file has is kept – so nothing is ever deleted by a merge; where both differ, the newer one wins (notes by their
+// own time, the rest by the file's). Pure and tested (`merge.spec.ts`); the rules: .claude/rules/jwl.md “Merging”.
 
 import {
 	bookmarkKey,
@@ -51,34 +49,11 @@ export interface Snapshot {
 	name: string;
 	time: number;
 	data: JwlData;
-	units?: Units;
-}
-
-/** One side of a merge: the base it started from (null: unknown) and its states since, oldest first */
-export interface Source {
-	name: string;
-	base: Snapshot | null;
-	chain: Snapshot[];
-	/**
-	 * The base is only what this side had before (a device's last backup), not what the other file got from it:
-	 * what it changed counts as with every base, and what it still has is added where missing, as without one
-	 */
-	adds?: boolean;
-}
-
-export interface MergeInput {
-	/** The state kept where no side changed anything; null: the union of the sides */
-	current: Snapshot | null;
-	sources: Source[];
-	/** Files at hand (hashes): playlist media without one are left out */
-	files?: { has(hash: string): boolean };
 }
 
 export interface MergeStats {
-	units: number;
-	changed: number;
+	/** Units both files have, differently: the newer one was taken */
 	conflicts: number;
-	deleted: number;
 	movedBookmarks: number;
 	lostBookmarks: number;
 }
@@ -175,69 +150,6 @@ function extract(data: JwlData, g: Grouper): Units {
 
 const canonOf = (u: Unit | undefined) => u?.canon ?? '';
 
-interface Candidate {
-	source: Source;
-	state: Unit | undefined;
-	time: number;
-}
-
-function allSnapshots(input: MergeInput): Snapshot[] {
-	const out: Snapshot[] = [];
-	if (input.current) out.push(input.current);
-	for (const s of input.sources) {
-		if (s.base) out.push(s.base);
-		out.push(...s.chain);
-	}
-	return out;
-}
-
-const latest = (s: Source) => s.chain[s.chain.length - 1];
-
-/** For every side with a base: the unit's final state where it differs from the base, and when it changed */
-function changes(sources: Source[], id: string): Candidate[] {
-	const out: Candidate[] = [];
-	for (const s of sources) {
-		if (!s.base) continue;
-		const final = latest(s).units!.get(id);
-		if (canonOf(final) === canonOf(s.base.units!.get(id))) continue;
-		let start = s.chain.length - 1;
-		while (start > 0 && canonOf(s.chain[start - 1].units!.get(id)) === canonOf(final)) start--;
-		let time: number;
-		// A deletion is known only to have happened after the side last had it: that lower bound lets edits made
-		// meanwhile win
-		if (!final) time = start === 0 ? s.base.time : s.chain[start - 1].time;
-		else if (!Number.isNaN(final.time)) time = final.time;
-		else time = s.chain[start].time;
-		out.push({ source: s, state: final, time });
-	}
-	return out;
-}
-
-/** Newest change first, present before absent, then by state and side for a fixed order */
-function better(a: Candidate, b: Candidate): number {
-	if (a.time !== b.time) return b.time - a.time;
-	if (!!a.state !== !!b.state) return a.state ? -1 : 1;
-	if (canonOf(a.state) !== canonOf(b.state)) return canonOf(a.state) > canonOf(b.state) ? -1 : 1;
-	return a.source.name < b.source.name ? -1 : 1;
-}
-
-function distinct(candidates: Candidate[]): number {
-	return new Set(candidates.map((c) => (c.state ? `present:${c.state.canon}` : 'absent'))).size;
-}
-
-/** The unit in the latest state of each side, newest first; `onlyBaseless`: only sides that add (no base, or `adds`) */
-function present(sources: Source[], id: string, onlyBaseless: boolean): Unit[] {
-	const list: { unit: Unit; time: number; name: string }[] = [];
-	for (const s of sources) {
-		if (onlyBaseless && s.base && !s.adds) continue;
-		const unit = latest(s).units!.get(id);
-		if (!unit) continue;
-		list.push({ unit, time: Number.isNaN(unit.time) ? latest(s).time : unit.time, name: s.name });
-	}
-	list.sort((a, b) => (a.time !== b.time ? b.time - a.time : a.unit.canon !== b.unit.canon ? (a.unit.canon > b.unit.canon ? -1 : 1) : a.name < b.name ? -1 : 1));
-	return list.map((e) => e.unit);
-}
-
 function tokensOverlap(a: { start: number | null; end: number | null }, b: { start: number | null; end: number | null }): boolean {
 	const aStart = a.start ?? -Infinity;
 	const bStart = b.start ?? -Infinity;
@@ -272,49 +184,34 @@ function addMarks(base: Unit | undefined, others: Unit[]): Unit | undefined {
 	return added ? marksUnit(marks) : base;
 }
 
-export function mergeData(input: MergeInput): MergeResult {
-	if (!input.sources.length) throw new Error('nothing to merge');
-	const snaps = allSnapshots(input);
+/** What the existing file (`mine`) and the one merged into it hold together; `files`: the playlist media at hand */
+export function mergeFiles(mine: Snapshot, incoming: Snapshot, files?: { has(hash: string): boolean }): MergeResult {
 	const g = new Grouper();
-	for (const s of snaps) g.add(s.data);
+	g.add(mine.data);
+	g.add(incoming.data);
 	g.finish();
-	const ids = new Set<string>();
-	for (const s of snaps) {
-		s.units = extract(s.data, g);
-		for (const id of s.units.keys()) ids.add(id);
-	}
-	const sorted = [...ids].sort();
-	const stats: MergeStats = { units: 0, changed: 0, conflicts: 0, deleted: 0, movedBookmarks: 0, lostBookmarks: 0 };
+	const a = extract(mine.data, g);
+	const b = extract(incoming.data, g);
+	const stats: MergeStats = { conflicts: 0, movedBookmarks: 0, lostBookmarks: 0 };
 	const chosen = new Map<string, Unit>();
 	const bookmarkLosers: Unit[] = [];
-	for (const id of sorted) {
-		stats.units++;
-		const candidates = changes(input.sources, id);
-		const kind = kindOf(id);
-		let win: Unit | undefined;
-		if (candidates.length) {
-			stats.changed++;
-			candidates.sort(better);
-			win = candidates[0].state;
-			if (distinct(candidates) > 1) {
-				stats.conflicts++;
-				if (kind === 'bookmark') for (const c of candidates.slice(1)) if (c.state && canonOf(c.state) !== canonOf(win)) bookmarkLosers.push(c.state);
-			}
-			if (!win) stats.deleted++;
-		} else if (input.current) {
-			// What no side changed stays; sides without a base (or with a device's) add what is missing
-			const others = present(input.sources, id, true);
-			win = input.current.units!.get(id);
-			if (kind === 'marks') win = addMarks(win, others);
-			else if (!win && others.length) win = others[0];
-		} else {
-			const others = present(input.sources, id, false);
-			if (kind === 'marks') win = addMarks(undefined, others);
-			else if (others.length) win = others[0];
+	const timeOf = (u: Unit, s: Snapshot) => (Number.isNaN(u.time) ? s.time : u.time);
+	for (const id of [...new Set([...a.keys(), ...b.keys()])].sort()) {
+		const x = a.get(id);
+		const y = b.get(id);
+		if (!x || !y || x.canon === y.canon) {
+			chosen.set(id, (x ?? y)!);
+			continue;
 		}
-		if (win) chosen.set(id, win);
+		// Both have it, differently: the newer wins (mine on a tie)
+		const theirs = timeOf(y, incoming) > timeOf(x, mine);
+		const [win, lose] = theirs ? [y, x] : [x, y];
+		const kind = kindOf(id);
+		if (kind === 'note' || kind === 'marks' || kind === 'bookmark' || kind === 'input') stats.conflicts++;
+		if (kind === 'bookmark') bookmarkLosers.push(lose);
+		chosen.set(id, kind === 'marks' ? (addMarks(win, [lose]) ?? win) : win);
 	}
-	return { data: build(chosen, snaps, bookmarkLosers, stats, input.files), stats };
+	return { data: build(chosen, [mine, incoming], bookmarkLosers, stats, files), stats };
 }
 
 const BOOKMARK_SLOTS = 10;
@@ -468,28 +365,4 @@ export function difference(before: JwlData, after: JwlData): { added: number; ch
 	const items = (d: JwlData) => new Map([...d.playlists.values()].map((p) => [JSON.stringify(p), p]));
 	compare(items(before), items(after), () => true);
 	return count;
-}
-
-/** How many highlights and notes of `reference` are missing in `result` */
-export function loss(reference: JwlData, result: JwlData): { removed: number; of: number } {
-	let removed = 0;
-	for (const guid of reference.marks.keys()) if (!result.marks.has(guid)) removed++;
-	for (const guid of reference.notes.keys()) if (!result.notes.has(guid)) removed++;
-	return { removed, of: reference.marks.size + reference.notes.size };
-}
-
-/** A merge would remove so much that it is asked first: more than a fifth, and more than 20 */
-export const tooMuchLost = (l: { removed: number; of: number }) => l.removed > 20 && l.removed > l.of * 0.2;
-
-/** Two files and the merge results they started from, if known: what the merged file holds */
-export function mergeFiles(
-	mine: Snapshot,
-	incoming: Snapshot,
-	bases: { mine: Snapshot | null; incoming: Snapshot | null; incomingAdds?: boolean },
-	files?: { has(hash: string): boolean }
-): MergeResult {
-	const sources: Source[] = [];
-	if (bases.mine) sources.push({ name: 'mine', base: bases.mine, chain: [mine] });
-	sources.push({ name: 'incoming', base: bases.incoming, chain: [incoming], adds: bases.incomingAdds });
-	return mergeData({ current: mine, sources, files });
 }

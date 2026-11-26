@@ -10,8 +10,7 @@ const help: typeof enHelp = {
 			},
 			receive: {
 				title: 'Von JW Library zu in-browser',
-				text: 'Erstelle in JW Library eine Sicherung (oder teile eine Playlist) und teile sie mit in-browser – auf Android und am Computer wird dir das installierte in-browser dafür angeboten. Auf iPhone oder iPad sichere sie in „Dateien“ und wähle hier „Vom Gerät importieren …“ (oder „Hochladen“ im Tool Dateien von in-browser). Eine ankommende Sicherung fragt wie jede Datei, wo sie liegen soll. Wähle die Sicherung, die du aufbewahrst, um sie darin zusammenzuführen: Der Dialog schlägt die vor, in die du zuletzt zusammengeführt hast, und „Zusammenführen“ übernimmt, was die neue Sicherung hat. „Ersetzen“ überschreibt sie stattdessen, ein neuer Name legt sie als eigene Datei ab. Eine ankommende Datei – Sicherung oder Playlist – wird nicht geöffnet: Eine Meldung sagt, wo sie liegt (mit „Öffnen“) oder was das Zusammenführen geändert hat (mit „Rückgängig“), und sie steht als erste auf der Startseite.',
-				tip: 'Bewahre eine Sicherung für alle deine Geräte auf (z. B. „JW Library.jwlibrary“) und führe jede neue darin zusammen. Stelle dann diese auf jedem Gerät wieder her.',
+				text: 'Erstelle in JW Library eine Sicherung (oder teile eine Playlist) und teile sie mit in-browser – auf Android und am Computer wird dir das installierte in-browser dafür angeboten. Auf iPhone oder iPad sichere sie in „Dateien“ und wähle hier „Vom Gerät importieren …“ (oder „Hochladen“ im Tool Dateien von in-browser). Eine ankommende Datei fragt wie jede Datei, wo sie liegen soll. Geöffnet wird sie nicht – weder Sicherung noch Playlist: Eine Meldung sagt, wo sie liegt (mit „Öffnen“), und sie steht als erste auf der Startseite. Um eine neue Sicherung in die zu bringen, die du aufbewahrst, öffne diese und wähle „Zusammenführen mit …“ (unten).',
 				link: { href: '/help/install', label: 'in-browser installieren' }
 			},
 			send: {
@@ -23,22 +22,23 @@ const help: typeof enHelp = {
 	merge: {
 		title: 'Sicherungen zusammenführen',
 		items: {
-			how: {
-				title: 'Wie das Zusammenführen arbeitet',
-				text: 'Zusammenführen legt nie einfach eine Datei über die andere: Es geht jede Notiz, Markierung, jedes Lesezeichen, jeden Tag und jeden Playlist-Eintrag durch. Was nur eine Datei hat, bleibt. Jedes Ergebnis trägt eine eigene Kennung und wird in deinen Dateien aufbewahrt (versteckt, die letzten zehn). Hat ein Gerät dieses Ergebnis wiederhergestellt und kommt seine nächste Sicherung zurück, weiß JWL-Dateien, was das Gerät seitdem geändert hat – bearbeitet, hinzugefügt und gelöscht – und übernimmt genau das; was inzwischen in der anderen Datei geändert wurde, bleibt. Löschungen kommen auch ohne Wiederherstellen an: Die zuletzt zusammengeführte Sicherung jedes Geräts wird gemerkt (versteckt in deinen Dateien, eine je Gerät, unterschieden am Gerätenamen in der Sicherung), und was ein Gerät darin hatte und in seiner nächsten nicht mehr hat, wird gelöscht – was nur deine anderen Geräte hatten, bleibt. Die erste Sicherung eines Geräts fügt nur hinzu: Durch sie wird nichts gelöscht. Das Gemerkte liegt in deinen Dateien und reist mit der Synchronisation deiner Geräte: Eine Sicherung, die auf einem Gerät zusammengeführt wird, das es noch nicht hat, kann nur hinzufügen, und eine Meldung sagt das – synchronisiere die Geräte und führe sie noch einmal zusammen.',
-				tip: 'Führe die Sicherungen all deiner Geräte in einer Datei zusammen, jedes Gerät unter eigenem Namen: Zwei Geräte mit demselben Namen gelten als eines, und die Sicherung des einen würde löschen, was nur das andere hatte. Um jedes Gerät auf denselben Stand zu bringen, stelle dort nach dem Zusammenführen das Ergebnis wieder her.'
-			},
-			conflicts: {
-				title: 'Wenn beide dasselbe geändert haben',
-				text: 'Haben beide Dateien dieselbe Notiz geändert, zählt die später geänderte (nach ihrer Änderungszeit). Markierungen werden je Absatz, in dem sie liegen, als Ganzes von einer Seite übernommen – überlappende Markierungen zweier Geräte landen nie übereinander. Legen zwei Geräte ein Lesezeichen auf denselben Platz, rückt das zweite auf einen freien Platz derselben Publikation (es gibt zehn); sind alle zehn belegt, entfällt es.'
-			},
-			safety: {
-				title: 'Rückfrage, bevor viel wegfällt, und „Rückgängig“',
-				text: 'Würde ein Zusammenführen mehr als ein Fünftel (und mehr als 20) der Markierungen und Notizen entfernen, fragt es vorher und nennt die Zahlen. Danach nennt eine Meldung, was neu, geändert und entfernt ist – „Rückgängig“ darin stellt die Datei wieder her, wie sie war. Hatte die Datei schon alles, wird nichts geschrieben. Eine inzwischen geänderte Datei (auf einem anderen Gerät, in einem anderen Tab) wird von vorn zusammengeführt.'
-			},
 			manual: {
 				title: '„Zusammenführen mit …“',
-				text: 'Im Tab „Datei“ einer geöffneten Sicherung und im Menü einer Sicherung in Dateien: Wähle eine andere Sicherung aus deinen Dateien, und sie wird genauso in diese geführt – auch eine Kopie, die die Synchronisation behalten hat, als zwei Geräte die Sicherung gleichzeitig geändert haben („… (Konflikt …)“).'
+				text: 'Öffne die Sicherung, die du aufbewahrst, wähle im Tab „Datei“ „Zusammenführen mit …“ und dann eine andere Sicherung aus deinen Dateien – die neue eines Geräts oder eine Kopie, die die Synchronisation behalten hat, als zwei Geräte die Sicherung gleichzeitig geändert haben („… (Konflikt …)“). Was sie hat, wird als eine Änderung in die geöffnete Sicherung übernommen: Eine Meldung nennt, was neu und geändert ist, „Rückgängig“ darin (oder Strg+Z) nimmt es zurück, und gespeichert wird es wie jede Änderung. Die andere Datei bleibt, wie sie ist. Hat die geöffnete Sicherung schon alles, ändert sich nichts.',
+				tip: 'Bewahre eine Sicherung für alle deine Geräte auf (z. B. „JW Library.jwlibrary“), führe jede neue Sicherung darin zusammen und stelle diese auf jedem Gerät wieder her.'
+			},
+			how: {
+				title: 'Was übernommen wird',
+				text: 'Zusammenführen legt nie einfach eine Datei über die andere: Es geht jede Notiz, Markierung, jedes Lesezeichen, Eingabefeld, jeden Tag und jeden Playlist-Eintrag durch. Was nur eine der beiden Dateien hat, bleibt – Zusammenführen löscht also nie etwas.'
+			},
+			conflicts: {
+				title: 'Wenn beide dasselbe verschieden haben',
+				text: 'Das Neuere gilt: eine Notiz nach ihrer eigenen Änderungszeit, alles andere nach der Zeit, zu der die Datei zuletzt geändert wurde. Die Meldung sagt, wie viele verschieden waren. Markierungen werden je Absatz als Ganzes aus der neueren Datei übernommen – die der anderen Datei kommen dazu, wo sie nicht überlappen, sodass Markierungen nie übereinander landen. Haben beide Dateien ein Lesezeichen auf demselben Platz, rückt das andere auf einen freien Platz derselben Publikation (es gibt zehn); sind alle zehn belegt, entfällt es.'
+			},
+			deleted: {
+				title: 'Gelöschtes kommt zurück',
+				text: 'Zusammenführen fügt nur hinzu: Was du auf einem Gerät gelöscht hast, kommt aus einer Sicherung zurück, die es noch hat. Lösche es in der zusammengeführten Sicherung (hier in JWL-Dateien, oder in JW Library, nachdem du sie dort wiederhergestellt hast, und mach dann eine neue Sicherung).',
+				tip: 'Erst zusammenführen, dann löschen – und das Ergebnis auf deinen Geräten wiederherstellen, damit keine ältere Sicherung es zurückbringt.'
 			}
 		}
 	},

@@ -4,6 +4,7 @@
 
 import { DEVICE_NAME, jwlBlob, readJwl, type JwlFile } from '@in-browser/jwl/jwl-file.js';
 import { playlists } from '@in-browser/jwl/edits.js';
+import { difference, mergeFiles, sameContent } from '@in-browser/jwl/merge.js';
 import type { JwlData } from '@in-browser/jwl/model.js';
 import { reportSaveFailure } from '@in-browser/files/documents.js';
 import { read, stat, write } from '@in-browser/files/fs.js';
@@ -15,6 +16,14 @@ const HISTORY = 100;
 interface Step {
 	data: JwlData;
 	files: Map<string, Blob>;
+	template: Uint8Array;
+}
+
+/** What “Merge with …” did: counts against the data before, and how many entries both files had differently */
+export interface MergeSummary {
+	added: number;
+	changed: number;
+	conflicts: number;
 }
 
 export class JwlDocument {
@@ -24,6 +33,10 @@ export class JwlDocument {
 	data = $state.raw<JwlData>(null!);
 	/** The archive's files by hash, with those added since */
 	files = $state.raw<Map<string, Blob>>(new Map());
+	/** The database the file is written into: its own, or a merged file's of a newer schema */
+	private template: Uint8Array;
+	/** When this document's content was last changed (ms): the file's time, then each change's */
+	private changed: number;
 	dirty = $state(false);
 	saving = $state(false);
 	saveError = $state<string | null>(null);
@@ -41,6 +54,8 @@ export class JwlDocument {
 		this.file = file;
 		this.data = file.data;
 		this.files = file.files;
+		this.template = file.database;
+		this.changed = file.modified;
 		this.stamp = stamp;
 	}
 
@@ -63,34 +78,56 @@ export class JwlDocument {
 	}
 
 	/** One change: the data before it is the undo step */
-	change(data: JwlData, files: Map<string, Blob> = this.files) {
+	change(data: JwlData, files: Map<string, Blob> = this.files, template: Uint8Array = this.template) {
 		if (data === this.data && files === this.files) return;
-		this.undoStack = [...this.undoStack.slice(-HISTORY + 1), { data: this.data, files: this.files }];
+		this.undoStack = [...this.undoStack.slice(-HISTORY + 1), this.step()];
 		this.redoStack = [];
-		this.set(data, files);
+		this.set({ data, files, template });
 	}
 
 	undo() {
 		const step = this.undoStack.at(-1);
 		if (!step) return;
 		this.undoStack = this.undoStack.slice(0, -1);
-		this.redoStack = [...this.redoStack, { data: this.data, files: this.files }];
-		this.set(step.data, step.files);
+		this.redoStack = [...this.redoStack, this.step()];
+		this.set(step);
 	}
 
 	redo() {
 		const step = this.redoStack.at(-1);
 		if (!step) return;
 		this.redoStack = this.redoStack.slice(0, -1);
-		this.undoStack = [...this.undoStack, { data: this.data, files: this.files }];
-		this.set(step.data, step.files);
+		this.undoStack = [...this.undoStack, this.step()];
+		this.set(step);
 	}
 
-	private set(data: JwlData, files: Map<string, Blob>) {
-		this.data = data;
-		this.files = files;
+	private step(): Step {
+		return { data: this.data, files: this.files, template: this.template };
+	}
+
+	private set(step: Step) {
+		this.data = step.data;
+		this.files = step.files;
+		this.template = step.template;
+		this.changed = Date.now();
 		this.dirty = true;
 		this.schedule();
+	}
+
+	/**
+	 * “Merge with …”: what another backup has is taken into this one as one change (two ways, `jwl.md` “Merging”):
+	 * what only one has is kept, where both differ the newer counts. Null when this one has everything already.
+	 */
+	merge(other: JwlFile): MergeSummary | null {
+		const result = mergeFiles({ name: 'mine', time: this.changed, data: this.data }, { name: 'incoming', time: other.modified, data: other.data }, {
+			has: (hash) => this.files.has(hash) || other.files.has(hash)
+		});
+		if (sameContent(result.data, this.data)) return null;
+		const counts = difference(this.data, result.data);
+		// The newer schema's database takes the result, so nothing of the newer file is left out
+		const template = other.data.schema > this.data.schema ? other.database : this.template;
+		this.change(result.data, new Map([...other.files, ...this.files]), template);
+		return { added: counts.added, changed: counts.changed, conflicts: result.stats.conflicts };
 	}
 
 	private schedule() {
@@ -98,7 +135,7 @@ export class JwlDocument {
 		this.timer = setTimeout(() => void this.save(), SAVE_AFTER);
 	}
 
-	/** Saves now what waits (page hidden or left, before merging) */
+	/** Saves now what waits (page hidden or left) */
 	flush(): Promise<void> {
 		if (this.timer) {
 			clearTimeout(this.timer);
@@ -120,6 +157,7 @@ export class JwlDocument {
 		if (this.conflict) return;
 		const data = this.data;
 		const files = this.files;
+		const template = this.template;
 		this.saving = true;
 		this.pending = (async () => {
 			try {
@@ -133,9 +171,8 @@ export class JwlDocument {
 					name: this.playlistName(),
 					deviceName: DEVICE_NAME,
 					data,
-					template: this.file.database,
-					files,
-					marker: data.marker
+					template,
+					files
 				});
 				await write(this.path, blob);
 				const written = await stat(this.path);

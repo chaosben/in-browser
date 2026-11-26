@@ -1,5 +1,5 @@
 // Help texts of JWL Files (English leads; `help.de.ts` must have the same keys): the help window of the tool and the
-// page `/help/jwl`. Describe what users see and do.
+// page `/help/jwl-files`. Describe what users see and do.
 
 import type { HelpContent } from '@in-browser/brand/help.js';
 
@@ -13,8 +13,7 @@ const help = {
 			},
 			receive: {
 				title: 'From JW Library to in-browser',
-				text: 'In JW Library make a backup (or share a playlist) and share it with in-browser – on Android and on the computer the installed in-browser is offered for it. On an iPhone or iPad save it in “Files” and choose “Import from the device …” here (or “Upload” in in-browser’s Files). A backup that arrives asks where it should be kept, like every file. Pick the backup you keep to merge into it: the dialog suggests the one you merged into last, and “Merge” takes what the new backup has into it. “Replace” overwrites it instead, a new name keeps it as a file of its own. A file that arrives – a backup or a playlist – is not opened: a message says where it is kept (with “Open”) or what the merge changed (with “Undo”), and it stands first on the start page.',
-				tip: 'Keep one backup for all your devices (e.g. “JW Library.jwlibrary”) and merge every new one into it. Then restore that one on each device.',
+				text: 'In JW Library make a backup (or share a playlist) and share it with in-browser – on Android and on the computer the installed in-browser is offered for it. On an iPhone or iPad save it in “Files” and choose “Import from the device …” here (or “Upload” in in-browser’s Files). A file that arrives asks where it should be kept, like every file. It is not opened – a backup or a playlist: a message says where it is kept (with “Open”), and it stands first on the start page. To bring a new backup into the one you keep, open that one and choose “Merge with …” (below).',
 				link: { href: '/help/install', label: 'Installing in-browser' }
 			},
 			send: {
@@ -26,22 +25,23 @@ const help = {
 	merge: {
 		title: 'Merging backups',
 		items: {
-			how: {
-				title: 'How merging works',
-				text: 'Merging never just puts one file over the other: it goes through each note, highlight, bookmark, tag and playlist item. What only one file has is kept. Every result carries a mark of its own, and the result is kept in your files (hidden, the last ten). When a device restored that result and its next backup comes back, JWL Files knows what the device changed since – edited, added and deleted – and applies exactly that; changes made in the meantime in the other file stay. Deletions also arrive without restoring: the last backup merged from each device is remembered (hidden in your files, one per device, told apart by the device name in the backup), and what a device had in it and no longer has in its next one is deleted – what only your other devices had stays. The first backup of a device only adds: nothing is deleted by it. What is remembered lies in your files and travels with the sync of your devices: a backup merged on a device that doesn’t have it yet can only add, and a message says so – sync the devices and merge it again.',
-				tip: 'Merge the backups of all your devices into one file, each device under its own name: two devices with the same name count as one, and a backup of the one would delete what only the other had. To bring every device to the same state, restore the result there after merging.'
-			},
-			conflicts: {
-				title: 'When both changed the same',
-				text: 'If both files changed the same note, the one changed later counts (by its time of change). For highlights the paragraphs they lie in are merged as a whole, from one side – overlapping highlights of two devices never end up on top of each other. If two devices put a bookmark into the same place, the second one moves to a free place of the same publication (there are ten); with all ten taken it is left out.'
-			},
-			safety: {
-				title: 'Asked before much goes, and “Undo”',
-				text: 'A merge that would remove more than a fifth (and more than 20) of the highlights and notes asks first, naming the numbers. After a merge a message names what is new, changed and removed – “Undo” in it puts the file back as it was. If the file already had everything, nothing is written. A file changed meanwhile (on another device, in another tab) is merged again from the start.'
-			},
 			manual: {
 				title: '“Merge with …”',
-				text: 'In the tab “File” of an open backup, and in the menu of a backup in Files: choose another backup of your files, and it is merged into this one the same way – also a copy the sync kept when two devices changed the backup at once (“… (conflict …)”).'
+				text: 'Open the backup you keep and choose “Merge with …” in the tab “File”, then another backup of your files – the new one from a device, or a copy the sync kept when two devices changed the backup at once (“… (conflict …)”). What it has is taken into the open backup as one change: a message names what is new and changed, “Undo” in it (or Ctrl+Z) takes it back, and it is saved like every change. The other file stays as it is. If the open backup has everything already, nothing changes.',
+				tip: 'Keep one backup for all your devices (e.g. “JW Library.jwlibrary”), merge each new backup into it, and restore that one on every device.'
+			},
+			how: {
+				title: 'What merging takes over',
+				text: 'Merging never just puts one file over the other: it goes through each note, highlight, bookmark, input field, tag and playlist item. What only one of the two files has is kept – so merging never deletes anything.'
+			},
+			conflicts: {
+				title: 'When both have the same thing differently',
+				text: 'The newer one counts: a note by its own time of change, everything else by the time the file was last changed. The message says how many were different. Highlights are taken per paragraph, as a whole, from the newer file – those of the other file are added where they don’t overlap, so highlights never end up on top of each other. If both files have a bookmark in the same place, the other one moves to a free place of the same publication (there are ten); with all ten taken it is left out.'
+			},
+			deleted: {
+				title: 'Deleted things come back',
+				text: 'Merging only adds: something you deleted on one device comes back from a backup that still has it. Delete it in the merged backup (here in JWL Files, or in JW Library after restoring it there and making a new backup).',
+				tip: 'Merge first, then delete – and restore the result on your devices, so that no older backup brings it back.'
 			}
 		}
 	},

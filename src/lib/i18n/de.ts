@@ -71,8 +71,8 @@ const de: Messages = {
 			summary: 'Eigene Schriften für jedes Tool hinzufügen oder freie installieren',
 			keywords: 'fonts, schrift, schriften, schriftart, ttf, otf, installieren, google fonts, fontsource, typografie'
 		},
-		jwl: {
-			name: brand.tools['jwl'],
+		'jwl-files': {
+			name: brand.tools['jwl-files'],
 			summary: 'Sicherungen und Playlists von JW Library zusammenführen, aufräumen und bearbeiten',
 			keywords: 'jw library, jwlibrary, jwlplaylist, sicherung, backup, zusammenführen, notizen, markierungen, lesezeichen, tags, playlist, jwl files, jwl-dateien'
 		}

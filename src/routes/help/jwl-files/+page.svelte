@@ -2,4 +2,4 @@
 	import ToolHelpPage from '#lib/ToolHelpPage.svelte';
 </script>
 
-<ToolHelpPage tool="jwl" />
+<ToolHelpPage tool="jwl-files" />

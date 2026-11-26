@@ -4,7 +4,6 @@ import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
-import { canMerge, mergeWith } from '@in-browser/files/merge.js';
 import { canSend, sendPaths } from '@in-browser/files/send.js';
 import { basename, isConnected, isInside, parent } from '@in-browser/files/path.js';
 import { allowAccess, disconnect, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
@@ -190,10 +189,6 @@ export function itemEntries(ctx: MenuContext, items: Item[], rename: (item: Item
 			: []),
 		{ label: m.menu.duplicate, icon: 'icon-[material-symbols-light--folder-copy-outline]', disabled: locked, run: () => duplicate(manager, items) },
 		{ label: m.menu.moveTo, icon: 'icon-[material-symbols-light--drive-file-move-outline]', disabled: locked, run: () => ctx.moveTo(items) },
-		// A file of a format that merges: another one of it is merged into this one
-		...(one && one.kind === 'file' && canMerge(one.name)
-			? [{ label: filesMessages().merge.action, icon: 'icon-[material-symbols-light--merge]', disabled: locked, run: () => void mergeWith(one.path, { after: () => manager.refresh() }) }]
-			: []),
 		{ separator: true },
 		{ label: m.menu.rename, icon: 'icon-[material-symbols-light--edit-outline]', keys: keyLabel(KEYS.rename), disabled: locked || !one, run: () => one && rename(one) },
 		{

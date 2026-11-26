@@ -75,7 +75,7 @@ const help: typeof enHelp = {
 		items: {
 			upload: {
 				title: 'Hochladen',
-				text: '„Hochladen“ (Registerkarte „Start“, Gruppe „Neu“) kopiert Dateien von deinem Rechner oder Handy in den geöffneten Ordner – „Dateien hochladen“ für einzelne Dateien, „Ordner hochladen“ für einen ganzen Ordner mit seinen Unterordnern (auf iPhone und iPad nicht angeboten). Du kannst Dateien oder Ordner auch von deinem Rechner auf die Liste ziehen: auf der freien Fläche abgelegt landen sie im geöffneten Ordner, auf einem Ordner in der Liste oder in der Seitenleiste „Ordner“ landen sie dort. Die untere Zeile zeigt, welche Datei gerade kopiert wird. „Hochladen“ heißt nur Kopieren in den Browserspeicher – nichts verlässt dein Gerät. Eine Sicherung von JW Library (.jwlibrary) fragt stattdessen, wo sie liegen soll: Wähle die Sicherung, die du aufbewahrst, und „Zusammenführen“ übernimmt, was die neue hat, „Ersetzen“ überschreibt sie, ein neuer Name legt sie als eigene Datei ab.'
+				text: '„Hochladen“ (Registerkarte „Start“, Gruppe „Neu“) kopiert Dateien von deinem Rechner oder Handy in den geöffneten Ordner – „Dateien hochladen“ für einzelne Dateien, „Ordner hochladen“ für einen ganzen Ordner mit seinen Unterordnern (auf iPhone und iPad nicht angeboten). Du kannst Dateien oder Ordner auch von deinem Rechner auf die Liste ziehen: auf der freien Fläche abgelegt landen sie im geöffneten Ordner, auf einem Ordner in der Liste oder in der Seitenleiste „Ordner“ landen sie dort. Die untere Zeile zeigt, welche Datei gerade kopiert wird. „Hochladen“ heißt nur Kopieren in den Browserspeicher – nichts verlässt dein Gerät.'
 			},
 			download: {
 				title: 'Herunterladen',
@@ -193,11 +193,6 @@ const help: typeof enHelp = {
 				title: 'An eine andere App senden',
 				text: '„Senden …“ in der Registerkarte „Freigeben“, in „Auswahl“ und im Menü von Dateien gibt die ausgewählten Dateien an eine andere App dieses Geräts – Mail, einen Messenger, JW Library. Die App bekommt eine Kopie; danach bleibt nichts verbunden. Es geht nur für Dateien (nicht für Ordner) und nur für Arten, die dein Browser sendet – sonst ist es ausgegraut.',
 				link: { href: '/help/install#system', label: 'Mit den anderen Apps deines Geräts' }
-			},
-			merge: {
-				title: 'Sicherungen von JW Library zusammenführen',
-				text: 'Das Menü einer Sicherung von JW Library (.jwlibrary) hat „Zusammenführen mit …“: Wähle eine andere Sicherung, und sie wird in diese geführt – was sie neu oder geändert hat, wird übernommen, und was ihr Gerät seit seiner letzten Sicherung gelöscht hat, fällt auch hier weg; eine Meldung nennt, was neu, geändert und entfernt ist, und bietet „Rückgängig“. Beim Ablegen einer Sicherung, die aus JW Library kommt, steht „Zusammenführen“ neben „Ersetzen“, wenn du eine vorhandene wählst. Auch für eine Kopie, die die Synchronisation als „… (Konflikt …)“ behalten hat.',
-				link: { href: '/help/jwl#merge', label: 'Sicherungen zusammenführen' }
 			},
 			receive: {
 				title: 'Dateien aus anderen Apps',

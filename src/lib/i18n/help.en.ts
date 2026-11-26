@@ -623,7 +623,7 @@ const help = {
 					items: {
 						share: {
 							title: 'Share to in-browser',
-							text: 'On Android, the installed app “in-browser” appears in the share menu of other apps. Share a PDF and it opens in the PDF Editor, a text file or a text in the Text Editor; a JW Library backup or playlist is kept in JWL Files without being opened (a backup can be merged into the one you keep); other files land in Files. Before it is kept, you choose where – the file is copied into your files, nothing is uploaded.',
+							text: 'On Android, the installed app “in-browser” appears in the share menu of other apps. Share a PDF and it opens in the PDF Editor, a text file or a text in the Text Editor; a JW Library backup or playlist is kept in JWL Files without being opened; other files land in Files. Before it is kept, you choose where – the file is copied into your files, nothing is uploaded.',
 							options: {
 								where: { label: 'Where it works', text: 'Chrome and Samsung Internet on Android, with in-browser installed. Not on iPhone and iPad – there, save the file and upload it in Files.' }
 							}

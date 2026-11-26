@@ -18,14 +18,12 @@ export interface FileDialogOptions {
 	multiple?: boolean;
 	/** Save: an existing file (or package) of an accepted format may be replaced */
 	overwrite?: boolean;
-	/** Save: an existing file of the format may be merged with instead (`merge.ts`): “Merge” next to “Replace” */
-	merge?: boolean;
 	/** `false`: only My files, no choice of connected places */
 	places?: false;
 }
 
 interface Open extends FileDialogOptions {
-	resolve: (paths: string[] | null, merge: boolean) => void;
+	resolve: (paths: string[] | null) => void;
 }
 
 export const fileDialogState = $state<{ current: Open | null }>({ current: null });
@@ -43,16 +41,8 @@ export async function chooseFile(options: FileDialogOptions): Promise<string | n
 	return (await chooseFiles({ ...options, multiple: false }))?.[0] ?? null;
 }
 
-/** Saving with `merge`: the chosen path and whether the user chose to merge with the file there */
-export function chooseSaveTarget(options: FileDialogOptions): Promise<{ path: string; merge: boolean } | null> {
-	closeFileDialog(null);
-	return new Promise((resolve) => {
-		fileDialogState.current = { ...options, mode: 'save', multiple: false, resolve: (paths, merge) => resolve(paths?.[0] ? { path: paths[0], merge } : null) };
-	});
-}
-
-export function closeFileDialog(paths: string[] | null, merge = false) {
+export function closeFileDialog(paths: string[] | null) {
 	const open = fileDialogState.current;
 	fileDialogState.current = null;
-	open?.resolve(paths, merge);
+	open?.resolve(paths);
 }

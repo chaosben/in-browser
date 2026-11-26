@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Start page (`ui.md` “Start page”): the backups and playlists opened recently, “Open …” from the files and “Import
-	// from the device …” (kept in the files – where the user says, merged into a backup there if they choose – and
+	// from the device …” (kept in the files where the user says and
 	// listed here, not opened: decided by the user, 2026-11-25). Files shared from JW Library arrive the same way.
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -12,7 +12,7 @@
 	import { stat, supported, watchSettled, write } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, stem } from '@in-browser/files/path.js';
-	import { keepFileAs, setReceiver } from '@in-browser/files/receive.svelte.js';
+	import { keepFile, setReceiver } from '@in-browser/files/receive.svelte.js';
 	import { newPlaylist } from '@in-browser/jwl/jwl-file.js';
 	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
 	import { editorUrl } from '#lib/brand.js';
@@ -69,16 +69,15 @@
 		}
 	}
 
-	/** A file from outside: kept (or merged) where the user says and listed here – not opened */
+	/** A file from outside: kept where the user says and listed here – not opened */
 	async function take(file: File) {
 		copying = true;
 		try {
-			const kept = await keepFileAs(file, { title: m.home.saveTitle });
-			if (!kept) return;
-			recent.remember(kept.path);
+			const path = await keepFile(file, { title: m.home.saveTitle });
+			if (!path) return;
+			recent.remember(path);
 			await refresh();
-			// A merge says what it did itself, with “Undo”
-			if (!kept.merged) toast(m.home.kept(basename(kept.path)), 'success', 8000, { label: filesMessages().start.open, run: () => void open(kept.path) });
+			toast(m.home.kept(basename(path)), 'success', 8000, { label: filesMessages().start.open, run: () => void open(path) });
 		} catch (e) {
 			console.error('[jwl] keep', e);
 			toast(m.home.failed(filesErrorText(e)), 'error', 8000);
@@ -127,7 +126,7 @@
 	href={(entry) => editorUrl(entry.path)}
 	{menu}
 	empty={m.home.empty}
-	tool="jwl"
+	tool="jwl-files"
 	onallowed={refresh}
 	formatDate={(ms) => formatDateTime(ms, intlLocale)}
 >

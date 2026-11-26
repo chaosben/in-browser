@@ -12,7 +12,7 @@ const de: BrandMessages = {
 		'screen-capture': 'Bildschirmaufnahme',
 		'pdf-editor': 'PDF-Editor',
 		fonts: 'Schriften',
-		jwl: 'JWL-Dateien'
+		'jwl-files': 'JWL-Dateien'
 	},
 
 	brand: {

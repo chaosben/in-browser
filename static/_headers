@@ -42,7 +42,7 @@
 
 # JWL Files: SQLite (WebAssembly) runs in its worker (see `/_app/immutable/*`); thumbnails, new videos and downloads
 # from blob:
-/jwl*
+/jwl-files*
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 

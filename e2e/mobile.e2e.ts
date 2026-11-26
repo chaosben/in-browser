@@ -237,39 +237,41 @@ test('Fonts: font files from the phone become one font with its faces, opened by
 	await expect(page.getByText('You have no fonts of your own yet.', { exact: false })).toBeVisible();
 });
 
-test('JWL Files: a backup from the phone kept without opening, a second one merged into it, the merge undone', async ({ page }) => {
-	await page.goto('/jwl');
+test('JWL Files: two backups from the phone kept without opening, one merged into the other, the merge undone', async ({ page }) => {
+	await page.goto('/jwl-files');
 	const input = page.locator('input[type="file"]').first();
 	const dialog = page.getByRole('dialog');
-	await input.setInputFiles({ name: 'Backup A.jwlibrary', mimeType: 'application/octet-stream', buffer: await backup([{ guid: 'a', title: 'First note' }], 'Phone') });
-	await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
+	for (const [name, guid, title, device] of [
+		['Backup B', 'b', 'Second note', 'Tablet'],
+		['Backup A', 'a', 'First note', 'Phone']
+	]) {
+		await input.setInputFiles({ name: `${name}.jwlibrary`, mimeType: 'application/octet-stream', buffer: await backup([{ guid, title }], device) });
+		await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
+		await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+	}
 	// Kept and listed, not opened; the message offers “Open”
 	const kept = page.getByRole('status').filter({ hasText: '“Backup A.jwlibrary” is kept in your files.' });
-	await expect(page.getByRole('link', { name: /Backup A/ })).toBeVisible();
-	await expect(page).toHaveURL(/\/jwl$/);
+	await expect(page).toHaveURL(/\/jwl-files$/);
 	await kept.getByRole('button', { name: 'Open' }).tap();
-	await expect(page).toHaveURL(/\/jwl\/editor/);
+	await expect(page).toHaveURL(/\/jwl-files\/editor/);
 	await expect(page.getByRole('heading', { name: 'JW Library backup' })).toBeVisible();
-	await shot(page, 'jwl');
+	await shot(page, 'jwl-files');
 
-	// The second backup is merged into the first one: picked in the save dialog, “Merge” next to “Replace”
-	await page.goto('/jwl');
-	await input.setInputFiles({ name: 'Backup B.jwlibrary', mimeType: 'application/octet-stream', buffer: await backup([{ guid: 'b', title: 'Second note' }], 'Tablet') });
-	await dialog.getByRole('option', { name: 'Backup A.jwlibrary' }).tap();
-	await expect(dialog.getByRole('button', { name: 'Replace', exact: true })).toBeEnabled();
-	await dialog.getByRole('button', { name: 'Merge', exact: true }).tap();
-	const toast = page.getByRole('status').filter({ hasText: 'Merged into “Backup A.jwlibrary”: 1 new, 0 changed, 0 removed.' });
+	// “Merge with …” in the tab “File” takes the other backup in – one undo step
+	await page.getByRole('tab', { name: 'File' }).tap();
+	await page.locator('[data-command="merge"]:visible').tap();
+	await dialog.getByRole('option', { name: 'Backup B.jwlibrary' }).tap();
+	await dialog.getByRole('button', { name: 'Open', exact: true }).tap();
+	const toast = page.getByRole('status').filter({ hasText: 'Merged “Backup B.jwlibrary”: 1 new, 0 changed.' });
 	await expect(toast).toBeVisible();
-	await expect(page).toHaveURL(/\/jwl$/);
-	await page.getByRole('link', { name: /Backup A/ }).tap();
+	await page.getByRole('tab', { name: 'Home' }).tap();
 	await page.locator('[data-command="view:notes"]:visible').tap();
 	await expect(page.getByRole('option', { name: /Second note/ })).toBeVisible();
 	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();
 	await shot(page, 'jwl-notes');
 
-	// “Undo” puts the file back; the open editor reads it again after asking
+	// “Undo” in the message takes it back
 	await toast.getByRole('button', { name: 'Undo' }).tap();
-	await page.getByRole('dialog').getByRole('button', { name: 'Reload', exact: true }).tap();
 	await expect(page.getByRole('option', { name: /Second note/ })).toHaveCount(0);
 	await expect(page.getByRole('option', { name: /First note/ })).toBeVisible();
 });

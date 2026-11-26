@@ -77,7 +77,7 @@ const help = {
 		items: {
 			upload: {
 				title: 'Uploading',
-				text: '“Upload” (“Home” tab, group “New”) copies files from your computer or phone into the open folder – “Upload files” for single files, “Upload folder” for a whole folder with its subfolders (not offered on iPhone and iPad). You can also drag files or folders from your computer onto the list: dropped on the free area they land in the open folder, dropped on a folder in the list or in the panel “Folders” they land there. The bottom line shows which file is being copied. “Upload” only means copying into the browser storage – nothing leaves your device. A JW Library backup (.jwlibrary) asks where it should be kept instead: pick the backup you keep and “Merge” takes what the new one has into it, “Replace” overwrites it, a new name keeps it as a file of its own.'
+				text: '“Upload” (“Home” tab, group “New”) copies files from your computer or phone into the open folder – “Upload files” for single files, “Upload folder” for a whole folder with its subfolders (not offered on iPhone and iPad). You can also drag files or folders from your computer onto the list: dropped on the free area they land in the open folder, dropped on a folder in the list or in the panel “Folders” they land there. The bottom line shows which file is being copied. “Upload” only means copying into the browser storage – nothing leaves your device.'
 			},
 			download: {
 				title: 'Downloading',
@@ -195,11 +195,6 @@ const help = {
 				title: 'Sending to another app',
 				text: '“Send …” in the “Share” tab, in the “Selection” tab and in the menu of files gives the selected files to another app on this device – mail, a messenger, JW Library. The app gets a copy; nothing stays connected. It works for files only (not for folders) and only for the types your browser sends – otherwise it is greyed out.',
 				link: { href: '/help/install#system', label: 'With the other apps of your device' }
-			},
-			merge: {
-				title: 'Merging JW Library backups',
-				text: 'The menu of a JW Library backup (.jwlibrary) has “Merge with …”: choose another backup, and it is merged into this one – what it has new or changed is taken over, and what its device deleted since its last backup goes here too; a message names what is new, changed and removed and offers “Undo”. Keeping a backup that arrives from JW Library offers “Merge” next to “Replace” when you pick an existing one. Also for a copy the sync kept as “… (conflict …)”.',
-				link: { href: '/help/jwl#merge', label: 'Merging backups' }
 			},
 			receive: {
 				title: 'Files from other apps',

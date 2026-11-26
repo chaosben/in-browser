@@ -10,13 +10,8 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 export const MIN_SCHEMA = 14;
 export const MAX_SCHEMA = 16;
 
-/**
- * The `KeySymbol` of the hidden location that names a merge result (`Title` = its id): JW Library never deletes
- * location rows, so it comes back in the next backup of a device that restored the result.
- */
-export const MARKER_KEY = 'in-browser-merge';
-/** Marks of other merging programs: never data, dropped when read */
-export const FOREIGN_MARKER_KEYS: readonly string[] = ['jwlSyncFolderMerger'];
+/** The hidden location in-browser put into merged backups until 2026-11-26: never data, dropped when read */
+export const OLD_MERGE_MARKER = 'in-browser-merge';
 
 export interface Location {
 	book: number | null;
@@ -171,8 +166,6 @@ export interface PlaylistItem {
 /** One database without ids */
 export interface JwlData {
 	schema: number;
-	/** Id of the merge result this database came from (its hidden location), null if none */
-	marker: string | null;
 	locations: Map<LocKey, Location>;
 	marks: Map<string, UserMark>;
 	notes: Map<string, Note>;
@@ -190,7 +183,6 @@ export interface JwlData {
 export function emptyData(schema = MAX_SCHEMA): JwlData {
 	return {
 		schema,
-		marker: null,
 		locations: new Map(),
 		marks: new Map(),
 		notes: new Map(),
@@ -263,38 +255,4 @@ export function formatTime(ms: number): string {
 export function canonicalTime(value: string): string {
 	const ms = parseTime(value);
 	return Number.isNaN(ms) ? value : formatTime(ms);
-}
-
-// --- Saving a model as JSON (the merge results kept for later merges) ---
-
-export function dataToJson(data: JwlData): string {
-	return JSON.stringify({
-		...data,
-		locations: [...data.locations.values()],
-		marks: [...data.marks.values()],
-		notes: [...data.notes.values()],
-		tags: [...data.tags.values()],
-		bookmarks: [...data.bookmarks.values()],
-		inputs: [...data.inputs.values()],
-		media: [...data.media.values()],
-		playlists: [...data.playlists]
-	});
-}
-
-export function dataFromJson(json: string): JwlData {
-	const raw = JSON.parse(json);
-	return {
-		schema: raw.schema,
-		marker: raw.marker ?? null,
-		locations: new Map((raw.locations as Location[]).map((l) => [locKey(l), l])),
-		marks: new Map((raw.marks as UserMark[]).map((m) => [m.guid, m])),
-		notes: new Map((raw.notes as Note[]).map((x) => [x.guid, x])),
-		tags: new Map((raw.tags as Tag[]).map((t) => [tagKey(t), t])),
-		tagMaps: raw.tagMaps,
-		bookmarks: new Map((raw.bookmarks as Bookmark[]).map((b) => [bookmarkKey(b), b])),
-		inputs: new Map((raw.inputs as InputField[]).map((f) => [inputKey(f), f])),
-		media: new Map((raw.media as Media[]).map((m) => [m.hash, m])),
-		playlists: new Map(raw.playlists as [string, PlaylistItem][]),
-		warnings: []
-	};
 }

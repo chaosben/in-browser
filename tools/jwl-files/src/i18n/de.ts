@@ -26,7 +26,7 @@ const de: Messages = {
 		onlyFirst: (name) => `Nur „${name}“ wurde übernommen – eine Datei nach der anderen.`,
 		remove: 'Aus der Liste entfernen',
 		failed: (error) => `Die Datei konnte nicht abgelegt werden: ${error}`,
-		hint: 'Eine aus JW Library geteilte Sicherung landet hier: lege sie als neue Datei ab oder führe sie mit der zusammen, die du aufbewahrst. Geöffnet wird sie nicht.'
+		hint: 'Eine aus JW Library geteilte Sicherung landet hier: Sie wird in deinen Dateien abgelegt, nicht geöffnet. Um sie mit der zusammenzuführen, die du aufbewahrst, öffne diese und wähle „Zusammenführen mit …“.'
 	},
 
 	ribbon: {
@@ -81,6 +81,8 @@ const de: Messages = {
 		cleanUpTip: 'Entfernt Markierungen ohne Text und Tags, die an nichts hängen',
 		rename: 'Umbenennen',
 		mergeInto: 'Zusammenlegen mit',
+		merge: 'Zusammenführen mit …',
+		mergeTip: 'Übernimmt, was eine andere Sicherung deiner Dateien hat, in diese – wo beide verschieden sind, gilt die neuere',
 		openPlaylist: 'Öffnen',
 		backToPlaylists: 'Alle Playlists',
 		addMedia: 'Bilder und Videos …',
@@ -121,7 +123,6 @@ const de: Messages = {
 		device: 'Erstellt auf',
 		modified: 'Zuletzt geändert',
 		schema: 'Datenbank-Version',
-		merged: 'Von in-browser zusammengeführt',
 		counts: {
 			notes: 'Notizen',
 			highlights: 'Markierungen',
@@ -131,8 +132,19 @@ const de: Messages = {
 			items: 'Einträge',
 			inputs: 'Ausgefüllte Felder'
 		},
-		mergeHint: 'Um die Sicherung eines anderen Geräts hier hineinzuführen, teile sie aus JW Library mit in-browser und wähle diese Datei – oder nimm „Zusammenführen mit …“ im Tab „Datei“.',
+		mergeHint: 'Um die Sicherung eines anderen Geräts hier hineinzuführen, lege sie in deinen Dateien ab (teile sie aus JW Library mit in-browser) und wähle „Zusammenführen mit …“ im Tab „Datei“.',
 		backHint: 'Zurück zu JW Library: „Senden …“, wo das Gerät es anbietet, sonst „Herunterladen“ und die Datei aus der Download-Meldung oder dem Download-Ordner öffnen.'
+	},
+
+	merge: {
+		chooseTitle: (name) => `Mit „${name}“ zusammenführen`,
+		same: 'Wähle eine andere Sicherung – eine Datei lässt sich nicht mit sich selbst zusammenführen.',
+		notBackup: 'Das ist keine Sicherung von JW Library.',
+		unchanged: (name) => `Diese Sicherung hat schon alles aus „${name}“ – nichts geändert.`,
+		done: (name, c) =>
+			`„${name}“ zusammengeführt: ${c.added} neu, ${c.changed} geändert` + (c.conflicts ? ` – ${c.conflicts} waren in beiden verschieden, die neuere gilt.` : '.'),
+		undo: 'Rückgängig',
+		failed: (error) => `Zusammenführen hat nicht geklappt: ${error}`
 	},
 
 	notes: {

@@ -71,18 +71,18 @@ export const FORMATS: readonly Format[] = [
 		tool: 'fonts',
 		open: '/fonts/file'
 	},
-	// JW Library's backups and playlists open in JWL Files (backups also merge, `merge.ts`)
+	// JW Library's backups and playlists open in JWL Files
 	{
 		ext: '.jwlibrary',
 		kind: 'file',
-		tool: 'jwl',
-		open: '/jwl/editor'
+		tool: 'jwl-files',
+		open: '/jwl-files/editor'
 	},
 	{
 		ext: '.jwlplaylist',
 		kind: 'file',
-		tool: 'jwl',
-		open: '/jwl/editor'
+		tool: 'jwl-files',
+		open: '/jwl-files/editor'
 	},
 	// A PDF opens in the PDF Editor (changed in place)
 	{

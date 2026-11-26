@@ -4,8 +4,7 @@
 
 import type { Database, SqlValue } from 'sql.js';
 import {
-	FOREIGN_MARKER_KEYS,
-	MARKER_KEY,
+	OLD_MERGE_MARKER,
 	MAX_SCHEMA,
 	MIN_SCHEMA,
 	bookmarkKey,
@@ -86,11 +85,7 @@ export function readData(db: Database): JwlData {
 			specialty: str(r[10]),
 			edition: str(r[11])
 		};
-		if (loc.keySymbol === MARKER_KEY) {
-			out.marker = loc.title;
-			continue;
-		}
-		if (loc.keySymbol && FOREIGN_MARKER_KEYS.includes(loc.keySymbol)) continue;
+		if (loc.keySymbol === OLD_MERGE_MARKER) continue;
 		const key = locKey(loc);
 		locById.set(Number(r[0]), key);
 		out.locations.set(key, loc);
@@ -286,8 +281,6 @@ const DATA_TABLES = [
 ];
 
 export interface WriteOptions {
-	/** Id of a merge result, kept in a hidden location; none when null */
-	marker: string | null;
 	/** Time for `LastModified` (ms) */
 	modified: number;
 }
@@ -345,8 +338,6 @@ export function writeData(db: Database, data: JwlData, options: WriteOptions): M
 			if (u2) unique2.set(u2, next);
 			next++;
 		}
-		if (options.marker)
-			addLocation(next, { book: null, chapter: null, document: 1, track: null, issue: 0, keySymbol: MARKER_KEY, language: null, type: 0, title: options.marker, specialty: null, edition: null });
 		run(
 			withEdition
 				? 'INSERT INTO Location (LocationId, BookNumber, ChapterNumber, DocumentId, Track, IssueTagNumber, KeySymbol, MepsLanguage, Type, Title, Specialty, Edition) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'

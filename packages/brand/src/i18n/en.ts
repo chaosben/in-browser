@@ -13,7 +13,7 @@ const en = {
 		'screen-capture': 'Screen Capture',
 		'pdf-editor': 'PDF Editor',
 		fonts: 'Fonts',
-		jwl: 'JWL Files'
+		'jwl-files': 'JWL Files'
 	},
 
 	brand: {

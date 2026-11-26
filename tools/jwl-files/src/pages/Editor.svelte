@@ -21,8 +21,7 @@
 	import { ExternalVersions, flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
 	import { filesUrl } from '@in-browser/files/formats.js';
 	import { canWrite, read, watch, writable, write } from '@in-browser/files/fs.js';
-	import { canMerge, mergeWith } from '@in-browser/files/merge.js';
-	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
+	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
 	import { basename, normalize, parent, stem } from '@in-browser/files/path.js';
 	import { sendCommand } from '@in-browser/files/send.js';
 	import { shareCommand } from '@in-browser/files/share-dialog.svelte.js';
@@ -102,8 +101,6 @@
 	/** The tag renamed in place */
 	let renaming = $state<string | null>(null);
 	let adding = $state(false);
-	/** The merge running here: its own write is no version “saved elsewhere” */
-	let merging = false;
 	let reload: ((quiet: boolean) => Promise<void>) | null = null;
 	let input = $state<HTMLInputElement>();
 
@@ -142,7 +139,7 @@
 
 		(async () => {
 			try {
-				release = await lockDocument(`jwl:${path}`);
+				release = await lockDocument(`jwl-files:${path}`);
 				if (disposed) return release?.();
 				if (!release) {
 					error = m.editor.openElsewhere;
@@ -154,7 +151,7 @@
 				reload = open;
 				stopWatch = watch(async (paths) => {
 					const current = untrack(() => doc);
-					if (!current || merging || (await current.external(paths)) !== 'reload') return;
+					if (!current || (await current.external(paths)) !== 'reload') return;
 					if (!(await external.shouldReload(current.name, String(Date.now())))) return;
 					if (!disposed && !current.dirty) await open(!external.silent).catch((e) => console.error('[jwl] reload', e));
 				});
@@ -343,7 +340,7 @@
 		if (!path) return;
 		try {
 			await writeJwl(
-				{ kind: 'playlist', name: list.name, deviceName: DEVICE_NAME, data: playlistData(data, list.key), template: doc.file.database, files: doc.files, marker: null },
+				{ kind: 'playlist', name: list.name, deviceName: DEVICE_NAME, data: playlistData(data, list.key), template: doc.file.database, files: doc.files },
 				await writable(path)
 			);
 			toast(m.playlists.exported(basename(path)), 'success');
@@ -399,14 +396,22 @@
 		if (paths?.length) await addMedia(await Promise.all(paths.map((p) => read(p))));
 	}
 
+	/** “Merge with …”: another backup of the files taken into this one – one undo step, saved like every change */
 	async function merge() {
-		if (!doc) return;
+		if (!doc || !isBackup) return;
 		const current = doc;
-		merging = true;
+		const path = await chooseFile({ mode: 'open', folder: parent(current.path), accept: ['.jwlibrary'], title: m.merge.chooseTitle(current.name) });
+		if (!path) return;
+		if (path === current.path) return toast(m.merge.same, 'info');
 		try {
-			await mergeWith(current.path, { before: () => current.flush(), after: () => void reload?.(true) });
-		} finally {
-			merging = false;
+			const other = await readJwl(await read(path));
+			if (other.kind !== 'backup') return toast(m.merge.notBackup, 'error');
+			const done = current.merge(other);
+			if (!done) return toast(m.merge.unchanged(basename(path)), 'info', 6000);
+			toast(m.merge.done(basename(path), done), 'success', 10000, { label: m.merge.undo, run: () => current.undo() });
+		} catch (e) {
+			console.error('[jwl] merge', e);
+			toast(e instanceof JwlError ? m.editor[e.reason] : m.merge.failed(filesErrorText(e)), 'error', 8000);
 		}
 	}
 
@@ -441,10 +446,10 @@
 		share: shareCommand(() => doc?.path),
 		merge: {
 			id: 'merge',
-			label: filesMessages().merge.action,
-			tip: filesMessages().merge.tip,
+			label: m.commands.merge,
+			tip: m.commands.mergeTip,
 			icon: 'icon-[material-symbols-light--merge]',
-			enabled: () => !!doc && canMerge(doc.name) && editable(),
+			enabled: () => isBackup && editable(),
 			run: () => void merge()
 		},
 		showInFiles: { id: 'showInFiles', label: m.commands.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', enabled: () => !!doc, run: () => doc && location.assign(filesUrl(doc.path)) },
@@ -713,7 +718,7 @@
 
 	$effect(() => {
 		const current = doc;
-		if (!current) return setBrandBar({ crumbs: [{ label: m.editor.back, href: resolve('/jwl') }] });
+		if (!current) return setBrandBar({ crumbs: [{ label: m.editor.back, href: resolve('/jwl-files') }] });
 		const playlist = list;
 		if (isBackup && playlist) return setBrandBar({ crumbs: [{ label: current.name, onclick: () => (openList = null) }, { label: playlist.name }] });
 		return setBrandBar({ crumbs: [{ label: current.name }] });
@@ -726,7 +731,7 @@
 </script>
 
 <svelte:head>
-	{#if doc}<title>{doc.name} · {toolName('jwl')}</title>{/if}
+	{#if doc}<title>{doc.name} · {toolName('jwl-files')}</title>{/if}
 </svelte:head>
 
 {#snippet footerStatus()}
@@ -750,7 +755,7 @@
 		<p class="max-w-md">{error}</p>
 		<div class="flex gap-2">
 			{#if access}<button class="btn btn-primary" onclick={access.run}>{access.label}</button>{/if}
-			<a class="btn" href={resolve('/jwl')}>{m.editor.back}</a>
+			<a class="btn" href={resolve('/jwl-files')}>{m.editor.back}</a>
 		</div>
 	</div>
 {:else if !doc || !data}
@@ -758,7 +763,7 @@
 {:else}
 	{@const current = doc}
 	<div class="flex h-full min-h-0 flex-col">
-		<Ribbon {tabs} quick={[commands.undo, commands.redo]} storage="jwl" initial="home" />
+		<Ribbon {tabs} quick={[commands.undo, commands.redo]} storage="jwl-files" initial="home" />
 		{#if current.conflict}
 			<div role="alert" class="alert alert-warning rounded-none py-2 text-sm">
 				<span class="icon-[material-symbols-light--warning-outline] size-5" aria-hidden="true"></span>
@@ -795,7 +800,6 @@
 						<dd>{date(current.file.modified)}</dd>
 						<dt class="opacity-70">{m.overview.schema}</dt>
 						<dd>{data.schema}</dd>
-						{#if data.marker}<dt class="opacity-70">{m.overview.merged}</dt><dd><span class="icon-[material-symbols-light--check] size-4 align-middle" aria-hidden="true"></span></dd>{/if}
 					</dl>
 					<div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
 						{#each counts as [label, n] (label)}

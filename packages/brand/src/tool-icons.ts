@@ -19,7 +19,7 @@ export const TOOL_ICONS: Record<ToolSlug, ToolIcon> = {
 	'screen-capture': { glyph: 'screen-record-outline', color: '#dc2626', class: 'icon-[material-symbols-light--screen-record-outline]' },
 	'pdf-editor': { glyph: 'picture-as-pdf-outline', color: '#16a34a', class: 'icon-[material-symbols-light--picture-as-pdf-outline]' },
 	fonts: { glyph: 'font-download-outline', color: '#7c3aed', class: 'icon-[material-symbols-light--font-download-outline]' },
-	jwl: { glyph: 'menu-book-outline', color: '#5b3c88', class: 'icon-[material-symbols-light--menu-book-outline]' }
+	'jwl-files': { glyph: 'menu-book-outline', color: '#5b3c88', class: 'icon-[material-symbols-light--menu-book-outline]' }
 };
 
 /** Tile color of the suite's own mark */

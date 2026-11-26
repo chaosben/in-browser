@@ -1,52 +1,37 @@
 import type { ToolSlug } from '@in-browser/brand/i18n/index.svelte.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
-import { chooseFile, chooseSaveTarget } from './dialog.svelte.js';
+import { chooseFile } from './dialog.svelte.js';
 import { showError } from './errors.js';
 import { filesUrl, formatsOf, openUrl } from './formats.js';
 import { list, write } from './fs.js';
 import { filesMessages } from './i18n/index.svelte.js';
 import { dropIncoming, incomingTool, readIncoming, receivedUrl, storeIncoming, type Incoming } from './incoming.js';
-import { canMerge, lastMergeTarget, mergeInto } from './merge.js';
-import { basename, extname, join, parent, uniqueName } from './path.js';
+import { join, uniqueName } from './path.js';
 import { recentDocuments } from './sources/recent.js';
 
 // Files from other apps (shared to the installed suite, opened with it, or picked from the computer) are kept in
-// the suite – always a copy, where the user says (decided by the user, 2026-11-24) – and then opened in their tool
-// (JWL Files keeps them closed, `jwl.md`).
+// the suite – always a copy, where the user says (decided by the user, 2026-11-24) – and then opened in their tool.
 // `ToolLayout` hands a page's `?received=<id>` to `takeReceived`; a tool that takes it another way (the Text
 // Editor: a draft without a place) registers a `receiver`.
 
 /**
  * Keeps one file from outside: asks where (starting in the folder last used by its tool), writes it and returns
- * its path; `null` when canceled. A file of a format that merges (`merge.ts`) may be merged into one there instead –
- * the dialog suggests the file merged into last. `folder` is where the dialog starts otherwise (an upload: the
- * folder uploaded into).
+ * its path; `null` when canceled.
  */
-export async function keepFile(file: File, options: { title?: string; folder?: string } = {}): Promise<string | null> {
-	return (await keepFileAs(file, options))?.path ?? null;
-}
-
-/** `keepFile`, also telling whether the file was merged into the one at `path` instead of written there */
-export async function keepFileAs(file: File, { title, folder }: { title?: string; folder?: string } = {}): Promise<{ path: string; merged: boolean } | null> {
+export async function keepFile(file: File, { title }: { title?: string } = {}): Promise<string | null> {
 	const format = formatsOf(file.name, 'file')[0];
 	const recent = recentDocuments(format?.tool ?? 'files');
-	const mergeable = canMerge(file.name);
-	const target = mergeable ? lastMergeTarget(extname(file.name)) : null;
-	const choice = await chooseSaveTarget({
+	const path = await chooseFile({
 		mode: 'save',
-		folder: target ? parent(target) : (folder ?? recent.lastFolder()),
+		folder: recent.lastFolder(),
 		accept: format ? [format.ext] : [],
-		name: target ? basename(target) : file.name,
-		title: title ?? filesMessages().receive.saveTitle,
-		overwrite: mergeable,
-		merge: mergeable
+		name: file.name,
+		title: title ?? filesMessages().receive.saveTitle
 	});
-	if (!choice) return null;
-	if (choice.merge) {
-		if (!(await mergeInto(choice.path, file))) return null;
-	} else await write(choice.path, file);
-	recent.usedFolderOf(choice.path);
-	return { path: choice.path, merged: choice.merge };
+	if (!path) return null;
+	await write(path, file);
+	recent.usedFolderOf(path);
+	return path;
 }
 
 /** Keeps several files in a folder the user picks (numbered on clashes); the folder, `null` when canceled */

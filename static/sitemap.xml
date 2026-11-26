@@ -6,7 +6,7 @@
 	<url><loc>https://in-browser.org/text-editor</loc></url>
 	<url><loc>https://in-browser.org/pdf-editor</loc></url>
 	<url><loc>https://in-browser.org/fonts</loc></url>
-	<url><loc>https://in-browser.org/jwl</loc></url>
+	<url><loc>https://in-browser.org/jwl-files</loc></url>
 	<url><loc>https://in-browser.org/help</loc></url>
 	<url><loc>https://in-browser.org/help/storage</loc></url>
 	<url><loc>https://in-browser.org/help/sync</loc></url>
@@ -19,5 +19,5 @@
 	<url><loc>https://in-browser.org/help/text-editor</loc></url>
 	<url><loc>https://in-browser.org/help/pdf-editor</loc></url>
 	<url><loc>https://in-browser.org/help/fonts</loc></url>
-	<url><loc>https://in-browser.org/help/jwl</loc></url>
+	<url><loc>https://in-browser.org/help/jwl-files</loc></url>
 </urlset>

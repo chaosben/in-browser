@@ -26,7 +26,7 @@ const en = {
 		onlyFirst: (name: string) => `Only “${name}” was taken – one file at a time.`,
 		remove: 'Remove from the list',
 		failed: (error: string) => `The file could not be kept: ${error}`,
-		hint: 'A backup shared from JW Library lands here: keep it as a new file, or merge it into the one you keep. It isn’t opened.'
+		hint: 'A backup shared from JW Library lands here: it is kept in your files, not opened. To merge it into the one you keep, open that one and choose “Merge with …”.'
 	},
 
 	ribbon: {
@@ -81,6 +81,8 @@ const en = {
 		cleanUpTip: 'Removes highlights without any text and tags on nothing',
 		rename: 'Rename',
 		mergeInto: 'Merge into',
+		merge: 'Merge with …',
+		mergeTip: 'Takes what another backup of your files has into this one – where both differ, the newer counts',
 		openPlaylist: 'Open',
 		backToPlaylists: 'All playlists',
 		addMedia: 'Pictures and videos …',
@@ -121,7 +123,6 @@ const en = {
 		device: 'Made on',
 		modified: 'Last changed',
 		schema: 'Database version',
-		merged: 'Merged by in-browser',
 		counts: {
 			notes: 'Notes',
 			highlights: 'Highlights',
@@ -131,8 +132,19 @@ const en = {
 			items: 'Items',
 			inputs: 'Filled-in fields'
 		},
-		mergeHint: 'To merge the backup of another device into this one, share it from JW Library to in-browser and choose this file – or use “Merge with …” in the tab “File”.',
+		mergeHint: 'To merge the backup of another device into this one, keep it in your files (share it from JW Library to in-browser) and choose “Merge with …” in the tab “File”.',
 		backHint: 'Back to JW Library: “Send …” where the device offers it, else “Download” and open the file from the download message or the download folder.'
+	},
+
+	merge: {
+		chooseTitle: (name: string) => `Merge with “${name}”`,
+		same: 'Choose another backup – a file can’t be merged with itself.',
+		notBackup: 'This is no JW Library backup.',
+		unchanged: (name: string) => `This backup has everything of “${name}” already – nothing changed.`,
+		done: (name: string, c: { added: number; changed: number; conflicts: number }) =>
+			`Merged “${name}”: ${c.added} new, ${c.changed} changed` + (c.conflicts ? ` – ${c.conflicts} differed in both, the newer one counts.` : '.'),
+		undo: 'Undo',
+		failed: (error: string) => `Could not merge: ${error}`
 	},
 
 	notes: {

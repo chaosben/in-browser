@@ -29,7 +29,7 @@ async function backup(content: string): Promise<Blob> {
 	const data = emptyData();
 	data.locations.set(locKey(verse), verse);
 	data.notes.set('n1', { guid: 'n1', mark: null, loc: locKey(verse), title: 'Note', content, modified: '2026-01-02T00:00:00Z', created: '2026-01-02T00:00:00Z', blockType: 0, blockId: null });
-	return jwlBlob({ kind: 'backup', name: '', deviceName: 'test', data, template, files: new Map(), marker: null });
+	return jwlBlob({ kind: 'backup', name: '', deviceName: 'test', data, template, files: new Map() });
 }
 
 describe('an open backup', () => {

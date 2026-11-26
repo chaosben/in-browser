@@ -51,8 +51,6 @@ export interface WriteJob {
 	 * file (JW Library's schema 16) */
 	template: Uint8Array | null;
 	files: Map<string, Blob>;
-	/** Id of a merge result, kept in the file (`MARKER_KEY`) */
-	marker: string | null;
 }
 
 export type FileRequest = { type: 'read'; file: Blob } | { type: 'write'; job: WriteJob } | { type: 'ack' };
@@ -166,5 +164,5 @@ export function newPlaylist(name: string): Promise<Blob> {
 	const data = emptyData();
 	const tag = { type: TAG_PLAYLIST, name: name.trim() || 'Playlist' };
 	data.tags.set(tagKey(tag), tag);
-	return jwlBlob({ kind: 'playlist', name: tag.name, deviceName: DEVICE_NAME, data, template: null, files: new Map(), marker: null });
+	return jwlBlob({ kind: 'playlist', name: tag.name, deviceName: DEVICE_NAME, data, template: null, files: new Map() });
 }

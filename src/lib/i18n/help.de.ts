@@ -619,7 +619,7 @@ const help: typeof enHelp = {
 					items: {
 						share: {
 							title: 'An in-browser teilen',
-							text: 'Unter Android erscheint die installierte App „in-browser“ im Teilen-Menü anderer Apps. Teilst du eine PDF, öffnet sie sich im PDF-Editor, eine Textdatei oder einen Text im Texteditor; eine Sicherung oder Playlist von JW Library wird in JWL-Dateien abgelegt, ohne geöffnet zu werden (eine Sicherung kannst du mit der zusammenführen, die du aufbewahrst); andere Dateien landen in Dateien. Bevor etwas abgelegt wird, wählst du, wo – die Datei wird in deine Dateien kopiert, nichts wird hochgeladen.',
+							text: 'Unter Android erscheint die installierte App „in-browser“ im Teilen-Menü anderer Apps. Teilst du eine PDF, öffnet sie sich im PDF-Editor, eine Textdatei oder einen Text im Texteditor; eine Sicherung oder Playlist von JW Library wird in JWL-Dateien abgelegt, ohne geöffnet zu werden; andere Dateien landen in Dateien. Bevor etwas abgelegt wird, wählst du, wo – die Datei wird in deine Dateien kopiert, nichts wird hochgeladen.',
 							options: {
 								where: { label: 'Wo es geht', text: 'Chrome und Samsung Internet unter Android, mit installiertem in-browser. Nicht auf iPhone und iPad – dort speicherst du die Datei und lädst sie in Dateien hoch.' }
 							}
