@@ -79,7 +79,6 @@
 		href={item.link.href}
 		target={newTab ? '_blank' : undefined}
 		rel={newTab ? 'noopener' : undefined}
-		data-sveltekit-reload={newTab ? undefined : ''}
 		onclick={(e) => e.stopPropagation()}
 	>
 		{item.link.label}

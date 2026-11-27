@@ -1,3 +1,4 @@
+import { navigate } from '@in-browser/brand/navigate.js';
 import { showError } from '@in-browser/files/errors.js';
 import { filesUrl } from '@in-browser/files/formats.js';
 import { isolateHistory, redoDepth, undoDepth } from '@codemirror/commands';
@@ -569,9 +570,9 @@ export class Workspace {
 	}
 }
 
-/** Files in a new browser tab, in the folder of `path` */
+/** Files with the folder of `path` – in this tab, as in every tool (the shown text is saved or kept as a draft first) */
 export function showFolderOf(path: string) {
-	window.open(filesUrl(path), '_blank', 'noopener');
+	navigate(filesUrl(path));
 }
 
 /** The paths of “Recently opened” (start page), newest first */

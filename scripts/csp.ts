@@ -2,7 +2,8 @@
 // `static/_headers` writes `script-src 'self' 'unsafe-inline'` as the placeholder for a page policy (SvelteKit starts
 // every page with an inline script, and the theme is set by one before the first paint); a served policy never has
 // 'unsafe-inline' for scripts – all tools share one origin with the user's files, so injected markup must not run.
-// The build fails when a page policy would stay open or a section finds no page.
+// There is one page policy (under `/*`); every group of pages (`/files*`, `/help*` …) gets a section with that
+// policy and the hashes of its own pages. The build fails when a page policy would stay open.
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -10,6 +11,8 @@ import { join, relative } from 'node:path';
 
 const BUILD = 'build';
 const PLACEHOLDER = "script-src 'self' 'unsafe-inline'";
+/** The comment line in `static/_headers` after which the sections of the page groups are added */
+const MARK = 'added here by `scripts/csp.ts`';
 /** Served for every unknown path, so under any section */
 const FALLBACK = '404.html';
 
@@ -36,25 +39,36 @@ function urlOf(file: string): string {
 const pages = htmlFiles(BUILD).map((file) => ({ file, url: urlOf(file), hashes: inlineHashes(file), fallback: relative(BUILD, file) === FALLBACK }));
 const lines = readFileSync(join(BUILD, '_headers'), 'utf8').split('\n');
 
-// Sections: a line without indentation starts one; its pattern ends with `*` or is a path
-const sections: { pattern: string; line: number }[] = [];
-let pattern = '';
-for (const [i, line] of lines.entries()) {
-	if (line && !/^\s|^#/.test(line)) pattern = line.trim();
-	else if (line.includes(PLACEHOLDER)) sections.push({ pattern, line: i });
-}
-const matches = (pattern: string, url: string) => (pattern.endsWith('*') ? url.startsWith(pattern.slice(0, -1)) : url === pattern);
-/** A page takes the policy of the last section matching it (tool sections unset the default before theirs) */
-const sectionOf = (url: string) => sections.findLast((section) => matches(section.pattern, url));
+// The one page policy (the placeholder line under `/*`) and where the groups' sections go
+const policyLine = lines.findIndex((line) => line.includes(PLACEHOLDER));
+if (policyLine < 0 || lines.filter((line) => line.includes(PLACEHOLDER)).length !== 1) throw new Error('[csp] _headers needs exactly one page policy (under /*)');
+const mark = lines.findIndex((line) => line.includes(MARK));
+if (mark < 0) throw new Error('[csp] _headers lost the place for the sections of the page groups');
 
-for (const section of sections) {
-	const own = pages.filter((page) => page.fallback || sectionOf(page.url) === section);
-	if (!own.some((page) => !page.fallback)) throw new Error(`[csp] no page for the section ${section.pattern} of _headers`);
-	const hashes = [...new Set(own.flatMap((page) => page.hashes))].sort();
-	lines[section.line] = lines[section.line].replace(PLACEHOLDER, `script-src 'self' ${hashes.join(' ')}`);
+/** `/files/editor` → `/files`; the home page: the default section */
+const groupOf = (url: string) => (url === '/' ? '' : '/' + url.split('/')[1]);
+const fallback = pages.filter((page) => page.fallback).flatMap((page) => page.hashes);
+const groups = new Map<string, string[]>();
+for (const page of pages) if (!page.fallback) groups.set(groupOf(page.url), [...(groups.get(groupOf(page.url)) ?? []), ...page.hashes]);
+if (!groups.has('')) throw new Error('[csp] no home page found');
+
+/** The policy with the inline scripts of a group (and of the page for unknown paths, served under any) */
+function policy(hashes: string[], pattern: string): string {
+	const all = [...new Set([...hashes, ...fallback])].sort();
+	const line = lines[policyLine].replace(PLACEHOLDER, `script-src 'self' ${all.join(' ')}`);
 	// Cloudflare drops header lines over 2000 characters
-	if (lines[section.line].trim().length > 2000) throw new Error(`[csp] the policy of ${section.pattern} is too long (${lines[section.line].trim().length})`);
-	console.log(`csp ${section.pattern}: ${hashes.length} inline scripts allowed`);
+	if (line.trim().length > 2000) throw new Error(`[csp] the policy of ${pattern} is too long (${line.trim().length})`);
+	console.log(`csp ${pattern}: ${all.length} inline scripts allowed`);
+	return line;
 }
+
+// The same policy for every group, only the hashes differ: a tab keeps the policy of the page it loaded first, so
+// nothing else may depend on the page
+const sections = [...groups]
+	.filter(([group]) => group)
+	.sort(([a], [b]) => a.localeCompare(b))
+	.flatMap(([group, hashes]) => [`${group}*`, '  ! Content-Security-Policy', policy(hashes, `${group}*`), '']);
+lines[policyLine] = policy(groups.get('')!, '/*');
+lines.splice(mark + 1, 0, '', ...sections.slice(0, -1));
 if (lines.some((line) => /script-src[^;]*'unsafe-inline'/.test(line))) throw new Error("[csp] a policy still allows 'unsafe-inline' scripts");
 writeFileSync(join(BUILD, '_headers'), lines.join('\n'));

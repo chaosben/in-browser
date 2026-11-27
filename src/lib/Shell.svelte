@@ -1,17 +1,21 @@
+<script lang="ts" module>
+	import type { Component } from 'svelte';
+
+	// Loaded once per tab, in the browser only (prerendering never touches the files modules)
+	let indicator: Promise<Component> | null = null;
+	const syncIndicator = () => (indicator ??= import('@in-browser/files/SyncIndicator.svelte').then((module) => module.default));
+</script>
+
 <script lang="ts">
-	// Frame of the overview pages (home page, help pages and error page): header, footer, metadata, language switch, PWA
-	// (the launcher installs as the app of the whole suite), the syncs like in every tool
-	import { onMount, type Component, type Snippet } from 'svelte';
+	// Frame of the overview pages (home page, help pages and error page): header, footer, metadata and the language
+	// switch. What lives as long as the tab (the syncs, the overlays) is `Suite.svelte` in the root layout.
+	import { onMount, type Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
 	import BrandBar from '@in-browser/brand/BrandBar.svelte';
 	import { BRAND } from '@in-browser/brand/brand.js';
 	import { sourceUrl } from '@in-browser/brand/build.js';
 	import CommitLink from '@in-browser/brand/CommitLink.svelte';
-	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
-	import { initPwa } from '@in-browser/brand/pwa.svelte.js';
-	import Toasts from '@in-browser/brand/Toasts.svelte';
-	import UpdateBanner from '@in-browser/brand/UpdateBanner.svelte';
-	import { applyBrowserLocale, lang, m } from '#lib/i18n/index.svelte.js';
+	import { applyBrowserLocale, applyLocaleEarly, lang, m } from '#lib/i18n/index.svelte.js';
 
 	interface Props {
 		children: Snippet;
@@ -29,33 +33,17 @@
 	const fullTitle = () => (title ? `${title} · ${BRAND.suite}` : `${BRAND.suite} – ${m.brand.claim}`);
 	const canonical = $derived(`${BRAND.suiteUrl}${path}`);
 
-	// The suite settings (gear in the BrandBar), loaded on first use
-	let SettingsDialog = $state<Component | null>(null);
-	// Sync status in the footer; the files modules load only in the browser (prerendering never touches them)
+	// Sync status in the footer
 	let SyncIndicator = $state<Component | null>(null);
-	async function openSettings() {
-		const [dialog, store] = await Promise.all([import('@in-browser/files/SettingsDialog.svelte'), import('@in-browser/files/suite-settings.svelte.js')]);
-		SettingsDialog = dialog.default;
-		store.openSettings();
-	}
+	// The suite settings (gear in the BrandBar); their dialog is the suite's
+	const openSettings = async () => (await import('@in-browser/files/suite-settings.svelte.js')).openSettings();
 
+	// Reached from another page of this tab: the browser language before the first paint
+	applyLocaleEarly();
 	// Prerendered in English; if the browser language differs, {#key} re-renders everything once
 	onMount(() => {
 		applyBrowserLocale();
-		initPwa();
-		// The syncs run while any page of the suite is open, so an open overview keeps the devices connected
-		void Promise.all([
-			import('@in-browser/files/sync/sync.svelte.js'),
-			import('@in-browser/files/suite-settings.svelte.js'),
-			import('@in-browser/files/SyncIndicator.svelte'),
-			import('@in-browser/files/receive.svelte.js')
-		]).then(([sync, settings, indicator, receive]) => {
-			sync.startSync();
-			// “Open with in-browser” while the suite's window shows the overview
-			receive.installLaunchHandler();
-			void settings.suiteSettings.load();
-			SyncIndicator = indicator.default;
-		});
+		void syncIndicator().then((component) => (SyncIndicator = component));
 	});
 </script>
 
@@ -96,8 +84,4 @@
 			<CommitLink />
 		</footer>
 	</div>
-	{#if SettingsDialog}<SettingsDialog />{/if}
 {/key}
-<Toasts />
-<ContextMenu />
-<UpdateBanner />

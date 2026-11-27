@@ -3,14 +3,20 @@ import { p2pStatus } from './p2p/p2p.svelte.js';
 import { inScope } from './p2p/scope.js';
 import { filesMessages } from './i18n/index.svelte.js';
 import type { Command } from '@in-browser/brand/commands.js';
+import { onLeavePage } from '@in-browser/brand/ui/page-scope.js';
 
-// The share dialog and the dialog for opening a share by its words, one each in every tool (placed by
-// `ToolLayout`): a tool asks for them, the layout shows them.
+// The share dialog and the dialog for opening a share by its words, once for the suite (placed by `Suite.svelte`):
+// a tool asks for them. They close when the page that asked is left.
 
 /** What the share dialog shows: a new share of `path` (a folder, or with `single` one file or package), or the share `id` */
 export type ShareTarget = { path: string; single?: boolean } | { id: string };
 
 export const shareDialog = $state<{ target: ShareTarget | null; opening: boolean }>({ target: null, opening: false });
+
+onLeavePage(() => {
+	shareDialog.target = null;
+	shareDialog.opening = false;
+});
 
 /** Opens the share dialog for an entry of My files, or for a share made before */
 export function openShareDialog(target: ShareTarget) {

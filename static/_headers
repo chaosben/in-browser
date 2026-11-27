@@ -1,61 +1,35 @@
 # Header rules for Cloudflare Workers Static Assets (copied to build/).
-# Rules apply in this order; a tool section first unsets (`! Header`) what it sets differently.
+# Rules apply in this order; a section first unsets (`! Header`) what it sets differently.
 
-# Overview (and the defaults of every path); it runs the syncs too, so the P2P relays need wss:
+# Every page of the suite – one policy for all of them (decided by the user, 2026-11-27): pages change without
+# reloading, and a tab keeps the headers of the page it loaded first. So what any tool needs is allowed everywhere:
+# the P2P relays (wss:), connected servers (https:, localhost), previews, media, fonts and workers from blob:, and
+# screen, microphone and camera (Screen Capture; the browser still asks). What a page really does is the code's
+# matter (the catalog of free fonts is reached only from Fonts, and only when the user searches it).
 # One origin holds every file, key and paired device: always over HTTPS (HSTS, this host only – subdomains are the
 # domain owner's matter), no other site keeps a handle on our windows (COOP) or embeds our files (CORP).
+# `scripts/csp.ts` replaces `'unsafe-inline'` by the hashes of the pages' own inline scripts and adds one section per
+# group of pages (`/files*`, `/help*` …) with the same policy and that group's hashes – one line for all would be
+# longer than Cloudflare takes. A new tool needs no entry here.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=63072000
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
-  Permissions-Policy: camera=(), microphone=(), display-capture=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Permissions-Policy: camera=(self), microphone=(self), display-capture=(self), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' blob: data:; connect-src 'self' blob: data: wss: https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
 # Build files: file names contain a hash – cached permanently. A worker runs under the policy of its own script:
 # PDF.js decodes images and runs form scripts (QuickJS) in its workers with WebAssembly, so scripts may compile it;
-# pages keep their own policies below. One block only – rules of the same path are merged at the first one's place,
+# pages keep theirs. One block only – rules of the same path are merged at the first one's place,
 # before `/*` would add its policy (two policies: both apply, WebAssembly stays forbidden)
 /_app/immutable/*
   ! Content-Security-Policy
   Cache-Control: public, max-age=31536000, immutable
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
-# Screen Capture: screen, microphone and camera; media and workers from blob:
-/screen-capture*
-  ! Permissions-Policy
-  ! Content-Security-Policy
-  Permissions-Policy: display-capture=(self), microphone=(self), camera=(self), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data: wss: https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-
-# Files: previews and downloads from blob:
-/files*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data: wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-
-# Text Editor: the defaults; the Markdown preview is a sandboxed srcdoc frame with its own CSP (needs no frame-src),
-# downloads are blob: links
-/text-editor*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-
-# PDF Editor: pages are rendered by PDF.js workers (see `/_app/immutable/*`), downloads are blob: links
-/pdf-editor*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-
-# JWL Files: SQLite (WebAssembly) runs in its worker (see `/_app/immutable/*`); thumbnails, new videos and downloads
-# from blob:
-/jwl-files*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: wss: https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-
-# Fonts: font files previewed from blob:; the catalog of free fonts (Fontsource: its API and the files on jsDelivr) is
-# reached only from these pages, and only when the user searches it
-/fonts*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' wss: https://api.fontsource.org https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+# (the sections of the page groups are added here by `scripts/csp.ts`)
 
 # p2p-node (packages/p2p-node): the starters fetch version.json to find updates, people pipe the install scripts
 # into a shell – always fresh, scripts as text

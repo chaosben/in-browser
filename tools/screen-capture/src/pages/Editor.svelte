@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	import { loadUserFonts, watchUserFonts } from '@in-browser/graphics/user-fonts.svelte.js';	// Editor page of a project (`?path=` of its package): the ribbon on top, side panels on the left (what you add),
 	// the preview with its editing layer (text is typed there) and the timeline below; the selection's properties are
 	// in the ribbon's contextual tab “Properties”. Every action is a
@@ -86,7 +87,7 @@
 	import { errorMessage, formatTime } from '#lib/util/format.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
 	import { pointerDrag } from '@in-browser/brand/ui/drag.js';
-	import { ExternalVersions, flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
+	import { ExternalVersions, holdDocument, lockDocument, type DocumentHold } from '@in-browser/files/documents.js';
 
 	let editor = $state<Editor | null>(null);
 	let player = $state<Player | null>(null);
@@ -154,6 +155,7 @@
 
 	/** One tab at a time edits a project */
 	const lockProject = (path: string) => lockDocument(`screen-capture:project:${path}`);
+	const holdProject = (path: string) => holdDocument(`screen-capture:project:${path}`);
 
 	// The project of the address (`?path=` of its package): one tab at a time edits it (Web Lock); changes from
 	// elsewhere (sync from another computer) reload it unless there are unsaved changes.
@@ -164,7 +166,7 @@
 		let ed: Editor | null = null;
 		let pl: Player | null = null;
 		let disposed = false;
-		let release: (() => void) | null = null;
+		let hold: DocumentHold | null = null;
 		let stopWatch: (() => void) | null = null;
 
 		const close = () => {
@@ -215,12 +217,18 @@
 
 		(async () => {
 			try {
-				release = await lockProject(path);
-				if (disposed) return release?.();
-				if (!release) {
+				hold = await holdProject(path);
+				if (disposed) return void hold?.close();
+				if (!hold) {
 					loadError = m.editor.openElsewhere;
 					return;
 				}
+				// What still waits (the 400 ms of the autosave) when the page is hidden or left
+				let last: Editor | null = null;
+				hold.saves(() => {
+					last = ed ?? last;
+					return last?.dirty ? last.save() : undefined;
+				});
 				const opened = await open();
 				if (!opened) return;
 				rememberProject(path);
@@ -241,17 +249,13 @@
 			}
 		})();
 
-		// Leaving or hiding the page: save what is still waiting (the 400 ms of the autosave)
-		const stopFlush = flushWhenHidden(() => {
-			if (ed?.dirty) void ed.save();
-		});
 		return () => {
 			disposed = true;
-			stopFlush();
 			stopWatch?.();
-			const last = ed;
+			// The last save first, then the lock; the player goes at once
+			const closing = hold?.close();
 			close();
-			Promise.resolve(last?.dirty ? last.save() : undefined).finally(() => release?.());
+			void closing;
 		};
 	});
 
@@ -282,7 +286,7 @@
 	}
 
 	function showInFiles(ed: Editor) {
-		location.assign(filesUrl(ed.project.id));
+		navigate(filesUrl(ed.project.id));
 	}
 
 	// Pictures of image annotations are loaded from this project

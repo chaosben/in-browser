@@ -58,6 +58,10 @@ const en = {
 		resume: 'Resume',
 		stop: 'Stop',
 		discard: 'Discard',
+		/** Asked when the page is left while recording */
+		leaveTitle: 'Discard the recording?',
+		leaveMessage: 'A recording is running. Leaving this page ends it, and what was recorded so far is lost. To keep it, stay and choose “Stop”.',
+		leaveStay: 'Stay',
 		floatingControls: 'Floating controls window',
 		pipHide: 'Hide',
 		pipShow: 'Show controls',

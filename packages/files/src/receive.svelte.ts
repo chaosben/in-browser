@@ -1,4 +1,5 @@
 import type { ToolSlug } from '@in-browser/brand/i18n/index.svelte.js';
+import { navigate, readdress } from '@in-browser/brand/navigate.js';
 import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { chooseFile } from './dialog.svelte.js';
 import { showError } from './errors.js';
@@ -11,7 +12,7 @@ import { recentDocuments } from './sources/recent.js';
 
 // Files from other apps (shared to the installed suite, opened with it, or picked from the computer) are kept in
 // the suite – always a copy, where the user says (decided by the user, 2026-11-24) – and then opened in their tool.
-// `ToolLayout` hands a page's `?received=<id>` to `takeReceived`; a tool that takes it another way (the Text
+// `Suite.svelte` hands a page's `?received=<id>` to `takeReceived`; a tool that takes it another way (the Text
 // Editor: a draft without a place) registers a `receiver`.
 
 /**
@@ -61,19 +62,18 @@ export function setReceiver(take: Receiver): () => void {
 }
 
 /**
- * Takes what the address names (`?received=<id>`) on the start page of `tool`: hands it to the tool that should
- * have it, to the page's `receiver`, or keeps it and opens it in its tool.
+ * Takes what the address names (`?received=<id>`) on a page of `tool` (`null`: none, the overview): hands it to the
+ * tool that should have it, to the page's `receiver`, or keeps it and opens it in its tool.
  */
-export async function takeReceived(tool: ToolSlug): Promise<void> {
-	const address = new URL(location.href);
-	const id = address.searchParams.get('received');
-	if (!id) return;
-	address.searchParams.delete('received');
-	history.replaceState(history.state, '', address);
+export async function takeReceived(tool: ToolSlug | null, id: string): Promise<void> {
 	const incoming = await readIncoming(id);
+	const target = incoming && incomingTool(incoming);
+	if (target && target !== tool) return navigate(receivedUrl(target, id), { replace: true });
+	// Handled here: out of the address, so a reload doesn't ask again
+	const address = new URL(location.href);
+	address.searchParams.delete('received');
+	readdress(address);
 	if (!incoming) return;
-	const target = incomingTool(incoming);
-	if (target !== tool) return location.replace(receivedUrl(target, id));
 	// The files read from where they are kept: removed only once taken (or not)
 	try {
 		if (receiver) return await receiver(incoming);
@@ -82,11 +82,11 @@ export async function takeReceived(tool: ToolSlug): Promise<void> {
 			const path = await keepFile(file);
 			if (!path) return toast(filesMessages().receive.notSaved, 'info');
 			const format = formatsOf(file.name, 'file')[0];
-			location.assign(format ? openUrl(format, path) : filesUrl(path));
+			navigate(format ? openUrl(format, path) : filesUrl(path));
 		} else if (incoming.files.length > 1) {
 			const folder = await keepFiles(incoming.files);
 			if (!folder) return toast(filesMessages().receive.notSaved, 'info');
-			location.assign(`/files?path=${encodeURIComponent(folder)}`);
+			navigate(`/files?path=${encodeURIComponent(folder)}`);
 		}
 	} catch (e) {
 		showError(e, { context: '[files] receive' });
@@ -106,7 +106,7 @@ export function installLaunchHandler() {
 		if (handles.length === 0) return;
 		try {
 			const incoming: Incoming = { files: await Promise.all(handles.map((h) => h.getFile())) };
-			location.assign(receivedUrl(incomingTool(incoming), await storeIncoming(incoming)));
+			navigate(receivedUrl(incomingTool(incoming), await storeIncoming(incoming)));
 		} catch (e) {
 			showError(e, { context: '[files] open with' });
 		}

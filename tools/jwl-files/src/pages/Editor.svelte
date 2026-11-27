@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	// One backup or playlist (`ui.md` “One document per page”): the ribbon with the tab “File” first, the view chosen in
 	// “Home” → “Show” (overview, notes, highlights, bookmarks, tags, playlists), each view's commands on a contextual tab.
 	// Every change is one undo step of `JwlDocument` and saved by itself.
@@ -19,7 +20,7 @@
 	import { Picker } from '@in-browser/brand/ui/pick.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
-	import { ExternalVersions, flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
+	import { ExternalVersions, holdDocument, type DocumentHold } from '@in-browser/files/documents.js';
 	import { filesUrl } from '@in-browser/files/formats.js';
 	import { canWrite, read, watch, writable, write } from '@in-browser/files/fs.js';
 	import { filesErrorText } from '@in-browser/files/i18n/index.svelte.js';
@@ -124,7 +125,7 @@
 	$effect(() => {
 		const path = normalize(page.url.searchParams.get('path') ?? '');
 		let disposed = false;
-		let release: (() => void) | null = null;
+		let hold: DocumentHold | null = null;
 		let stopWatch: (() => void) | null = null;
 		const external = new ExternalVersions();
 
@@ -145,12 +146,14 @@
 
 		(async () => {
 			try {
-				release = await lockDocument(`jwl-files:${path}`);
-				if (disposed) return release?.();
-				if (!release) {
+				hold = await holdDocument(`jwl-files:${path}`);
+				if (disposed) return void hold?.close();
+				if (!hold) {
 					error = m.editor.openElsewhere;
 					return;
 				}
+				// Whatever version is open when the page is hidden or left
+				hold.saves(() => untrack(() => doc)?.flush());
 				readOnly = !(await canWrite(path));
 				await open(true);
 				recent.remember(path);
@@ -168,16 +171,13 @@
 			}
 		})();
 
-		const stopFlush = flushWhenHidden(() => void untrack(() => doc)?.flush());
 		return () => {
 			disposed = true;
 			reload = null;
 			stopWatch?.();
-			stopFlush();
+			// The last save first, then the lock
 			const current = untrack(() => doc);
-			void current?.flush();
-			current?.dispose();
-			release?.();
+			void (hold?.close() ?? Promise.resolve()).finally(() => current?.dispose());
 		};
 	});
 
@@ -480,7 +480,7 @@
 			enabled: () => isBackup && editable(),
 			run: () => void merge()
 		},
-		showInFiles: { id: 'showInFiles', label: m.commands.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', enabled: () => !!doc, run: () => doc && location.assign(filesUrl(doc.path)) },
+		showInFiles: { id: 'showInFiles', label: m.commands.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', enabled: () => !!doc, run: () => doc && navigate(filesUrl(doc.path)) },
 		exportNotes: { id: 'exportNotes', label: m.commands.exportNotes, tip: m.commands.exportNotesTip, icon: 'icon-[material-symbols-light--file-export-outline]', enabled: () => !!data?.notes.size, run: () => void exportNotes() },
 		selectAll: { id: 'selectAll', label: m.commands.selectAll, icon: 'icon-[material-symbols-light--select-all]', enabled: () => shown.length > 0, run: () => pick.selectAll(shown) },
 		clearSelection: { id: 'clearSelection', label: m.commands.clearSelection, icon: 'icon-[material-symbols-light--deselect]', enabled: has, run: () => pick.clear() },

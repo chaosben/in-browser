@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate as openPage } from '@in-browser/brand/navigate.js';
 	import { onMount, untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
@@ -308,7 +309,7 @@
 					? one.openWith.map((format) => ({
 							label: m.menu.openWith(toolName(format.tool)),
 							icon: 'icon-[material-symbols-light--open-in-new]',
-							run: () => location.assign(toolUrl(one, format)!)
+							run: () => openPage(toolUrl(one, format)!)
 						}))
 					: []
 		},
@@ -727,23 +728,6 @@
 			const kind = connections.list.find((c) => c.id === id)?.kind;
 			if (kind === 'webdav' || kind === 's3') editConnection(id, kind);
 		};
-		const edit = page.url.searchParams.get('edit');
-		if (edit) {
-			const url = new URL(location.href);
-			url.searchParams.delete('edit');
-			void goto(url, { state: page.state, shallow: true, replace: true });
-			void listConnections().then((list) => {
-				const found = list.find((c) => c.id === edit);
-				if (found && (found.kind === 'webdav' || found.kind === 's3')) editConnection(found.id, found.kind);
-			});
-		}
-		// “Manage devices” from the footer of any tool
-		if (page.url.searchParams.get('panel') === 'sync') {
-			const url = new URL(location.href);
-			url.searchParams.delete('panel');
-			void goto(url, { state: page.state, shallow: true, replace: true });
-			openDevicesDialog('sync');
-		}
 		const stopTree = watch(() => treeVersion.current++);
 		const stopList = watchSettled(
 			(paths) => paths.some((p) => parent(p) === manager.folder || isInside(manager.folder, p)),
@@ -771,7 +755,7 @@
 		}
 		if (item.folder) return navigate(item.path);
 		const url = toolUrl(item);
-		if (url) location.assign(url);
+		if (url) openPage(url);
 		else preview = item;
 	}
 
@@ -787,15 +771,45 @@
 		openShareDialog({ path: folder });
 	}
 
+	// What the address asks for, whenever it does (Files may be shown already – pages change without reloading):
+	// `?edit=<id>` the sign-in data of a server (a refused sign-in in another tool), `?panel=sync` “Manage devices”
+	// from any footer, `?open` a share of one file, which opens in its tool. Each is taken out of the address.
+	function taken(name: string) {
+		const url = new URL(location.href);
+		url.searchParams.delete(name);
+		void goto(url, { state: page.state, shallow: true, replace: true });
+	}
+	$effect(() => {
+		const edit = page.url.searchParams.get('edit');
+		if (!edit) return;
+		untrack(() => {
+			taken('edit');
+			void listConnections().then((list) => {
+				const found = list.find((c) => c.id === edit);
+				if (found && (found.kind === 'webdav' || found.kind === 's3')) editConnection(found.id, found.kind);
+			});
+		});
+	});
+	$effect(() => {
+		if (page.url.searchParams.get('panel') !== 'sync') return;
+		untrack(() => {
+			taken('panel');
+			openDevicesDialog('sync');
+		});
+	});
+
 	// A share of one file, opened from its link or words (`?open`): the file opens in its tool right away
-	let openSingle = $state(page.url.searchParams.has('open'));
+	let openSingle = $state(false);
+	$effect(() => {
+		if (page.url.searchParams.has('open')) openSingle = true;
+	});
 	$effect(() => {
 		if (!openSingle || connection?.kind !== 'share' || !connection.single || manager.folder !== connection.path) return;
 		const only = manager.visible.length === 1 ? manager.visible[0] : null;
 		if (!only) return;
 		openSingle = false;
 		const url = toolUrl(only);
-		if (url) location.assign(url);
+		if (url) openPage(url);
 	});
 
 	async function disconnectShare() {

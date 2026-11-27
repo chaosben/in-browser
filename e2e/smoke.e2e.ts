@@ -39,8 +39,12 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 	await search.fill('');
 	await expect(page.getByRole('heading', { name: /^Writing/ })).toBeVisible();
 
+	// One tab through every tool and back, never loaded anew: what lives as long as the tab (the syncs and their
+	// connections) stays, and the one policy of the site allows what each tool needs – also from the overview
+	await page.evaluate(() => ((window as unknown as { sameTab: boolean }).sameTab = true));
+	expect(await page.evaluate(() => (document as unknown as { featurePolicy: { allowsFeature(name: string): boolean } }).featurePolicy.allowsFeature('display-capture'))).toBe(true);
 	for (const tool of TOOLS) {
-		await page.goto(tool.path);
+		await page.locator(`main section[aria-labelledby^="category-"] a[href="${tool.path}"]`).click();
 		await expect(page.getByRole('banner').getByText(tool.name, { exact: true })).toBeVisible();
 		await expect(page.getByRole('contentinfo').getByText(/^Version /)).toHaveCount(0);
 		// Help window: F1 opens it, the button closes it again
@@ -50,10 +54,12 @@ test('overview, every tool and the 404 page load', async ({ page, problems }) =>
 		await expect(help.getByRole('link', { name: 'Open as page' })).toHaveAttribute('href', `/help${tool.path}`);
 		await page.getByRole('banner').getByRole('button', { name: 'Help' }).click();
 		await expect(help).toBeHidden();
+		await page.getByRole('banner').locator('a[href="/"]').click();
+		await expect(search).toBeVisible();
 	}
+	expect(await page.evaluate(() => (window as unknown as { sameTab?: boolean }).sameTab)).toBe(true);
 
 	// Every tool records itself: the most recent first
-	await page.goto('/');
 	const recent = page.getByRole('region', { name: 'Recently used' }).getByRole('link');
 	await expect(recent).toHaveText([...TOOLS].reverse().map((tool) => tool.name));
 

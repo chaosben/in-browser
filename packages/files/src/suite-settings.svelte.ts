@@ -2,6 +2,7 @@
 // file changes (another tab, a device, the folder on disk), and the settings dialog's state – any tool opens it,
 // also at one category (`openSettings('profile')`).
 
+import { onLeavePage } from '@in-browser/brand/ui/page-scope.js';
 import { readText, watch, write } from './fs.js';
 import { FilesError } from './entry.js';
 import { parseSettings, SUITE_SETTINGS, withValue, type CategoryId, type SettingKey, type SuiteSettings } from './settings.js';
@@ -71,3 +72,6 @@ export function openSettings(category?: CategoryId) {
 export function closeSettings() {
 	settingsDialog.open = false;
 }
+
+// Opened over a page, closed with it
+onLeavePage(closeSettings);

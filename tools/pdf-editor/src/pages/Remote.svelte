@@ -5,6 +5,7 @@
 	// connection; only where to go travels (`show/remote-link.ts`). This page leads the connections of the browser, so a
 	// phone keeps them while other tabs sleep.
 	import { page as route } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { watch } from '@in-browser/files/fs.js';
 	import { basename, normalize } from '@in-browser/files/path.js';
@@ -38,6 +39,8 @@
 		let opened: PdfDocument | null = null;
 		let made: ShowControl | null = null;
 		let link: ReturnType<typeof controlEndLink> | null = null;
+		/** Stops waiting for the connection the slides are on */
+		let stopLooking: (() => void) | null = null;
 		let stopWatch: (() => void) | null = null;
 
 		(async () => {
@@ -58,6 +61,7 @@
 						off();
 						found(e);
 					});
+					stopLooking = off;
 				});
 				if (disposed) return;
 				link = controlEndLink(end);
@@ -97,6 +101,7 @@
 		return () => {
 			disposed = true;
 			stopWatch?.();
+			stopLooking?.();
 			// Gone from this page: the slides take their own keys again at once
 			made?.leave();
 			made?.destroy();
@@ -112,7 +117,7 @@
 	function end() {
 		control?.leave();
 		// A moment for the message to go out (without it the slides take their keys back after a few seconds anyway)
-		setTimeout(() => location.assign(resolve('/pdf-editor')), 150);
+		setTimeout(() => void goto(resolve('/pdf-editor')), 150);
 	}
 </script>
 

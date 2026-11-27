@@ -1,4 +1,5 @@
-// Short messages at the bottom right; shown by `Toasts.svelte`, which each tool places once in its layout.
+// Short messages at the bottom right; shown by `Toasts.svelte`, placed once for the suite (`Suite.svelte`). They
+// belong to the tab: a message and its action (“Undo”) stay when the page changes.
 
 export interface ToastAction {
 	label: string;

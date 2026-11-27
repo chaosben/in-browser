@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	// A font file of the user's files (opened with “Open with”, `?path=`): a sample and what it says about itself, and
 	// “Add to my fonts”.
 	import { page } from '$app/state';
@@ -58,7 +59,7 @@
 				adding = true;
 				try {
 					await addFonts({ paths: [path] });
-					toast(m.file.added(info!.family), 'success', 8000, { label: m.commands.open, run: () => location.assign(familyUrl(info!.family)) });
+					toast(m.file.added(info!.family), 'success', 8000, { label: m.commands.open, run: () => navigate(familyUrl(info!.family)) });
 				} catch (e) {
 					showError(e, { context: '[fonts] add' });
 				} finally {

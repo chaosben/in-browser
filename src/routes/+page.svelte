@@ -58,7 +58,6 @@ const lacks = (tool: Tool) => (tool.requires && missing.includes(tool.requires) 
 						<li class="shrink-0">
 							<a
 								href={tool.url}
-								data-sveltekit-reload
 								class="border-base-300 bg-base-100 hover:bg-base-200 flex h-11 items-center gap-2 rounded-full border ps-1.5 pe-4 text-sm font-medium {FOCUS}"
 							>
 								<img src={tool.icon} alt="" class="size-8" width="32" height="32" />
@@ -83,10 +82,8 @@ const lacks = (tool: Tool) => (tool.requires && missing.includes(tool.requires) 
 							{@const text = m.tools[tool.id]}
 							{@const need = lacks(tool)}
 							<li class="flex">
-								<!-- Tools load as a fresh page (own layout, language and Service Worker) -->
 								<a
 									href={tool.url}
-									data-sveltekit-reload
 									class="hover:bg-base-200 sm:border-base-300 sm:bg-base-100 flex min-h-24 w-full flex-col items-center gap-1.5 rounded-xl px-1 pt-2 pb-1 text-center sm:min-h-18 sm:flex-row sm:gap-3 sm:border sm:p-3 sm:text-start {FOCUS}"
 								>
 									<span class="relative shrink-0">

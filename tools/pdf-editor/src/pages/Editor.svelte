@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	import { loadUserFonts, watchUserFonts } from '@in-browser/graphics/user-fonts.svelte.js';
 	import { filesUrl } from '@in-browser/files/formats.js';
 	// Editor page of a PDF (`?path=`): ribbon on top, side panels on the left, the pages on the
@@ -24,7 +25,7 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { inTextField } from '@in-browser/brand/ui/typing.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
-	import { ExternalVersions, flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
+	import { ExternalVersions, holdDocument, type DocumentHold } from '@in-browser/files/documents.js';
 	import { read, watch, write } from '@in-browser/files/fs.js';
 	import { FilesError } from '@in-browser/files/entry.js';
 	import { chooseFile, chooseFiles } from '@in-browser/files/dialog.svelte.js';
@@ -137,7 +138,7 @@
 		if (!param) return;
 		const path = normalize(param);
 		let disposed = false;
-		let release: (() => void) | null = null;
+		let hold: DocumentHold | null = null;
 		let opened: PdfDocument | null = null;
 		let stopWatch: (() => void) | null = null;
 		let stopSharing: (() => void) | null = null;
@@ -168,12 +169,14 @@
 
 		(async () => {
 			try {
-				release = await lockDocument(`pdf-editor:pdf:${path}`);
-				if (disposed) return release?.();
-				if (!release) {
+				hold = await holdDocument(`pdf-editor:pdf:${path}`);
+				if (disposed) return void hold?.close();
+				if (!hold) {
 					error = m.editor.openElsewhere;
 					return;
 				}
+				// Whatever version is open when the page is hidden or left
+				hold.saves(() => (disposed ? opened?.leave() : opened?.flush()));
 				// A PDF that needs a password: the remembered one, else asked for (cancelled: the error page offers it again)
 				const next = await withPassword(basename(path), path, (typed) => PdfDocument.open(path, typed));
 				if (!next) {
@@ -215,18 +218,18 @@
 			}
 		})();
 
-		const stopFlush = flushWhenHidden(() => opened?.flush());
 		return () => {
 			disposed = true;
 			reload = null;
 			stopWatch?.();
 			stopSharing?.();
-			stopFlush();
-			opened?.flush();
+			// A presentation is this page's: its slides, remote control and full screen end with it
+			if (presenting) stopPresenting();
 			ed.doc = null;
 			ed.stage = null;
-			opened?.destroy();
-			release?.();
+			// The last save first, then the lock; the document's workers and pictures go when it is written
+			const last = opened;
+			void (hold?.close() ?? Promise.resolve()).finally(() => last?.destroy());
 		};
 	});
 
@@ -433,7 +436,7 @@
 			const path = await chooseFile({ mode: 'save', folder: parent(doc.path), accept: ['.pdf'], name, title });
 			if (!path) return;
 			await write(path, new Blob([bytes as Uint8Array<ArrayBuffer>]));
-			toast(m.commands.saved(basename(path)), 'success', 8000, { label: m.commands.openNew, run: () => location.assign(editorUrl(path)) });
+			toast(m.commands.saved(basename(path)), 'success', 8000, { label: m.commands.openNew, run: () => navigate(editorUrl(path)) });
 		} catch (e) {
 			failed(e);
 		}
@@ -1735,7 +1738,7 @@ share: shareCommand(() => ed.doc?.path),
 
 	function showInFiles() {
 		const doc = ed.doc;
-		if (doc) location.assign(filesUrl(doc.path));
+		if (doc) navigate(filesUrl(doc.path));
 	}
 
 	$effect(() => {
@@ -2029,7 +2032,7 @@ share: shareCommand(() => ed.doc?.path),
 			</div>
 		</div>
 	</div>
-	{#if creating}<NewPdfDialog folder={parent(doc.path)} oncreated={(path) => location.assign(editorUrl(path))} onclose={() => (creating = false)} />{/if}
+	{#if creating}<NewPdfDialog folder={parent(doc.path)} oncreated={(path) => navigate(editorUrl(path))} onclose={() => (creating = false)} />{/if}
 	{#if printing}<PrintDialog {ed} which={printing} onclose={() => (printing = null)} />{/if}
 	{#if protecting}<ProtectDialog {doc} onapply={(p, remember) => void protect(p, remember)} onclose={() => (protecting = false)} />{/if}
 	{#if showingProperties}<DocumentPropertiesDialog {doc} size={doc.size} onclose={() => (showingProperties = false)} />{/if}

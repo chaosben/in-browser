@@ -1,3 +1,4 @@
+import { navigate } from '@in-browser/brand/navigate.js';
 import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 import type { MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
@@ -171,7 +172,7 @@ export function itemEntries(ctx: MenuContext, items: Item[], rename: (item: Item
 					icon: 'icon-[material-symbols-light--open-in-new]',
 					...(i === 0 && one.formats.length ? { keys: keyLabel(KEYS.open) } : {}),
 					href: toolUrl(one, format)!,
-					run: () => location.assign(toolUrl(one, format)!)
+					run: () => navigate(toolUrl(one, format)!)
 				}))
 			: []),
 		...(one && one.kind === 'file'

@@ -30,10 +30,8 @@
 	what belongs to the suite: help, the theme and the settings.
 -->
 <header class="bg-base-300 text-base-content flex h-10 shrink-0 items-center gap-2 px-3 text-sm">
-	<!-- From a tool, load the overview as a fresh page (separate layout and language handling) -->
 	<a
 		href={resolve('/')}
-		data-sveltekit-reload={tool ? '' : undefined}
 		class={['flex shrink-0 items-center gap-1.5 font-semibold', tool && 'opacity-80 hover:opacity-100']}
 		title={tool ? t.brand.allTools : t.brand.home}
 	>

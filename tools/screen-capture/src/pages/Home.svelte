@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	import { showError } from '@in-browser/files/errors.js';
 	import { filesUrl } from '@in-browser/files/formats.js';
 	import { deleteToTrash } from '@in-browser/files/trash-browser.js';
@@ -173,7 +174,7 @@
 	function menu(entry: StartEntry): MenuEntry[] {
 		return [
 			{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => void goto(editorUrl(entry.path)) },
-			{ label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => location.assign(filesUrl(entry.path)) },
+			{ label: m.editor.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => navigate(filesUrl(entry.path)) },
 			{ separator: true },
 			{
 				label: m.common.delete,

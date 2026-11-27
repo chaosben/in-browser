@@ -58,7 +58,7 @@ const help: typeof enHelp = {
 		items: {
 			flow: {
 				title: 'So läuft eine Aufnahme',
-				text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du freigibst. Danach zeigt der Dialog eine Vorschau davon; „Aufnahme starten“ startet den optionalen 3-Sekunden-Countdown – wechsle währenddessen zum Fenster, das du aufnimmst – und dann die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme.',
+				text: 'Wähle in den Tabs die Quellen und klicke „Bildschirm oder Fenster wählen“: Der Browser fragt, welchen Bildschirm, welches Fenster oder welchen Tab du freigibst. Danach zeigt der Dialog eine Vorschau davon; „Aufnahme starten“ startet den optionalen 3-Sekunden-Countdown – wechsle währenddessen zum Fenster, das du aufnimmst – und dann die Aufnahme. „Pause“ hält alle Quellen gemeinsam an (Pausen zählen nicht mit), „Stopp“ beendet sie – ebenso „Freigabe beenden“ in der Leiste des Browsers. „Verwerfen“ löscht die Aufnahme. Verlässt du die Seite, während eine Aufnahme läuft, ginge sie verloren – in-browser fragt deshalb zuerst („Aufnahme verwerfen?“): „Bleiben“ nimmt weiter auf, „Verwerfen“ verlässt die Seite. Beim Schließen des Tabs oder des Browsers kann nicht gefragt werden – beende die Aufnahme vorher.',
 				tip: 'Gibst du ein einzelnes Fenster frei, nimmt der Browser nur dieses Fenster auf: Seine Dialoge, Menüs und Popups sind eigene Fenster und fehlen. Brauchst du sie, gib den ganzen Bildschirm frei und schneide den Clip danach auf das Fenster zu („Zuschneiden“ in der Registerkarte „Clip“).'
 			},
 			screenQuality: {

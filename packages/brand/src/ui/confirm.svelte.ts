@@ -1,5 +1,7 @@
 // Confirmation questions as our own modal instead of the browser's `confirm()`; shown by `ConfirmDialog.svelte`,
-// which each tool places once in its layout.
+// placed once for the suite (`Suite.svelte`).
+
+import { onLeavePage } from './page-scope.js';
 
 export interface Question {
 	title: string;
@@ -39,3 +41,6 @@ export function answer(ok: boolean, checked = false) {
 	confirmState.current = null;
 	open?.resolve(ok, checked);
 }
+
+// A question belongs to the page that asked: leaving it answers “no”
+onLeavePage(() => answer(false));

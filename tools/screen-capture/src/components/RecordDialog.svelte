@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onDestroy, tick, untrack } from 'svelte';
+	import { beforeNavigate, goto } from '$app/navigation';
+	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { describeSource } from '#lib/media/media.js';
 	import type { Recording } from '#lib/project/project.js';
 	import { devices, type DeviceKind } from '#lib/record/devices.svelte.js';
@@ -247,6 +249,21 @@
 	onDestroy(() => {
 		floatingWindow.close();
 		if (recorder && recorder.state !== 'done') recorder.cancel();
+	});
+
+	// Leaving the page ends a recording and loses it (a recording can't be undone): asked first. Not when the tab
+	// itself is closed – no question of ours can be shown then.
+	let agreed = false;
+	beforeNavigate((navigation) => {
+		const running = recorder?.state === 'recording' || recorder?.state === 'paused';
+		if (!running || agreed || navigation.willUnload || !navigation.to) return;
+		const to = navigation.to.url;
+		navigation.cancel();
+		void ask({ title: m.record.leaveTitle, message: m.record.leaveMessage, confirm: m.record.discard, cancel: m.record.leaveStay }).then((leave) => {
+			if (!leave) return;
+			agreed = true;
+			void goto(to);
+		});
 	});
 </script>
 

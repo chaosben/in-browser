@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	import { lang } from '@in-browser/brand/i18n/index.svelte.js';
 	import { openMenuAbove, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
@@ -31,7 +32,7 @@
 		const missed = new Map<string, Live>();
 		const tellLive = (event: Live) => {
 			const url = liveUrl(event);
-			if (url) toast(liveLabel(event), 'info', 15_000, { label: liveAction(event), run: () => location.assign(url) });
+			if (url) toast(liveLabel(event), 'info', 15_000, { label: liveAction(event), run: () => navigate(url) });
 		};
 		const front = () => {
 			if (document.visibilityState !== 'visible') return;
@@ -125,7 +126,7 @@
 		// What other browsers offer live now, with the way in
 		for (const s of view.live) {
 			const url = liveUrl(s);
-			if (url) entries.push({ label: `${liveLabel(s)} – ${liveAction(s)}`, icon: 'icon-[material-symbols-light--settings-remote-outline]', href: url, run: () => location.assign(url) });
+			if (url) entries.push({ label: `${liveLabel(s)} – ${liveAction(s)}`, icon: 'icon-[material-symbols-light--settings-remote-outline]', href: url, run: () => navigate(url) });
 		}
 		if (view.live.length) entries.push({ separator: true });
 		if (devices) {
@@ -148,7 +149,7 @@ if (syncStatus.folder) {
 			}
 		});
 		const manage = view.state !== 'off' ? t.p2p.manage : t.indicator.manage;
-		entries.push({ label: manage, icon: 'icon-[material-symbols-light--settings-outline]', run: () => location.assign('/files?panel=sync') });
+		entries.push({ label: manage, icon: 'icon-[material-symbols-light--settings-outline]', run: () => navigate('/files?panel=sync') });
 		// New tab: the tool stays as it is
 		entries.push({ label: t.indicator.help, icon: 'icon-[material-symbols-light--help-outline]', run: () => window.open('/help/sync', '_blank', 'noopener') });
 		openMenuAbove(e, entries);

@@ -339,6 +339,8 @@ export function allowShareSync() {
 
 /** The source of the share of this browser: its copy here, synced by the leading page */
 export function shareSource(session: ShareSession, onChange: () => void): Source {
+	// One reader, the registry: a source made anew (the connections changed) replaces the one before
+	changes.clear();
 	changes.add(onChange);
 	if (session.ended) void dropShareCopies();
 	else queue(session);

@@ -20,6 +20,7 @@
 	import { SHORTCUTS as S } from '#lib/editor/shortcuts.js';
 	import { intlLocale, m } from '#lib/i18n/index.js';
 	import { migrateTabs } from '#lib/session.js';
+	import { filesUrl } from '@in-browser/files/formats.js';
 	import { chooseFileToOpen, draftFromComputer, forgetRecent, recentFiles, showFolderOf } from '#lib/workspace.svelte.js';
 
 	/** “Recently opened” with their dates (null while loading); gone files drop off */
@@ -96,7 +97,7 @@
 	/** The complete menu of a card */
 	const menu = (entry: StartEntry): MenuEntry[] => [
 		{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => void goto(editorUrl(entry.path)) },
-		{ label: m.actions.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', run: () => showFolderOf(entry.path) },
+		{ label: m.actions.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => showFolderOf(entry.path) },
 		{ separator: true },
 		{ label: m.actions.removeRecent, icon: 'icon-[material-symbols-light--playlist-remove]', run: () => forget(entry.path) }
 	];

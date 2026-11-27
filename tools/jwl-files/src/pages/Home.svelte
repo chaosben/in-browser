@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	// Start page (`ui.md` “Start page”): the backups and playlists opened recently, “Open …” from the files and “Import
 	// from the device …” (kept in the files where the user says and
 	// listed here, not opened: decided by the user, 2026-11-25). Files shared from JW Library arrive the same way.
@@ -105,7 +106,7 @@
 	function menu(entry: StartEntry): MenuEntry[] {
 		return [
 			{ label: filesMessages().start.open, icon: 'icon-[material-symbols-light--folder-open-outline]', href: editorUrl(entry.path), run: () => open(entry.path) },
-			{ label: m.commands.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => location.assign(filesUrl(entry.path)) },
+			{ label: m.commands.showInFiles, icon: 'icon-[material-symbols-light--open-in-new]', href: filesUrl(entry.path), run: () => navigate(filesUrl(entry.path)) },
 			{ separator: true },
 			{
 				label: m.home.remove,

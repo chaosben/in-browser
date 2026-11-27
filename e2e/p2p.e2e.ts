@@ -107,6 +107,16 @@ test('two devices pair, sync and can be removed; a guest gets a shared folder un
 	await expect(b.getByRole('dialog').getByText('Laptop')).toBeVisible();
 	await b.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).last().click();
 
+	// A goes to the overview and back into Files: pages change without reloading, so its device and the connection
+	// stay (a page loaded anew would start both again, and the other device would see it gone for seconds)
+	await a.evaluate(() => ((window as unknown as { sameTab: boolean }).sameTab = true));
+	await a.getByRole('banner').locator('a[href="/"]').click();
+	await expect(a.getByRole('searchbox', { name: 'Search tools' })).toBeVisible();
+	await a.locator('main a[href="/files"]').first().click();
+	await expect(a.getByRole('banner').getByText('Files', { exact: true })).toBeVisible();
+	expect(await a.evaluate(() => (window as unknown as { sameTab?: boolean }).sameTab)).toBe(true);
+	await expect(syncStatus(a, '1 of 1 devices connected')).toBeVisible({ timeout: 1500 });
+
 	// A turns the troubleshooting log on
 	await syncSettings(a);
 	await a.getByText('Troubleshooting').click();

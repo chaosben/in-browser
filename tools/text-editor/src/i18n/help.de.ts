@@ -74,7 +74,7 @@ const help: typeof enHelp = {
 			},
 			rename: {
 				title: 'Herunterladen, in Dateien zeigen, umbenennen',
-				text: '„Herunterladen“ in der Registerkarte „Datei“ legt eine Kopie im Download-Ordner deines Rechners ab, in der aktuellen Kodierung und mit dem aktuellen Zeilenende – auch für Texte, die noch keinen Ort haben. „In Dateien zeigen“ öffnet Dateien in einem neuen Browser-Tab, im Ordner der Datei – dort benennst oder verschiebst du sie; der Texteditor benennt keine Dateien um.'
+				text: '„Herunterladen“ in der Registerkarte „Datei“ legt eine Kopie im Download-Ordner deines Rechners ab, in der aktuellen Kodierung und mit dem aktuellen Zeilenende – auch für Texte, die noch keinen Ort haben. „In Dateien zeigen“ wechselt zu Dateien, in den Ordner der Datei, im selben Browser-Tab wie in jedem Tool (der Text wird vorher gespeichert; einer ohne Ort bleibt erhalten und ist wieder da, wenn du zurückkommst) – dort benennst oder verschiebst du sie; der Texteditor benennt keine Dateien um.'
 			},
 			close: {
 				title: 'Schließen',

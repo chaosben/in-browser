@@ -284,6 +284,10 @@ export class PdfDocument {
 	fingerprint = $state('');
 	private saveTimer: ReturnType<typeof setTimeout> | undefined;
 	private saveAgain = false;
+	/** Ends with the running save */
+	private saved: Promise<void> = Promise.resolve();
+	/** The page is letting the document go (`leave`) */
+	private leaving = false;
 
 	private constructor(
 		path: string,
@@ -1840,6 +1844,8 @@ export class PdfDocument {
 		}
 		if (!this.dirty || this.conflict === 'changed' || !this.writer) return;
 		this.saving = true;
+		let done!: () => void;
+		this.saved = new Promise<void>((resolve) => (done = resolve));
 		const version = this.version;
 		try {
 			const writer = await this.writer;
@@ -1893,16 +1899,34 @@ export class PdfDocument {
 			reportSaveFailure(this, e, () => void this.save());
 		} finally {
 			this.saving = false;
-			if (this.saveAgain || (this.dirty && !this.conflict && this.version !== version)) {
+			done();
+			// A document that is being left saves what came meanwhile itself (`flush`)
+			if (!this.leaving && (this.saveAgain || (this.dirty && !this.conflict && this.version !== version))) {
 				this.saveAgain = false;
 				this.scheduleSave();
 			}
 		}
 	}
 
-	/** Saves waiting changes now (page hidden or left) */
-	flush() {
-		if (this.dirty) void this.save();
+	/**
+	 * Saves waiting changes now (page hidden or left); resolves when nothing is left to write – also what came while a
+	 * save was running. A save that fails or meets a version saved elsewhere ends it (the state says so).
+	 */
+	async flush(): Promise<void> {
+		clearTimeout(this.saveTimer);
+		for (let attempt = 0; attempt < 3; attempt++) {
+			if (this.saving) await this.saved;
+			if (!this.dirty || this.conflict === 'changed' || !this.writer) return;
+			await this.save();
+			if (this.saveError) return;
+		}
+	}
+
+	/** The page lets the document go: its last save (`flush`), after which nothing is scheduled any more */
+	async leave(): Promise<void> {
+		this.leaving = true;
+		this.saveAgain = false;
+		await this.flush();
 	}
 
 	/**

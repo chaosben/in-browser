@@ -78,7 +78,7 @@ const help = {
 			},
 			rename: {
 				title: 'Download, show in Files, rename',
-				text: '“Download” in the tab “File” saves a copy to your computer’s download folder, in the current encoding and line ending – also for texts that have no place yet. “Show in Files” opens Files in a new browser tab, in the folder of the file – rename or move the file there; the Text Editor doesn’t rename files.'
+				text: '“Download” in the tab “File” saves a copy to your computer’s download folder, in the current encoding and line ending – also for texts that have no place yet. “Show in Files” goes to Files, to the folder of the file, in the same browser tab as in every tool (the text is saved first; one without a place is kept and comes back when you return) – rename or move the file there; the Text Editor doesn’t rename files.'
 			},
 			close: {
 				title: 'Closing',

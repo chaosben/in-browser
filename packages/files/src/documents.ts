@@ -34,6 +34,59 @@ export function flushWhenHidden(flush: () => void): () => void {
 	};
 }
 
+/** A document an editor page holds open (`holdDocument`) */
+export interface DocumentHold {
+	/** Once the document is read: what saves all that still waits, resolving when nothing is left to write */
+	saves(flush: () => unknown): void;
+	/**
+	 * The page lets the document go: what waits is saved, and only then the lock is given up – another tab that
+	 * opens the document meanwhile would read the version before the last save and write over it. Heavy objects of the
+	 * document are freed after this resolves.
+	 */
+	close(): Promise<void>;
+}
+
+/**
+ * Opens a document for one editor page – the one way every editor does it: the lock (`lockDocument`; `null` when
+ * another tab has it open), saving when the page is hidden (`flushWhenHidden`) and the order of leaving. Pages change
+ * without reloading, so leaving a document is the page's job, not the browser's.
+ */
+export async function holdDocument(key: string): Promise<DocumentHold | null> {
+	// Left a moment ago on this very tab (back to the start page and in again): its last save comes first
+	await leaving.get(key);
+	const release = await lockDocument(key);
+	if (!release) return null;
+	let flush: () => unknown = () => {};
+	const stop = flushWhenHidden(() => void Promise.resolve().then(() => flush()).catch(() => {}));
+	let closed: Promise<void> | null = null;
+	return {
+		saves: (next) => void (flush = next),
+		close() {
+			if (closed) return closed;
+			closed = (async () => {
+				stop();
+				try {
+					await flush();
+				} catch (e) {
+					console.error('[files] last save', e);
+				} finally {
+					release();
+					// The browser frees the lock a moment after it is given up
+					for (let i = 0; i < 50 && (await isLocked(key)); i++) await new Promise((r) => setTimeout(r, 10));
+					leaving.delete(key);
+				}
+			})();
+			leaving.set(key, closed);
+			return closed;
+		}
+	};
+}
+
+/** Documents this tab is letting go of right now (`DocumentHold.close`), by their lock */
+const leaving = new Map<string, Promise<void>>();
+
+const isLocked = async (key: string) => !!(await navigator.locks.query()).held?.some((lock) => lock.name === key);
+
 /**
  * Records a failed save on `doc` (the save state in the footer shows it) and reports it once per run of failures,
  * with “Allow access” where that helps; `retry` saves again.

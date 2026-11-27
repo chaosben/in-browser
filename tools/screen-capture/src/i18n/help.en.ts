@@ -62,7 +62,7 @@ const help = {
 		items: {
 			flow: {
 				title: 'How a recording works',
-				text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. The dialog then shows a preview of what you shared; “Start recording” starts the optional 3 second countdown – switch to the window you record in the meantime – and then the recording. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording.',
+				text: 'Choose the sources in the tabs, then “Choose screen or window”: the browser asks which screen, window or tab to share. The dialog then shows a preview of what you shared; “Start recording” starts the optional 3 second countdown – switch to the window you record in the meantime – and then the recording. “Pause” stops all sources together (pauses don’t count), “Stop” finishes – so does “Stop sharing” in the browser’s bar. “Discard” deletes the recording. Leaving the page while a recording runs would lose it, so in-browser asks first (“Discard the recording?”): “Stay” goes on recording, “Discard” leaves. Closing the tab or the browser can’t be asked about – stop the recording before.',
 				tip: 'When you share a single window, the browser records only that window: its dialogs, menus and pop-ups are separate windows and are missing. If you need them, share the whole screen and crop the clip to the window afterwards (“Crop” in the tab “Clip”).'
 			},
 			screenQuality: {

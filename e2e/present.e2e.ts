@@ -189,8 +189,13 @@ test('a phone shares a PDF by four words and steers the slides on another comput
 		.poll(
 			() =>
 				laptop.evaluate(async () => {
-					const shares = await (await navigator.storage.getDirectory()).getDirectoryHandle('shares');
-					for await (const copy of shares.values()) return (await (await (copy as FileSystemDirectoryHandle).getFileHandle('Talk.pdf')).getFile()).size;
+					// Asked again while the sync puts the new version in place (the file is gone for a moment)
+					try {
+						const shares = await (await navigator.storage.getDirectory()).getDirectoryHandle('shares');
+						for await (const copy of shares.values()) return (await (await (copy as FileSystemDirectoryHandle).getFileHandle('Talk.pdf')).getFile()).size;
+					} catch {
+						// Not there right now
+					}
 					return 0;
 				}),
 			{ timeout: 20_000 }

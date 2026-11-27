@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigate } from '@in-browser/brand/navigate.js';
 	// The catalog of free fonts (Fontsource): nothing is asked before the user searches. The list comes once from its
 	// API, a font's files (TrueType, one set of characters each) from jsDelivr; installing puts its regular, bold,
 	// italic and bold italic files into the user's fonts (`addFontBytes`), from then on offline like every other one.
@@ -142,7 +143,7 @@
 				if (bytes) files.push({ name: `${details.id}-${subset}-${weight}-${style}.ttf`, bytes });
 			}
 			for (const f of files) await addFontBytes(f.name, f.bytes);
-			toast(m.catalog.installed(details.family), 'success', 8000, { label: m.commands.open, run: () => location.assign(familyUrl(details.family)) });
+			toast(m.catalog.installed(details.family), 'success', 8000, { label: m.commands.open, run: () => navigate(familyUrl(details.family)) });
 		} catch (err) {
 			failed = m.catalog.failed(err instanceof Error ? err.message : String(err));
 		} finally {
@@ -155,7 +156,7 @@
 		{
 			id: 'home',
 			label: m.ribbon.tabs.home,
-			groups: [{ id: 'add', label: m.ribbon.groups.add, items: [{ id: 'myFonts', label: m.commands.myFonts, icon: 'icon-[material-symbols-light--font-download-outline]', run: () => location.assign(resolve('/fonts')) }] }]
+			groups: [{ id: 'add', label: m.ribbon.groups.add, items: [{ id: 'myFonts', label: m.commands.myFonts, icon: 'icon-[material-symbols-light--font-download-outline]', run: () => navigate(resolve('/fonts')) }] }]
 		}
 	];
 </script>

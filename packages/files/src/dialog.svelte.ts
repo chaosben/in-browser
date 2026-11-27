@@ -1,5 +1,7 @@
-// Open/save dialog of the shared file system for the tools; shown by `FileDialog.svelte`, which each tool places
-// once in its layout. Promise-based like `ask()` from @in-browser/brand.
+// Open/save dialog of the shared file system for the tools; shown by `FileDialog.svelte`, placed once for
+// the suite (`Suite.svelte`). Promise-based like `ask()` from @in-browser/brand.
+
+import { onLeavePage } from '@in-browser/brand/ui/page-scope.js';
 
 export interface FileDialogOptions {
 	/** `folder`: pick a folder (only folders shown; confirming takes the open folder) */
@@ -46,3 +48,6 @@ export function closeFileDialog(paths: string[] | null) {
 	fileDialogState.current = null;
 	open?.resolve(paths);
 }
+
+// The dialog belongs to the page that asked: leaving it cancels
+onLeavePage(() => closeFileDialog(null));

@@ -16,6 +16,16 @@ export let locale: Locale = PRERENDER_LOCALE;
 /** Texts in the current language */
 export let m: Messages = MESSAGES[locale];
 
+let started = false;
+/** A page of this tab has been shown (the root layout says so): pages coming after it are never hydrated */
+export function tabStarted() {
+	started = true;
+}
+/** A page shown after the first one takes the browser language before it is drawn (no English in between) */
+export function applyLocaleEarly() {
+	if (started) applyBrowserLocale();
+}
+
 /** Switches to the browser language (browser only, after hydration). */
 export function applyBrowserLocale() {
 	locale = browserLocale().locale;
