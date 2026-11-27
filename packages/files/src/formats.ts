@@ -1,5 +1,5 @@
 import type { ToolSlug } from '@in-browser/brand/i18n/index.svelte.js';
-import { TEXT_EXTENSIONS } from './kinds.js';
+import { isTextName, TEXT_EXTENSIONS } from './kinds.js';
 import { extname, parent } from './path.js';
 
 // Which tool opens which files. A **package** is a folder `Name.<ext>/` with `project.json` (`{ format, version, … }`)
@@ -16,8 +16,8 @@ export interface Format {
 	/** Page that opens it; gets `?path=<path>` */
 	open: string;
 	/**
-	 * Only offered under "Open with …": the file belongs to another kind (e.g. SVG is an image, previewed in Files)
-	 * and is never opened by double-click, nor does it give the file its icon or kind
+	 * Only offered under "Open with …" (the Text Editor for every file not known as text, e.g. an SVG image): never
+	 * opened by double-click, nor does it give the file its icon or kind
 	 */
 	fallback?: boolean;
 }
@@ -50,6 +50,8 @@ export function migrateFormat(raw: unknown, format: string, version: number, mig
 
 /** Control file at the root of every package */
 export const PACKAGE_MANIFEST = 'project.json';
+
+const TEXT_EDITOR = { kind: 'file', tool: 'text-editor', open: '/text-editor/editor' } as const;
 
 export const FORMATS: readonly Format[] = [
 	{
@@ -91,26 +93,22 @@ export const FORMATS: readonly Format[] = [
 		tool: 'pdf-editor',
 		open: '/pdf-editor/editor'
 	},
-	...TEXT_EXTENSIONS.map(
-		(ext): Format => ({
-			ext,
-			kind: 'file',
-			tool: 'text-editor',
-			open: '/text-editor/editor'
-		})
-	),
-	// An image whose text can be edited
-	{ ext: '.svg', kind: 'file', tool: 'text-editor', open: '/text-editor/editor', fallback: true }
+	...TEXT_EXTENSIONS.map((ext): Format => ({ ext, ...TEXT_EDITOR }))
 ];
 
 /**
- * Formats (and so tools) that open an entry of that name and kind; several mean "Open with …". Fallback formats only
- * with `{ fallback: true }` (they are offered, but never the way the entry opens).
+ * Formats (and so tools) that open an entry of that name and kind; several mean "Open with …". With
+ * `{ fallback: true }` every file also gets the Text Editor (offered, but never the way the entry opens: whether it is
+ * text shows only when it is read).
  */
 export function formatsOf(name: string, kind: 'file' | 'directory', { fallback = false } = {}): Format[] {
 	const ext = extname(name);
-	if (!ext) return [];
-	return FORMATS.filter((f) => f.ext === ext && (f.kind === 'package') === (kind === 'directory') && (fallback || !f.fallback));
+	const found = ext ? FORMATS.filter((f) => f.ext === ext && (f.kind === 'package') === (kind === 'directory')) : [];
+	if (kind === 'directory') return found;
+	// Text files known by their whole name (Makefile …)
+	if (!found.length && isTextName(name)) found.push({ ext, ...TEXT_EDITOR });
+	if (fallback && !found.some((f) => f.tool === 'text-editor')) found.push({ ext, ...TEXT_EDITOR, fallback: true });
+	return found;
 }
 
 /** Folder that a tool treats as one document */

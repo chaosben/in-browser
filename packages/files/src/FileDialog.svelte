@@ -57,8 +57,13 @@
 	const existing = $derived(
 		options?.mode === 'save' ? (entries ?? []).find((e) => nameKey(e.name) === nameKey(fullName)) : undefined
 	);
-	/** It may be replaced (`overwrite`, a file or package of an accepted format – never a plain folder) */
-	const replacing = $derived(!!existing && !!options?.overwrite && accepts(existing) && !isFolder(existing));
+	/**
+	 * It may be replaced (`overwrite`, a file or package of an accepted format – never a plain folder, and with no
+	 * formats named only a file)
+	 */
+	const replacing = $derived(
+		!!existing && !!options?.overwrite && accepts(existing) && !isFolder(existing) && (existing.kind === 'file' || !!options.accept.length)
+	);
 	const taken = $derived(!!existing && !replacing);
 	/** Saving: the entry matching the typed name is marked, so changing the name clears the mark */
 	const isSelected = (entry: Entry) =>

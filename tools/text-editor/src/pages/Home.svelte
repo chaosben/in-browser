@@ -11,7 +11,6 @@
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 	import { stat, supported } from '@in-browser/files/fs.js';
 	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
-	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 	import { normalize, safeName } from '@in-browser/files/path.js';
 	import { setReceiver } from '@in-browser/files/receive.svelte.js';
 	import StartPage, { type StartEntry } from '@in-browser/files/StartPage.svelte';
@@ -121,7 +120,6 @@
 	bind:this={fileInput}
 	type="file"
 	hidden
-	accept={EDITABLE_EXTENSIONS.join(',')}
 	onchange={(e) => {
 		void openFromComputer(e.currentTarget.files?.[0] ?? null);
 		e.currentTarget.value = '';

@@ -4,18 +4,24 @@ import { extname } from './path.js';
 
 export type PreviewKind = 'image' | 'video' | 'audio' | 'text' | null;
 
-/** Plain text files: previewed as text in Files, opened by the Text Editor */
+/**
+ * Plain text files: previewed as text in Files, opened by the Text Editor on a double-click. (The Text Editor opens
+ * any other file too – under "Open with" – as long as its content is text.)
+ */
 export const TEXT_EXTENSIONS: readonly string[] = [
 	'.txt', '.md', '.markdown', '.json', '.jsonl', '.ndjson', '.csv', '.tsv', '.log', '.xml', '.yml', '.yaml', '.ini', '.cfg', '.conf',
-	'.properties', '.toml', '.html', '.htm', '.css', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx',
-	'.svelte', '.py', '.sh', '.bash', '.zsh'
+	'.properties', '.toml', '.html', '.htm', '.css', '.scss', '.less', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx',
+	'.svelte', '.vue', '.py', '.sh', '.bash', '.zsh', '.c', '.h', '.cpp', '.hpp', '.cc', '.cs', '.java', '.kt', '.go', '.rs',
+	'.rb', '.php', '.pl', '.lua', '.sql', '.r', '.swift', '.bat', '.cmd', '.ps1', '.diff', '.patch', '.tex', '.srt', '.vtt'
 ];
 
-/**
- * What the Text Editor can open and save: plain text plus formats that belong to another kind but are text inside
- * (SVG is an image; Files previews it as one and offers the Text Editor only under "Open with").
- */
-export const EDITABLE_EXTENSIONS: readonly string[] = [...TEXT_EXTENSIONS, '.svg'];
+/** Text files known by their whole name (no extension) */
+const TEXT_NAMES: readonly string[] = ['makefile', 'dockerfile', 'license', 'readme', 'changelog', '.gitignore', '.gitattributes', '.editorconfig'];
+
+/** A text file by its name: a text extension or a known name */
+export function isTextName(name: string): boolean {
+	return TEXT_EXTENSIONS.includes(extname(name)) || TEXT_NAMES.includes(name.toLowerCase());
+}
 
 const PREVIEW: Record<Exclude<PreviewKind, null>, readonly string[]> = {
 	// SVG only ever as <img>: scripts in it do not run there
@@ -29,5 +35,5 @@ const PREVIEW: Record<Exclude<PreviewKind, null>, readonly string[]> = {
 export function previewKind(name: string): PreviewKind {
 	const ext = extname(name);
 	for (const [kind, exts] of Object.entries(PREVIEW)) if (exts.includes(ext)) return kind as PreviewKind;
-	return null;
+	return isTextName(name) ? 'text' : null;
 }

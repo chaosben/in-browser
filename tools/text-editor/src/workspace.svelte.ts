@@ -11,7 +11,6 @@ import { toast } from '@in-browser/brand/ui/toast.svelte.js';
 import { chooseFile } from '@in-browser/files/dialog.svelte.js';
 import { read, stat, write } from '@in-browser/files/fs.js';
 import { filesErrorText, formatSize } from '@in-browser/files/i18n/index.svelte.js';
-import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 import { basename, isInside, parent } from '@in-browser/files/path.js';
 import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 import { recentDocuments } from '@in-browser/files/sources/recent.js';
@@ -268,7 +267,8 @@ export class Workspace {
 			path = await chooseFile({
 				mode: 'save',
 				folder: tab.path ? parent(tab.path) : recent.lastFolder(),
-				accept: EDITABLE_EXTENSIONS,
+				// Any name: the editor saves text under any extension (none is added)
+				accept: [],
 				name: tab.suggestedName,
 				title: m.dialogs.saveAs,
 				overwrite: true
@@ -588,7 +588,7 @@ export function forgetRecent(path: string) {
 /** “Open from Files …”: the chosen file's path; the dialog starts next to `near` (the shown file), else where it was last */
 export async function chooseFileToOpen(near?: string | null): Promise<string | null> {
 	const folder = near ? parent(near) : recent.lastFolder();
-	const path = await chooseFile({ mode: 'open', folder, accept: EDITABLE_EXTENSIONS, title: m.dialogs.open });
+	const path = await chooseFile({ mode: 'open', folder, accept: [], title: m.dialogs.open });
 	if (path) recent.usedFolderOf(path);
 	return path;
 }

@@ -25,7 +25,6 @@
 	import { flushWhenHidden, lockDocument } from '@in-browser/files/documents.js';
 	import { supported, watch } from '@in-browser/files/fs.js';
 	import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
-	import { EDITABLE_EXTENSIONS } from '@in-browser/files/kinds.js';
 	import { normalize } from '@in-browser/files/path.js';
 	import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 	import { draftUrl, editorUrl } from '#lib/brand.js';
@@ -584,7 +583,6 @@
 	bind:this={fileInput}
 	type="file"
 	hidden
-	accept={EDITABLE_EXTENSIONS.join(',')}
 	onchange={(e) => {
 		void openFromComputer(e.currentTarget.files?.[0] ?? null);
 		e.currentTarget.value = '';

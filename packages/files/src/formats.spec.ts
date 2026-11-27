@@ -9,6 +9,16 @@ describe('formats', () => {
 		const [format] = formatsOf('a b.txt', 'file');
 		expect(openUrl(format, '/Notes/a b#1.txt')).toBe('/text-editor/editor?path=%2FNotes%2Fa%20b%231.txt');
 	});
+
+	it('offers the Text Editor for every file, but opens only text with it', () => {
+		const tools = (name: string, fallback = false) => formatsOf(name, 'file', { fallback }).map((f) => `${f.tool}${f.fallback ? '?' : ''}`);
+		expect(tools('Makefile')).toEqual(['text-editor']);
+		expect(tools('photo.png')).toEqual([]);
+		expect(tools('photo.png', true)).toEqual(['text-editor?']);
+		expect(tools('a.pdf', true)).toEqual(['pdf-editor', 'text-editor?']);
+		expect(tools('notes.md', true)).toEqual(['text-editor']);
+		expect(formatsOf('x.unknown', 'directory', { fallback: true })).toEqual([]);
+	});
 });
 
 describe('migrateFormat', () => {
