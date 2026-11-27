@@ -1,9 +1,10 @@
 import { chmod, mkdtemp, rm, utimes, writeFile, mkdir, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix, win32 } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanTrash, entryName } from '@in-browser/files/trash.js';
 import { listVersions, versionDataPath } from '@in-browser/files/sync/versions.js';
+import { realPath } from './real-path.js';
 import { fsTree } from './tree.js';
 
 let root: string;
@@ -27,6 +28,26 @@ describe('fsTree', () => {
 		const [version] = await listVersions(store);
 		expect(version).toMatchObject({ path: '/docs/a.txt', reason: 'replaced', size: 3 });
 		expect(await (await store.read(versionDataPath(version.entry))).text()).toBe('old');
+	});
+
+	it('never leaves the folder, whatever another device asks for', async () => {
+		// Windows splits at `\\` too and reads drives and streams; names of the sync never hold any of them
+		expect(realPath(win32, 'C:\\sync', ['docs', 'a.txt'])).toBe('C:\\sync\\docs\\a.txt');
+		for (const name of ['..\\..\\keys\\identity.json', 'D:', 'a.txt:stream', '..', 'a/b', 'a\0']) expect(() => realPath(win32, 'C:\\sync', ['docs', name]), name).toThrow();
+		expect(() => realPath(posix, '/sync', ['docs', '..\\x'])).toThrow();
+		// A link in the folder that leads out of it is not followed – neither read nor written through
+		const folder = join(root, 'folder');
+		await mkdir(join(root, 'outside'));
+		await writeFile(join(root, 'outside', 'secret.txt'), 'secret');
+		await mkdir(folder);
+		await symlink(join(root, 'outside'), join(folder, 'out'));
+		await symlink(join(root, 'outside', 'new.txt'), join(folder, 'nowhere.txt'));
+		const tree = fsTree(folder);
+		await expect(tree.read('/out/secret.txt')).rejects.toThrow();
+		await expect(tree.remove('/out/secret.txt')).rejects.toThrow();
+		await expect(tree.write('/out/planted.txt')).rejects.toThrow();
+		await expect(tree.write('/nowhere.txt')).rejects.toThrow();
+		expect(await (await fsTree(root).read('/outside/secret.txt')).text()).toBe('secret');
 	});
 
 	it('scans files and folders, skipping ignored and special entries', async () => {

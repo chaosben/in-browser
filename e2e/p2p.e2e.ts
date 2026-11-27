@@ -227,6 +227,8 @@ test('two devices pair, sync and can be removed; a guest gets a shared folder un
 
 	// C opens the link: the folder under “Connected”, only its content
 	await c.goto(link.replace(/^https?:\/\/[^/]+/, ''));
+	// A link can come from anywhere: nothing connects before the guest agreed
+	await c.getByRole('dialog').filter({ hasText: 'Open this share?' }).getByRole('button', { name: 'Open share' }).click();
 	await expect(c.getByRole('option', { name: 'plan.txt' })).toBeVisible({ timeout: 30_000 });
 	await openPanel(c, 'folders');
 	await expect(c.getByTestId('panel').getByText('Trip from Laptop', { exact: true })).toBeVisible();

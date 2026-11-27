@@ -38,6 +38,16 @@ export function decodeFrame<T = unknown>(frame: Uint8Array<ArrayBuffer>): { head
 	};
 }
 
+/**
+ * What the other side learns of an error: its message – but of a system error (a file system's, with `syscall`) only
+ * the code, since its message names where things lie on this device.
+ */
+function wireText(e: unknown): string {
+	if (!(e instanceof Error)) return String(e);
+	const system = e as { code?: unknown; syscall?: unknown };
+	return typeof system.syscall === 'string' && typeof system.code === 'string' ? system.code : e.message;
+}
+
 export class RemoteError extends Error {
 	override name = 'RemoteError';
 }
@@ -209,7 +219,7 @@ export class Rpc {
 			}
 		} catch (e) {
 			this.uploads.delete(i);
-			await this.send({ k: 'x', i, e: e instanceof Error ? e.message : String(e) });
+			await this.send({ k: 'x', i, e: wireText(e) });
 		}
 	}
 }

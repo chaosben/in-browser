@@ -13,7 +13,9 @@
 	import type { GroupSize, RibbonTab } from '@in-browser/brand/ribbon.js';
 	import { openContextMenu, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
+	import { ask } from '@in-browser/brand/ui/confirm.svelte.js';
 	import { toast } from '@in-browser/brand/ui/toast.svelte.js';
+	import { shareSession } from '@in-browser/files/sources/share.js';
 	import { inTextField } from '@in-browser/brand/ui/typing.js';
 	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 	import DropOverlay from '@in-browser/brand/DropOverlay.svelte';
@@ -688,6 +690,20 @@
 		untrack(() => openFromLink(hash));
 	});
 
+	/**
+	 * A share link connects this browser to a device of whoever made it and copies files here – asked first, since a
+	 * link can come from anywhere (a message, a page, a document). Not for the share this browser has already.
+	 */
+	async function openSharedLink(code: string) {
+		const open = shareSession();
+		if (open?.code !== code) {
+			const message = open && !open.ended ? `${m.shareLink.message} ${m.shareLink.replaces}` : m.shareLink.message;
+			if (!(await ask({ title: m.shareLink.title, message, confirm: m.shareLink.open }))) return;
+		}
+		openSingle = true;
+		navigate(await openShare(code));
+	}
+
 	function openFromLink(hash: string) {
 		const shared = parseShareCode(hash);
 		const code = parseInviteCode(hash);
@@ -696,10 +712,7 @@
 		const url = new URL(location.href);
 		url.hash = '';
 		const cleared = goto(url, { state: page.state, shallow: true, replace: true });
-		if (shared) {
-			openSingle = true;
-			void cleared.then(() => openShare(shared)).then(navigate);
-		}
+		if (shared) void cleared.then(() => openSharedLink(shared));
 		if (code) {
 			devicesUi.joinCode = code;
 			openDevicesDialog('join');

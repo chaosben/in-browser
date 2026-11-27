@@ -372,7 +372,7 @@ const help: typeof enHelp = {
 						},
 						guest: {
 							title: 'Als Gast',
-							text: 'Ein freigegebener Ordner erscheint in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien als „Ordner von“ dem, der ihn freigibt – dem Namen aus dessen Einstellungen („Profil“ → „Dein Name“), sonst dem seines Geräts –, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. Was freigegeben ist, wird in deinen Browser kopiert und mit dem freigebenden Gerät abgeglichen; eine Zeile über der Liste sagt, was gerade geschieht („Die Freigabe wird geholt …“ oder dass das freigebende Gerät gerade nicht erreichbar ist – dann siehst du die Freigabe so, wie sie zuletzt war, und kannst sie weiter nutzen). Bevor eine Freigabe geholt wird, die groß ist (standardmäßig ab 1 GB, die Einstellung „Vor dem Synchronisieren neuer Ordner fragen ab“ unter „Sync“) oder nicht in den freien Speicher deines Browsers passt, wirst du gefragt: „Holen“ startet es. Dein Browser merkt sich die Freigabe – auch nachdem er geschlossen war –, bis sie endet, abläuft oder du „Trennen“ wählst. Beendet das freigebende Gerät sie, siehst du sofort „Die Freigabe wurde beendet.“, und ihre Kopie wird aus deinem Browser gelöscht – „Entfernen“ nimmt den Eintrag weg; was du in deine eigenen Dateien kopiert hast, bleibt.'
+							text: 'Ein Link zu einer Freigabe fragt zuerst („Diese Freigabe öffnen?“): Das Öffnen verbindet deinen Browser direkt mit dem Gerät dessen, der den Link erstellt hat, und kopiert das Freigegebene auf deines – wähle „Freigabe öffnen“ also nur, wenn du weißt, von wem der Link stammt. Ist in diesem Browser schon eine andere Freigabe offen, wird sie geschlossen und ihre Kopie gelöscht; die Frage sagt es dazu. Ein freigegebener Ordner erscheint dann in Dateien in der Seitenleiste „Ordner“ unter Meine Dateien als „Ordner von“ dem, der ihn freigibt – dem Namen aus dessen Einstellungen („Profil“ → „Dein Name“), sonst dem seines Geräts –, mit einem Schloss, wenn du nur ansehen darfst – dann fehlen dort in den Menüs „Ausschneiden“, „Duplizieren“, „Verschieben nach …“, „Umbenennen“ und „Löschen“, und nichts lässt sich hineinziehen oder hochladen. Du kannst die Dateien in jedem Tool öffnen, herunterladen oder in deine eigenen Dateien kopieren. Was freigegeben ist, wird in deinen Browser kopiert und mit dem freigebenden Gerät abgeglichen; eine Zeile über der Liste sagt, was gerade geschieht („Die Freigabe wird geholt …“ oder dass das freigebende Gerät gerade nicht erreichbar ist – dann siehst du die Freigabe so, wie sie zuletzt war, und kannst sie weiter nutzen). Bevor eine Freigabe geholt wird, die groß ist (standardmäßig ab 1 GB, die Einstellung „Vor dem Synchronisieren neuer Ordner fragen ab“ unter „Sync“) oder nicht in den freien Speicher deines Browsers passt, wirst du gefragt: „Holen“ startet es. Dein Browser merkt sich die Freigabe – auch nachdem er geschlossen war –, bis sie endet, abläuft oder du „Trennen“ wählst. Beendet das freigebende Gerät sie, siehst du sofort „Die Freigabe wurde beendet.“, und ihre Kopie wird aus deinem Browser gelöscht – „Entfernen“ nimmt den Eintrag weg; was du in deine eigenen Dateien kopiert hast, bleibt.'
 						},
 						copies: {
 							title: 'Was beim Gast bleibt',
@@ -437,8 +437,9 @@ const help: typeof enHelp = {
 						},
 						pair: {
 							title: '2. Rechner hinzufügen',
-							text: 'Setz den Link anstelle von <link> ein. „home“ ist der Name dieser Instanz; der Rechner erscheint unter seinem eigenen Namen bei deinen Geräten.',
-							code: 'in-browser-p2p-node pair home "<link>"'
+							text: 'Der Befehl fragt nach dem Link: Füg ihn dort ein und drück die Eingabetaste. „home“ ist der Name dieser Instanz; der Rechner erscheint unter seinem eigenen Namen bei deinen Geräten.',
+							code: 'in-browser-p2p-node pair home',
+							tip: 'Der Link ist ein Schlüssel. Auf die Frage hin eingegeben, steht er weder im Verlauf deiner Shell noch in der Liste der laufenden Programme, die andere Benutzer des Rechners sehen. Er darf auch hinter dem Namen stehen („pair home "<link>"“), z. B. in einem Skript.'
 						},
 						service: {
 							title: '3. Dauerhaft laufen lassen',
@@ -450,7 +451,7 @@ const help: typeof enHelp = {
 							title: 'Befehle',
 							text: 'Alle Befehle bekommen den Namen der Instanz.',
 							options: {
-								pair: { label: 'pair <name> <link>', text: 'Fügt eine neue Instanz als Gerät hinzu. „--folder <dir>“ wählt den synchronisierten Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen, „--exclude <ordner>“ lässt einen Ordner von Meine Dateien aus (für mehrere wiederholen, z. B. „--exclude Videos --exclude Fotos/2019“). Ohne „--exclude“ bekommt der Rechner alles.' },
+								pair: { label: 'pair <name>', text: 'Fügt eine neue Instanz als Gerät hinzu und fragt nach dem Link aus „Gerät hinzufügen“. „--folder <dir>“ wählt den synchronisierten Ordner (Standard: im Datenordner), „--name <device name>“ den Namen, den deine Geräte sehen, „--exclude <ordner>“ lässt einen Ordner von Meine Dateien aus (für mehrere wiederholen, z. B. „--exclude Videos --exclude Fotos/2019“). Ohne „--exclude“ bekommt der Rechner alles.' },
 								run: { label: 'run <name>', text: 'Startet eine Instanz im Vordergrund, z. B. um zuzusehen.' },
 								install: { label: 'install <name>', text: 'Lässt sie im Hintergrund und bei jedem Start laufen. „uninstall <name>“ beendet das und behält die Daten.' },
 								status: { label: 'status [<name>]', text: 'Zeigt Geräte, Ordner, Papierkorb und frühere Versionen einer oder aller Instanzen.' },
@@ -519,11 +520,11 @@ const help: typeof enHelp = {
 						},
 						signed: {
 							title: 'Signiert',
-							text: 'Eine Version wird nur mit gültiger Signatur des Release-Schlüssels übernommen, jede Datei nur mit ihrer signierten Prüfsumme. Wer allein die Website kontrolliert, kann keinen Code auf deinem Rechner ausführen. Dem Installer selbst vertraust du beim ersten Mal, wie jedem Installer, den du herunterlädst.'
+							text: 'Eine Version wird nur mit gültiger Signatur des Release-Schlüssels übernommen, jede Datei nur mit ihrer signierten Prüfsumme. Wer allein die Website kontrolliert, kann keinen Code auf deinem Rechner ausführen – und auch keine alte Version zurückbringen: Der Knoten übernimmt nie eine, die vor seiner jetzigen gebaut wurde. Dem Installer selbst vertraust du beim ersten Mal, wie jedem Installer, den du herunterlädst.'
 						},
 						sandbox: {
 							title: 'Abgeschottet',
-							text: 'Das Sync-Programm läuft im Berechtigungsmodell von Node: Es darf nur seine eigenen Daten und den synchronisierten Ordner lesen und schreiben, dazu das Netz nutzen.'
+							text: 'Das Sync-Programm läuft im Berechtigungsmodell von Node: Es darf nur seine eigenen Daten und den synchronisierten Ordner lesen und schreiben, dazu das Netz nutzen. Was auch immer eines deiner Geräte anfragt, es erreicht nichts außerhalb des synchronisierten Ordners – auch nicht über Verknüpfungen darin, die woandershin führen – und nichts in einem Ordner, den du mit „--exclude“ ausgelassen hast. Eine Datei, nach der weniger als 512 MB auf dem Datenträger des synchronisierten Ordners frei blieben, wird abgelehnt, damit der Rechner nie vollläuft.'
 						},
 						router: {
 							title: 'Router',

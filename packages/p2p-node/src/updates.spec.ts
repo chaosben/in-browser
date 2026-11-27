@@ -25,11 +25,12 @@ beforeEach(async () => {
 afterEach(() => rm(dir, { recursive: true, force: true }));
 
 /** Publishes a release on the fake site */
-async function publish(commit: string, changes: { peer?: string; node?: number; starter?: { version: number; min: number }; signWith?: CryptoKey } = {}) {
+async function publish(commit: string, changes: { peer?: string; node?: number; built?: number; starter?: { version: number; min: number }; signWith?: CryptoKey } = {}) {
 	const peer = encode(changes.peer ?? `console.log(${JSON.stringify(commit)})`);
 	const starter = encode(`// starter ${changes.starter?.version ?? 1}`);
 	const manifest: Manifest = {
 		commit,
+		...(changes.built !== undefined && { built: changes.built }),
 		protocol: 1,
 		node: changes.node ?? 26,
 		peer: { file: `peer-${commit}.js`, sha256: await sha256(encode(`console.log(${JSON.stringify(commit)})`)) },
@@ -82,6 +83,18 @@ describe('updater', () => {
 		await publish('aaa');
 		expect(await updates.update()).toBe('updated');
 		expect((await current()).commit).toBe('aaa');
+
+		// Releases say when they were built: a new build of an older commit is followed, but a release signed
+		// earlier and served again (by whoever controls the hosting) is not
+		await publish('ddd', { built: 2000 });
+		await updates.update();
+		await publish('aaa', { built: 3000 });
+		expect(await updates.update()).toBe('updated');
+		for (const old of [{ built: 2000 }, {}]) {
+			await publish('ddd', old);
+			expect(await updates.update()).toBe('refused');
+		}
+		expect(await current()).toMatchObject({ commit: 'aaa', built: 3000 });
 	});
 
 	it('refuses a version with a wrong signature or checksum', async () => {

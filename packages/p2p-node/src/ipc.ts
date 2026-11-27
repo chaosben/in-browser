@@ -10,3 +10,6 @@ export type FromPeer =
 
 /** Exit code of the sync process when its device was removed from the group (the starter doesn't restart it) */
 export const EXIT_REMOVED = 3;
+
+/** Environment variable in which the starter hands the pairing link to the sync process (not an argument: those show in the list of processes) */
+export const PAIR_LINK = 'IN_BROWSER_PAIR_LINK';

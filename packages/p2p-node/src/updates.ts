@@ -13,6 +13,8 @@ export interface Current {
 	commit: string;
 	file: string;
 	previous?: { commit: string; file: string };
+	/** `built` of the newest release taken here: older ones are refused (also after going back for crashes) */
+	built?: number;
 	/** Commits that kept crashing here: not taken again */
 	bad: string[];
 }
@@ -74,6 +76,10 @@ export function updater(options: UpdaterOptions) {
 		const now = await current();
 		if (manifest.commit === now?.commit && existsSync(join(bundles, now.file))) return 'current';
 		if (now?.bad.includes(manifest.commit)) return 'current';
+		if ((manifest.built ?? 0) < (now?.built ?? 0)) {
+			log(`Update refused: version ${manifest.commit} on the site was built before the one installed here.`);
+			return 'refused';
+		}
 		if (manifest.node > nodeMajor) {
 			log(`Version ${manifest.commit} needs Node ${manifest.node} or newer (this is Node ${nodeMajor}). Please update Node.`);
 			return 'refused';
@@ -103,7 +109,7 @@ export function updater(options: UpdaterOptions) {
 			await mkdir(bundles, { recursive: true });
 			await writeAtomic(join(bundles, manifest.peer.file), peer);
 			const previous = now && now.commit !== manifest.commit ? { commit: now.commit, file: now.file } : now?.previous;
-			const next: Current = { commit: manifest.commit, file: manifest.peer.file, previous, bad: now?.bad ?? [] };
+			const next: Current = { commit: manifest.commit, file: manifest.peer.file, previous, bad: now?.bad ?? [], ...(manifest.built !== undefined && { built: manifest.built }) };
 			await writeAtomic(currentFile, JSON.stringify(next));
 			// Keep the current and the previous version only
 			for (const name of await readdir(bundles)) {
@@ -131,7 +137,7 @@ export function updater(options: UpdaterOptions) {
 	async function rollback(commit: string): Promise<boolean> {
 		const now = await current();
 		if (!now?.previous || now.commit !== commit || !existsSync(join(bundles, now.previous.file))) return false;
-		await writeAtomic(currentFile, JSON.stringify({ commit: now.previous.commit, file: now.previous.file, bad: [...now.bad, commit] } satisfies Current));
+		await writeAtomic(currentFile, JSON.stringify({ commit: now.previous.commit, file: now.previous.file, bad: [...now.bad, commit], ...(now.built !== undefined && { built: now.built }) } satisfies Current));
 		log(`Version ${commit} keeps failing: back to ${now.previous.commit}.`);
 		return true;
 	}

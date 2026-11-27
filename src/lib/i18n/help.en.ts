@@ -376,7 +376,7 @@ const help = {
 						},
 						guest: {
 							title: 'As a guest',
-							text: 'A shared folder appears in Files in the panel “Folders” below My files as “Folder from” whoever shares it – the name from their settings (“Profile” → “Your name”), else their device’s –, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. What is shared is copied into your browser and kept in sync with the sharing device; a line above the list says what is happening (“Fetching the share …”, or that the sharing device can’t be reached right now – then you see the share as it last was and can go on using it). Before a share that is large (1 GB by default, the setting “Ask before syncing new folders larger than” under “Sync”) or doesn’t fit your browser’s free storage is fetched, you are asked: “Fetch” starts it. Your browser remembers the share – also after it was closed – until it ends, runs out or you choose “Disconnect”. When the sharing device ends it, you see “The share has ended.” right away and its copy is deleted from your browser – “Remove” takes the entry away; what you copied into your own files stays.'
+							text: 'A link to a share asks first (“Open this share?”): opening it connects your browser directly to the device of whoever made the link and copies what is shared onto yours – so choose “Open share” only when you know who the link is from. If another share is open in this browser, it is closed and its copy deleted; the question says so. A shared folder then appears in Files in the panel “Folders” below My files as “Folder from” whoever shares it – the name from their settings (“Profile” → “Your name”), else their device’s –, with a lock if you may only view – then the menus there have no “Cut”, “Duplicate”, “Move to …”, “Rename” or “Delete”, and nothing can be dropped or uploaded into it. You can open the files in every tool, download them or copy them into your own files. What is shared is copied into your browser and kept in sync with the sharing device; a line above the list says what is happening (“Fetching the share …”, or that the sharing device can’t be reached right now – then you see the share as it last was and can go on using it). Before a share that is large (1 GB by default, the setting “Ask before syncing new folders larger than” under “Sync”) or doesn’t fit your browser’s free storage is fetched, you are asked: “Fetch” starts it. Your browser remembers the share – also after it was closed – until it ends, runs out or you choose “Disconnect”. When the sharing device ends it, you see “The share has ended.” right away and its copy is deleted from your browser – “Remove” takes the entry away; what you copied into your own files stays.'
 						},
 						copies: {
 							title: 'What stays with the guest',
@@ -441,8 +441,9 @@ const help = {
 						},
 						pair: {
 							title: '2. Add the computer',
-							text: 'Paste the link in place of <link>. “home” is the name of this instance; the computer appears among your devices under its own name.',
-							code: 'in-browser-p2p-node pair home "<link>"'
+							text: 'The command asks for the link: paste it there and press Enter. “home” is the name of this instance; the computer appears among your devices under its own name.',
+							code: 'in-browser-p2p-node pair home',
+							tip: 'The link is a key. Typed when asked, it stays out of your shell’s history and out of the list of running programs that other users of the computer can see. It may also follow the name (“pair home "<link>"”), e.g. in a script.'
 						},
 						service: {
 							title: '3. Keep it running',
@@ -454,7 +455,7 @@ const help = {
 							title: 'Commands',
 							text: 'All commands take the name of the instance.',
 							options: {
-								pair: { label: 'pair <name> <link>', text: 'Adds a new instance as a device. “--folder <dir>” picks the synced folder (default: inside the data folder), “--name <device name>” the name your devices see, “--exclude <folder>” leaves a folder of My files out (repeat it for more, e.g. “--exclude Videos --exclude Photos/2019”). Without “--exclude” the computer gets everything.' },
+								pair: { label: 'pair <name>', text: 'Adds a new instance as a device and asks for the link from “Add device”. “--folder <dir>” picks the synced folder (default: inside the data folder), “--name <device name>” the name your devices see, “--exclude <folder>” leaves a folder of My files out (repeat it for more, e.g. “--exclude Videos --exclude Photos/2019”). Without “--exclude” the computer gets everything.' },
 								run: { label: 'run <name>', text: 'Runs an instance in the foreground, e.g. to watch it.' },
 								install: { label: 'install <name>', text: 'Runs it in the background and at every start. “uninstall <name>” stops that and keeps the data.' },
 								status: { label: 'status [<name>]', text: 'Shows devices, folder, trash and earlier versions of one or all instances.' },
@@ -523,11 +524,11 @@ const help = {
 						},
 						signed: {
 							title: 'Signed',
-							text: 'A version is only taken with a valid signature of the release key, and every file only with its signed checksum. Whoever controls the website alone can’t run code on your computer. The installer itself is trusted on first use, like any installer you download.'
+							text: 'A version is only taken with a valid signature of the release key, and every file only with its signed checksum. Whoever controls the website alone can’t run code on your computer – and can’t bring back an old version either: the node never takes one built before the version it has. The installer itself is trusted on first use, like any installer you download.'
 						},
 						sandbox: {
 							title: 'Sandboxed',
-							text: 'The sync runs in Node’s permission model: it can only read and write its own data and the synced folder, plus use the network.'
+							text: 'The sync runs in Node’s permission model: it can only read and write its own data and the synced folder, plus use the network. Whatever one of your devices asks for, it reaches nothing outside the synced folder – also not through links (shortcuts) in it that lead elsewhere – and nothing in a folder you left out with “--exclude”. A file that would leave less than 512 MB free on the disk of the synced folder is refused, so the computer never runs full.'
 						},
 						router: {
 							title: 'Router',

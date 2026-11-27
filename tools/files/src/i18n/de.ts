@@ -320,6 +320,13 @@ const de: Messages = {
 		addAnother: 'Weiteres Gerät hinzufügen'
 	},
 
+	shareLink: {
+		title: 'Diese Freigabe öffnen?',
+		message: 'Dieser Link öffnet einen Ordner oder eine Datei, die jemand mit dir teilt. Dein Browser verbindet sich direkt mit dem Gerät dieser Person und kopiert das Freigegebene auf dieses Gerät. Öffne ihn nur, wenn du weißt, von wem der Link stammt.',
+		replaces: 'Die Freigabe, die jetzt in diesem Browser offen ist, wird geschlossen und ihre Kopie hier gelöscht.',
+		open: 'Freigabe öffnen'
+	},
+
 	join: {
 		title: 'Dieses Gerät verbinden',
 		keyLabel: 'Schlüssel',

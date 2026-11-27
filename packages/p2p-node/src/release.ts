@@ -5,8 +5,8 @@
 // private key never enters the repository (see `scripts/build.ts`).
 
 /** Version of the starter (`starter.ts`); a manifest can require a newer one for its sync process */
-/** 2: `pair --exclude` */
-export const STARTER_VERSION = 2;
+/** 2: `pair --exclude` · 3: releases only forward (`built`), `pair` asks for the link and hands it on outside the arguments */
+export const STARTER_VERSION = 3;
 
 /** Public release key (Ed25519, raw, base64url) */
 export const RELEASE_KEY = '2KGRb82KM5mWDO9mmhTx4fnyjUtBW7Cj0pP8SRLArbg';
@@ -21,6 +21,12 @@ export interface ReleaseFile {
 export interface Manifest {
 	/** Commit of the build (`abc1234`, `-dirty` for local builds); the node follows any change, also back */
 	commit: string;
+	/**
+	 * When it was built (ms since 1970). A node never takes a release built before the one it has: a release signed
+	 * once stays valid for ever, so whoever controls the hosting could otherwise serve an old one with a known flaw.
+	 * Going back to an older commit is a new build of it. Missing in releases of before starter 3.
+	 */
+	built?: number;
 	/** P2P protocol version of this build (`PROTOCOL` in `@in-browser/files/p2p/auth.ts`) */
 	protocol: number;
 	/** Lowest Node major version the sync process runs on */
@@ -69,6 +75,7 @@ function isManifest(m: Partial<Manifest>): m is Manifest {
 	return (
 		typeof m.commit === 'string' &&
 		/^[A-Za-z0-9-]+$/.test(m.commit) &&
+		(m.built === undefined || (typeof m.built === 'number' && Number.isFinite(m.built))) &&
 		typeof m.protocol === 'number' &&
 		typeof m.node === 'number' &&
 		isFile(m.peer) &&

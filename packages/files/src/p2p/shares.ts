@@ -47,6 +47,12 @@ export function sharePath(share: Share, path: string): string | null {
 	return null;
 }
 
+/**
+ * The folder a single shared entry lies in: the guest's root shows it, but nothing a guest asks for may change it
+ * (a hand-made request to delete `/` reached the whole folder).
+ */
+export const besideShare = (share: Share, path: string) => !!share.single && normalize(path) === '/';
+
 /** The guest's path of what can't be deleted or moved: the shared folder (its root) or the shared entry */
 export const shareRoot = (share: Share) => (share.single ? `/${basename(share.folder)}` : '/');
 

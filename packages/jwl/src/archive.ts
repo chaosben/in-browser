@@ -62,19 +62,39 @@ export class ZipOut {
 	}
 }
 
+/**
+ * What a backup unpacks to at most: a file made to exhaust memory (a few kilobytes unpacking to gigabytes, or
+ * millions of entries) is refused instead of taking the tab down. Real backups are far below both – media in them
+ * barely shrinks, and their database to about a tenth.
+ */
+const MAX_ENTRIES = 100_000;
+const maxUnpacked = (packed: number) => Math.max(1024 ** 3, packed * 200);
+
 /** Every entry of a ZIP as a blob, read in pieces (names as stored) */
 export async function unzipBlob(file: Blob): Promise<Map<string, Blob>> {
 	const entries = new Map<string, Blob>();
 	const pending: Promise<void>[] = [];
 	let failure: Error | null = null;
+	const limit = maxUnpacked(file.size);
+	let unpacked = 0;
+	let count = 0;
 	const unzip = new Unzip((entry) => {
+		if (++count > MAX_ENTRIES) {
+			failure ??= new Error('Too many entries in the archive');
+			return;
+		}
 		const parts: Uint8Array[] = [];
 		pending.push(
 			new Promise<void>((resolve) => {
 				entry.ondata = (error, data, final) => {
-					if (error) failure = error;
-					else parts.push(data);
-					if (final || error) {
+					const problem: Error | null = error ?? ((unpacked += data.length) > limit ? new Error('The archive unpacks to too much') : null);
+					if (problem) {
+						failure ??= problem;
+						// Nothing more of it is kept or unpacked
+						parts.length = 0;
+						entry.terminate();
+					} else parts.push(data);
+					if (final || problem) {
 						entries.set(entry.name, new Blob(parts as BlobPart[]));
 						resolve();
 					}

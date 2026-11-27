@@ -75,6 +75,7 @@ if (!protocol) throw new Error('PROTOCOL not found in packages/files/src/p2p/aut
 
 const manifest: Manifest = {
 	commit: version,
+	built: Date.now(),
 	protocol,
 	node: NODE,
 	peer: { file: peerFile, sha256: await sha256(peer) },

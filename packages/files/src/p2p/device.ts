@@ -2,7 +2,7 @@ import { FilesError } from '../entry.js';
 import { isPackage } from '../formats.js';
 import { basename, isHidden, isInside, normalize } from '../path.js';
 import { inTrash, trashInTree, untrashInTree } from '../trash.js';
-import { expired, sharePath, shareRoot, tokenHash, type Share } from './shares.js';
+import { besideShare, expired, sharePath, shareRoot, tokenHash, type Share } from './shares.js';
 import { shareTree } from './share-tree.js';
 import { newWordCode, wordSecret, WORDS_TTL } from './words.js';
 import { Rebindable, SESSIONS, sessionsOf, type LiveEnd, type LiveSession } from './live-ends.js';
@@ -87,6 +87,8 @@ export interface DeviceOptions {
 	onOutdated?: (version: number) => void;
 	/** Free bytes for arriving files where storage is limited (a browser's quota); none: not limited */
 	freeSpace?: () => Promise<number | null>;
+	/** Bytes a file arriving from another device may have at most right now (the p2p-node: what its disk has left) */
+	roomLeft?: () => Promise<number | null>;
 	/** Large new folders arriving here wait for confirmation (suite setting `sync.askAbove`). Off where nobody could
 	 * confirm them (the p2p-node) */
 	holdLarge?: boolean;
@@ -442,12 +444,12 @@ export class Device {
 				gate: new Gate(),
 				keep: (path) => {
 					const share = current();
-					return !share || normalize(path) === shareRoot(share);
+					return !share || besideShare(share, path) || normalize(path) === shareRoot(share);
 				},
 				trash: async (path) => {
 					const share = current();
 					const host = share && sharePath(share, path);
-					if (!host || share.mode !== 'edit') throw wireErrorOf('readOnly');
+					if (!host || share.mode !== 'edit' || besideShare(share, path)) throw wireErrorOf('readOnly');
 					await trashInTree(this.options.tree, host, this.now());
 				},
 				log: (event, data) => this.log(event, { ...data, guest: id })
@@ -748,10 +750,17 @@ export class Device {
 		const invite = this.state.invites.find((i) => i.code === code && i.expires > this.now());
 		if (!invite || v !== PROTOCOL || proof !== (await pairProof(code, 'new', fingerprints))) throw new Error('Pairing refused');
 		const device = await deviceIdOf(key);
+		// A key adds one device: taken before the first wait, so a second request arriving meanwhile finds none
+		if (!this.state.invites.includes(invite)) throw new Error('Pairing refused');
+		this.state.invites = this.state.invites.filter((i) => i !== invite);
 		const taken = [...(this.group?.members.values() ?? [])].map((m) => m.name);
 		const unique = uniqueDeviceName(name.trim() || 'Device', taken);
-		await this.addOp({ type: 'add', device, key, name: unique });
-		this.state.invites = this.state.invites.filter((i) => i !== invite);
+		try {
+			await this.addOp({ type: 'add', device, key, name: unique });
+		} catch (e) {
+			this.state.invites.push(invite);
+			throw e;
+		}
 		await this.save();
 		// Leave the pairing room once the answer is out
 		const room = this.pairRooms.get(code);
@@ -790,11 +799,13 @@ export class Device {
 				gate: this.gate,
 				onWrite: (path) => this.ownWrite(path),
 				scope: () => this.state.scope,
+				reach: (path) => inScope(path, this.state.scope),
 				allowDeletes: () => this.deletesAllowed(),
 				setup: () => !!this.state.setupPending,
 				allowFolders: () => [...this.allowedFolders],
 				free: () => this.free(),
 				limit: () => this.limit(),
+				room: async () => (await this.options.roomLeft?.().catch(() => null)) ?? null,
 				onEnd: (summary) => {
 					if (!peerId) return;
 					this.setPending(peerId, summary.pendingDeletes);

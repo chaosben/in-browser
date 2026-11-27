@@ -188,7 +188,8 @@ export async function discard(tree: Tree, path: string, kind: FileState['kind'],
 	}
 	const current = await tree.stat(path);
 	if (!current) return 'done';
-	if (!unchanged(current, expect)) return 'stale';
+	// A folder asked for as a file (a hand-made request) is not what the plan saw: folders go only while empty
+	if (current.kind !== 'file' || !unchanged(current, expect)) return 'stale';
 	onWrite(path);
 	await retire(tree, path, 'deleted', true);
 	return 'done';
@@ -208,6 +209,32 @@ export async function renameIn(tree: Tree, from: string, to: string, expect: Fil
  * step is skipped like any other change since the plan, the next run plans again. Travels as the error message.
  */
 export const GONE = 'sync:gone';
+
+/**
+ * More arrived than the plan saw (the file grew since, or the other side told a smaller size): the step is skipped
+ * and planned again with the real size – what was checked against the free space and asked for is never exceeded.
+ */
+export const GREW = 'sync:grew';
+export const hasGrown = (e: unknown) => e instanceof Error && e.message === GREW;
+
+/** `target`, refusing more than `max` bytes */
+export function capped(target: WritableStream<Uint8Array>, max: number): WritableStream<Uint8Array> {
+	const writer = target.getWriter();
+	let size = 0;
+	return new WritableStream({
+		async write(chunk) {
+			size += chunk.length;
+			if (size > max) {
+				// Frees the file, so what arrived can be removed
+				await writer.abort(GREW).catch(() => {});
+				throw new Error(GREW);
+			}
+			await writer.write(chunk);
+		},
+		close: () => writer.close(),
+		abort: (reason) => writer.abort(reason)
+	});
+}
 
 /** The other side no longer had the file (`GONE`, also from another device) */
 export const isGone = (e: unknown) => e instanceof Error && e.message === GONE;

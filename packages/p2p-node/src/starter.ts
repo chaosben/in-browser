@@ -2,9 +2,10 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { appendFileSync, existsSync, renameSync, statSync } from 'node:fs';
 import { mkdir, readdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
+import { createInterface } from 'node:readline/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EXIT_REMOVED, type FromPeer, type ToPeer } from './ipc.js';
+import { EXIT_REMOVED, PAIR_LINK, type FromPeer, type ToPeer } from './ipc.js';
 import { sandboxArgs } from './sandbox.js';
 import { install, uninstall } from './service.js';
 import { readJson, writeAtomic } from './json.js';
@@ -71,7 +72,7 @@ function checkName(name: string | undefined): string {
 async function instance(name: string): Promise<{ dir: string; sync: string; folder: string }> {
 	const dir = instanceDir(name);
 	const config = await readJson<InstanceConfig>(join(dir, 'config.json'));
-	if (!config) throw new Error(`No instance "${name}" – pair it first: pair ${name} <link>`);
+	if (!config) throw new Error(`No instance "${name}" – pair it first: pair ${name}`);
 	return { dir, sync: join(dir, 'sync'), folder: config.folder };
 }
 
@@ -80,17 +81,18 @@ function logTo(file: string) {
 		process.stdout.write(chunk);
 		try {
 			if (existsSync(file) && statSync(file).size > LOG_LIMIT) renameSync(file, `${file}.1`);
-			appendFileSync(file, chunk);
+			appendFileSync(file, chunk, { mode: 0o600 });
 		} catch {
 			// Logging must never stop the sync
 		}
 	};
 }
 
-function startPeer(bundle: string, command: string, sync: string, folder: string, args: string[], logFile?: string): ChildProcess {
+function startPeer(bundle: string, command: string, sync: string, folder: string, args: string[], logFile?: string, env?: Record<string, string>): ChildProcess {
 	const child = spawn(process.execPath, [...sandboxArgs(bundle, sync, folder), bundle, command, sync, folder, ...args], {
 		stdio: logFile ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['inherit', 'inherit', 'inherit', 'ipc'],
-		windowsHide: true
+		windowsHide: true,
+		...(env && { env: { ...process.env, ...env } })
 	});
 	if (logFile) {
 		child.stdout!.on('data', logTo(logFile));
@@ -102,8 +104,15 @@ function startPeer(bundle: string, command: string, sync: string, folder: string
 const exited = (child: ChildProcess) =>
 	new Promise<number>((done) => child.on('exit', (code, signal) => done(code ?? (signal ? 1 : 0))));
 
-async function pair(name: string, link: string, options: Record<string, string>, excluded: string[]) {
+async function pair(name: string, given: string | undefined, options: Record<string, string>, excluded: string[]) {
 	const dir = instanceDir(checkName(name));
+	// The link is a key: asked for here, so it is neither in the shell's history nor in the list of processes
+	let link = given;
+	if (!link) {
+		const input = createInterface({ input: process.stdin, output: process.stdout });
+		link = (await input.question('Link from "Add device" in Files: ')).trim();
+		input.close();
+	}
 	const configFile = join(dir, 'config.json');
 	const existing = await readJson<InstanceConfig>(configFile);
 	const folder = options.folder ? resolve(options.folder) : (existing?.folder ?? join(dir, 'files'));
@@ -111,7 +120,7 @@ async function pair(name: string, link: string, options: Record<string, string>,
 	await mkdir(folder, { recursive: true });
 	await writeAtomic(configFile, JSON.stringify({ folder } satisfies InstanceConfig));
 	const now = await updates.ensure();
-	const code = await exited(startPeer(join(bundles, now.file), 'pair', join(dir, 'sync'), folder, [link, options.name ?? '', ...excluded]));
+	const code = await exited(startPeer(join(bundles, now.file), 'pair', join(dir, 'sync'), folder, ['', options.name ?? '', ...excluded], undefined, { [PAIR_LINK]: link }));
 	if (code === 0) {
 		console.log(`\nSynced folder: ${folder}`);
 		console.log(`Run it in the background: in-browser-p2p-node install ${name}`);
@@ -195,7 +204,7 @@ async function run(name: string) {
 
 async function status(name?: string) {
 	const names = name ? [checkName(name)] : await readdir(join(home, 'instances')).catch(() => [] as string[]);
-	if (!names.length) return console.log('No instances yet. Pair one: pair <name> <link>');
+	if (!names.length) return console.log('No instances yet. Pair one: pair <name>');
 	const now = await updates.current();
 	console.log(`Version: ${now?.commit ?? '–'} · data: ${home}\n`);
 	for (const n of names) {
@@ -208,8 +217,9 @@ async function status(name?: string) {
 
 const HELP = `in-browser p2p-node: keeps your files syncing with your devices while no browser is open.
 
-  pair <name> <link> [--folder <dir>] [--name <device name>] [--exclude <folder>]…
-                        add this computer as a device (link from "Add device" in Files);
+  pair <name> [--folder <dir>] [--name <device name>] [--exclude <folder>]…
+                        add this computer as a device; asks for the link "Add device" shows in
+                        Files (it may also follow the name, but then stays in the shell's history);
                         --exclude leaves a folder of My files out (repeat it for more)
   run <name>            run an instance in the foreground
   install <name>        run it in the background (systemd user service / Windows task)
@@ -228,7 +238,7 @@ async function main() {
 	if (Number(process.versions.node.split('.')[0]) < NODE_MIN) throw new Error(`Needs Node ${NODE_MIN} or newer (this is ${process.versions.node}).`);
 	switch (command) {
 		case 'pair':
-			if (!positional[1]) throw new Error('Usage: pair <name> <link>');
+			if (!positional[0]) throw new Error('Usage: pair <name>');
 			return pair(positional[0], positional[1], options, excluded);
 		case 'run':
 			return run(positional[0]);

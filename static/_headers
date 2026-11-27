@@ -2,9 +2,14 @@
 # Rules apply in this order; a tool section first unsets (`! Header`) what it sets differently.
 
 # Overview (and the defaults of every path); it runs the syncs too, so the P2P relays need wss:
+# One origin holds every file, key and paired device: always over HTTPS (HSTS, this host only – subdomains are the
+# domain owner's matter), no other site keeps a handle on our windows (COOP) or embeds our files (CORP).
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=63072000
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), display-capture=(), geolocation=()
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 

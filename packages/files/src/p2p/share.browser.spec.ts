@@ -173,6 +173,34 @@ describe('guest shares', { timeout: 30_000 }, () => {
 		expect((await paths(g.tree)).some((path) => path.includes('trash'))).toBe(false);
 	});
 
+	it('lets a guest change nothing beside what is shared, whatever it asks for by hand', async () => {
+		const network = hub();
+		const { device, tree } = await host(network);
+		const before = await paths(tree);
+		const dir = { kind: 'directory', size: 0, modified: 0 };
+		// One file for editing: the guest's root is the folder it lies in – shown, never changed
+		const one = await device.share('/Trip/photo.txt', 'edit', { single: true });
+		const raw = guestClient(network, one.code);
+		await until(() => !!raw.got.rpc, 5000, 'connection of the guest');
+		const rpc = raw.got.rpc!;
+		for (const kind of ['file', 'directory']) await expect(rpc.call('remove', { path: '/', kind, expect: dir })).rejects.toBeTruthy();
+		await expect(rpc.call('rename', { from: '/', to: '/photo.txt/x', expect: dir })).rejects.toBeTruthy();
+		await expect(rpc.call('mkdir', '/')).rejects.toBeTruthy();
+		raw.close();
+		await device.endShare(one.id);
+
+		// A folder for editing: a folder is never deleted as a file, and not while it holds what the guest can't see
+		const folder = await device.share('/Trip', 'edit');
+		await writeText(tree, '/Trip/Full/a.txt', 'a');
+		await writeText(tree, '/Trip/Quiet/.hidden', 'unseen');
+		const second = guestClient(network, folder.code);
+		await until(() => !!second.got.rpc, 5000, 'connection of the second guest');
+		expect(await second.got.rpc!.call('remove', { path: '/Full', kind: 'file', expect: dir })).toBe('stale');
+		await expect(second.got.rpc!.call('remove', { path: '/Quiet', kind: 'directory', expect: dir })).rejects.toBeTruthy();
+		expect(await paths(tree)).toEqual([...before, '/Trip/Full', '/Trip/Full/a.txt', '/Trip/Quiet', '/Trip/Quiet/.hidden'].sort());
+		expect(await tree.names('/.in-browser-trash').catch(() => [])).toEqual([]);
+	});
+
 	it('restores only real trash entries of exactly that path (references may come from other devices)', async () => {
 		const tree = await folderTree('share-untrash');
 		stops.push(() => tree.clear());

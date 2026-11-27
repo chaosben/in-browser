@@ -331,6 +331,14 @@ const en = {
 		addAnother: 'Add another device'
 	},
 
+	/** Asked before a share link (`/files#share=…`) connects */
+	shareLink: {
+		title: 'Open this share?',
+		message: 'This link opens a folder or file that somebody shares with you. Your browser connects directly to their device and copies what is shared onto this device. Open it only if you know who the link is from.',
+		replaces: 'The share that is open in this browser now is closed, and its copy here is deleted.',
+		open: 'Open share'
+	},
+
 	join: {
 		title: 'Connect this device',
 		keyLabel: 'Key',

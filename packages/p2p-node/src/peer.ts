@@ -1,4 +1,4 @@
-import { mkdir, readdir, stat } from 'node:fs/promises';
+import { mkdir, readdir, stat, statfs } from 'node:fs/promises';
 import { join } from 'node:path';
 import { hostname } from 'node:os';
 import { createPolyfillRTCPeerConnection } from 'werift/polyfill';
@@ -12,7 +12,7 @@ import { cleanTrash, DEFAULT_RETENTION, retentionOf, TRASH_ROOT } from '@in-brow
 import { cleanVersions, listVersions } from '@in-browser/files/sync/versions.js';
 import de from '@in-browser/files/i18n/de.js';
 import en from '@in-browser/files/i18n/en.js';
-import { EXIT_REMOVED, type FromPeer, type ToPeer } from './ipc.js';
+import { EXIT_REMOVED, PAIR_LINK, type FromPeer, type ToPeer } from './ipc.js';
 import { fileStore } from './store.js';
 import { fsTree } from './tree.js';
 import { ICE_PORTS, keepForwarded } from './upnp.js';
@@ -34,6 +34,8 @@ const versionsDir = join(instanceDir ?? '', 'versions');
 const tree = fsTree(folder, { versions: versionsDir });
 /** Expired entries of the trash go this often (the retention, a suite setting, is synced into this folder too) */
 const TRASH_INTERVAL = 60 * 60 * 1000;
+/** Kept free on the disk of the synced folder: a file that would take more is refused (a full disk stops more than the sync) */
+const DISK_RESERVE = 512 * 1024 * 1024;
 /** Fixed WebRTC ports forwarded by the router (`IN_BROWSER_ICE_PORTS=off`: random ports, no forwarding – tests) */
 const icePorts = process.env.IN_BROWSER_ICE_PORTS === 'off' ? undefined : ICE_PORTS;
 
@@ -54,6 +56,10 @@ async function device(onChange?: (view: P2pView) => void) {
 			else if (event.type === 'removed') log(`Device removed: ${event.name}`);
 		},
 		onOutdated: (version) => send({ type: 'outdated', version }),
+		roomLeft: async () => {
+			const disk = await statfs(folder);
+			return Math.max(0, disk.bavail * disk.bsize - DISK_RESERVE);
+		},
 		log: process.env.IN_BROWSER_DEBUG ? (event, data) => log(event, JSON.stringify(data)) : undefined
 	});
 }
@@ -114,7 +120,8 @@ async function run() {
 }
 
 async function pair() {
-	const code = parseInviteCode(rest[0] ?? '');
+	// From the starter's environment (arguments show in the list of processes); as an argument from starters before 3
+	const code = parseInviteCode(process.env[PAIR_LINK] || rest[0] || '');
 	if (!code) throw new Error('Expected the link "Add device" shows in Files (…/files#pair=…)');
 	const name = rest[1] || hostname();
 	const d = await device();

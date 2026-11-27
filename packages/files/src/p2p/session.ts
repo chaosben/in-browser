@@ -4,6 +4,8 @@ import type { LogFn } from '../sync/log.js';
 import type { Base, FileState, HeldFolder, Snapshot } from '../sync/plan.js';
 import { stateOf } from '../sync/scan.js';
 import type { Tree } from '../sync/tree.js';
+import { FilesError } from '../entry.js';
+import { normalize } from '../path.js';
 import type { Json, Rpc } from './rpc.js';
 import { intersect } from './scope.js';
 
@@ -45,8 +47,15 @@ export interface ServeOptions {
 	allowFolders?: () => string[];
 	/** Free bytes for files arriving here, where limited (a browser's quota) */
 	free?: () => Promise<number | null>;
+	/** Bytes a single arriving file may have at most right now (a disk that must not run full); none: not limited */
+	room?: () => Promise<number | null>;
 	/** Bytes from which a new folder arriving here waits for confirmation (`null`: never) */
 	limit?: () => Promise<number | null>;
+	/**
+	 * Whether the driver may reach a path at all (the folders this device takes part in): the rest is neither listed
+	 * nor read nor written, whatever the driver asks for
+	 */
+	reach?: (path: string) => boolean;
 	/** Paths the driver may neither delete nor rename (what a guest share stands on) */
 	keep?: (path: string) => boolean;
 	/** Files the driver deletes go here instead of being removed (a guest's deletions: this device's trash) */
@@ -76,7 +85,12 @@ const stateToJson = (s: FileState | null): Json => (s ? { kind: s.kind, size: s.
  * Answers the requests of the driving device. Returns a function to call when the connection ends: it frees this
  * device for other sessions if the driver vanished in the middle of one.
  */
-export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, setup, allowFolders, free, limit, keep, trash, log }: ServeOptions): () => void {
+export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, allowDeletes, onEnd, setup, allowFolders, free, limit, room, reach, keep, trash, log }: ServeOptions): () => void {
+	const reachable = (path: unknown) => typeof path === 'string' && (!reach || reach(normalize(path)));
+	const within = (path: unknown): string => {
+		if (!reachable(path)) throw new Error(`Not here: ${String(path)}`);
+		return path as string;
+	};
 	// One session is one run: package copies (`PackageCopies`) are made once in it
 	let copies: PackageCopies = new Map();
 	const side = treeSide(tree, { onWrite, log, packages: () => copies });
@@ -101,33 +115,56 @@ export function serve(rpc: Pick<Rpc, 'handle'>, { tree, gate, onWrite, scope, al
 		release();
 		if (params) onEnd?.(params as unknown as SessionSummary);
 	});
-	rpc.handle('snapshot', async () => ({ value: { scope: scope?.(), entries: toWire(await tree.scan()) } as unknown as Json }));
-	rpc.handle('hash', async (params) => ({ value: await side.hash(params as string[]) }));
+	rpc.handle('snapshot', async () => {
+		const entries = toWire(await tree.scan()).filter(([path]) => reachable(path));
+		return { value: { scope: scope?.(), entries } as unknown as Json };
+	});
+	rpc.handle('hash', async (params) => ({ value: await side.hash((params as string[]).filter(reachable)) }));
 	rpc.handle('get', async (params) => {
-		// Gone since the plan: the asking side skips the step (`isGone`)
-		if (!(await tree.stat(params as string))) throw new Error(GONE);
+		// Gone since the plan (or no longer taking part): the asking side skips the step (`isGone`)
+		if (!reachable(params) || !(await tree.stat(params as string))) throw new Error(GONE);
 		const file = await tree.read(params as string);
 		return { value: stateToJson(stateOf(file)), download: file.stream() };
 	});
 	rpc.handle('put', async (params, upload) => {
 		const { path, keep, expect } = params as { path: string; keep?: string; expect: FileState | null };
 		if (!upload) throw new Error(`No content: ${path}`);
-		const reply = await side.put(path, upload, { keep, expect });
+		if (!reachable(path)) {
+			await upload.cancel().catch(() => {});
+			within(path);
+		}
+		const left = (await room?.()) ?? null;
+		const reply = await side.put(path, left === null ? upload : upload.pipeThrough(atMost(left, path)), { keep, expect });
 		const value: Json = 'stale' in reply ? { stale: true } : { state: stateToJson(reply.state), copy: reply.copy };
 		return { value };
 	});
-	rpc.handle('mkdir', async (params) => void (await side.mkdir(params as string)));
+	rpc.handle('mkdir', async (params) => void (await side.mkdir(within(params))));
 	rpc.handle('remove', async (params) => {
 		const { path, kind, expect } = params as { path: string; kind: FileState['kind']; expect: FileState | null };
+		within(path);
 		if (keep?.(path)) throw new Error(`Kept: ${path}`);
 		return { value: await (kind === 'file' ? trashing : side).remove(path, kind, expect) };
 	});
 	rpc.handle('rename', async (params) => {
 		const { from, to, expect } = params as { from: string; to: string; expect: FileState | null };
+		within(from);
+		within(to);
 		if (keep?.(from)) throw new Error(`Kept: ${from}`);
 		return { value: await side.rename(from, to, expect) };
 	});
 	return release;
+}
+
+/** Passes at most `max` bytes on, then fails as a full storage does */
+function atMost(max: number, path: string): TransformStream<Uint8Array, Uint8Array> {
+	let size = 0;
+	return new TransformStream({
+		transform(chunk, controller) {
+			size += chunk.length;
+			if (size > max) throw new FilesError('full', path);
+			controller.enqueue(chunk);
+		}
+	});
 }
 
 /** The answering device as the other side of a sync */

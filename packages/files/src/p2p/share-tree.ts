@@ -3,7 +3,7 @@ import { basename, isHidden, join, parent } from '../path.js';
 import { ignored, type Snapshot } from '../sync/plan.js';
 import { DIR } from '../sync/scan.js';
 import type { Tree } from '../sync/tree.js';
-import { sharePath, type Share } from './shares.js';
+import { besideShare, sharePath, type Share } from './shares.js';
 
 // What a guest's sync session sees of this device (`session.ts` `serve`): the tree of the share and nothing else. The
 // guest's paths start at the share (`sharePath`: a folder is its root; a single entry lies alone in it); hidden
@@ -33,6 +33,7 @@ export function shareTree(tree: Tree, current: () => Share | null): Tree {
 	}
 	function writing(path: string): string {
 		if (share().mode !== 'edit') throw new FilesError('readOnly', path);
+		if (besideShare(share(), path)) throw new FilesError('notFound', path);
 		return at(path, true);
 	}
 	/** The names the guest sees in one of its folders */
@@ -62,7 +63,12 @@ export function shareTree(tree: Tree, current: () => Share | null): Tree {
 		read: (path) => tree.read(at(path)),
 		write: async (path) => tree.write(writing(path)),
 		mkdir: async (path) => tree.mkdir(writing(path)),
-		remove: async (path) => tree.remove(writing(path)),
+		async remove(path) {
+			const host = writing(path);
+			// Empty for the guest is not empty: hidden entries it never saw would go for good with the folder
+			if ((await tree.stat(host))?.kind === 'directory' && (await tree.names(host)).length) throw new FilesError('exists', path);
+			await tree.remove(host);
+		},
 		move: async (from, to) => tree.move(writing(from), writing(to)),
 		names
 	};

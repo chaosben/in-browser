@@ -3,7 +3,7 @@ import { FilesError } from '../entry.js';
 import type { LogFn } from './log.js';
 import { DIR, stateOf } from './scan.js';
 import { packageOf } from '../formats.js';
-import { discard, hashFile, isGone, receive, renameIn, validName, type Other, type PackageCopies, type PutResult } from './tree-ops.js';
+import { capped, discard, hashFile, hasGrown, isGone, receive, renameIn, validName, type Other, type PackageCopies, type PutResult } from './tree-ops.js';
 import type { Tree } from './tree.js';
 
 // Carrying out a plan (`plan.ts`) between this side's tree and the other side – shared by the folder sync (the other
@@ -200,7 +200,7 @@ async function apply(
 			if (!validName(path)) throw new Error(`Invalid name: ${path}`);
 			let received: Awaited<ReturnType<typeof receive<FileState>>>;
 			try {
-				received = await receive(mine, path, (target) => other.get(path, target), {
+				received = await receive(mine, path, (target) => other.get(path, capped(target, remote.get(path)?.size ?? Infinity)), {
 					keep: op.both ? options.conflictLabel('mine') : undefined,
 					expect: local.get(path) ?? null,
 					onWrite: write,
@@ -208,8 +208,8 @@ async function apply(
 					version: true
 				});
 			} catch (e) {
-				// Gone there since the plan
-				if (isGone(e)) return 'skipped';
+				// Gone there since the plan, or larger than it saw
+				if (isGone(e) || hasGrown(e)) return 'skipped';
 				throw e;
 			}
 			if ('stale' in received) return 'skipped';

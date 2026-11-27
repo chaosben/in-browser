@@ -1,5 +1,5 @@
 import { basename, join, normalize } from '../path.js';
-import { receive } from '../sync/tree-ops.js';
+import { receive, validName } from '../sync/tree-ops.js';
 import type { FileState } from '../sync/plan.js';
 import type { Tree } from '../sync/tree.js';
 import type { TrashRef } from '../trash.js';
@@ -57,6 +57,12 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		if (readOnly()) throw new Error('files:readOnly');
 		return at(path);
 	}
+	/** A path where something is made: only names every device can hold (the asking side checks them; a hand-made request need not) */
+	function naming(path: unknown): string {
+		const real = writing(path);
+		if (!validName(real)) throw new Error('files:invalidName');
+		return real;
+	}
 	/** A path whose entry goes away (deleted, moved): never the root */
 	function changing(path: unknown): string {
 		if (normalize(String(path ?? '/')) === '/') throw new Error('files:root');
@@ -100,13 +106,13 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		const part = start === undefined ? file : file.slice(offset(start), end === undefined ? undefined : offset(end));
 		return { value: { size: file.size, modified: file.lastModified, type: file.type }, download: part.stream() };
 	});
-	on('live.mkdir', async (params) => void (await tree.mkdir(writing((params as { path: string }).path))));
+	on('live.mkdir', async (params) => void (await tree.mkdir(naming((params as { path: string }).path))));
 	on('live.remove', async (params) => {
 		await tree.remove(changing((params as { path: string }).path));
 	});
 	on('live.move', async (params) => {
 		const { from, to } = params as { from: string; to: string };
-		await tree.move(changing(from), writing(to));
+		await tree.move(changing(from), naming(to));
 	});
 	on('live.trash', async (params) => ({ value: (await toTrash((params as { path: string }).path)) as unknown as Json }));
 	on('live.untrash', async (params) => {
@@ -130,7 +136,7 @@ export function serveLive(handle: (method: string, handler: Handler) => void, op
 		session.timer = setTimeout(() => drop(id, false), SESSION_IDLE);
 	};
 	on('live.open', async (params) => {
-		const path = writing((params as { path: string }).path);
+		const path = naming((params as { path: string }).path);
 		if (sessions.size >= MAX_SESSIONS) throw new Error('Too many open writes');
 		const id = crypto.randomUUID();
 		const expect = await tree.stat(path);

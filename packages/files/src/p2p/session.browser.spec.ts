@@ -91,6 +91,39 @@ describe('P2P session', { timeout: 30_000 }, () => {
 		expect(await paths(a)).toEqual(['/Docs', '/Docs/n.md', '/Videos', '/Videos/one.mp4', '/Videos/two.mp4']);
 	});
 
+	it('answers nothing in a folder the answering device leaves out, whatever the driver asks for', async () => {
+		// What lies in such a folder is this device's alone (made there after leaving it out; a p2p-node's `--exclude`)
+		const [linkA, linkC] = await linkedPair();
+		const [asker, answering] = [new Rpc(linkA), new Rpc(linkC)];
+		serve(answering, { tree: b, gate: new Gate(), scope: () => ['/Private'], reach: (path) => path !== '/Private' && !path.startsWith('/Private/') });
+		await writeText(b, '/Private/own.txt', 'mine alone');
+		await writeText(b, '/Docs/n.md', 'note');
+		const snapshot = (await asker.call('snapshot')) as unknown as { entries: [string][] };
+		expect(snapshot.entries.map(([path]) => path).sort()).toEqual(['/Docs', '/Docs/n.md']);
+		const state = (await b.stat('/Private/own.txt'))!;
+		for (const path of ['/Private/own.txt', '/Docs/../Private/own.txt']) await expect(asker.call('get', path, { download: new WritableStream() })).rejects.toBeTruthy();
+		expect(await asker.call('hash', ['/Private/own.txt'])).toEqual({});
+		await expect(asker.call('put', { path: '/Private/new.txt', expect: null }, { upload: new Blob(['x']).stream() })).rejects.toBeTruthy();
+		await expect(asker.call('remove', { path: '/Private/own.txt', kind: 'file', expect: { ...state } })).rejects.toBeTruthy();
+		await expect(asker.call('rename', { from: '/Docs/n.md', to: '/Private/n.md', expect: { ...(await b.stat('/Docs/n.md'))! } })).rejects.toBeTruthy();
+		expect(await paths(b)).toEqual(['/Docs', '/Docs/n.md', '/Private', '/Private/own.txt']);
+		expect(await readText(b, '/Private/own.txt')).toBe('mine alone');
+		asker.close();
+	});
+
+	it('takes no more of a file than the other device said it has', async () => {
+		// The size is what was checked against the free space and asked for: a device telling a smaller one fills nothing
+		const [linkA, linkC] = await linkedPair();
+		const [asker, answering] = [new Rpc(linkA), new Rpc(linkC)];
+		await writeText(b, '/big.bin', 'x'.repeat(200_000));
+		const lying: Tree = { ...b, scan: async () => new Map([...(await b.scan())].map(([path, state]) => [path, { ...state, size: Math.min(state.size, 10) }])) };
+		serve(answering, { tree: lying, gate: new Gate() });
+		const result = await drive(asker, options());
+		expect(result).toMatchObject({ skipped: 1 });
+		expect(await paths(a)).toEqual([]);
+		asker.close();
+	});
+
 	it('lets held deletions through when the answering device confirmed them, and tells it what waits', async () => {
 		for (let i = 0; i < 25; i++) await writeText(a, `/f${i}.txt`, `${i}`);
 		await sync();

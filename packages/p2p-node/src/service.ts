@@ -25,6 +25,8 @@ export function unitFile(node: string, starter: string): string {
 		`ExecStart=${systemdArg(node)} ${systemdArg(starter)} run %i`,
 		'Restart=on-failure',
 		'RestartSec=10',
+		// Nothing it starts ever gains rights (setuid programs)
+		'NoNewPrivileges=yes',
 		'',
 		'[Install]',
 		'WantedBy=default.target',
