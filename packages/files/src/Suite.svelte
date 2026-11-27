@@ -1,8 +1,8 @@
 <script lang="ts">
 	// The suite as long as the tab lives, placed once by the app's root layout – under every page, the overview's
 	// as well as a tool's: what runs for the tab (`suite.ts`) and the overlays any page may ask for (messages,
-	// questions, menus, the file dialog, the settings, sharing, the update banner). A page's own frame
-	// (`ToolLayout`, the overview's `Shell`) holds only what the page looks like.
+	// questions, menus, the file dialog, the settings, sharing, the password of encrypted folders, the update
+	// banner). A page's own frame (`ToolLayout`, the overview's `Shell`) holds only what the page looks like.
 	import { untrack } from 'svelte';
 	import ConfirmDialog from '@in-browser/brand/ConfirmDialog.svelte';
 	import ContextMenu from '@in-browser/brand/ContextMenu.svelte';
@@ -17,6 +17,7 @@
 	import ShareDialog from './ShareDialog.svelte';
 	import { shareDialog } from './share-dialog.svelte.js';
 	import { startSuite } from './suite.js';
+	import UnlockDialog from './UnlockDialog.svelte';
 
 	interface Props {
 		/** `?received=<id>` of the page's address: files from another app wait to be taken */
@@ -43,6 +44,7 @@
 <ContextMenu />
 <FileDialog />
 <SettingsDialog />
+<UnlockDialog />
 <UpdateBanner />
 {#if shareDialog.target}
 	{#key shareDialog.target}<ShareDialog target={shareDialog.target} onclose={() => (shareDialog.target = null)} />{/key}

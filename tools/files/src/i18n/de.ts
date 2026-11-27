@@ -206,13 +206,17 @@ const de: Messages = {
 	connected: {
 		title: 'Verbunden',
 		connect: 'Verbinden …',
-		connectHint: 'Öffnet einen Ordner auf deinem Rechner, einen WebDAV-Server oder S3-Speicher live – nichts wird in den Browser kopiert.',
+		connectHint: 'Öffnet einen Ordner auf deinem Rechner, einen WebDAV-Server oder S3-Speicher live – nichts wird in den Browser kopiert – oder entsperrt einen verschlüsselten Ordner von Meine Dateien.',
 		kinds: {
 			folder: 'Ordner auf diesem Rechner …',
 			folderUnsupported: 'Ordner auf diesem Rechner (braucht Chrome oder Edge am Computer)',
 			webdav: 'WebDAV-Server …',
-			s3: 'S3-Speicher …'
+			s3: 'S3-Speicher …',
+			vault: 'Verschlüsselter Ordner in Meine Dateien …'
 		},
+		chooseVault: 'Verschlüsselten Ordner wählen',
+		chooseVaultConfirm: 'Diesen Ordner entsperren',
+		notVault: 'Dieser Ordner ist kein verschlüsselter Ordner – oder er liegt in einem Ordner, den dieses Gerät nicht synchronisiert. Wähle den verschlüsselten Ordner selbst, nicht einen Ordner darin.',
 		edit: 'Bearbeiten …',
 		noAccess: (name) => `Der Browser braucht für „${name}“ wieder deine Erlaubnis.`,
 		allow: 'Zugriff erlauben',
@@ -226,6 +230,38 @@ const de: Messages = {
 		liveServer: (name) => `Live aus „${name}“`,
 		sharedCopy: (host) => (host ? `Freigegeben von ${host} – eine Kopie auf diesem Gerät` : 'Freigegeben – eine Kopie auf diesem Gerät'),
 		help: 'So funktionieren verbundene Ordner'
+	},
+
+	vault: {
+		group: 'Verschlüsselt',
+		newFolder: 'Neuer verschlüsselter Ordner …',
+		newTitle: 'Neuer verschlüsselter Ordner',
+		newIntro: 'Alles, was du hineinlegst, wird verschlüsselt gespeichert – in diesem Browser, auf deinen anderen Geräten und im synchronisierten Ordner auf deinem Rechner.',
+		name: 'Name',
+		defaultName: 'Privat',
+		format: 'Format',
+		formatOption: (name, isDefault) => (isDefault ? `${name} (Standard)` : name),
+		formats: {
+			gocryptfs:
+				'Öffnet sich auf einem Rechner mit gocryptfs (Linux, macOS) oder cppcryptfs (Windows). Namen und Inhalte sind verschlüsselt; wie viele Dateien und Ordner es gibt und wie groß sie ungefähr sind, bleibt sichtbar.',
+			cryptomator:
+				'Öffnet sich mit Cryptomator auf Rechnern und Handys. Namen, Inhalte und wie die Ordner ineinander liegen sind verschlüsselt; wie viele Dateien es gibt und wie groß sie ungefähr sind, bleibt sichtbar. Hier gibt es keinen Schlüssel zum Aufschreiben: Wenn du das Passwort vergessen könntest, öffne den Ordner einmal in Cryptomator und erstelle dort seinen Wiederherstellungsschlüssel.'
+		},
+		password: 'Passwort',
+		repeat: 'Passwort wiederholen',
+		mismatch: 'Die Passwörter stimmen nicht überein.',
+		tooShort: (n) => `Nimm mindestens ${n} Zeichen.`,
+		create: 'Anlegen',
+		creating: 'Wird angelegt …',
+		cancel: 'Abbrechen',
+		keyTitle: 'Schreib dir den Hauptschlüssel auf',
+		keyIntro: 'Vergisst du das Passwort, öffnet nur dieser Schlüssel den Ordner (mit gocryptfs auf einem Rechner: „-masterkey“). Bewahre ihn sicher auf – in-browser hebt ihn nicht für dich auf und kann ihn nicht noch einmal zeigen.',
+		copy: 'Kopieren',
+		copied: 'Der Hauptschlüssel ist in der Zwischenablage.',
+		done: 'Fertig',
+		showEncrypted: 'Verschlüsselte Dateien zeigen',
+		status: (name) => `Entschlüsselt aus „${name}“ in Meine Dateien`,
+		remembered: 'Schlüssel auf diesem Gerät gemerkt'
 	},
 
 	log: {

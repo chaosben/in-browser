@@ -168,13 +168,23 @@ const help: typeof enHelp = {
 		items: {
 			connect: {
 				title: 'Einen Ordner oder Server verbinden',
-				text: '„Verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) fragt, was du verbinden willst: Bei „Ordner auf diesem Rechner …“ wählst du einen Ordner, und der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf (nur Chrome und Edge am Computer); „WebDAV-Server …“ und „S3-Speicher …“ fragen nach Adresse und Anmeldedaten und gehen in jedem Browser. Die Verbindung erscheint in der Seitenleiste „Ordner“ unter Meine Dateien mit ihrem Namen und öffnet sich live: Du siehst und änderst die Dateien direkt dort, nichts wird in den Browserspeicher kopiert und nichts synchronisiert.',
+				text: '„Verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) fragt, was du verbinden willst: Bei „Ordner auf diesem Rechner …“ wählst du einen Ordner, und der Browser fragt, ob in-browser ihn ansehen und bearbeiten darf (nur Chrome und Edge am Computer); „WebDAV-Server …“ und „S3-Speicher …“ fragen nach Adresse und Anmeldedaten und gehen in jedem Browser; bei „Verschlüsselter Ordner in Meine Dateien …“ wählst du einen verschlüsselten Ordner von Meine Dateien, der dann entsperrt wird (siehe „Verschlüsselte Ordner“). Die Verbindung erscheint in der Seitenleiste „Ordner“ unter Meine Dateien mit ihrem Namen und öffnet sich live: Du siehst und änderst die Dateien direkt dort, nichts wird in den Browserspeicher kopiert und nichts synchronisiert.',
 				tip: 'Verbinde einen Ordner, um Dateien dort zu bearbeiten, wo sie liegen (z. B. den Projektordner eines anderen Programms). Willst du stattdessen eine Kopie von Meine Dateien auf deinem Rechner? Nimm „Ordner auf deinem Rechner“ in den Sync-Einstellungen.',
 				link: { href: '/help/connected', label: 'Verbundene Ordner' }
 			},
 			use: {
 				title: 'Darin arbeiten',
 				text: 'Alles geht wie in Meine Dateien: Öffnen, Vorschau, Hochladen, Herunterladen, Umbenennen, Verschieben und Kopieren – auch zwischen Meine Dateien und einem verbundenen Ordner (Ziehen vom einen ins andere kopiert, wie zwischen Laufwerken). Die untere Zeile zeigt „Live aus …“ statt der Speicherbelegung (bei einem für dich freigegebenen Ordner: „Freigegeben von … – eine Kopie auf diesem Gerät“). Notizbücher und Projekte öffnen sich direkt dort in ihrem Tool.'
+			},
+			encrypted: {
+				title: 'Verschlüsselte Ordner',
+				text: '„Neuer verschlüsselter Ordner …“ (Registerkarte „Start“, Gruppe „Neu“, oder die Registerkarte „Verbinden“, Gruppe „Verschlüsselt“) legt im offenen Ordner von Meine Dateien einen Ordner an, dessen Namen und Inhalte verschlüsselt gespeichert werden – gefragt sind sein Name, das „Format“ („gocryptfs“, der Standard, oder „Cryptomator“) und zweimal ein Passwort mit mindestens 8 Zeichen; bei gocryptfs wird danach einmal der Hauptschlüssel zum Aufschreiben gezeigt („Kopieren“, „Fertig“); den Wiederherstellungsschlüssel von Cryptomator erstellt Cryptomator selbst. Öffnest du einen verschlüsselten Ordner in Meine Dateien, siehst du seine verschlüsselten Dateien mit „Entsperren …“ darüber (oder wähle ihn mit „Verbinden …“ → „Verschlüsselter Ordner in Meine Dateien …“); nach dem Passwort öffnet er sich entschlüsselt unter „Verbunden“ als „Name (verschlüsselt)“, die untere Zeile sagt „Entschlüsselt aus … in Meine Dateien“. Sein Menü dort hat „Entsperren …“ oder „Sperren“, „Verschlüsselte Dateien zeigen“ und „Trennen“; „Sperren“ steht auch in der Registerkarte „Verbinden“. Löschen darin legt in den Papierkorb von Meine Dateien, mit „Rückgängig“.',
+				options: {
+					session: { label: 'Ohne „Auf diesem Gerät merken“ (Standard)', text: 'Entsperrt in jedem Tab dieses Browsers, bis der letzte geschlossen wird.' },
+					remember: { label: '„Auf diesem Gerät merken“', text: 'Entsperrt sich in diesem Browser von selbst – wer ihn benutzt, kann den Ordner öffnen. „Sperren“ vergisst ihn.' }
+				},
+				tip: 'Bewahre den Hauptschlüssel getrennt vom Gerät auf – ohne Passwort und Schlüssel öffnet niemand den Ordner mehr. Merk dir den Schlüssel nur auf deinem eigenen Gerät mit Bildschirmsperre.',
+				link: { href: '/help/connected#encrypted', label: 'Verschlüsselte Ordner' }
 			},
 			access: {
 				title: '„Zugriff erlauben“',

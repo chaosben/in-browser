@@ -7,7 +7,7 @@ import { recentTools } from '@in-browser/brand/recent-tools.js';
 	import Shell from '#lib/Shell.svelte';
 	import { REQUIREMENTS, TOOLS, type Requirement, type Tool } from '#lib/tools.js';
 
-	const PRINCIPLES = ['local', 'account', 'tracking', 'devices', 'offline'] as const;
+	const PRINCIPLES = ['local', 'account', 'tracking', 'devices', 'encrypted', 'offline'] as const;
 	const FOCUS = 'focus-visible:outline-primary focus-visible:outline-2 focus-visible:outline-offset-2';
 
 	let query = $state('');

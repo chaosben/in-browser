@@ -3,7 +3,7 @@ import { FilesError, type Entry } from './entry.js';
 import * as opfs from './opfs.js';
 import { basename, join, nameKey, nameProblem, normalize, parent, segments } from './path.js';
 import { fileAccess } from './sources/blocks.js';
-import { excludedIn, sourceAt, type At } from './sources/registry.js';
+import { excludedIn, followVaults, sourceAt, type At } from './sources/registry.js';
 import type { RandomAccess } from './sources/source.js';
 
 // The shared file system as every tool uses it. A path lives in one of three places:
@@ -219,7 +219,12 @@ export async function move(from: string, to: string): Promise<void> {
 	if (to.startsWith(from + '/')) throw new FilesError('intoItself', to);
 	const fromKey = await placeKey(from);
 	const toKey = await placeKey(to);
-	if (fromKey === 'local' && toKey === 'local') return opfs.move(from, to);
+	if (fromKey === 'local' && toKey === 'local') {
+		await opfs.move(from, to);
+		// An encrypted folder (or one holding it) moved: its connection follows
+		await followVaults(from, to);
+		return;
+	}
 	if (fromKey === toKey) await moveInSource(from, to);
 	else {
 		// Between places: copy, then delete the original once the copy is complete
@@ -247,20 +252,22 @@ async function moveInSource(from: string, to: string): Promise<void> {
 	await inSource(source, () => source.source.move(source.inner, target.inner));
 }
 
-/** The source of a path that moves deleted items into its own trash (another device), `null` otherwise */
+/** The source of a path that moves deleted items into its own trash (another device, an encrypted folder), `null`
+ * otherwise. Refs carry the path inside that place (`/` for devices: the full path). */
 export async function trashOf(path: string): Promise<{ trash: (path: string) => Promise<{ entry: string; path: string }>; untrash: (ref: { entry: string; path: string }) => Promise<void> } | null> {
 	const at = await sourceAt(normalize(path));
 	if (!at?.source.caps.trash || !at.source.trash || !at.source.untrash) return null;
 	const { source } = at;
+	const inner = async (p: string) => (await sourceAt(normalize(p)))?.inner ?? normalize(p);
 	return {
 		trash: async (p) => {
-			const ref = await inSource(at, () => source.trash!(normalize(p)));
+			const ref = await inSource(at, async () => source.trash!(await inner(p)));
 			changed(p);
 			return ref;
 		},
 		untrash: async (ref) => {
 			await inSource(at, () => source.untrash!(ref));
-			changed(ref.path);
+			changed(join(at.root, ref.path));
 		}
 	};
 }

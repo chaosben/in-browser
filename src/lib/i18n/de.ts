@@ -33,6 +33,7 @@ const de: Messages = {
 		tracking: { title: 'Kein Tracking', text: 'keine Cookies, keine Werbung' },
 		devices: { title: 'Sync ohne Cloud', text: 'direkt zwischen deinen Geräten' },
 		offline: { title: 'Installierbar & offline', text: 'läuft auch ohne Internet' },
+		encrypted: { title: 'Verschlüsselte Ordner', text: 'gocryptfs und Cryptomator, direkt im Browser entsperrt' },
 		openSource: { title: 'Open Source', text: 'MIT-Lizenz', link: 'Quellcode auf GitHub' }
 	},
 
@@ -53,8 +54,8 @@ const de: Messages = {
 		},
 		files: {
 			name: brand.tools['files'],
-			summary: 'Deine Dateien verwalten, synchronisieren und herunterladen',
-			keywords: 'files, dateimanager, explorer, ordner, abgleich, synchronisieren, hochladen, herunterladen, vorschau, geräte'
+			summary: 'Deine Dateien verwalten, synchronisieren und verschlüsseln',
+			keywords: 'files, dateimanager, explorer, ordner, abgleich, synchronisieren, hochladen, herunterladen, vorschau, geräte, verschlüsselter ordner, verschlüsselung, passwort, gocryptfs, cryptomator, tresor'
 		},
 		textEditor: {
 			name: brand.tools['text-editor'],

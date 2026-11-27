@@ -32,7 +32,11 @@ export type FilesErrorCode =
 	/** A server (WebDAV, S3) refused the sign-in data of a connection */
 	| 'credentials'
 	/** The storage this browser allows the site is used up */
-	| 'full';
+	| 'full'
+	/** An encrypted folder isn't unlocked in this browser */
+	| 'locked'
+	/** An encrypted file or folder can't be decrypted (damaged, or changed without the key) */
+	| 'damaged';
 
 /** Error with a code the UI translates (`filesMessages().errors`) */
 export class FilesError extends Error {

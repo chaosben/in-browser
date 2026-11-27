@@ -8,6 +8,8 @@ import { unseal, type Sealed } from './secrets.js';
 import { webdavSource } from './webdav.js';
 import { onShareSession, shareSession, shareSource } from './share.js';
 import type { Source } from './source.js';
+import { VAULT_FORMATS, type VaultFormatId } from './vault/formats.js';
+import { vaultMaster } from './vault/keys.js';
 
 // The connections of this device (only here, never synced), kept in IndexedDB – the only storage that keeps a
 // folder handle across visits. Every tab reads them itself (folders need no leading tab); changes reach the other tabs
@@ -66,13 +68,31 @@ export interface S3Connection {
 /** A connection to a server: storage reached over the network, in every browser */
 export type RemoteConnection = WebDavConnection | S3Connection;
 
-export type Connection = FolderConnection | ShareConnection | RemoteConnection;
+/** An encrypted folder of My files, shown decrypted while it is unlocked (`vault/`) */
+export interface VaultConnection {
+	id: string;
+	kind: 'vault';
+	/** Its format (`vault/formats.ts`) */
+	format: VaultFormatId;
+	/** The folder's name */
+	name: string;
+	/** The encrypted folder in My files (follows moves made here; found again by `fingerprint` when unlocked anew) */
+	path: string;
+	/** SHA-256 of the encrypted master key in its configuration: the same folder, wherever it lies now */
+	fingerprint: string;
+	/** The master key sealed with this device's key – only with “Remember on this device” (`vault/keys.ts`) */
+	remembered?: Sealed;
+}
+
+export type Connection = FolderConnection | ShareConnection | RemoteConnection | VaultConnection;
 
 const KEY = 'connections';
 
 let loaded: Promise<Map<string, { connection: Connection; source: Source }>> | null = null;
 /** Names known so far (for messages, which can't wait) */
 const names = new Map<string, string>();
+/** Kinds known so far (for `isEncrypted`, which can't wait) */
+const kinds = new Map<string, Connection['kind']>();
 const listeners = new Set<() => void>();
 let channel: BroadcastChannel | null = null;
 
@@ -101,6 +121,7 @@ function sourceOf(connection: Connection): Source {
 	}
 	if (connection.kind === 'webdav') return webdavSource({ url: connection.url, username: connection.username, password: () => unseal(connection.secret) });
 	if (connection.kind === 's3') return s3Source({ ...connection, secretAccessKey: () => unseal(connection.secret) });
+	if (connection.kind === 'vault') return VAULT_FORMATS[connection.format].source(connection.path, () => vaultMaster(connection));
 	return folderSource(connection.handle);
 }
 
@@ -129,10 +150,12 @@ function load() {
 	ensureChannel();
 	loaded ??= idbGet<Connection[]>(KEY).then((stored) => {
 		names.clear();
+		kinds.clear();
 		const map = new Map<string, { connection: Connection; source: Source }>();
 		const share = shareConnection();
 		for (const connection of [...(stored ?? []), ...(share ? [share] : [])]) {
 			names.set(connection.id, connection.name);
+			kinds.set(connection.id, connection.kind);
 			map.set(connection.id, { connection, source: sourceOf(connection) });
 		}
 		return map;
@@ -155,6 +178,19 @@ export async function saveConnections(list: Connection[]): Promise<void> {
 	ensureChannel();
 	channel?.postMessage('changed');
 	listeners.forEach((l) => l());
+}
+
+/** Encrypted folders moved or renamed in My files: their connections follow */
+export async function followVaults(from: string, to: string): Promise<void> {
+	const list = await listConnections();
+	let moved = false;
+	const next = list.map((c) => {
+		if (c.kind !== 'vault' || !isInside(c.path, from)) return c;
+		moved = true;
+		const path = to + c.path.slice(from.length);
+		return { ...c, path, name: basename(path) };
+	});
+	if (moved) await saveConnections(next);
 }
 
 /** Calls `listener` when connections were added, removed or renamed (in any tab) */
@@ -219,6 +255,15 @@ export async function sourceAt(path: string): Promise<At | null> {
 	if (pending) await pending.promise;
 	if (devices && excludedFolderOf(path)) return { source: devices.source, root: '/', inner: path, key: 'devices' };
 	return null;
+}
+
+/**
+ * The path lies in an encrypted folder (shown decrypted): nothing of it – names, contents, drafts, exports – may be
+ * kept outside it in plain form (recent lists, caches of the tools)
+ */
+export function isEncrypted(path: string): boolean {
+	const at = connectionOf(path);
+	return !!at && kinds.get(at.id) === 'vault';
 }
 
 /** Name to show for a path: the connection's name for its root, otherwise the last part */

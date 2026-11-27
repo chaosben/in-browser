@@ -34,7 +34,13 @@
 		openShare,
 		disconnect,
 		fetchShare,
+		vaultFormatOf,
+		lockConnection,
+		openVault,
+		unlockConnection
 	} from '@in-browser/files/sources/connections.svelte.js';
+	import { VAULT_FORMATS, VaultFormatError } from '@in-browser/files/sources/vault/formats.js';
+	import NewVaultDialog from '#lib/components/NewVaultDialog.svelte';
 	import { displayName, listConnections } from '@in-browser/files/sources/registry.js';
 	import { parseInviteCode, parseShareCode } from '@in-browser/files/p2p/auth.js';
 	import { excludedNow, holdersOf, includeFolder, p2pStatus, syncDevicesNow } from '@in-browser/files/p2p/p2p.svelte.js';
@@ -145,6 +151,37 @@
 	const connection = $derived(connections.list.find((c) => c.path === root) ?? null);
 	/** The trash is shown instead of a folder (`/files?trash`) */
 	const trashOpen = $derived(page.url.searchParams.has('trash'));
+	/** The open folder of My files is an encrypted folder (shown as its encrypted files until unlocked): its format */
+	let vaultHere = $state<string | null>(null);
+	$effect(() => {
+		const folder = manager.folder;
+		if (root !== '/' || trashOpen || remoteFolder) return void (vaultHere = null);
+		void treeVersion.current;
+		vaultFormatOf(folder).then(
+			(format) => folder === manager.folder && (vaultHere = format && VAULT_FORMATS[format].name),
+			() => (vaultHere = null)
+		);
+	});
+	/** “New encrypted folder …” is open */
+	let newVault = $state(false);
+
+	/** Unlocks the encrypted folder shown here (its encrypted files) or the locked one opened under “Connected” */
+	async function unlockHere() {
+		const fv = filesMessages().vault;
+		try {
+			if (connection?.kind === 'vault') {
+				await unlockConnection(connection.id);
+				return;
+			}
+			const opened = await openVault(manager.folder);
+			if (opened) navigate(opened);
+		} catch (e) {
+			if (e instanceof VaultFormatError) toast(e.reason === 'unsupported' ? fv.unsupported : fv.invalid, 'error', 10000);
+			else if (e instanceof FilesError && e.code === 'notFound') toast(fv.notLocal, 'error', 10000);
+			else fail(e);
+		}
+	}
+
 	/** A guest share for viewing (nothing can be added, changed or deleted here) – or the trash */
 	const readOnlyPlace = $derived(trashOpen || connection?.mode === 'view');
 
@@ -213,6 +250,28 @@
 			icon: 'icon-[material-symbols-light--create-new-folder-outline]',
 			enabled: () => !readOnlyPlace,
 			run: () => void newFolder(manager)
+		},
+		newVault: {
+			id: 'newVault',
+			label: m.vault.newFolder,
+			icon: 'icon-[material-symbols-light--enhanced-encryption-outline]',
+			// Only in My files on this device: the encrypted form must lie where the browser writes it
+			enabled: () => root === '/' && !trashOpen && !remoteFolder,
+			run: () => (newVault = true)
+		},
+		unlockVault: {
+			id: 'unlockVault',
+			label: filesMessages().vault.unlockMenu,
+			icon: 'icon-[material-symbols-light--lock-open-outline]',
+			enabled: () => !!vaultHere || (connection?.kind === 'vault' && !!connection.locked),
+			run: () => void unlockHere()
+		},
+		lockVault: {
+			id: 'lockVault',
+			label: filesMessages().vault.lock,
+			icon: 'icon-[material-symbols-light--lock-outline]',
+			enabled: () => connection?.kind === 'vault' && !connection.locked,
+			run: () => void (connection && lockConnection(connection.id).catch(fail))
 		},
 		newTextFile: {
 			id: 'newTextFile',
@@ -540,7 +599,7 @@
 			id: 'home',
 			label: m.ribbon.tabs.home,
 			groups: [
-				{ id: 'new', label: m.ribbon.groups.new, items: [commands.upload, commands.newFolder, commands.newTextFile] },
+				{ id: 'new', label: m.ribbon.groups.new, items: [commands.upload, commands.newFolder, commands.newTextFile, commands.newVault] },
 				{ id: 'clipboard', label: m.ribbon.groups.clipboard, items: [commands.paste, commands.cut, commands.copy] },
 				{ id: 'organize', label: m.ribbon.groups.organize, items: [commands.duplicate, commands.moveTo, commands.rename, commands.delete] },
 				{ id: 'select', label: m.ribbon.groups.select, items: [commands.selectAll, commands.clearSelection] },
@@ -559,7 +618,10 @@
 		{
 			id: 'connect',
 			label: m.ribbon.tabs.connect,
-			groups: [{ id: 'connected', label: m.connected.title, items: [commands.connect, commands.allowAccess, commands.disconnect] }]
+			groups: [
+				{ id: 'connected', label: m.connected.title, items: [commands.connect, commands.allowAccess, commands.disconnect] },
+				{ id: 'vault', label: m.vault.group, items: [commands.newVault, commands.unlockVault, commands.lockVault] }
+			]
 		},
 		{
 			id: 'sync',
@@ -922,9 +984,11 @@
 			<span class="hidden items-center gap-1 lg:flex">
 				<span class="icon-[material-symbols-light--link] size-4" aria-hidden="true"></span>{connection.kind === 'share'
 					? m.connected.sharedCopy(connection.host ?? '')
-					: connection.kind === 'folder'
-						? m.connected.live(connection.name)
-						: m.connected.liveServer(connection.name)}
+					: connection.kind === 'vault'
+						? m.vault.status(connection.name)
+						: connection.kind === 'folder'
+							? m.connected.live(connection.name)
+							: m.connected.liveServer(connection.name)}
 			</span>
 		{:else if remoteFolder}
 			<span class="hidden items-center gap-1 lg:flex">
@@ -1007,6 +1071,14 @@
 					{:else if shareSync?.failed && !trashOpen}
 						<p class="bg-base-200 px-4 py-2 text-sm" role="status">{fm.share.failed(shareSync.failed)}</p>
 					{/if}
+					{#if vaultHere}
+						<!-- The encrypted files of an encrypted folder: the way to its contents -->
+						<div class="bg-base-200 flex flex-wrap items-center gap-2 px-4 py-2 text-sm" role="status" data-vault-here>
+							<span class="icon-[material-symbols-light--lock-outline] size-5 shrink-0" aria-hidden="true"></span>
+							<span class="min-w-0 flex-1">{fm.vault.encryptedHere(vaultHere)}</span>
+							<button class="btn btn-sm btn-primary" onclick={() => unlockHere()}>{fm.vault.unlockMenu}</button>
+						</div>
+					{/if}
 					{#if connection?.ended && !trashOpen}
 						<div class="flex flex-col items-start gap-2 p-6">
 							<p class="flex items-center gap-2">
@@ -1015,6 +1087,14 @@
 							</p>
 							<p class="text-sm opacity-70">{m.share.endedHint}</p>
 							<button class="btn btn-sm" onclick={() => disconnectShare()}>{m.share.remove}</button>
+						</div>
+					{:else if connection?.kind === 'vault' && connection.locked && !trashOpen}
+						<div class="flex flex-col items-start gap-2 p-6" data-vault-locked>
+							<p class="flex items-center gap-2">
+								<span class="icon-[material-symbols-light--lock-outline] size-6 shrink-0" aria-hidden="true"></span>
+								{fm.vault.locked(connection.name)}
+							</p>
+							<button class="btn btn-sm btn-primary" onclick={() => unlockHere()}>{fm.vault.unlockMenu}</button>
 						</div>
 					{:else if connection && connection.access !== 'granted' && !trashOpen}
 						<div class="flex flex-col items-start gap-2 p-6">
@@ -1094,6 +1174,14 @@
 	<ScopeSetupDialog mode="device" onclose={closeDevicesDialog} />
 {:else if devicesUi.dialog === 'folderScope'}
 	<ScopeSetupDialog mode="folder" onclose={closeDevicesDialog} />
+{/if}
+{#if newVault}
+	<NewVaultDialog
+		folder={manager.folder}
+		taken={manager.items?.map((i) => i.name) ?? []}
+		onopen={(root) => navigate(root)}
+		onclose={() => (newVault = false)}
+	/>
 {/if}
 {#if connectUi.kind}
 	<ConnectDialog kind={connectUi.kind} edit={connectUi.edit} onclose={() => Object.assign(connectUi, { kind: null, edit: null })} onconnected={navigate} />

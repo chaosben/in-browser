@@ -16,6 +16,7 @@ import { basename, isInside, parent } from '@in-browser/files/path.js';
 import { accessAction } from '@in-browser/files/sources/connections.svelte.js';
 import { recentDocuments } from '@in-browser/files/sources/recent.js';
 import { CHARSET_NAMES, decode, encode, MAX_SIZE, type Charset, type Encoding, type LineEnding } from '#lib/document.js';
+import { isEncrypted } from '@in-browser/files/sources/registry.js';
 import { loadDraft, newDraftId, pathDraftId, removeDraft, saveDraft, type FileStamp } from '#lib/drafts.js';
 import { markdownKeymap } from '#lib/editor/commands.js';
 import { isMarkdown, languageOf } from '#lib/editor/languages.js';
@@ -511,7 +512,8 @@ export class Workspace {
 	}
 
 	#writeDraft(tab: Tab) {
-		if (!tab.dirty) return removeDraft(tab.id);
+		// A file of an encrypted folder keeps its unsaved changes in memory only: a draft would be plain text
+		if (!tab.dirty || (tab.path && isEncrypted(tab.path))) return removeDraft(tab.id);
 		return saveDraft(tab.id, {
 			path: tab.path,
 			fileName: tab.fileName,

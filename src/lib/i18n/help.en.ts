@@ -245,6 +245,11 @@ const help = {
 							title: 'Encrypted end to end',
 							text: 'Files travel directly between your devices over encrypted connections (WebRTC). Each device has its own key pair that never leaves it; a device only joins with a one-time key from one of your devices.'
 						},
+						atRest: {
+							title: 'On the devices themselves',
+							text: 'On each device – in the browser, in the synced folder on your computer, on a p2p-node – the files lie as they are, readable to whoever gets at that device. For what should stay unreadable there, use an encrypted folder: only its encrypted form ever travels and is stored, and it opens only with its password.',
+							link: { href: '/help/connected#encrypted', label: 'Encrypted folders' }
+						},
 						relays: {
 							title: 'What third parties see',
 							text: 'To find each other, devices post encrypted connection offers on public Nostr relays. The relays see IP addresses and timing, but not your files, file names or device names. STUN servers of Cloudflare and Google tell each device its public address (it asks both, so one failing doesn’t keep your devices apart); they see the address, nothing else.'
@@ -273,14 +278,14 @@ const help = {
 
 		connected: {
 			title: 'Connected folders',
-			summary: 'Open a folder on your computer, a WebDAV server or S3 storage live in every tool – and share files with a guest',
+			summary: 'Open a folder on your computer, a WebDAV server or S3 storage live in every tool, unlock encrypted folders – and share files with a guest',
 			topics: {
 				basics: {
 					title: 'My files and Connected',
 					items: {
 						rule: {
 							title: 'Two kinds of storage',
-							text: '“My files” lie in the storage of your browser and travel with your devices. What stands under “Connected” is not part of them and never travels with your devices. A folder on your computer or a server stays where it is: in-browser opens it live, reads and saves right there and keeps no copy. What a guest share gives you is the one exception: it is copied into this browser so it works without the sharing device, kept apart from My files and deleted when the share ends. Disconnect either and nothing of it is left in the browser.'
+							text: '“My files” lie in the storage of your browser and travel with your devices. What stands under “Connected” is not part of them and never travels with your devices. A folder on your computer or a server stays where it is: in-browser opens it live, reads and saves right there and keeps no copy. What a guest share gives you is the one exception: it is copied into this browser so it works without the sharing device, kept apart from My files and deleted when the share ends. Disconnect either and nothing of it is left in the browser. An encrypted folder is the other way round: its encrypted files lie in My files and travel with them – only what you see decrypted under “Connected” stays in this browser.'
 						},
 						everywhere: {
 							title: 'In every tool',
@@ -299,7 +304,7 @@ const help = {
 					items: {
 						connect: {
 							title: 'Connect',
-							text: 'In Files, click “Connect …” (tab “Connect”, or in the panel “Folders” below My files) and choose what to connect: “Folder on this computer …”, “WebDAV server …” or “S3 storage …”. For a folder, the browser asks whether in-browser may view and edit it; only Chrome and Edge on a computer can do this. Servers work in every browser, also on phones. The connection then appears in the panel “Folders” below My files with its name.'
+							text: 'In Files, click “Connect …” (tab “Connect”, or in the panel “Folders” below My files) and choose what to connect: “Folder on this computer …”, “WebDAV server …”, “S3 storage …” or “Encrypted folder in My files …” (below). For a folder, the browser asks whether in-browser may view and edit it; only Chrome and Edge on a computer can do this. Servers work in every browser, also on phones. The connection then appears in the panel “Folders” below My files with its name.'
 						},
 						access: {
 							title: 'Access after a restart',
@@ -350,6 +355,50 @@ const help = {
 						changes: {
 							title: 'Changes on the server',
 							text: 'A server doesn’t tell the browser when something changes there. Files looks again when you come back to the tab and every 30 seconds while it is open.'
+						}
+					}
+				},
+				encrypted: {
+					title: 'Encrypted folders',
+					items: {
+						what: {
+							title: 'Encrypted folders (gocryptfs)',
+							text: 'An encrypted folder lies in My files, but everything in it is stored encrypted – names and contents. So it travels with your devices, into the synced folder on your computer and to a p2p-node only in its encrypted form. Once you unlock it with its password, it shows decrypted under “Connected” as “Name (encrypted)”, and every tool opens and saves there like in any folder; what you save is encrypted before it is written. Which format it is stored in you choose when you create it – gocryptfs or Cryptomator; with the same password the folder then opens on a computer (and with Cryptomator on phones) too. Unlocking finds the format by itself, so folders those programs made open here as well.',
+							tip: 'Use it for what should stay unreadable wherever your files go – a device that is lost, the folder on your computer, a home server with a p2p-node. For everyday files My files are enough.'
+						},
+						create: {
+							title: 'Creating one',
+							text: 'In Files, open the folder of My files it should go into and choose “New encrypted folder …” (tab “Home”, group “New”, or the tab “Connect”). Give it a name, choose the “Format” and type a password of at least 8 characters, twice. Then the master key is shown once: if you forget the password, only it opens the folder (gocryptfs on a computer takes it with “-masterkey”). Write it down or keep it with “Copy” in a password manager – in-browser doesn’t keep it and can’t show it again. “Done” opens the new folder.',
+							options: {
+								gocryptfs: { label: '“gocryptfs” (default)', text: 'Opens on a computer with gocryptfs (Linux, macOS) or cppcryptfs (Windows). Names and contents are encrypted; how many files and folders there are and roughly how large they are stays visible. You get a master key to write down.' },
+								cryptomator: { label: '“Cryptomator”', text: 'Opens with Cryptomator on computers and phones. Names, contents and how the folders nest are encrypted. No key is shown here: make its recovery key in Cryptomator (in the vault options).' }
+							},
+							tip: 'Choose gocryptfs when you use Linux or a home server, Cryptomator when you also want to open the folder on a phone or already use Cryptomator. A forgotten password without the master key (gocryptfs) or recovery key (Cryptomator) means the folder can’t be opened by anyone, also not by in-browser – keep it before you put anything in.'
+						},
+						unlock: {
+							title: 'Unlocking',
+							text: 'Opening an encrypted folder in My files shows its encrypted files and a line above them with “Unlock …”; the same is in the tab “Connect”. Or choose “Connect …” → “Encrypted folder in My files …” and pick the folder – where everything else is connected. Type the password and choose “Unlock” – it takes a moment, then Files shows the folder decrypted. A folder unlocked before shows under “Connected” with “Unlock …” while it is locked; tools that open a document in it offer “Unlock …” in their messages too. A gocryptfs folder made on a computer opens the same way once it lies in My files on this device – e.g. through the synced folder on your computer; in a folder this device leaves out, it can’t be unlocked.',
+							options: {
+								session: { label: 'Without “Remember on this device” (default)', text: 'It stays unlocked in every tab of this browser until the last in-browser tab closes; then it asks for the password again.' },
+								remember: { label: '“Remember on this device”', text: 'The master key is kept in this browser, encrypted with a key the browser never hands out, and the folder unlocks by itself – no waiting for the password check. It never leaves this device. Whoever uses this browser can open the folder.' }
+							},
+							tip: 'Remember it only on your own device with a screen lock and your own user account – never on a shared or borrowed computer.'
+						},
+						lock: {
+							title: 'Locking and disconnecting',
+							text: '“Lock” – in the menu of the folder under “Connected” or in the tab “Connect” while it is open – locks it in every tab of this browser and forgets a remembered key. “Show encrypted files” in the same menu goes to the folder in My files. “Disconnect” removes the entry under “Connected”; the folder and everything in it stay in My files.'
+						},
+						deleting: {
+							title: 'Deleting and the trash',
+							text: 'What you delete in an encrypted folder goes into the trash of My files, still encrypted – the message offers “Undo”. In the trash it shows with its encrypted name below the folder it came from; restoring puts it back, and it shows decrypted again.'
+						},
+						private: {
+							title: 'Nothing decrypted is kept',
+							text: 'in-browser writes only the encrypted form into the browser’s storage. Documents in an encrypted folder don’t appear under “Recently opened” of the tools, and the dialogs don’t remember its folders. The Text Editor keeps unsaved changes of such a file only in memory (it saves a second after typing anyway). An export of Screen Capture from a project in it is removed from the browser when the export dialog closes – keep it with “Download” or “Save in Files …” before.'
+						},
+						limits: {
+							title: 'What it opens',
+							text: 'gocryptfs: folders of version 1.3 and later with its usual settings (AES-GCM) – not those made with “-xchacha”, “-aessiv”, “-plaintextnames”, “-deterministic-names”, “-fido2”, “-tpm2” or in reverse mode. Cryptomator: vaults of format 8 (Cryptomator 1.6 and later) – not vaults of Cryptomator Hub and none older; symbolic links in them don’t show. Files says so when it can’t open one. Files that are no encrypted names – e.g. conflict copies a sync made of encrypted files – don’t show in the decrypted folder. When a folder of a Cryptomator vault goes into the trash, its contents stay encrypted in the vault, so restoring brings them back; once the trash entry is gone they still take space there – the vault check of Cryptomator can remove them.'
 						}
 					}
 				},
@@ -537,7 +586,8 @@ const help = {
 						unencrypted: {
 							title: 'Files on disk',
 							text: 'The files are stored unencrypted in the folder, like any other file on that computer.',
-							tip: 'On a laptop or a computer others can get at, turn on the disk encryption of your system.'
+							tip: 'On a laptop or a computer others can get at, turn on the disk encryption of your system – or keep what is sensitive in an encrypted folder: the p2p-node only ever gets its encrypted form.',
+							link: { href: '/help/connected#encrypted', label: 'Encrypted folders' }
 						}
 					}
 				}
@@ -694,6 +744,11 @@ const help = {
 						nothing: {
 							title: 'No account, no tracking',
 							text: 'There is no account, no cookies, no analytics and no ads. The website only delivers the program; everything else happens on your device.'
+						},
+						encrypted: {
+							title: 'Encrypted folders',
+							text: 'Files opens encrypted folders of gocryptfs and Cryptomator – and makes new ones – right in the browser: nothing decrypted is stored, and they open on a computer with those programs, too.',
+							link: { href: '/help/connected#encrypted', label: 'Encrypted folders' }
 						},
 						open: {
 							title: 'Open source',

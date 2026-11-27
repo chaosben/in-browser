@@ -62,7 +62,9 @@ export async function deleteToTrash(
 	onUndo?: () => void,
 	offered?: (undo: () => Promise<void>) => void
 ): Promise<boolean> {
-	const connected = paths.filter(isConnected);
+	// Connected places without a trash of their own (an encrypted folder has one: the trash of My files)
+	const connected: string[] = [];
+	for (const path of paths) if (isConnected(path) && !(await trashOf(path))) connected.push(path);
 	if (connected.length) {
 		const t = filesMessages().trash;
 		const ok = await ask({
@@ -73,7 +75,7 @@ export async function deleteToTrash(
 		});
 		if (!ok) return false;
 		for (const path of connected) await remove(path);
-		paths = paths.filter((path) => !isConnected(path));
+		paths = paths.filter((path) => !connected.includes(path));
 		if (!paths.length) return true;
 	}
 	// In a folder this device doesn't sync: into the trash of the device that has it

@@ -214,13 +214,18 @@ const en = {
 	connected: {
 		title: 'Connected',
 		connect: 'Connect …',
-		connectHint: 'Opens a folder on your computer, a WebDAV server or S3 storage live – nothing is copied into the browser.',
+		connectHint: 'Opens a folder on your computer, a WebDAV server or S3 storage live – nothing is copied into the browser –, or unlocks an encrypted folder of My files.',
 		kinds: {
 			folder: 'Folder on this computer …',
 			folderUnsupported: 'Folder on this computer (needs Chrome or Edge on a computer)',
 			webdav: 'WebDAV server …',
-			s3: 'S3 storage …'
+			s3: 'S3 storage …',
+			vault: 'Encrypted folder in My files …'
 		},
+		/** Picking the encrypted folder to connect */
+		chooseVault: 'Choose an encrypted folder',
+		chooseVaultConfirm: 'Unlock this folder',
+		notVault: 'This folder isn’t an encrypted folder – or it lies in a folder this device doesn’t sync. Choose the encrypted folder itself, not a folder inside it.',
 		edit: 'Edit …',
 		noAccess: (name: string) => `The browser needs your permission again for “${name}”.`,
 		allow: 'Allow access',
@@ -234,6 +239,43 @@ const en = {
 		liveServer: (name: string) => `Live from “${name}”`,
 		sharedCopy: (host: string) => (host ? `Shared by ${host} – a copy on this device` : 'Shared – a copy on this device'),
 		help: 'How connected folders work'
+	},
+
+	/** Encrypted folders (gocryptfs) in My files */
+	vault: {
+		/** Ribbon group in the tab “Connect” */
+		group: 'Encrypted',
+		newFolder: 'New encrypted folder …',
+		newTitle: 'New encrypted folder',
+		newIntro: 'Everything you put into it is stored encrypted – in this browser, on your other devices and in the synced folder on your computer.',
+		name: 'Name',
+		defaultName: 'Private',
+		format: 'Format',
+		/** A format in the list; the default one is marked */
+		formatOption: (name: string, isDefault: boolean) => (isDefault ? `${name} (default)` : name),
+		/** What each format means, below the list */
+		formats: {
+			gocryptfs:
+				'Opens on a computer with gocryptfs (Linux, macOS) or cppcryptfs (Windows). Names and contents are encrypted; how many files and folders there are and roughly how large they are stays visible.',
+			cryptomator:
+				'Opens with Cryptomator on computers and phones. Names, contents and how the folders nest are encrypted; how many files there are and roughly how large they are stays visible. There is no key to write down here: if you may forget the password, open the folder once in Cryptomator and make its recovery key there.'
+		},
+		password: 'Password',
+		repeat: 'Repeat password',
+		mismatch: 'The passwords don’t match.',
+		tooShort: (n: number) => `Use at least ${n} characters.`,
+		create: 'Create',
+		creating: 'Creating …',
+		cancel: 'Cancel',
+		keyTitle: 'Write down the master key',
+		keyIntro: 'If you forget the password, only this key opens the folder (with gocryptfs on a computer: “-masterkey”). Keep it somewhere safe – in-browser doesn’t keep it for you and can’t show it again.',
+		copy: 'Copy',
+		copied: 'The master key is on the clipboard.',
+		done: 'Done',
+		showEncrypted: 'Show encrypted files',
+		/** Footer while the decrypted folder is open */
+		status: (name: string) => `Decrypted from “${name}” in My files`,
+		remembered: 'Key remembered on this device'
 	},
 
 	log: {

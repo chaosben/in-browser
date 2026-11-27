@@ -1,6 +1,6 @@
 import { loadJson, readStored, storeJson, writeStored } from '@in-browser/brand/storage.js';
 import { isConnected, parent } from '../path.js';
-import { excludedFolderOf } from './registry.js';
+import { excludedFolderOf, isEncrypted } from './registry.js';
 
 // Documents of a tool that lie in connected folders or in folders this device doesn't sync (opened live from the
 // other devices): tools don't search them (over the network, possibly large), so they remember what was opened or
@@ -32,7 +32,7 @@ function store(tool: string, paths: string[], storage: Storage) {
 
 /** Remembers a document of `tool` if it lies in a connected folder (newest first) */
 export function rememberConnected(tool: string, path: string, storage: Storage = localStorage): void {
-	if (!elsewhere(path)) return;
+	if (!elsewhere(path) || isEncrypted(path)) return;
 	store(tool, [path, ...load(tool, storage).filter((p) => p !== path)].slice(0, MAX), storage);
 }
 
@@ -63,6 +63,8 @@ export function recentDocuments(tool: string, max = 30) {
 		list,
 		/** A document was opened or saved: first in the list, its folder is where dialogs start next time */
 		remember(path: string) {
+			// Plain names of an encrypted folder are never kept outside it
+			if (isEncrypted(path)) return;
 			storeJson(RECENT, [path, ...list().filter((p) => p !== path)].slice(0, max));
 			writeStored(FOLDER, parent(path));
 			rememberConnected(tool, path);
@@ -74,6 +76,6 @@ export function recentDocuments(tool: string, max = 30) {
 		},
 		lastFolder: (): string => readStored(FOLDER) ?? '/',
 		/** A dialog was used in the folder of `path` */
-		usedFolderOf: (path: string) => writeStored(FOLDER, parent(path))
+		usedFolderOf: (path: string) => void (isEncrypted(path) || writeStored(FOLDER, parent(path)))
 	};
 }

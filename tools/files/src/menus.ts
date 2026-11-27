@@ -7,11 +7,11 @@ import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
 import { filesErrorText, filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 import { canSend, sendPaths } from '@in-browser/files/send.js';
 import { basename, isConnected, isInside, parent } from '@in-browser/files/path.js';
-import { allowAccess, disconnect, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
+import { allowAccess, disconnect, lockConnection, unlockConnection, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
 import { endShare, includeFolder, p2pStatus } from '@in-browser/files/p2p/p2p.svelte.js';
 import type { ShareView } from '@in-browser/files/p2p/view.js';
 import { canExclude, inScope } from '@in-browser/files/p2p/scope.js';
-import { duplicate, folderUrl, newFolder, newTextFile, paste, removeItems, toClipboard, toolUrl } from '#lib/actions.js';
+import { duplicate, fail, folderUrl, newFolder, newTextFile, paste, removeItems, toClipboard, toolUrl } from '#lib/actions.js';
 import { editConnection } from '#lib/connections.svelte.js';
 import { devicesUi } from '#lib/devices.svelte.js';
 import { m } from '#lib/i18n/index.js';
@@ -135,6 +135,17 @@ export function shareEntries(ctx: MenuContext, share: ShareView): MenuEntry[] {
  * after itself, a server by the name given in its dialog) */
 export function connectionEntries(ctx: MenuContext, c: ConnectionView): MenuEntry[] {
 	const kind = c.kind;
+	if (kind === 'vault') {
+		const fv = filesMessages().vault;
+		return [
+			c.locked
+				? { label: fv.unlockMenu, icon: 'icon-[material-symbols-light--lock-open-outline]', run: () => void unlockConnection(c.id) }
+				: { label: fv.lock, icon: 'icon-[material-symbols-light--lock-outline]', run: () => void lockConnection(c.id).catch((e) => fail(e)) },
+			// Its encrypted files where they lie in My files
+			{ label: m.vault.showEncrypted, icon: 'icon-[material-symbols-light--folder-outline]', run: () => c.folder && ctx.navigate(c.folder) },
+			{ label: m.connected.disconnect, icon: 'icon-[material-symbols-light--link-off]', run: () => void disconnectConnection(ctx, c) }
+		];
+	}
 	return [
 		...(c.access === 'granted'
 			? []

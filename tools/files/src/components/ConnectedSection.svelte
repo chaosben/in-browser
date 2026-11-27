@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { allowAccess, connectionLabel, connections, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
+	import { allowAccess, connectionLabel, connections, unlockConnection, type ConnectionView } from '@in-browser/files/sources/connections.svelte.js';
+	import { filesMessages } from '@in-browser/files/i18n/index.svelte.js';
 	import MoreButton from '@in-browser/brand/MoreButton.svelte';
 	import { openContextMenu, openMenuBelow, type MenuEntry } from '@in-browser/brand/ui/context-menu.svelte.js';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
@@ -25,7 +26,8 @@
 	let { current, onnavigate, ondropitems, ondropfiles, menu, foldermenu }: Props = $props();
 
 	async function allow(connection: ConnectionView) {
-		if (await allowAccess(connection.id)) onnavigate(connection.path);
+		const allowed = connection.kind === 'vault' ? await unlockConnection(connection.id) : await allowAccess(connection.id);
+		if (allowed) onnavigate(connection.path);
 	}
 </script>
 
@@ -64,9 +66,18 @@
 						class="flex items-center gap-1.5 py-1 pr-2 pl-6.5 text-sm"
 						oncontextmenu={(e) => openContextMenu(e, menu(connection))}
 					>
-						<span class="icon-[material-symbols-light--link-off] size-5 shrink-0 opacity-60" aria-hidden="true"></span>
-						<span class="min-w-0 flex-1 truncate opacity-60" title={m.connected.noAccess(connection.name)}>{connection.name}</span>
-						<button class="btn btn-primary btn-xs" onclick={() => allow(connection)}>{m.connected.allow}</button>
+						{#if connection.kind === 'vault'}
+							<!-- A locked encrypted folder: named, and the way to unlock it -->
+							<span class="icon-[material-symbols-light--lock-outline] size-5 shrink-0 opacity-60" aria-hidden="true"></span>
+							<button class="min-w-0 flex-1 truncate text-left opacity-60" title={filesMessages().vault.locked(connection.name)} onclick={() => onnavigate(connection.path)}>
+								{connectionLabel(connection)}
+							</button>
+							<button class="btn btn-primary btn-xs" onclick={() => allow(connection)}>{filesMessages().vault.unlockMenu}</button>
+						{:else}
+							<span class="icon-[material-symbols-light--link-off] size-5 shrink-0 opacity-60" aria-hidden="true"></span>
+							<span class="min-w-0 flex-1 truncate opacity-60" title={m.connected.noAccess(connection.name)}>{connection.name}</span>
+							<button class="btn btn-primary btn-xs" onclick={() => allow(connection)}>{m.connected.allow}</button>
+						{/if}
 						{#if coarsePointer.current}<MoreButton name={connection.name} entries={() => menu(connection)} class="-my-1" />{/if}
 					</li>
 				{/if}

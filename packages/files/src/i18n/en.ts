@@ -45,6 +45,8 @@ const en = {
 		taken: (_name: string) => 'This share is open in another browser right now. Try again later.',
 		credentials: (name: string) => `The server of “${name}” didn’t accept the sign-in data. Change them in Files under “Connected”.`,
 		full: (name: string) => `“${name}” doesn’t fit: the storage of this browser is full. Free space in Files, e.g. with “Empty trash”.`,
+		locked: (name: string) => `“${name}” is encrypted and locked. Unlock it with its password.`,
+		damaged: (name: string) => `“${name}” can’t be decrypted: it is damaged or was changed without the key.`
 	},
 
 	/** Sync status in the footer of every tool (`SyncIndicator`) */
@@ -190,6 +192,31 @@ const en = {
 		ended: 'These words don’t open a share (any more): they work once and for 10 minutes. Ask for new ones.',
 		offline: 'The sharing device didn’t answer. Check the words; in-browser has to be open there, and both devices need the internet to find each other.',
 		cancel: 'Cancel'
+	},
+
+	/** Encrypted folders in My files (`sources/vault/`), shown decrypted under “Connected” while unlocked */
+	vault: {
+		/** Its name under “Connected” */
+		connection: (name: string) => `${name} (encrypted)`,
+		unlockTitle: 'Unlock encrypted folder',
+		unlockIntro: (name: string, format: string) => `“${name}” is encrypted (${format}). Its contents show only after you unlock it with its password.`,
+		password: 'Password',
+		remember: 'Remember on this device',
+		rememberHint: 'Then it unlocks by itself in this browser – whoever uses it can open the folder.',
+		unlock: 'Unlock',
+		/** Menus and buttons that open the dialog */
+		unlockMenu: 'Unlock …',
+		unlocking: 'Unlocking …',
+		cancel: 'Cancel',
+		lock: 'Lock',
+		wrongPassword: 'The password is wrong.',
+		unsupported: 'This encrypted folder uses settings in-browser can’t open (gocryptfs: e.g. XChaCha20, AES-SIV or a security key; Cryptomator: a vault of Cryptomator Hub or one older than format 8).',
+		invalid: 'This folder has the files of an encrypted folder, but they are damaged.',
+		notLocal: 'An encrypted folder opens only when it lies on this device. Include it in the folders this device syncs first.',
+		/** Shown in a locked folder's place and above the encrypted folder in My files */
+		locked: (name: string) => `“${name}” is encrypted and locked.`,
+		encryptedHere: (format: string) => `This is an encrypted folder (${format}): what you see are its encrypted files. Unlock it to see and change its contents.`,
+		remembered: 'Its key is remembered on this device'
 	},
 
 	/** Sync with a folder on disk */

@@ -44,6 +44,8 @@ const de: FilesMessages = {
 		taken: (_name) => 'Diese Freigabe ist gerade in einem anderen Browser geöffnet. Versuch es später noch einmal.',
 		credentials: (name) => `Der Server von „${name}“ hat die Anmeldedaten nicht angenommen. Ändere sie in Dateien unter „Verbunden“.`,
 		full: (name) => `„${name}“ passt nicht mehr: Der Speicher dieses Browsers ist voll. Schaffe Platz in Dateien, z. B. mit „Papierkorb leeren“.`,
+		locked: (name) => `„${name}“ ist verschlüsselt und gesperrt. Entsperre es mit seinem Passwort.`,
+		damaged: (name) => `„${name}“ lässt sich nicht entschlüsseln: Es ist beschädigt oder wurde ohne den Schlüssel geändert.`
 	},
 
 	indicator: {
@@ -174,6 +176,27 @@ const de: FilesMessages = {
 		ended: 'Diese Wörter öffnen (mehr) keine Freigabe: Sie gelten einmal und 10 Minuten lang. Lass dir neue geben.',
 		offline: 'Das freigebende Gerät hat nicht geantwortet. Prüfe die Wörter; dort muss in-browser offen sein, und beide Geräte brauchen Internet, um sich zu finden.',
 		cancel: 'Abbrechen'
+	},
+
+	vault: {
+		connection: (name) => `${name} (verschlüsselt)`,
+		unlockTitle: 'Verschlüsselten Ordner entsperren',
+		unlockIntro: (name, format) => `„${name}“ ist verschlüsselt (${format}). Seinen Inhalt siehst du erst, wenn du ihn mit seinem Passwort entsperrst.`,
+		password: 'Passwort',
+		remember: 'Auf diesem Gerät merken',
+		rememberHint: 'Dann entsperrt er sich in diesem Browser von selbst – wer ihn benutzt, kann den Ordner öffnen.',
+		unlock: 'Entsperren',
+		unlockMenu: 'Entsperren …',
+		unlocking: 'Wird entsperrt …',
+		cancel: 'Abbrechen',
+		lock: 'Sperren',
+		wrongPassword: 'Das Passwort stimmt nicht.',
+		unsupported: 'Dieser verschlüsselte Ordner nutzt Einstellungen, die in-browser nicht öffnen kann (gocryptfs: z. B. XChaCha20, AES-SIV oder einen Sicherheitsschlüssel; Cryptomator: einen Tresor von Cryptomator Hub oder einen älter als Format 8).',
+		invalid: 'Dieser Ordner hat die Dateien eines verschlüsselten Ordners, aber sie sind beschädigt.',
+		notLocal: 'Ein verschlüsselter Ordner öffnet sich nur, wenn er auf diesem Gerät liegt. Nimm ihn erst in die Ordner auf, die dieses Gerät synchronisiert.',
+		locked: (name) => `„${name}“ ist verschlüsselt und gesperrt.`,
+		encryptedHere: (format) => `Das ist ein verschlüsselter Ordner (${format}): Du siehst seine verschlüsselten Dateien. Entsperre ihn, um seinen Inhalt zu sehen und zu ändern.`,
+		remembered: 'Sein Schlüssel ist auf diesem Gerät gemerkt'
 	},
 
 	folderSync: {

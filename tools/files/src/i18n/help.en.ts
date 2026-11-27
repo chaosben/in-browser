@@ -170,13 +170,23 @@ const help = {
 		items: {
 			connect: {
 				title: 'Connecting a folder or server',
-				text: '“Connect …” (“Connect” tab, or in the panel “Folders” below My files) asks what to connect: “Folder on this computer …” lets you choose a folder, and the browser asks whether in-browser may view and edit it (only Chrome and Edge on a computer); “WebDAV server …” and “S3 storage …” ask for the address and sign-in data and work in every browser. The connection appears in the panel “Folders” below My files with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced.',
+				text: '“Connect …” (“Connect” tab, or in the panel “Folders” below My files) asks what to connect: “Folder on this computer …” lets you choose a folder, and the browser asks whether in-browser may view and edit it (only Chrome and Edge on a computer); “WebDAV server …” and “S3 storage …” ask for the address and sign-in data and work in every browser; “Encrypted folder in My files …” lets you pick an encrypted folder of My files and unlocks it (see “Encrypted folders”). The connection appears in the panel “Folders” below My files with its name and opens live: you see and change the files right there, nothing is copied into the browser storage and nothing is synced.',
 				tip: 'Connect a folder to work on files where they are (e.g. a project folder of another program). Want a copy of My files on your computer instead? Use “Folder on your computer” in the sync settings.',
 				link: { href: '/help/connected', label: 'Connected folders' }
 			},
 			use: {
 				title: 'Working in it',
 				text: 'Everything works as in My files: opening, preview, uploading, downloading, renaming, moving and copying – also between My files and a connected folder (dragging from one to the other copies, as between drives). The bottom line shows “Live from …” instead of the storage use (for a folder shared with you: “Shared by … – a copy on this device”). Notebooks and projects open right there in their tool.'
+			},
+			encrypted: {
+				title: 'Encrypted folders',
+				text: '“New encrypted folder …” (tab “Home”, group “New”, or the tab “Connect”, group “Encrypted”) makes a folder in the open folder of My files whose names and contents are stored encrypted – asked are its name, the “Format” (“gocryptfs”, the default, or “Cryptomator”) and a password of at least 8 characters, twice; for gocryptfs the master key is shown once afterwards to write down (“Copy”, “Done”); Cryptomator makes its recovery key itself. Opening an encrypted folder in My files shows its encrypted files with “Unlock …” above them (or choose it with “Connect …” → “Encrypted folder in My files …”); after the password it opens decrypted under “Connected” as “Name (encrypted)”, the bottom line says “Decrypted from … in My files”. Its menu there has “Unlock …” or “Lock”, “Show encrypted files” and “Disconnect”; “Lock” is also in the tab “Connect”. Deleting in it goes into the trash of My files, with “Undo”.',
+				options: {
+					session: { label: 'Without “Remember on this device” (default)', text: 'Unlocked in every tab of this browser until the last one closes.' },
+					remember: { label: '“Remember on this device”', text: 'Unlocks by itself in this browser – whoever uses it can open the folder. “Lock” forgets it.' }
+				},
+				tip: 'Keep the master key apart from the device – without password and key nobody can open the folder again. Remember the key only on your own device with a screen lock.',
+				link: { href: '/help/connected#encrypted', label: 'Encrypted folders' }
 			},
 			access: {
 				title: '“Allow access”',

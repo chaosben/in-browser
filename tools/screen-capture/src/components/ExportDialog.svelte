@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { filesUrl } from '@in-browser/files/formats.js';
 	import { checkEncodable, ExportCanceledError, exportProject } from '#lib/export/exporter.js';
+	import { clearExports } from '#lib/storage/store.js';
+	import { isEncrypted } from '@in-browser/files/sources/registry.js';
 	import {
 		estimateBytes,
 		fitToProject,
@@ -176,6 +178,8 @@
 
 	function close() {
 		controller?.abort();
+		// The export of a project in an encrypted folder is plain: it doesn't wait in the cache for the next export
+		if (isEncrypted(project.id)) void clearExports().catch((e) => console.error('[screen-capture] clear exports', e));
 		onclose();
 	}
 </script>

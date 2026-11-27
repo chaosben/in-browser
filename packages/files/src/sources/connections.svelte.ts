@@ -1,9 +1,14 @@
 import { debug } from '@in-browser/brand/debug.js';
 import { toast, type ToastAction } from '@in-browser/brand/ui/toast.svelte.js';
-import { FilesError, noticed } from '../fs.js';
+import { FilesError, noticed, watch } from '../fs.js';
 import { filesMessages } from '../i18n/index.svelte.js';
-import { connectionOf, connectionRoot, join } from '../path.js';
+import * as opfs from '../opfs.js';
+import { basename, connectionOf, connectionRoot, isInside, join } from '../path.js';
+import { askUnlock } from '../vault-dialog.svelte.js';
+import { DEFAULT_VAULT_FORMAT, detectFormat, VAULT_FORMATS, type VaultFormatId } from './vault/formats.js';
+import { addUnlocked, isUnlocked, lockVault, onVaultKeys, unlockVault } from './vault/keys.js';
 import {
+	excludedFolderOf,
 	listConnections,
 	onConnectionsChanged,
 	remoteSource,
@@ -12,6 +17,7 @@ import {
 	type FolderConnection,
 	type RemoteConnection,
 	type S3Connection,
+	type VaultConnection,
 	type WebDavConnection
 } from './registry.js';
 import { seal } from './secrets.js';
@@ -45,6 +51,14 @@ export interface ConnectionView {
 	expires?: number | null;
 	/** Guest share: how the sync of its copy here stands (`null`: not known yet) */
 	sync?: ShareSyncState | null;
+	/** Encrypted folder: not unlocked in this browser (`access` is `prompt` then) */
+	locked?: boolean;
+	/** Encrypted folder: its key is remembered on this device */
+	remembered?: boolean;
+	/** Encrypted folder: where it lies in My files */
+	folder?: string;
+	/** Encrypted folder: its format's name (`gocryptfs`) */
+	format?: string;
 }
 
 const folders = (list: Connection[]) => list.filter((c): c is FolderConnection => c.kind === 'folder');
@@ -54,6 +68,7 @@ export const connections = $state<{ list: ConnectionView[]; loaded: boolean }>({
 /** Name to show for a connection (a guest share names its folder and the device sharing it) */
 export function connectionLabel(c: ConnectionView): string {
 	const t = filesMessages().share;
+	if (c.kind === 'vault') return filesMessages().vault.connection(c.name);
 	if (c.kind !== 'share') return c.name;
 	return c.name ? t.connection(c.name, c.host ?? '') : t.pending;
 }
@@ -90,9 +105,20 @@ export function startConnections() {
 		noticeRemote();
 	});
 	document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && noticeRemote());
+	// Encrypted folders: unlocked or locked in any tab, and their encrypted files changed (a sync, another tab)
+	onVaultKeys(() => {
+		void refresh();
+		noticed(...vaults().map((c) => c.path));
+	});
+	watch((paths) => {
+		const touched = vaults().filter((c) => c.folder && paths.some((p) => isInside(p, c.folder!) || isInside(c.folder!, p)));
+		if (touched.length) noticed(...touched.map((c) => c.path));
+	});
 	setInterval(() => document.visibilityState === 'visible' && noticeRemote(), REMOTE_INTERVAL);
 	void refresh();
 }
+
+const vaults = () => connections.list.filter((c) => c.kind === 'vault');
 
 /** Servers don't report changes: views of their folders load again */
 function noticeRemote() {
@@ -124,7 +150,9 @@ export async function refresh(): Promise<void> {
 					? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted', host: c.host, mode: c.mode, ended: c.ended, single: c.single, expires: c.expires, sync: shareSyncState() }
 					: c.kind === 'folder'
 						? { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: await accessOf(c.id, c.handle) }
-						: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted' }
+						: c.kind === 'vault'
+							? vaultView(c)
+							: { id: c.id, kind: c.kind, name: c.name, path: connectionRoot(c.id), access: 'granted' }
 		)
 	);
 	handles.clear();
@@ -304,9 +332,17 @@ async function chooseAgain(id: string): Promise<boolean> {
  * again (a click on it is the user activation the browser needs) – `onAllowed` runs once access is back.
  */
 export function accessAction(e: unknown, onAllowed?: () => void): { label: string; run: () => Promise<void> } | undefined {
-	if (!(e instanceof FilesError) || (e.code !== 'denied' && e.code !== 'credentials')) return undefined;
+	if (!(e instanceof FilesError) || (e.code !== 'denied' && e.code !== 'credentials' && e.code !== 'locked')) return undefined;
 	const at = connectionOf(e.path);
 	if (!at) return undefined;
+	if (e.code === 'locked') {
+		return {
+			label: filesMessages().vault.unlockMenu,
+			run: async () => {
+				if (await unlockConnection(at.id)) onAllowed?.();
+			}
+		};
+	}
 	// A server refused the sign-in data: change them (Files' dialog; in another tool, Files opens next to it)
 	if (e.code === 'credentials') {
 		return {
@@ -328,10 +364,104 @@ export function accessAction(e: unknown, onAllowed?: () => void): { label: strin
 /** The guest agrees to fetch a share it was asked about (large, or not fitting the free storage) */
 export const fetchShare = allowShareSync;
 
+// --- Encrypted folders (`vault/`): a folder of My files, shown decrypted under “Connected” while unlocked ---
+
+function vaultView(c: VaultConnection): ConnectionView {
+	const open = isUnlocked(c.id) || !!c.remembered;
+	return {
+		id: c.id,
+		kind: c.kind,
+		name: c.name,
+		path: connectionRoot(c.id),
+		access: open ? 'granted' : 'prompt',
+		locked: !open,
+		remembered: !!c.remembered,
+		folder: c.path,
+		format: VAULT_FORMATS[c.format]?.name ?? c.format
+	};
+}
+
+/** The format of an encrypted folder of My files, `null` for any other folder (and outside My files on this device) */
+export async function vaultFormatOf(path: string): Promise<VaultFormatId | null> {
+	if (connectionOf(path) || excludedFolderOf(path)) return null;
+	return (await detectFormat(path))?.id ?? null;
+}
+
+/** The connection of the encrypted folder at `path` of My files – the stored one (also when the folder was moved
+ * meanwhile: the same key), or a new one. Throws `notFound` outside My files on this device or for another folder,
+ * `VaultFormatError` for one it can't open. */
+async function vaultConnection(path: string): Promise<VaultConnection> {
+	const format = excludedFolderOf(path) ? null : await detectFormat(path);
+	if (!format) throw new FilesError('notFound', path);
+	const fingerprint = await format.fingerprint(path);
+	const list = await listConnections();
+	const stored = list.filter((c): c is VaultConnection => c.kind === 'vault');
+	const known = stored.find((c) => c.path === path && c.format === format.id) ?? stored.find((c) => c.fingerprint === fingerprint && c.format === format.id);
+	if (known && known.path === path && known.fingerprint === fingerprint) return known;
+	const connection: VaultConnection = known
+		? { ...known, path, name: basename(path), fingerprint }
+		: { id: crypto.randomUUID().slice(0, 8), kind: 'vault', format: format.id, name: basename(path), path, fingerprint };
+	await saveConnections(known ? list.map((c) => (c.id === known.id ? connection : c)) : [...list, connection]);
+	return connection;
+}
+
+/**
+ * Opens the encrypted folder at `path` of My files: asks for its password unless it is unlocked already. Its root
+ * path under “Connected”, `null` when the user canceled.
+ */
+export async function openVault(path: string): Promise<string | null> {
+	const connection = await vaultConnection(path);
+	if (!isUnlocked(connection.id) && !connection.remembered && !(await askUnlock(connection.id, connection.name, VAULT_FORMATS[connection.format].name))) return null;
+	await refresh();
+	return connectionRoot(connection.id);
+}
+
+/** Asks for the password of an encrypted folder's connection (needs the dialog of `Suite.svelte`); whether it opened */
+export async function unlockConnection(id: string): Promise<boolean> {
+	const connection = (await listConnections()).find((c): c is VaultConnection => c.id === id && c.kind === 'vault');
+	return !!connection && askUnlock(id, connection.name, VAULT_FORMATS[connection.format].name);
+}
+
+/** Unlocks with a password (the dialog calls it): throws `WrongPassword` and `VaultFormatError` */
+export async function unlockWith(id: string, password: string, remember: boolean): Promise<void> {
+	const list = await listConnections();
+	const connection = list.find((c): c is VaultConnection => c.id === id && c.kind === 'vault');
+	if (!connection) throw new FilesError('notFound', connectionRoot(id));
+	const remembered = await unlockVault(connection, password, remember);
+	if (remembered) await saveConnections(list.map((c) => (c.id === id ? { ...connection, remembered } : c)));
+	await refresh();
+}
+
+/** Locks an encrypted folder in every tab and forgets a remembered key */
+export async function lockConnection(id: string): Promise<void> {
+	lockVault(id);
+	const list = await listConnections();
+	if (list.some((c) => c.id === id && c.kind === 'vault' && c.remembered)) {
+		await saveConnections(list.map((c) => (c.id === id && c.kind === 'vault' ? { ...c, remembered: undefined } : c)));
+	}
+	await refresh();
+	noticed(connectionRoot(id));
+}
+
+/**
+ * Makes `path` (a new folder of My files) an encrypted folder of `format` protected by `password` and unlocks it. Its
+ * root path under “Connected” and the master key to write down (it opens the folder if the password is forgotten;
+ * `null` where the format's own program makes the way back).
+ */
+export async function createVault(path: string, password: string, remember: boolean, format: VaultFormatId = DEFAULT_VAULT_FORMAT): Promise<{ root: string; masterKey: string | null }> {
+	const master = await VAULT_FORMATS[format].create(path, password);
+	const connection = await vaultConnection(path);
+	const remembered = await addUnlocked(connection, master, remember);
+	if (remembered) await saveConnections((await listConnections()).map((c) => (c.id === connection.id ? { ...connection, remembered } : c)));
+	await refresh();
+	return { root: connectionRoot(connection.id), masterKey: VAULT_FORMATS[format].showKey(master) };
+}
+
 /** Removes the connection; nothing in the folder is deleted (the guest share of this browser ends here, with its
  * copy in this browser) */
 export async function disconnect(id: string): Promise<void> {
 	if (id === 'share') endShareSession();
+	lockVault(id);
 	await saveConnections((await listConnections()).filter((c) => c.id !== id));
 }
 

@@ -8,6 +8,7 @@ import { filesErrorText, filesMessages } from './i18n/index.svelte.js';
 import { basename, extname, parent, safeName, stem } from './path.js';
 import { accessAction } from './sources/connections.svelte.js';
 import { connectedDocuments, forgetConnected, rememberConnected } from './sources/recent.js';
+import { isEncrypted } from './sources/registry.js';
 
 // What the tools do the same way with their documents: one tab edits a document at a time (Web Lock), waiting
 // changes are saved when the page is left, a failed automatic save is reported once, and documents that are packages
@@ -122,7 +123,8 @@ export function packageDocuments(tool: string, ext: string) {
 	function remember(path: string) {
 		// Connected folders aren't searched: documents there are listed because they are remembered
 		rememberConnected(tool, path);
-		writeStored(folderKey, parent(path));
+		// Plain names of an encrypted folder are never kept outside it
+		if (!isEncrypted(path)) writeStored(folderKey, parent(path));
 	}
 
 	return {

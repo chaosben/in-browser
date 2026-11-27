@@ -241,6 +241,11 @@ const help: typeof enHelp = {
 							title: 'Durchgehend verschlüsselt',
 							text: 'Dateien gehen direkt über verschlüsselte Verbindungen (WebRTC) zwischen deinen Geräten. Jedes Gerät hat ein eigenes Schlüsselpaar, das es nie verlässt; ein Gerät kommt nur mit einem Einmalschlüssel von einem deiner Geräte dazu.'
 						},
+						atRest: {
+							title: 'Auf den Geräten selbst',
+							text: 'Auf jedem Gerät – im Browser, im synchronisierten Ordner auf deinem Rechner, auf einem p2p-node – liegen die Dateien, wie sie sind, lesbar für jeden, der an dieses Gerät kommt. Für das, was dort unlesbar bleiben soll, nimm einen verschlüsselten Ordner: Nur seine verschlüsselte Form reist und wird gespeichert, und er öffnet sich nur mit seinem Passwort.',
+							link: { href: '/help/connected#encrypted', label: 'Verschlüsselte Ordner' }
+						},
 						relays: {
 							title: 'Was Dritte sehen',
 							text: 'Um sich zu finden, legen die Geräte verschlüsselte Verbindungsangebote auf öffentlichen Nostr-Relays ab. Die Relays sehen IP-Adressen und Zeitpunkte, aber weder deine Dateien noch Datei- oder Gerätenamen. STUN-Server von Cloudflare und Google nennen jedem Gerät seine öffentliche Adresse (es fragt beide, damit ein ausgefallener deine Geräte nicht trennt); sie sehen die Adresse, sonst nichts.'
@@ -269,14 +274,14 @@ const help: typeof enHelp = {
 
 		connected: {
 			title: 'Verbundene Ordner',
-			summary: 'Öffne einen Ordner auf deinem Rechner, einen WebDAV-Server oder S3-Speicher live in jedem Tool – nichts wird in den Browser kopiert',
+			summary: 'Öffne einen Ordner auf deinem Rechner, einen WebDAV-Server oder S3-Speicher live in jedem Tool, entsperre verschlüsselte Ordner – und gib Dateien für einen Gast frei',
 			topics: {
 				basics: {
 					title: 'Meine Dateien und Verbunden',
 					items: {
 						rule: {
 							title: 'Zwei Arten von Speicher',
-							text: '„Meine Dateien“ liegen im Speicher deines Browsers und reisen mit deinen Geräten. Was unter „Verbunden“ steht, gehört nicht dazu und reist nie mit deinen Geräten. Ein Ordner auf deinem Rechner oder einem Server bleibt, wo er ist: in-browser öffnet ihn live, liest und speichert direkt dort und behält keine Kopie. Was dir jemand freigibt, ist die eine Ausnahme: Es wird in diesen Browser kopiert, damit es ohne das freigebende Gerät funktioniert, liegt getrennt von Meine Dateien und wird gelöscht, wenn die Freigabe endet. Trennst du eines davon, bleibt nichts davon im Browser.'
+							text: '„Meine Dateien“ liegen im Speicher deines Browsers und reisen mit deinen Geräten. Was unter „Verbunden“ steht, gehört nicht dazu und reist nie mit deinen Geräten. Ein Ordner auf deinem Rechner oder einem Server bleibt, wo er ist: in-browser öffnet ihn live, liest und speichert direkt dort und behält keine Kopie. Was dir jemand freigibt, ist die eine Ausnahme: Es wird in diesen Browser kopiert, damit es ohne das freigebende Gerät funktioniert, liegt getrennt von Meine Dateien und wird gelöscht, wenn die Freigabe endet. Trennst du eines davon, bleibt nichts davon im Browser. Ein verschlüsselter Ordner ist umgekehrt: Seine verschlüsselten Dateien liegen in Meine Dateien und reisen mit ihnen – nur was du entschlüsselt unter „Verbunden“ siehst, bleibt in diesem Browser.'
 						},
 						everywhere: {
 							title: 'In jedem Tool',
@@ -295,7 +300,7 @@ const help: typeof enHelp = {
 					items: {
 						connect: {
 							title: 'Verbinden',
-							text: 'Klick in Dateien auf „Verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) und wähle, was du verbinden willst: „Ordner auf diesem Rechner …“, „WebDAV-Server …“ oder „S3-Speicher …“. Bei einem Ordner fragt der Browser, ob in-browser ihn ansehen und bearbeiten darf; das können nur Chrome und Edge am Computer. Server gehen in jedem Browser, auch auf Telefonen. Die Verbindung erscheint dann mit ihrem Namen in der Seitenleiste „Ordner“ unter Meine Dateien.'
+							text: 'Klick in Dateien auf „Verbinden …“ (Registerkarte „Verbinden“ oder in der Seitenleiste „Ordner“ unter Meine Dateien) und wähle, was du verbinden willst: „Ordner auf diesem Rechner …“, „WebDAV-Server …“, „S3-Speicher …“ oder „Verschlüsselter Ordner in Meine Dateien …“ (unten). Bei einem Ordner fragt der Browser, ob in-browser ihn ansehen und bearbeiten darf; das können nur Chrome und Edge am Computer. Server gehen in jedem Browser, auch auf Telefonen. Die Verbindung erscheint dann mit ihrem Namen in der Seitenleiste „Ordner“ unter Meine Dateien.'
 						},
 						access: {
 							title: 'Zugriff nach einem Neustart',
@@ -346,6 +351,50 @@ const help: typeof enHelp = {
 						changes: {
 							title: 'Änderungen auf dem Server',
 							text: 'Ein Server sagt dem Browser nicht, wenn sich dort etwas ändert. Dateien schaut wieder nach, wenn du zum Tab zurückkommst, und alle 30 Sekunden, solange er offen ist.'
+						}
+					}
+				},
+				encrypted: {
+					title: 'Verschlüsselte Ordner',
+					items: {
+						what: {
+							title: 'Verschlüsselte Ordner (gocryptfs)',
+							text: 'Ein verschlüsselter Ordner liegt in Meine Dateien, aber alles darin ist verschlüsselt gespeichert – Namen und Inhalte. Zu deinen Geräten, in den synchronisierten Ordner auf deinem Rechner und zu einem p2p-node reist er deshalb nur verschlüsselt. Sobald du ihn mit seinem Passwort entsperrst, steht er entschlüsselt unter „Verbunden“ als „Name (verschlüsselt)“, und jedes Tool öffnet und speichert dort wie in jedem Ordner; was du speicherst, wird verschlüsselt, bevor es geschrieben wird. In welchem Format er gespeichert wird, wählst du beim Anlegen – gocryptfs oder Cryptomator; mit demselben Passwort öffnet sich der Ordner dann auch auf einem Rechner (und mit Cryptomator auf Handys). Beim Entsperren erkennt in-browser das Format von selbst, also öffnen sich hier auch Ordner, die diese Programme angelegt haben.',
+							tip: 'Nimm ihn für das, was überall unlesbar bleiben soll, wohin deine Dateien gehen – ein verlorenes Gerät, der Ordner auf deinem Rechner, ein Heimserver mit p2p-node. Für alltägliche Dateien reicht Meine Dateien.'
+						},
+						create: {
+							title: 'Anlegen',
+							text: 'Öffne in Dateien den Ordner von Meine Dateien, in den er soll, und wähle „Neuer verschlüsselter Ordner …“ (Registerkarte „Start“, Gruppe „Neu“, oder die Registerkarte „Verbinden“). Gib ihm einen Namen, wähle das „Format“ und gib zweimal ein Passwort mit mindestens 8 Zeichen ein. Danach wird einmal der Hauptschlüssel gezeigt: Vergisst du das Passwort, öffnet nur er den Ordner (gocryptfs auf einem Rechner nimmt ihn mit „-masterkey“). Schreib ihn auf oder leg ihn mit „Kopieren“ in einem Passwortmanager ab – in-browser hebt ihn nicht auf und kann ihn nicht noch einmal zeigen. „Fertig“ öffnet den neuen Ordner.',
+							options: {
+								gocryptfs: { label: '„gocryptfs“ (Standard)', text: 'Öffnet sich auf einem Rechner mit gocryptfs (Linux, macOS) oder cppcryptfs (Windows). Namen und Inhalte sind verschlüsselt; wie viele Dateien und Ordner es gibt und wie groß sie ungefähr sind, bleibt sichtbar. Du bekommst einen Hauptschlüssel zum Aufschreiben.' },
+								cryptomator: { label: '„Cryptomator“', text: 'Öffnet sich mit Cryptomator auf Rechnern und Handys. Namen, Inhalte und wie die Ordner ineinander liegen sind verschlüsselt. Hier wird kein Schlüssel gezeigt: Erstelle seinen Wiederherstellungsschlüssel in Cryptomator (in den Tresoroptionen).' }
+							},
+							tip: 'Nimm gocryptfs, wenn du Linux oder einen Heimserver nutzt, Cryptomator, wenn du den Ordner auch auf dem Handy öffnen willst oder Cryptomator schon nutzt. Ein vergessenes Passwort ohne Hauptschlüssel (gocryptfs) oder Wiederherstellungsschlüssel (Cryptomator) heißt: Niemand kann den Ordner mehr öffnen, auch in-browser nicht – sichere ihn, bevor du etwas hineinlegst.'
+						},
+						unlock: {
+							title: 'Entsperren',
+							text: 'Öffnest du einen verschlüsselten Ordner in Meine Dateien, siehst du seine verschlüsselten Dateien und darüber eine Zeile mit „Entsperren …“; dasselbe steht in der Registerkarte „Verbinden“. Oder wähle „Verbinden …“ → „Verschlüsselter Ordner in Meine Dateien …“ und such den Ordner aus – dort, wo alles andere verbunden wird. Gib das Passwort ein und wähle „Entsperren“ – das dauert einen Moment, dann zeigt Dateien den Ordner entschlüsselt. Ein schon einmal entsperrter Ordner steht unter „Verbunden“ mit „Entsperren …“, solange er gesperrt ist; Tools, die ein Dokument darin öffnen, bieten „Entsperren …“ auch in ihren Meldungen an. Ein auf einem Rechner angelegter gocryptfs-Ordner öffnet sich genauso, sobald er in Meine Dateien auf diesem Gerät liegt – z. B. über den synchronisierten Ordner auf deinem Rechner; in einem Ordner, den dieses Gerät auslässt, lässt er sich nicht entsperren.',
+							options: {
+								session: { label: 'Ohne „Auf diesem Gerät merken“ (Standard)', text: 'Er bleibt in jedem Tab dieses Browsers entsperrt, bis der letzte in-browser-Tab geschlossen wird; dann fragt er wieder nach dem Passwort.' },
+								remember: { label: '„Auf diesem Gerät merken“', text: 'Der Hauptschlüssel bleibt in diesem Browser, verschlüsselt mit einem Schlüssel, den der Browser nie herausgibt, und der Ordner entsperrt sich von selbst – ohne auf die Passwortprüfung zu warten. Er verlässt dieses Gerät nie. Wer diesen Browser benutzt, kann den Ordner öffnen.' }
+							},
+							tip: 'Merk ihn nur auf deinem eigenen Gerät mit Bildschirmsperre und eigenem Benutzerkonto – nie auf einem geteilten oder geliehenen Rechner.'
+						},
+						lock: {
+							title: 'Sperren und trennen',
+							text: '„Sperren“ – im Menü des Ordners unter „Verbunden“ oder in der Registerkarte „Verbinden“, während er offen ist – sperrt ihn in jedem Tab dieses Browsers und vergisst einen gemerkten Schlüssel. „Verschlüsselte Dateien zeigen“ im selben Menü führt zum Ordner in Meine Dateien. „Trennen“ entfernt den Eintrag unter „Verbunden“; der Ordner und alles darin bleiben in Meine Dateien.'
+						},
+						deleting: {
+							title: 'Löschen und der Papierkorb',
+							text: 'Was du in einem verschlüsselten Ordner löschst, kommt in den Papierkorb von Meine Dateien, weiterhin verschlüsselt – die Meldung bietet „Rückgängig“ an. Im Papierkorb steht es mit seinem verschlüsselten Namen unter dem Ordner, aus dem es kam; Wiederherstellen legt es zurück, und es erscheint wieder entschlüsselt.'
+						},
+						private: {
+							title: 'Nichts Entschlüsseltes wird aufbewahrt',
+							text: 'in-browser schreibt nur die verschlüsselte Form in den Speicher des Browsers. Dokumente in einem verschlüsselten Ordner erscheinen nicht unter „Zuletzt geöffnet“ der Tools, und die Dialoge merken sich seine Ordner nicht. Der Texteditor behält ungespeicherte Änderungen einer solchen Datei nur im Arbeitsspeicher (er speichert ohnehin eine Sekunde nach dem Tippen). Ein Export der Bildschirmaufnahme aus einem Projekt darin wird aus dem Browser entfernt, wenn der Export-Dialog schließt – behalte ihn vorher mit „Herunterladen“ oder „In Files speichern …“.'
+						},
+						limits: {
+							title: 'Was er öffnet',
+							text: 'gocryptfs: Ordner ab Version 1.3 mit den üblichen Einstellungen (AES-GCM) – nicht solche, die mit „-xchacha“, „-aessiv“, „-plaintextnames“, „-deterministic-names“, „-fido2“, „-tpm2“ oder im Reverse-Modus angelegt wurden. Cryptomator: Tresore im Format 8 (Cryptomator 1.6 und neuer) – keine Tresore von Cryptomator Hub und keine älteren; symbolische Links darin erscheinen nicht. Dateien sagt es, wenn es einen nicht öffnen kann. Dateien, die keine verschlüsselten Namen sind – z. B. Konfliktkopien, die eine Synchronisierung von verschlüsselten Dateien gemacht hat –, erscheinen nicht im entschlüsselten Ordner. Kommt ein Ordner eines Cryptomator-Tresors in den Papierkorb, bleibt sein Inhalt verschlüsselt im Tresor, damit Wiederherstellen ihn zurückbringt; ist der Eintrag im Papierkorb weg, belegt er dort weiter Platz – die Tresorprüfung von Cryptomator kann ihn entfernen.'
 						}
 					}
 				},
@@ -533,7 +582,8 @@ const help: typeof enHelp = {
 						unencrypted: {
 							title: 'Dateien auf der Festplatte',
 							text: 'Die Dateien liegen unverschlüsselt im Ordner, wie jede andere Datei auf diesem Rechner.',
-							tip: 'Auf einem Laptop oder einem Rechner, an den andere herankommen, schalte die Festplattenverschlüsselung deines Systems ein.'
+							tip: 'Auf einem Laptop oder einem Rechner, an den andere herankommen, schalte die Festplattenverschlüsselung deines Systems ein – oder leg Vertrauliches in einen verschlüsselten Ordner: Der p2p-node bekommt nur seine verschlüsselte Form.',
+							link: { href: '/help/connected#encrypted', label: 'Verschlüsselte Ordner' }
 						}
 					}
 				}
@@ -690,6 +740,11 @@ const help: typeof enHelp = {
 						nothing: {
 							title: 'Kein Konto, kein Tracking',
 							text: 'Es gibt kein Konto, keine Cookies, keine Statistik und keine Werbung. Die Website liefert nur das Programm aus; alles andere passiert auf deinem Gerät.'
+						},
+						encrypted: {
+							title: 'Verschlüsselte Ordner',
+							text: 'Dateien öffnet verschlüsselte Ordner von gocryptfs und Cryptomator – und legt neue an – direkt im Browser: Nichts Entschlüsseltes wird gespeichert, und auf einem Rechner öffnen sie sich auch mit diesen Programmen.',
+							link: { href: '/help/connected#encrypted', label: 'Verschlüsselte Ordner' }
 						},
 						open: {
 							title: 'Open Source',

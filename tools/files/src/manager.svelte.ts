@@ -81,6 +81,8 @@ export class Manager {
 			// Known states (not reachable, no access, gone) are shown in place; anything else is a bug worth logging
 			if (!(e instanceof FilesError)) console.error(e);
 			this.items = [];
+			// Nothing shown, nothing selected (e.g. a folder that was just locked)
+			this.pick.keep([]);
 			this.error = filesErrorText(e);
 			this.errorCode = e instanceof FilesError ? e.code : null;
 		}

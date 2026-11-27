@@ -36,6 +36,7 @@ const en = {
 		tracking: { title: 'No tracking', text: 'no cookies, no ads' },
 		devices: { title: 'Sync without a cloud', text: 'directly between your devices' },
 		offline: { title: 'Installable & offline', text: 'works without internet, too' },
+		encrypted: { title: 'Encrypted folders', text: 'gocryptfs and Cryptomator, unlocked right in the browser' },
 		openSource: { title: 'Open source', text: 'MIT license', link: 'Source code on GitHub' }
 	},
 
@@ -59,8 +60,8 @@ const en = {
 		},
 		files: {
 			name: brand.tools['files'],
-			summary: 'Manage, sync and download your files',
-			keywords: 'file manager, explorer, folder, sync, upload, download, zip, preview, devices'
+			summary: 'Manage, sync and encrypt your files',
+			keywords: 'file manager, explorer, folder, sync, upload, download, zip, preview, devices, encrypted folder, encryption, password, gocryptfs, cryptomator, vault'
 		},
 		textEditor: {
 			name: brand.tools['text-editor'],
