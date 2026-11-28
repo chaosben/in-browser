@@ -4,7 +4,7 @@
 	// look, or why the content can't be a code of that kind. The tool decides what happens with it: it keeps `spec`
 	// and gets the drawing (`barcodeSvg` of `barcode.ts` makes it again from the spec).
 	import { onMount } from 'svelte';
-	import { BARCODE_GROUPS, BARCODE_TYPES, barcodeSvg, scanRisk, type BarcodeDrawing, type BarcodeProblem, type BarcodeSpec, type BarcodeType } from './barcode.js';
+	import { BARCODE_GROUPS, BARCODE_TYPES, barcodeSvg, barcodeTypes, scanRisk, type BarcodeDrawing, type BarcodeProblem, type BarcodeSpec, type BarcodeType } from './barcode.js';
 	import ColorField from './ColorField.svelte';
 	import { parseColor } from './color.js';
 	import { graphicsMessages } from './i18n/index.svelte.js';
@@ -18,7 +18,7 @@
 	/** The listed kinds at once, the library's others once it is loaded */
 	let types = $state.raw<readonly BarcodeType[]>(BARCODE_TYPES);
 	onMount(() => {
-		void import('./barcode.js').then(({ barcodeTypes }) => barcodeTypes()).then((all) => (types = all));
+		void barcodeTypes().then((all) => (types = all));
 	});
 	const type = $derived(types.find((t) => t.id === spec.kind));
 	const nameOf = (t: BarcodeType) => m.names[t.id] ?? t.name;

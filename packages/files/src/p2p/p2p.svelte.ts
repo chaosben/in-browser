@@ -16,6 +16,7 @@ import type { LiveEnd } from './live-ends.js';
 import { OFF_VIEW, type P2pView } from './view.js';
 import { ed25519Supported } from './identity.js';
 import { journal } from '../sync/journal.svelte.js';
+import { opfsTree } from '../sync/opfs-tree.js';
 
 // The P2P sync in the app: one tab per browser runs the device (Web Lock `files:p2p-leader`, independent of the folder
 // sync, so it also runs where folders on disk can't be accessed: Firefox, Safari, phones). Every other tab mirrors its
@@ -244,10 +245,9 @@ let watching = false;
 async function lead(mine: number) {
 	const log = await journal('p2p');
 	// Loaded only in the leading tab (Trystero and its Nostr crypto are not needed elsewhere)
-	const [{ Device }, { idbStore }, { opfsTree }, { trysteroNetwork }] = await Promise.all([
+	const [{ Device }, { idbStore }, { trysteroNetwork }] = await Promise.all([
 		import('./device.js'),
 		import('./store.js'),
-		import('../sync/opfs-tree.js'),
 		import('./trystero.js')
 	]);
 	if (mine !== generation) return;

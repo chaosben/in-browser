@@ -10,6 +10,10 @@ import { Rpc } from '../p2p/rpc.js';
 import { isHidden } from '../path.js';
 import { idbDelete, idbGet, idbSet } from '../sync/idb.js';
 import type { Base } from '../sync/plan.js';
+import { opfsTree } from '../sync/opfs-tree.js';
+import { changed, watch } from '../changes.js';
+import { askAboveOf } from '../settings.js';
+import { filesMessages } from '../i18n/index.svelte.js';
 import { folderSource } from './folder.js';
 import { shareSync, type ShareSync, type ShareSyncState } from './share-sync.js';
 import type { Source } from './source.js';
@@ -249,10 +253,6 @@ async function lead(code: string, release: () => void) {
 		storeSession({ ...current, ...patch });
 		for (const changed of [...changes]) changed();
 	};
-	const { changed, watch } = await import('../changes.js');
-	const { askAboveOf } = await import('../settings.js');
-	const { opfsTree } = await import('../sync/opfs-tree.js');
-	const { filesMessages } = await import('../i18n/index.svelte.js');
 	/** Paths a session just wrote: their announcement is no change of the guest */
 	const own = new Map<string, number>();
 	const written = new Set<string>();
