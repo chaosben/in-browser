@@ -14,7 +14,7 @@ const help = {
 			},
 			layout: {
 				title: 'Layout',
-				text: 'The top bar shows the path of the open folder – click a level to go back to it. Below it lies the ribbon: “Undo” on the left, then the tabs “Home” (new and “Upload”, clipboard, organize, select, find), “Share” (share with a guest, download), “Connect” (connect a folder on your computer, allow access, disconnect), “Sync” (sync now, sync settings, devices) and “View” (list or tiles, sort, panels, refresh). While entries are selected, the tab “Selection”, set off in color, holds what you can do with them (in the trash: the tab “Trash”); the ribbon switches to it by itself and back to the tab before when nothing is selected anymore. On the left edge a narrow bar holds the side panels “Folders” (open at the start: My files as a tree, below it your connected folders, at the end the trash) and “Shares”; click one to open it next to the list, click it again to close it, and drag its right edge to make it wider. Middle: the content of the open folder. The bottom line counts the items of the folder, shows a running upload, how much storage is used and how many items are selected; at its right end the sync symbol shows the state of syncing, as in every tool.'
+				text: 'The top bar shows the path of the open folder – click a level to go back to it. Below it lies the ribbon: “Undo” on the left, then the tabs “Home” (new and “Upload”, clipboard, organize, select, find), “Share” (share with a guest, download), “Connect” (connect a folder on your computer, allow access, disconnect), “Sync” (sync now, sync settings, devices) and “View” (list or tiles, sort, hidden items, panels, refresh). While entries are selected, the tab “Selection”, set off in color, holds what you can do with them (in the trash: the tab “Trash”); the ribbon switches to it by itself and back to the tab before when nothing is selected anymore. On the left edge a narrow bar holds the side panels “Folders” (open at the start: My files as a tree, below it your connected folders, at the end the trash) and “Shares”; click one to open it next to the list, click it again to close it, and drag its right edge to make it wider. Middle: the content of the open folder. The bottom line counts the items of the folder, shows a running upload, how much storage is used and how many items are selected; at its right end the sync symbol shows the state of syncing, as in every tool.'
 			},
 			ribbon: {
 				title: 'Ribbon display',
@@ -125,6 +125,15 @@ const help = {
 					size: { label: 'Size', text: 'Largest first when you choose it – to find what takes room.' },
 					modified: { label: 'Modified', text: 'Newest first when you choose it – to find what you worked on last.' }
 				}
+			},
+			hidden: {
+				title: 'Hidden items',
+				text: 'Entries whose name starts with a dot are hidden – in My files for example “.apps”, where the tools keep their settings and data, and in synced folders the trash folder “.in-browser-trash”. “Hidden items” in the “View” tab (or a right-click on the free area) shows them in the list and in the panel “Folders”, everywhere in Files: in My files, in connected folders and in the folders of your other devices. They look paler than the other entries. The choice is remembered on this device. Shares never show hidden entries to a guest, and the dialogs for opening and saving in the tools leave them out as well.',
+				options: {
+					off: { label: 'Off (default)', text: 'Only your own files and folders – nothing the tools keep for themselves gets in the way.' },
+					on: { label: 'On', text: 'Everything in the folder, e.g. to look at files like “.gitignore” in a connected folder or to tidy up data of the tools.' }
+				},
+				tip: 'Switch it on only when you look for such a file. Changing or deleting something in “.apps” can lose settings or data of the tools.'
 			},
 		}
 	},

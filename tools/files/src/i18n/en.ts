@@ -23,6 +23,7 @@ const en = {
 		search: 'Search in this folder',
 		list: 'List',
 		grid: 'Tiles',
+		hidden: 'Hidden items',
 		refresh: 'Refresh'
 	},
 

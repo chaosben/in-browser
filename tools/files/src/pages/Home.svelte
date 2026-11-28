@@ -81,7 +81,7 @@
 		type MenuContext
 	} from '#lib/menus.js';
 	import { toItem, type Item } from '#lib/items.js';
-	import { clipboard, lastUndo, Manager, treeVersion } from '#lib/manager.svelte.js';
+	import { clipboard, hidden, lastUndo, Manager, treeVersion } from '#lib/manager.svelte.js';
 	import type { FilesPanelContext } from '#lib/panels/context.js';
 	import { trash, TRASH } from '#lib/trash.svelte.js';
 	import { inTrash } from '@in-browser/files/trash.js';
@@ -535,6 +535,13 @@
 			icon: 'icon-[material-symbols-light--sort]',
 			menu: () => sortEntries(manager)
 		},
+		hidden: {
+			id: 'hidden',
+			label: m.toolbar.hidden,
+			icon: 'icon-[material-symbols-light--visibility-outline]',
+			active: () => hidden.shown,
+			run: () => manager.setShowHidden(!hidden.shown)
+		},
 		refresh: {
 			id: 'refresh',
 			label: m.toolbar.refresh,
@@ -635,7 +642,7 @@
 			id: 'view',
 			label: m.ribbon.tabs.view,
 			groups: [
-				{ id: 'show', label: m.ribbon.groups.show, items: [commands.list, commands.grid, commands.sort, commands.refresh] },
+				{ id: 'show', label: m.ribbon.groups.show, items: [commands.list, commands.grid, commands.sort, commands.hidden, commands.refresh] },
 				{ id: 'panels', label: m.ribbon.groups.panels, items: panels.map((spec) => panelCommand(spec, openPanel)) }
 			]
 		},

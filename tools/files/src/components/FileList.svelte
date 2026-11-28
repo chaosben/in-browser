@@ -4,7 +4,7 @@
 	import { formatDateTime, intlLocale, m } from '#lib/i18n/index.js';
 	import { acceptsDrag, copyKey, dropOnFolder, startDrag } from '#lib/dnd.js';
 	import { kindLabel, type Item, type SortKey } from '#lib/items.js';
-	import { clipboard, type Manager } from '#lib/manager.svelte.js';
+	import { clipboard, isHiddenName, type Manager } from '#lib/manager.svelte.js';
 	import FileIcon from '@in-browser/files/FileIcon.svelte';
 	import { coarsePointer } from '@in-browser/brand/ui/pointer.svelte.js';
 	import { toolName } from '@in-browser/brand/i18n/index.svelte.js';
@@ -198,7 +198,7 @@
 				selected ? 'bg-selection/20' : 'hover:bg-base-200',
 				target === item.path && 'outline-selection outline-2',
 				manager.focus === item.path && 'ring-base-content/30 ring-1',
-				cut.has(item.path) && 'opacity-50'
+				cut.has(item.path) ? 'opacity-50' : isHiddenName(item.name) && 'opacity-60'
 			]}
 			onpointerdown={(e) => pick.pointerdown(e)}
 			onclick={(e) => click(e, item)}

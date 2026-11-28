@@ -23,6 +23,7 @@ const de: Messages = {
 		search: 'In diesem Ordner suchen',
 		list: 'Liste',
 		grid: 'Kacheln',
+		hidden: 'Versteckte Elemente',
 		refresh: 'Aktualisieren'
 	},
 

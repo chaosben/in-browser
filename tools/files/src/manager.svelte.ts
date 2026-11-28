@@ -14,6 +14,14 @@ const VIEW_KEY = 'files:view';
 
 const storedView = (): 'list' | 'grid' => (readStored(VIEW_KEY) === 'grid' ? 'grid' : 'list');
 
+const HIDDEN_KEY = 'files:hidden';
+
+/** Entries whose name starts with a dot are shown (“Hidden items”, off by default; list and trees) */
+export const hidden = $state({ shown: readStored(HIDDEN_KEY) === '1' });
+
+/** A hidden entry (`.name`): left out unless “Hidden items” is on, shown dimmed otherwise */
+export const isHiddenName = (name: string) => name.startsWith('.');
+
 /** Folders open in the tree on the left (shared by all tree nodes) */
 export const expanded = new SvelteSet<string>(['/']);
 /** Bumped on every change in the file system: tree nodes reload their children */
@@ -43,9 +51,13 @@ export class Manager {
 	query = $state('');
 	view = $state<'list' | 'grid'>(storedView());
 
-	/** Shown entries: without hidden ones (`.name`), filtered by the search, sorted */
+	/** Shown entries: without hidden ones (`.name`) unless “Hidden items” is on, filtered by the search, sorted */
 	visible = $derived(
-		sortItems((this.items ?? []).filter((i) => !i.name.startsWith('.') && matches(i, this.query)), this.sortKey, this.desc)
+		sortItems(
+			(this.items ?? []).filter((i) => (hidden.shown || !isHiddenName(i.name)) && matches(i, this.query)),
+			this.sortKey,
+			this.desc
+		)
 	);
 	/** Paths as shown (the order of Shift ranges) */
 	order = $derived(this.visible.map((i) => i.path));
@@ -91,6 +103,11 @@ export class Manager {
 	setView(view: 'list' | 'grid') {
 		this.view = view;
 		writeStored(VIEW_KEY, view);
+	}
+
+	setShowHidden(on: boolean) {
+		hidden.shown = on;
+		writeStored(HIDDEN_KEY, on ? '1' : '0');
 	}
 
 	/** Click on a column heading: by that key, again reverses the order */

@@ -10,7 +10,7 @@
 	import { folderUrl, openTab } from '#lib/actions.js';
 	import { acceptsDrag, dropOnFolder } from '#lib/dnd.js';
 	import { sortItems, toItem, type Item } from '#lib/items.js';
-	import { expanded, treeVersion } from '#lib/manager.svelte.js';
+	import { expanded, hidden, isHiddenName, treeVersion } from '#lib/manager.svelte.js';
 	import FolderTree from './FolderTree.svelte';
 
 	interface Props {
@@ -51,7 +51,7 @@
 
 	async function load() {
 		try {
-			const entries = (await list(path)).map(toItem).filter((i) => i.folder && !i.name.startsWith('.'));
+			const entries = (await list(path)).map(toItem).filter((i) => i.folder && (hidden.shown || !isHiddenName(i.name)));
 			children = sortItems(entries, 'name', false);
 		} catch {
 			children = [];
@@ -61,6 +61,7 @@
 	// Children while open; again after every change in the file system
 	$effect(() => {
 		void treeVersion.current;
+		void hidden.shown;
 		if (open) untrack(load);
 	});
 
@@ -129,7 +130,7 @@
 			{:else}
 				<FileIcon name={label} kind="directory" {remote} />
 			{/if}
-			<span class="truncate">{label}</span>
+			<span class={['truncate', isHiddenName(label) && 'opacity-60']}>{label}</span>
 			{#if readOnly}
 				<span class="icon-[material-symbols-light--lock-outline] size-4 shrink-0 opacity-60" title={filesMessages().share.viewOnly} aria-label={filesMessages().share.viewOnly}></span>
 			{/if}

@@ -12,7 +12,7 @@ const help: typeof enHelp = {
 			},
 			layout: {
 				title: 'Aufbau',
-				text: 'Die obere Leiste zeigt den Pfad des geöffneten Ordners – ein Klick auf eine Ebene führt dorthin zurück. Darunter liegt das Menüband: links „Rückgängig“, dann die Registerkarten „Start“ (Neu und „Hochladen“, Zwischenablage, Organisieren, Auswählen, Suchen), „Freigeben“ (für einen Gast freigeben, herunterladen), „Verbinden“ (einen Ordner deines Rechners verbinden, Zugriff erlauben, trennen), „Sync“ (jetzt synchronisieren, Sync-Einstellungen, Geräte) und „Ansicht“ (Liste oder Kacheln, sortieren, Seitenleisten, aktualisieren). Solange Einträge ausgewählt sind, enthält die farbig abgesetzte Registerkarte „Auswahl“, was du mit ihnen tun kannst (im Papierkorb: die Registerkarte „Papierkorb“); das Menüband wechselt von selbst dorthin und zurück zur vorherigen Registerkarte, sobald nichts mehr ausgewählt ist. Am linken Rand hält eine schmale Leiste die Seitenleisten „Ordner“ (zu Beginn offen: Meine Dateien als Baum, darunter deine verbundenen Ordner, am Ende der Papierkorb) und „Freigaben“; ein Klick öffnet eine neben der Liste, ein zweiter schließt sie, und an ihrem rechten Rand ziehst du sie breiter. In der Mitte der Inhalt des geöffneten Ordners. Die untere Zeile zählt die Elemente des Ordners, zeigt ein laufendes Hochladen, wie viel Speicher belegt ist und wie viele Elemente ausgewählt sind; ganz rechts zeigt das Sync-Symbol den Sync-Status, wie in jedem Tool.'
+				text: 'Die obere Leiste zeigt den Pfad des geöffneten Ordners – ein Klick auf eine Ebene führt dorthin zurück. Darunter liegt das Menüband: links „Rückgängig“, dann die Registerkarten „Start“ (Neu und „Hochladen“, Zwischenablage, Organisieren, Auswählen, Suchen), „Freigeben“ (für einen Gast freigeben, herunterladen), „Verbinden“ (einen Ordner deines Rechners verbinden, Zugriff erlauben, trennen), „Sync“ (jetzt synchronisieren, Sync-Einstellungen, Geräte) und „Ansicht“ (Liste oder Kacheln, sortieren, versteckte Elemente, Seitenleisten, aktualisieren). Solange Einträge ausgewählt sind, enthält die farbig abgesetzte Registerkarte „Auswahl“, was du mit ihnen tun kannst (im Papierkorb: die Registerkarte „Papierkorb“); das Menüband wechselt von selbst dorthin und zurück zur vorherigen Registerkarte, sobald nichts mehr ausgewählt ist. Am linken Rand hält eine schmale Leiste die Seitenleisten „Ordner“ (zu Beginn offen: Meine Dateien als Baum, darunter deine verbundenen Ordner, am Ende der Papierkorb) und „Freigaben“; ein Klick öffnet eine neben der Liste, ein zweiter schließt sie, und an ihrem rechten Rand ziehst du sie breiter. In der Mitte der Inhalt des geöffneten Ordners. Die untere Zeile zählt die Elemente des Ordners, zeigt ein laufendes Hochladen, wie viel Speicher belegt ist und wie viele Elemente ausgewählt sind; ganz rechts zeigt das Sync-Symbol den Sync-Status, wie in jedem Tool.'
 			},
 			ribbon: {
 				title: 'Darstellung des Menübands',
@@ -123,6 +123,15 @@ const help: typeof enHelp = {
 					size: { label: 'Größe', text: 'Größte zuerst, wenn du es wählst – um zu finden, was Platz braucht.' },
 					modified: { label: 'Geändert', text: 'Neueste zuerst, wenn du es wählst – um zu finden, woran du zuletzt gearbeitet hast.' }
 				}
+			},
+			hidden: {
+				title: 'Versteckte Elemente',
+				text: 'Einträge, deren Name mit einem Punkt beginnt, sind versteckt – in Meine Dateien zum Beispiel „.apps“, wo die Tools ihre Einstellungen und Daten ablegen, und in synchronisierten Ordnern der Papierkorb-Ordner „.in-browser-trash“. „Versteckte Elemente“ in der Registerkarte „Ansicht“ (oder ein Rechtsklick auf die freie Fläche) zeigt sie in der Liste und in der Seitenleiste „Ordner“, überall in Dateien: in Meine Dateien, in verbundenen Ordnern und in den Ordnern deiner anderen Geräte. Sie erscheinen blasser als die übrigen Einträge. Die Wahl bleibt auf diesem Gerät gespeichert. Freigaben zeigen einem Gast versteckte Einträge nie, und die Dialoge zum Öffnen und Speichern in den Tools lassen sie ebenfalls weg.',
+				options: {
+					off: { label: 'Aus (Standard)', text: 'Nur deine eigenen Dateien und Ordner – nichts, was die Tools für sich ablegen, ist im Weg.' },
+					on: { label: 'An', text: 'Alles im Ordner, z. B. um Dateien wie „.gitignore“ in einem verbundenen Ordner anzusehen oder Daten der Tools aufzuräumen.' }
+				},
+				tip: 'Schalte es nur ein, wenn du eine solche Datei suchst. Änderst oder löschst du etwas in „.apps“, können Einstellungen oder Daten der Tools verloren gehen.'
 			},
 		}
 	},

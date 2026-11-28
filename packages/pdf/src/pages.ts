@@ -6,7 +6,6 @@
 // order asked), older requests later. One render per document at a time (PDF.js cancels concurrent renders of a
 // page). Least recently used blocks are dropped beyond `max` tiles' worth.
 
-import { debug } from '@in-browser/brand/debug.js';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import type { OptionalContentConfig } from 'pdfjs-dist/types/src/display/optional_content_config.js';
 import { openPdf } from './pdfjs.js';
@@ -315,9 +314,7 @@ export class PdfPages {
 
 	private async renderBlock({ doc, page: n, scale, bx, by, background }: Request): Promise<Rendered> {
 		const TILE = this.size;
-		const t0 = performance.now();
 		const page = await this.page(doc, n);
-		const t1 = performance.now();
 		const rotation = this.rotation?.(doc, n);
 		const full = page.getViewport({ scale: 1, rotation });
 		const s = scale || PREVIEW / Math.max(full.width, full.height);
@@ -336,11 +333,6 @@ export class PdfPages {
 			: page.render({ canvas, viewport, transform, optionalContentConfigPromise, annotationMode: ENABLE_STORAGE })
 		).promise;
 		const image = await createImageBitmap(canvas);
-		if (import.meta.hot) {
-			const what = scale ? `${canvas.width}×${canvas.height} px at ${scale}` : 'preview';
-			const wait = t1 - t0 > 5 ? `, waited ${(t1 - t0).toFixed(0)} ms for the document` : '';
-			debug(`${this.label} PDF page ${n} ${what}: ${(performance.now() - t1).toFixed(0)} ms${wait}`);
-		}
 		// Frees the canvas memory now instead of with the garbage collector
 		canvas.width = canvas.height = 0;
 		return { image, scale: s, used: 0, weight: (image.width * image.height) / (TILE * TILE) };
@@ -378,13 +370,7 @@ export class PdfPages {
 		if (doc && !this.docs.has(name)) this.docs.set(name, doc);
 		if (!doc) {
 			this.own.add(name);
-			const t0 = performance.now();
-			doc = this.bytes(name)
-				.then(openPdf)
-				.then((d) => {
-					if (import.meta.hot) debug(`${this.label} PDF opened (${d.numPages} pages): ${(performance.now() - t0).toFixed(0)} ms`);
-					return d;
-				});
+			doc = this.bytes(name).then(openPdf);
 			this.docs.set(name, doc);
 		}
 		return doc;

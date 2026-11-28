@@ -17,7 +17,7 @@ import { devicesUi } from '#lib/devices.svelte.js';
 import { m } from '#lib/i18n/index.js';
 import type { Item, SortKey } from '#lib/items.js';
 import { KEYS, keyLabel } from '#lib/keys.js';
-import { clipboard, type Manager } from '#lib/manager.svelte.js';
+import { clipboard, hidden, type Manager } from '#lib/manager.svelte.js';
 
 // The menus of Files (open folder, free area, entries, connections, shares). They read reactive state when built,
 // so the BrandBar menu rebuilds when it changes. Entries that can't act right now are disabled, never left out.
@@ -95,11 +95,17 @@ export function sortEntries(manager: Manager): MenuEntry[] {
 	];
 }
 
+/** “Hidden items”, checked while they are shown */
+export function hiddenEntry(manager: Manager): MenuEntry {
+	return { label: m.toolbar.hidden, icon: 'icon-[material-symbols-light--visibility-outline]', checked: hidden.shown, run: () => manager.setShowHidden(!hidden.shown) };
+}
+
 /** Context menu of the free area of the list */
 export function areaEntries(ctx: MenuContext, locked: boolean): MenuEntry[] {
 	return [
 		...folderEntries(ctx, locked),
 		{ label: m.toolbar.refresh, icon: 'icon-[material-symbols-light--refresh]', run: () => ctx.manager.refresh() },
+		hiddenEntry(ctx.manager),
 		{ separator: true },
 		...sortEntries(ctx.manager)
 	];
