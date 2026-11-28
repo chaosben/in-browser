@@ -9,7 +9,8 @@ describe('pressure', () => {
 		expect(hasRealPressure('mouse', 0.5)).toBe(false);
 	});
 	it('keeps a light pen contact visible', () => {
-		expect(penPressure(0)).toBe(0.05);
+		expect(penPressure(0)).toBeCloseTo(0.166, 3);
+		expect(penPressure(0.3)).toBeCloseTo(0.486, 3);
 		expect(penPressure(1.2)).toBe(1);
 	});
 	it('simulates thinner lines for fast movement', () => {

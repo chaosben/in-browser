@@ -27,6 +27,7 @@ import { embedForms, formOfStream, type PdfForm, type PdfPicture } from './form.
 import type { PdfImage } from './image.js';
 import { placeholdersOf, UNICODE_FONT, UNICODE_TEXT, unicodeFont, type UnicodeFont } from './unicode.js';
 import { pdfProducer } from '../producer.js';
+import { PAPER_KEY, PAPERS, type Paper } from './paper-page.js';
 
 /** What changes, relative to the original file */
 export interface PdfEdits {
@@ -571,6 +572,13 @@ export class IncrementalPdf {
 		const color = this.doc.getPage(index).node.lookupMaybe(PDFName.of(BACKGROUND), PDFArray);
 		const values = color?.asArray().map((v) => (v instanceof PDFNumber ? v.asNumber() : NaN)) ?? [];
 		return values.length === 3 && values.every((v) => v >= 0 && v <= 1) ? (values as unknown as Rgb) : null;
+	}
+
+	/** The paper a page was made with (`paperPdf`), or null */
+	paper(index: number): Paper | null {
+		const { PDFName } = this.lib;
+		const name = this.doc.getPage(index).node.lookupMaybe(PDFName.of(PAPER_KEY), PDFName)?.decodeText();
+		return PAPERS.find((p) => p === name && p !== 'blank') ?? null;
 	}
 
 	/** A page's content streams, decoded and joined – without the background this package put first */

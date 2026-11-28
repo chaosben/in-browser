@@ -18,7 +18,7 @@ import { snapPoint, type SnapTargets } from '@in-browser/graphics/snap.js';
 import { SNAP_PX } from '../align.js';
 import type { InkTool } from '../items.js';
 import { diameter } from '../outline.js';
-import { hasRealPressure, penPressure, PressureSimulator } from '../pressure.js';
+import { hasRealPressure, penPressure, PressureFilter, PressureSimulator } from '../pressure.js';
 import { suggestShape } from '../recognize.js';
 import type { SceneItem, SurfacePage } from '../render/kit.js';
 import type { SelectionHandle, Stage } from '../render/stage.js';
@@ -47,6 +47,8 @@ export interface ToolState<T extends string = never> {
 	penOnly: boolean;
 	/** Smoothing level 0…1 */
 	smoothing: number;
+	/** The pen's pressure (or, without a sensor, its speed) changes the width; false: always the chosen size */
+	pressure: boolean;
 	/** What the shape tool draws, and how */
 	shape: ShapeKind;
 	shapeStyle: ShapeStyle;
@@ -97,6 +99,8 @@ export interface InputHandlers<T extends string = never> {
 	selection: SelectionLike;
 	/** A pen hovered for the first time this session */
 	hover?(): void;
+	/** A pen's button was pressed in the air: the eraser on or off (`InkTools.toggleEraser`) */
+	penButton?(): void;
 	/** A press with one of the tool's own tools (screen pixels); null: it pans instead */
 	gesture?(tool: T, sx: number, sy: number, e: PointerEvent): Gesture | null;
 	/** Events the page itself handles (e.g. selecting text of a PDF page): the controller leaves them alone */
@@ -120,13 +124,19 @@ const PINCH_GRACE_MS = 250;
 export class InputController<P extends SurfacePage, I extends SceneItem, T extends string = never> {
 	private readonly active = new Map<number, Active>();
 	private readonly pressure = new PressureSimulator();
+	private readonly pressureFilter = new PressureFilter();
 	/** K held (scale a text box's font along) */
 	private scaleKey = false;
-	private realPressure = false;
+	/** Where the stroke's pressure comes from: the pen, its speed, or none (constant width) */
+	private pressureFrom: 'pen' | 'speed' | 'off' = 'speed';
 	private drawId: number | null = null;
 	/** Time stamp of the last point taken (raw and normal move events overlap) */
 	private lastPoint = 0;
 	private penSeen = false;
+	/** The buttons of the hovering pen at its last event: a press shows as a change from none. Some pens report the
+	 * button only in the air (S Pen in Chrome: `buttons` 1 without contact; a button held while touching reaches
+	 * no page at all – Android takes it), so it switches the eraser on and off instead of erasing while held. */
+	private penButtons = 0;
 	private hoverSeen = false;
 	private readonly raw = 'onpointerrawupdate' in window;
 	private pinch: { dist: number; cx: number; cy: number } | null = null;
@@ -191,7 +201,10 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			on('pointermove', (e) => this.move(e, false)),
 			on('pointerup', (e) => this.up(e, false)),
 			on('pointercancel', (e) => this.up(e, true)),
-			on('pointerleave', () => this.stage.hideCursor()),
+			on('pointerleave', () => {
+				this.stage.hideCursor();
+				this.penButtons = 0;
+			}),
 			on('wheel', (e) => this.wheel(e), opts),
 			// The browser's own menu never shows on the surface; a long press of `installLongPress` (synthetic) stays
 			// unhandled, so it doesn't swallow the next tap
@@ -280,8 +293,9 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			}
 		} else {
 			const settings = this.h.tool();
-			// Pen eraser end (button 5 / buttons 32) or barrel button (2): erase while held – optional, if the device reports it
-			const eraserEnd = e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0 || (e.buttons & 2) !== 0);
+			// Pen eraser end (button 5 / buttons 32) or barrel button (2): erase while held – optional, if the device
+			// reports it
+			const eraserEnd = e.pointerType === 'pen' && (e.button === 5 || penErases(e));
 			if (this.drawId !== null) a.mode = 'nav';
 			else a.mode = this.startTool(e, x, y, eraserEnd ? { ...settings, tool: 'eraser' } : settings) ?? 'nav';
 		}
@@ -449,10 +463,11 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			}
 			return 'shape';
 		}
-		this.realPressure = hasRealPressure(e.pointerType, e.pressure);
+		this.pressureFrom = !s.pressure ? 'off' : hasRealPressure(e.pointerType, e.pressure) ? 'pen' : 'speed';
 		this.pressure.reset();
-		const p = this.realPressure ? penPressure(e.pressure) : this.pressure.next(x, y, e.timeStamp, 1);
-		if (!this.stage.begin(x, y, p, s.tool, s.color, s.size, s.smoothing)) return null;
+		this.pressureFilter.reset();
+		const p = this.pressureAt(e, x, y);
+		if (!this.stage.begin(x, y, p, s.tool, s.color, s.size, s.smoothing, e.timeStamp)) return null;
 		this.lastPoint = e.timeStamp;
 		this.drawId = e.pointerId;
 		return 'draw';
@@ -465,6 +480,15 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			return;
 		}
 		if (a.mode === 'draw') {
+			// A pen whose eraser end or button shows while it draws (where the device reports that): the stroke ends
+			// here, the rest of the gesture erases
+			if (e.pointerType === 'pen' && penErases(e) && this.drawId === e.pointerId) {
+				this.endStroke(a);
+				const [x, y] = this.stage.local(e.clientX, e.clientY);
+				const s = this.h.tool();
+				a.mode = this.startTool(e, x, y, { ...s, tool: 'eraser' }) ?? 'nav';
+				return;
+			}
 			// Raw updates come first where the browser sends them (not for every pointer type); `pointermove` then
 			// repeats the same points, which the time stamp filters out
 			this.drawPoints(e);
@@ -567,6 +591,13 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		return snapPoint({ x, y }, this.drag.targets!, { x: tol, y: tol });
 	}
 
+	/** The pressure of a point of the stroke being drawn */
+	private pressureAt(ev: PointerEvent, x: number, y: number): number {
+		if (this.pressureFrom === 'off') return 0.5;
+		if (this.pressureFrom === 'pen') return this.pressureFilter.next(penPressure(ev.pressure), ev.timeStamp);
+		return this.pressure.next(x, y, ev.timeStamp, 1);
+	}
+
 	private drawPoints(e: PointerEvent) {
 		const list = coalesced(e);
 		for (let i = 0; i < list.length; i++) {
@@ -574,7 +605,7 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 			if (ev.timeStamp <= this.lastPoint) continue;
 			this.lastPoint = ev.timeStamp;
 			const [x, y] = this.stage.local(ev.clientX, ev.clientY);
-			const p = this.realPressure ? penPressure(ev.pressure) : this.pressure.next(x, y, ev.timeStamp, 1);
+			const p = this.pressureAt(ev, x, y);
 			// The trusted parent event feeds the OS ink trail
 			this.stage.add(x, y, p, i === list.length - 1 ? e : null, ev.timeStamp);
 		}
@@ -586,25 +617,30 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 	}
 
 
+	/** The pen stroke being drawn is done: on the page, checked for a shape */
+	private endStroke(a: Active) {
+		this.drawId = null;
+		const stroke = this.stage.end();
+		const id = stroke && this.h.commit(stroke);
+		if (!id) this.stage.cancel();
+		// Checked once, after the stroke is on the page (not while drawing)
+		const fit = id && stroke.tool === 'pen' ? suggestShape(stroke.points, this.stage.view.zoom) : null;
+		if (fit) this.h.suggest({ page: stroke!.page, id: id!, fit });
+		if (import.meta.hot) {
+			const s = this.h.tool();
+			debug(`${this.label} stroke ${a.type}, pressure ${this.pressureFrom}, smoothing ${s.smoothing}: ${this.stage.strokeReport()}`);
+		}
+	}
+
 	private up(e: PointerEvent, cancelled: boolean) {
 		const a = this.active.get(e.pointerId);
 		this.active.delete(e.pointerId);
 		if (!a) return;
 		if (a.mode === 'draw' && this.drawId === e.pointerId) {
-			this.drawId = null;
-			if (cancelled) this.stage.cancel();
-			else {
-				const stroke = this.stage.end();
-				const id = stroke && this.h.commit(stroke);
-				if (!id) this.stage.cancel();
-				// Checked once, after the stroke is on the page (not while drawing)
-				const fit = id && stroke.tool === 'pen' ? suggestShape(stroke.points, this.stage.view.zoom) : null;
-				if (fit) this.h.suggest({ page: stroke!.page, id: id!, fit });
-				if (import.meta.hot) {
-					const s = this.h.tool();
-					debug(`${this.label} stroke ${a.type}${this.realPressure ? ' with pressure' : ', pressure simulated'}, smoothing ${s.smoothing}: ${this.stage.strokeReport()}`);
-				}
-			}
+			if (cancelled) {
+				this.drawId = null;
+				this.stage.cancel();
+			} else this.endStroke(a);
 		} else if (a.mode === 'shape' && this.drawId === e.pointerId) {
 			this.drawId = null;
 			const d = this.drag;
@@ -743,7 +779,13 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 	// --- Hover ---
 
 	private hover(e: PointerEvent) {
-		if (e.pointerType === 'touch' || e.buttons !== 0) return this.stage.hideCursor();
+		// A pen's button pressed in the air (no contact): the eraser on or off
+		const button = e.pointerType === 'pen' && e.buttons !== 0 && e.pressure === 0;
+		if (e.pointerType === 'pen') {
+			if (button && this.penButtons === 0) this.h.penButton?.();
+			this.penButtons = e.buttons;
+		}
+		if (e.pointerType === 'touch' || (e.buttons !== 0 && !button)) return this.stage.hideCursor();
 		this.hovered = e;
 		this.preview();
 		if (e.pointerType === 'pen' && !this.hoverSeen) {
@@ -752,13 +794,17 @@ export class InputController<P extends SurfacePage, I extends SceneItem, T exten
 		}
 		const [x, y] = this.stage.local(e.clientX, e.clientY);
 		const s = this.h.tool();
-		if (!this.stage.view.pageAt(this.stage.rects, x, y) || !isCore(s.tool) || s.tool === 'lasso') return this.stage.hideCursor();
-		if (s.tool === 'eraser') this.stage.showCursor(x, y, s.eraser * 2, null);
+		if (!this.stage.view.pageAt(this.stage.rects, x, y)) return this.stage.hideCursor();
+		if (!isCore(s.tool) || s.tool === 'lasso') return this.stage.hideCursor();
+		if (s.tool === 'eraser') return this.stage.showCursor(x, y, s.eraser * 2, null);
 		else this.stage.showCursor(x, y, diameter(s.tool === 'highlighter' ? 'highlighter' : 'pen', s.size, 0.5) * this.stage.view.zoom, s.color);
 	}
 }
 
 const isCore = (tool: string): tool is Tool => CORE_TOOLS.has(tool);
+
+/** A pen's eraser end (`buttons` 32) or barrel button (2) while it touches */
+const penErases = (e: PointerEvent) => (e.buttons & 34) !== 0;
 
 /** The event's coalesced events, or the event itself when there are none (Firefox Android: always empty) */
 function coalesced(e: PointerEvent): PointerEvent[] {

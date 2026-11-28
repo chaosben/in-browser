@@ -361,7 +361,7 @@ const en = {
 		moveLast: 'Move to the end',
 		moveTip: 'Moves the picked pages, else the current page',
 		insertBlank: 'Blank page',
-		insertBlankTip: 'Inserts a blank page after the current one, as big as it',
+		insertBlankTip: 'Inserts a blank page after the current one, as big as it and with its paper',
 		duplicatePages: 'Duplicate',
 		duplicatePagesTip: 'Copies the picked pages, else the current page – with everything drawn on them and their notes – right after each',
 		pageActions: (label: string) => `Actions for page ${label}`,

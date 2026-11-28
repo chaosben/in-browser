@@ -533,14 +533,14 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 	// --- The stroke being drawn ---
 
 	/** Starts a stroke at a screen point; false if it is not on a page. `smoothing`: level 0…1 (see `smooth.ts`) */
-	begin(sx: number, sy: number, p: number, tool: InkTool, color: string, size: number, smoothing = 0): boolean {
+	begin(sx: number, sy: number, p: number, tool: InkTool, color: string, size: number, smoothing = 0, timeStamp = 0): boolean {
 		const hit = this.view.pageAt(this.rects, sx, sy);
 		if (!hit || !this.sceneOf(this.pages[hit.index].id)) return false;
 		this.clearLive();
 		this.clearLiveOnFrame = false;
 		const rect = this.rects[hit.index];
 		this.buf.reset();
-		this.smoother.reset(smoothing);
+		this.smoother.reset(smoothing, this.view.zoom);
 		this.live = { page: hit.index, rect, tool, color, size, buf: this.buf, sx, sy, shaped: false };
 		const alpha = inkAlpha(tool, color);
 		const ctx = (this.inkCtx = alpha < 1 ? this.markerCtx : this.liveCtx);
@@ -570,14 +570,14 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		a.points = 0;
 		a.start = performance.now();
 		this.strokeAcc = { events: 0, latencyMs: 0, latencyMax: 0, frames: 0, frameMs: 0 };
-		this.point(sx, sy, p, null);
+		this.point(sx, sy, p, null, timeStamp);
 		return true;
 	}
 
 	/** Adds a point (screen pixels) and paints its segment right away */
 	add(sx: number, sy: number, p: number, event: PointerEvent | null, timeStamp: number) {
 		if (!this.live) return;
-		this.point(sx, sy, p, event);
+		this.point(sx, sy, p, event, timeStamp);
 		const a = this.statsAcc;
 		const latency = performance.now() - timeStamp;
 		a.events++;
@@ -588,7 +588,7 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		if (latency > s.latencyMax) s.latencyMax = latency;
 	}
 
-	private point(px: number, py: number, p: number, event: PointerEvent | null) {
+	private point(px: number, py: number, p: number, event: PointerEvent | null, timeStamp: number) {
 		const live = this.live!;
 		const { view } = this;
 		// Pen position in page points, smoothed; drawn at its screen position
@@ -596,7 +596,7 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		this.penY = view.toDocY(py) - live.rect.y;
 		this.penP = p;
 		const s = this.smoothed;
-		this.smoother.next(this.penX, this.penY, s);
+		this.smoother.next(this.penX, this.penY, timeStamp, s);
 		this.paint(s.x, s.y, p, event);
 	}
 
@@ -639,10 +639,23 @@ export class Stage<P extends SurfacePage, I extends SceneItem> {
 		const s = this.strokeAcc;
 		const ms = a.last - a.start;
 		const avg = (sum: number, n: number) => (n ? (sum / n).toFixed(1) : '-');
+		// Pressure of the stored points: range and mean change from point to point (noise)
+		const b = this.buf;
+		let pMin = 1, pMax = 0, dp = 0, step = 0;
+		for (let i = 0; i < b.length; i++) {
+			pMin = Math.min(pMin, b.p(i));
+			pMax = Math.max(pMax, b.p(i));
+			if (i) {
+				dp += Math.abs(b.p(i) - b.p(i - 1));
+				step += Math.hypot(b.x(i) - b.x(i - 1), b.y(i) - b.y(i - 1));
+			}
+		}
+		const n = Math.max(1, b.length - 1);
 		return (
 			`${a.points} points in ${ms.toFixed(0)} ms (${ms > 0 ? Math.round((a.points * 1000) / ms) : 0}/s),` +
 			` input→pixel avg ${avg(s.latencyMs, s.events)} ms max ${s.latencyMax.toFixed(1)} ms,` +
-			` frame avg ${avg(s.frameMs, s.frames)} ms over ${s.frames} frames, zoom ${this.view.zoom.toFixed(2)}, dpr ${this.dpr}`
+			` frame avg ${avg(s.frameMs, s.frames)} ms over ${s.frames} frames, zoom ${this.view.zoom.toFixed(2)}, dpr ${this.dpr},` +
+			` pressure ${pMin.toFixed(2)}–${pMax.toFixed(2)} Δ${(dp / n).toFixed(3)}/point, step ${((step / n) * this.view.zoom).toFixed(2)} px`
 		);
 	}
 

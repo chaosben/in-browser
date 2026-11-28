@@ -821,6 +821,9 @@
 					},
 					selection,
 					hover: () => (tools.penHover = true),
+					penButton: () => {
+						if (editable()) tools.toggleEraser();
+					},
 					// Marking tools mark with any pointer; with "Hand" and "Select text" fingers keep panning and
 					// pinching, and "Select text" pans outside the text
 					gesture: (tool, x, y, e) =>

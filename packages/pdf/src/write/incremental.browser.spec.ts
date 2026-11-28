@@ -5,6 +5,7 @@ import { openPdf, standardFontUrl } from '../pdfjs.js';
 import type { NewAnnotation } from './annotations.js';
 import { IncrementalPdf, readTail, type FileBookmark, type NewBookmark } from './incremental.js';
 import { pdfProducer } from '../producer.js';
+import { paperPdf } from './paper-page.js';
 
 // Incremental updates in real Chromium: written with our writer, read back by PDF.js (what the editor shows) and by
 // pdf-lib (a second, independent parser).
@@ -207,6 +208,15 @@ describe('IncrementalPdf', () => {
 		await pdf.loadingTask.destroy();
 		return [data[0], data[1], data[2]];
 	}
+
+	it('keeps the paper a page was made with, also on a page inserted from a paper PDF', async () => {
+		const lined = await paperPdf({ width: 200, height: 300, paper: 'lined' });
+		expect((await IncrementalPdf.open(lined)).paper(0)).toBe('lined');
+		const base = await sample(false, 1);
+		const saved = await (await IncrementalPdf.open(base)).update({ pages: [{ base: 0 }, { copy: { pdf: await paperPdf({ width: 200, height: 300, paper: 'dotted' }), index: 0 } }] });
+		const again = await IncrementalPdf.open(saved);
+		expect([0, 1].map((i) => again.paper(i))).toEqual([null, 'dotted']);
+	});
 
 	it('puts a color under a page, replaces and removes it, also on blank and edited pages', async () => {
 		const base = await sample(false, 2);

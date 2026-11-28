@@ -408,8 +408,8 @@
 		}
 	}
 
-	/** Inserts a page with a paper after the current page, as big as it */
-	async function insertPaper(paper: Paper) {
+	/** Inserts a page with a paper after the current page, as big as it (without a paper: with the current page's) */
+	async function insertPaper(paper: Paper = ed.doc?.pages[ed.current]?.paper ?? 'blank') {
 		const doc = ed.doc;
 		const like = doc?.pages[ed.current];
 		if (!doc || !like) return;
@@ -420,7 +420,7 @@
 		try {
 			const at = ed.current + 1;
 			ed.selection?.clear();
-			await doc.insertPdf(at, await paperPdf({ width: like.w, height: like.h, paper }));
+			await doc.insertPdf(at, await paperPdf({ width: like.w, height: like.h, paper }), '', paper);
 			ed.goTo(at);
 		} catch (e) {
 			failed(e);
@@ -1033,11 +1033,8 @@ share: shareCommand(() => ed.doc?.path),
 			tip: m.commands.insertBlankTip,
 			icon: 'icon-[material-symbols-light--note-add-outline]',
 			enabled: editable,
-			run: () =>
-				void changePages((doc) => {
-					const at = ed.current + 1;
-					if (doc.insertBlank(at)) ed.goTo(at);
-				}),
+			// A page like the current one: as big, with its paper
+			run: () => void changePages(() => void insertPaper()),
 			// With a paper: a page of that paper, as big as the current one
 			menu: () => PAPERS.map((paper) => ({ label: m.newPdf.blankWith(m.newPdf.papers[paper]), run: () => void changePages(() => void insertPaper(paper)) }))
 		},
@@ -1140,6 +1137,19 @@ share: shareCommand(() => ed.doc?.path),
 						tools.store();
 					}
 				}))
+		},
+		pressure: {
+			id: 'pressure',
+			label: tm.pressure,
+			tip: tm.pressureTip,
+			icon: 'icon-[material-symbols-light--stylus-note-outline]',
+			// The highlighter is always as wide as chosen
+			enabled: () => !sc.sel() && tools.tool === 'pen',
+			active: () => tools.pressure,
+			run: () => {
+				tools.pressure = !tools.pressure;
+				tools.store();
+			}
 		},
 		penOnly: {
 			id: 'penOnly',
@@ -1652,7 +1662,7 @@ share: shareCommand(() => ed.doc?.path),
 		formatTab('link', m.ribbon.tabs.link, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editLink] }]),
 		formatTab('stamp', m.ribbon.tabs.stamp, [{ id: 'format', label: m.ribbon.groups.format, items: [commands.editStamp, commands.editBarcode, color] }]),
 		formatTab('drawing', m.ribbon.tabs.drawing, [
-			{ id: 'format', label: m.ribbon.groups.format, items: [color, sc.thickness, commands.smoothing, { id: 'style', label: inkMessages().selection.style, custom: formatStyle }] }
+			{ id: 'format', label: m.ribbon.groups.format, items: [color, sc.thickness, commands.smoothing, commands.pressure, { id: 'style', label: inkMessages().selection.style, custom: formatStyle }] }
 		]),
 		formatTab('mixed', m.ribbon.tabs.selection, [{ id: 'format', label: m.ribbon.groups.format, items: [color] }]),
 		{

@@ -1,6 +1,6 @@
 // Tool settings of a tool using the ink core: chosen tool, color and size per ink tool (shapes use the pen's unless
 // the tool asks for their own – `ownShapeInk`), eraser
-// size, smoothing, chosen shape and its style (fill, dashes, hand-drawn), snapping, "only the pen draws". Remembered in
+// size, smoothing, pressure, chosen shape and its style (fill, dashes, hand-drawn), snapping, "only the pen draws". Remembered in
 // localStorage under the tool's key (e.g. `notes:tools`) for the next document, so pen settings feel the same in
 // every tool. `T`: tools of its own the tool adds (e.g. the PDF Editor's "Hand"), handled through `InputHandlers.gesture`.
 
@@ -19,6 +19,8 @@ interface Saved<T extends string> {
 	eraserMode: EraserMode;
 	penOnly: boolean;
 	smoothing: number;
+	/** The pen's pressure changes the width (else every line is as thick as chosen) */
+	pressure: boolean;
 	shape: ShapeKind;
 	shapeStyle: ShapeStyle;
 	/** Shapes and selections snap (15° steps, edges and centers, equal spacing) */
@@ -35,6 +37,7 @@ const DEFAULTS: Saved<never> = {
 	eraserMode: 'stroke',
 	penOnly: false,
 	smoothing: 0.3,
+	pressure: true,
 	shape: 'arrow',
 	shapeStyle: PLAIN,
 	snap: true
@@ -63,6 +66,7 @@ function load<T extends string>(key: string, own: readonly T[], first: Tool | T)
 		eraserMode: raw.eraserMode === 'pixel' ? 'pixel' : 'stroke',
 		penOnly: raw.penOnly === true,
 		smoothing: SMOOTHING_LEVELS.includes(raw.smoothing as (typeof SMOOTHING_LEVELS)[number]) ? raw.smoothing! : DEFAULTS.smoothing,
+		pressure: raw.pressure !== false,
 		shape: SHAPE_KINDS.includes(raw.shape as ShapeKind) ? raw.shape! : DEFAULTS.shape,
 		shapeStyle: {
 			fill: typeof raw.shapeStyle?.fill === 'string' && FILL.test(raw.shapeStyle.fill) ? raw.shapeStyle.fill : null,
@@ -84,6 +88,7 @@ export class InkTools<T extends string = never> {
 	eraserMode = $state<EraserMode>(DEFAULTS.eraserMode);
 	penOnly = $state(false);
 	smoothing = $state(DEFAULTS.smoothing);
+	pressure = $state(true);
 	shape = $state<ShapeKind>(DEFAULTS.shape);
 	shapeStyle = $state<ShapeStyle>({ ...DEFAULTS.shapeStyle });
 	snap = $state(true);
@@ -109,9 +114,25 @@ export class InkTools<T extends string = never> {
 		this.eraserMode = saved.eraserMode;
 		this.penOnly = saved.penOnly;
 		this.smoothing = saved.smoothing;
+		this.pressure = saved.pressure;
 		this.shape = saved.shape;
 		this.shapeStyle = { ...saved.shapeStyle };
 		this.snap = saved.snap;
+	}
+
+	/** The tool before the eraser was switched on by a pen's button */
+	private beforeEraser: Tool | T | null = null;
+
+	/** A pen's button: the eraser, or back to the tool chosen before it */
+	toggleEraser() {
+		if (this.tool === 'eraser') {
+			this.tool = this.beforeEraser ?? 'pen';
+			this.beforeEraser = null;
+		} else {
+			this.beforeEraser = this.tool;
+			this.tool = 'eraser';
+		}
+		this.store();
 	}
 
 	/** Ink settings of the chosen tool (eraser: those of the pen, for the preview) */
@@ -130,6 +151,7 @@ export class InkTools<T extends string = never> {
 			eraserMode: this.eraserMode,
 			penOnly: this.penOnly,
 			smoothing: this.smoothing,
+			pressure: this.pressure,
 			shape: this.shape,
 			shapeStyle: { ...this.shapeStyle },
 			snap: this.snap
@@ -146,6 +168,7 @@ export class InkTools<T extends string = never> {
 			eraserMode: this.eraserMode,
 			penOnly: this.penOnly,
 			smoothing: this.smoothing,
+			pressure: this.pressure,
 			shape: this.shape,
 			shapeStyle: { ...this.shapeStyle },
 			snap: this.snap

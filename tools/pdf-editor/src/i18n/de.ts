@@ -360,7 +360,7 @@ const de: Messages = {
 		moveLast: 'Ans Ende',
 		moveTip: 'Verschiebt die gewählten Seiten, sonst die aktuelle Seite',
 		insertBlank: 'Leere Seite',
-		insertBlankTip: 'Fügt nach der aktuellen Seite eine leere Seite ein, so groß wie sie',
+		insertBlankTip: 'Fügt nach der aktuellen Seite eine leere Seite ein, so groß wie sie und mit ihrem Papier',
 		duplicatePages: 'Duplizieren',
 		duplicatePagesTip: 'Kopiert die gewählten Seiten, sonst die aktuelle – mit allem, was darauf gezeichnet ist, und ihren Notizen – jeweils direkt dahinter',
 		pageActions: (label) => `Aktionen für Seite ${label}`,

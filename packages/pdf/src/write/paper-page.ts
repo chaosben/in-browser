@@ -7,6 +7,10 @@ import { pdfProducer } from '../producer.js';
 export const PAPERS = ['blank', 'lined', 'grid', 'dotted'] as const;
 export type Paper = (typeof PAPERS)[number];
 
+/** Names a page's paper in its dictionary (`/InBrowserPaper /lined`), so "Blank page" can give the next page the same
+ * one – the ruling itself is plain content. Other programs ignore it and keep it with the page. */
+export const PAPER_KEY = 'InBrowserPaper';
+
 /** Page sizes in points, upright (width × height). Paper sizes may be turned; media sizes have their own shape */
 export const PAGE_FORMATS = {
 	a4: { w: 595.28, h: 841.89, kind: 'paper' },
@@ -73,6 +77,7 @@ export async function paperPdf({ width, height, paper = 'blank', pages = 1, auth
 	for (let i = 0; i < Math.max(1, pages); i++) {
 		const page = doc.addPage([width, height]);
 		if (stream) page.node.set(PDFName.of('Contents'), stream);
+		if (paper !== 'blank') page.node.set(PDFName.of(PAPER_KEY), PDFName.of(paper));
 	}
 	return doc.save();
 }

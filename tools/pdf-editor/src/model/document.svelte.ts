@@ -17,6 +17,7 @@ import { pageTransform, toShown, toUserSpace, type Matrix } from '@in-browser/pd
 import { inverse, mul, type ContentKind, type ContentObject } from '@in-browser/pdf/content/objects.js';
 import type { ContentChange } from '@in-browser/pdf/content/rewrite.js';
 import { PdfPages } from '@in-browser/pdf/pages.js';
+import type { Paper } from '@in-browser/pdf/write/paper-page.js';
 import { loadPdf } from '@in-browser/pdf/load.js';
 import { openPdf, PdfError, type OptionalContentConfig, type PDFDocumentProxy } from '@in-browser/pdf/pdfjs.js';
 import type { PageText } from '@in-browser/pdf/text.js';
@@ -98,6 +99,8 @@ export interface PdfPage extends SurfacePage {
 	readonly view: readonly number[];
 	/** The color under the page's content (`#rrggbb`); none: white paper */
 	readonly background?: string;
+	/** The ruling the page was made with (lined, squared, dotted; `paperPdf`): "Blank page" gives the next one the same */
+	readonly paper?: Paper;
 }
 
 const hexOf = (rgb: readonly number[]) => `#${rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}`;
@@ -385,6 +388,7 @@ export class PdfDocument {
 				// Only for reading where it lies: shown like an editable one (comments, steps, notes), never changed
 				if (fine) this.takeAnnotations(writer);
 				if (fine) this.takeBackgrounds(writer);
+				if (fine) this.takePapers(writer);
 				if (fine) this.takeBookmarks(writer);
 				if (fine) void this.takeFonts(writer).catch((e) => console.warn('[pdf-editor] fonts of the PDF', e));
 				this.protection = writer.protection;
@@ -632,6 +636,16 @@ export class PdfDocument {
 	}
 
 	/** The colors the file's pages lie on (written by us, `PdfEdits.background`) */
+	/** The papers the file's pages were made with (a duplicate has its original's) */
+	private takePapers(writer: IncrementalPdf) {
+		const paperOf = (page: PdfPage) => (page.number && !page.source ? writer.paper(page.number - 1) : null);
+		if (!this.pages.some(paperOf)) return;
+		this.pages = this.pages.map((page) => {
+			const paper = paperOf(page);
+			return paper ? { ...page, paper } : page;
+		});
+	}
+
 	private takeBackgrounds(writer: IncrementalPdf) {
 		this.pages.forEach((page, i) => {
 			const color = writer.background(i);
@@ -1168,9 +1182,10 @@ export class PdfDocument {
 		this.changes++;
 	}
 
-	/** Inserts a blank page at `at` in the size of the page shown there (or before it) – one step to undo; its id */
+	/** Inserts a blank page at `at` in the size of the page before it (or after it, at the start) – one step to undo;
+	 * its id */
 	insertBlank(at: number): string | null {
-		const like = this.pages[Math.min(at, this.pages.length - 1)] ?? this.pages[at - 1];
+		const like = this.pages[at - 1] ?? this.pages[at];
 		if (!like) return null;
 		// Upright, as big as the neighbour looks
 		const page: PdfPage = { id: crypto.randomUUID(), number: 0, w: like.w, h: like.h, rotate: 0, rev: 0, view: [0, 0, like.w, like.h] };
@@ -1181,10 +1196,11 @@ export class PdfDocument {
 	}
 
 	/**
-	 * Inserts all pages of another PDF at `at` – one step to undo; throws `PdfError` when it can't be read (or is
+	 * Inserts all pages of another PDF at `at` (`paper`: they are pages of `paperPdf` with that paper) – one step to
+	 * undo; throws `PdfError` when it can't be read (or is
 	 * protected: its pages couldn't be copied)
 	 */
-	async insertPdf(at: number, bytes: Uint8Array, password = ''): Promise<void> {
+	async insertPdf(at: number, bytes: Uint8Array, password = '', paper?: Paper): Promise<void> {
 		if (this.editable !== 'yes') return;
 		// Protection without a password is taken off (`loadPdf`); one with a password needs it
 		const check = await loadPdf(bytes, false, password).catch((e: unknown) => {
@@ -1199,7 +1215,7 @@ export class PdfDocument {
 		for (let n = 1; n <= pdf.numPages; n++) {
 			const page = await pdf.getPage(n);
 			const viewport = page.getViewport({ scale: 1 });
-			pages.push({ id: crypto.randomUUID(), source: key, w: viewport.width, h: viewport.height, number: n, rotate: viewport.rotation, rev: 0, view: page.view });
+			pages.push({ id: crypto.randomUUID(), source: key, w: viewport.width, h: viewport.height, number: n, rotate: viewport.rotation, rev: 0, view: page.view, ...(paper ? { paper } : {}) });
 		}
 		const next = [...this.pages];
 		next.splice(at, 0, ...pages);
